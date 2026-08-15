@@ -158,11 +158,11 @@ input:focus{border-color:#4f46e5}
 .cycle-histo-notes{display:block;font-size:11px;color:#aaa;font-style:italic;margin-top:2px}
 .cycle-error{color:#ef4444;font-size:13px;text-align:center;padding:12px}
 .modal-cycle-form{display:flex;flex-direction:column;gap:8px}
-.modal-cycle-form h3{font-size:17px;font-weight:700;color:#333;margin-bottom:4px}
 .modal-cycle-form label{font-size:13px;font-weight:600;color:#555;margin-top:4px}
 .modal-cycle-form input,.modal-cycle-form textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;font-family:inherit;margin:0}
 .modal-cycle-form input:focus,.modal-cycle-form textarea:focus{border-color:#e83e8c}
 .modal-cycle-form textarea{resize:vertical}
+.modal-cycle-main{display:flex;flex-direction:column;gap:12px}
 .modal-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .btn-save{flex:1;padding:10px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
 .btn-save:hover{background:#4338ca}
@@ -172,6 +172,22 @@ input:focus{border-color:#4f46e5}
 .btn-cancel:hover{background:#e5e7eb}
 .btn-edit-small{background:none;border:none;cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;flex-shrink:0}
 .btn-edit-small:hover{background:#f3f4f6}
+
+/* ==================== CALENDRIER CYCLE ==================== */
+.cal-wrap{background:#fdf2f8;border-radius:12px;padding:14px;margin-bottom:8px}
+.cal-titre{font-size:14px;font-weight:700;color:#333;text-align:center;margin-bottom:10px;text-transform:capitalize}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-head{text-align:center;font-size:10px;font-weight:700;color:#9ca3af;padding:4px 0}
+.cal-day{text-align:center;font-size:12px;padding:5px 2px;border-radius:6px;position:relative;color:#333;min-height:28px;display:flex;align-items:center;justify-content:center}
+.cal-empty{background:transparent}
+.cal-regles{background:#fca5a5;color:#7f1d1d;font-weight:600}
+.cal-fertile{background:#fde68a;color:#78350f;font-weight:600}
+.cal-today{outline:2px solid #4f46e5;outline-offset:-2px;font-weight:700;border-radius:6px}
+.cal-prochain{background:#ddd6fe;color:#4c1d95;font-weight:600}
+.cal-ovulation-star{position:absolute;top:-4px;right:0;font-size:10px;color:#f59e0b}
+.cal-legende{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;justify-content:center}
+.cal-leg-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#555}
+.cal-leg-dot{width:10px;height:10px;border-radius:3px;display:inline-block}
 
 /* ==================== WIDGET RENDEZ-VOUS ==================== */
 .widget.w-rdv{background:linear-gradient(135deg,#f0f8ff 0%,#ffffff 100%)}
@@ -211,7 +227,6 @@ input:focus{border-color:#4f46e5}
 .rdv-section-title{font-size:11px;font-weight:700;text-transform:uppercase;color:#9ca3af;letter-spacing:.5px;margin:12px 0 6px}
 .rdv-passe-title{color:#ced4da}
 .modal-rdv-form{display:flex;flex-direction:column;gap:8px}
-.modal-rdv-form h3{font-size:17px;font-weight:700;color:#333;margin-bottom:4px}
 .modal-rdv-form label{font-size:13px;font-weight:600;color:#555;margin-top:4px}
 .modal-rdv-form input,.modal-rdv-form select,.modal-rdv-form textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;font-family:inherit;margin:0;background:#fff}
 .modal-rdv-form input:focus,.modal-rdv-form select:focus,.modal-rdv-form textarea:focus{border-color:#1c7ed6}

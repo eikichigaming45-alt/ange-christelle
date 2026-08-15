@@ -31,6 +31,12 @@ const Cycle = (() => {
     return new Date(date).toISOString().split('T')[0];
   }
 
+  function memeJour(a, b) {
+    return a.getFullYear() === b.getFullYear() &&
+           a.getMonth()    === b.getMonth()    &&
+           a.getDate()     === b.getDate();
+  }
+
   // ── Calculs cycle ────────────────────────────────────────
 
   function calculerCycle(dernierCycle) {
@@ -69,10 +75,76 @@ const Cycle = (() => {
     if (calc.enFenetre) return { label: 'Fenêtre fertile',   emoji: '🟢', color: '#2ecc71' };
 
     const aujourd_hui = new Date(); aujourd_hui.setHours(0,0,0,0);
-    const estOvulation = aujourd_hui.toDateString() === calc.ovulation.toDateString();
+    const estOvulation = memeJour(aujourd_hui, calc.ovulation);
     if (estOvulation)   return { label: 'Jour d\'ovulation', emoji: '🌟', color: '#f39c12' };
 
     return { label: 'Phase de repos', emoji: '🔵', color: '#3498db' };
+  }
+
+  // ── Calendrier visuel ────────────────────────────────────
+
+  function renderCalendrier(calc) {
+    if (!calc) return '';
+
+    const aujourd_hui = new Date(); aujourd_hui.setHours(0,0,0,0);
+
+    // On affiche le mois du dernier début de règles
+    const moisRef  = new Date(calc.debut.getFullYear(), calc.debut.getMonth(), 1);
+    const moisNom  = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+    // Nombre de jours dans le mois
+    const nbJours  = new Date(moisRef.getFullYear(), moisRef.getMonth() + 1, 0).getDate();
+
+    // Jour de la semaine du 1er (0=dim, ajusté lundi=0)
+    let premierJour = moisRef.getDay();
+    premierJour = premierJour === 0 ? 6 : premierJour - 1;
+
+    const jours = ['L','M','M','J','V','S','D'];
+
+    let cases = '';
+
+    // Cases vides avant le 1er
+    for (let i = 0; i < premierJour; i++) {
+      cases += `<div class="cal-day cal-empty"></div>`;
+    }
+
+    for (let j = 1; j <= nbJours; j++) {
+      const date = new Date(moisRef.getFullYear(), moisRef.getMonth(), j);
+      date.setHours(0,0,0,0);
+
+      const estAujourdhui  = memeJour(date, aujourd_hui);
+      const estRegles      = date >= calc.debut     && date <= calc.finRegles;
+      const estFertile     = date >= calc.debutFertile && date <= calc.finFertile;
+      const estOvulation   = memeJour(date, calc.ovulation);
+      const estProchain    = memeJour(date, calc.prochainDebut);
+
+      let cls  = 'cal-day';
+      let badge = '';
+
+      if (estRegles)    cls += ' cal-regles';
+      if (estFertile)   cls += ' cal-fertile';
+      if (estOvulation) badge = '<span class="cal-ovulation-star">★</span>';
+      if (estProchain)  cls += ' cal-prochain';
+      if (estAujourdhui) cls += ' cal-today';
+
+      cases += `<div class="${cls}">${j}${badge}</div>`;
+    }
+
+    return `
+      <div class="cal-wrap">
+        <div class="cal-titre">${moisNom.charAt(0).toUpperCase() + moisNom.slice(1)}</div>
+        <div class="cal-grid">
+          ${jours.map(j => `<div class="cal-head">${j}</div>`).join('')}
+          ${cases}
+        </div>
+        <div class="cal-legende">
+          <span class="cal-leg-item"><span class="cal-leg-dot" style="background:#fca5a5"></span> Règles</span>
+          <span class="cal-leg-item"><span class="cal-leg-dot" style="background:#fde68a"></span> Fenêtre fertile</span>
+          <span class="cal-leg-item"><span style="color:#f59e0b;font-size:14px">★</span> Ovulation</span>
+          <span class="cal-leg-item"><span class="cal-leg-dot" style="background:#4f46e5"></span> Aujourd'hui</span>
+        </div>
+      </div>
+    `;
   }
 
   // ── Rendu widget ─────────────────────────────────────────
@@ -165,6 +237,57 @@ const Cycle = (() => {
       container.innerHTML = renderWidget(Array.isArray(cycles) ? cycles : []);
     } catch (e) {
       container.innerHTML = `<p class="cycle-error">Erreur de chargement du cycle.</p>`;
+    }
+  }
+
+  // ── Modal principale avec calendrier ─────────────────────
+
+  async function ouvrirModalCalendrier() {
+    try {
+      const res    = await fetch('/api/cycle', { headers: authHeaders() });
+      const cycles = await res.json();
+      const dernierCycle = Array.isArray(cycles) && cycles.length > 0 ? cycles[0] : null;
+      const calc   = calculerCycle(dernierCycle);
+      const phase  = getPhase(calc);
+
+      document.getElementById('modal-title').textContent = '🌸 Suivi du cycle';
+      document.getElementById('modal-body').innerHTML = `
+        <div class="modal-cycle-main">
+
+          ${calc ? `
+          <div class="cycle-phase" style="border-left:4px solid ${phase.color};margin-bottom:16px">
+            <span class="cycle-phase-emoji">${phase.emoji}</span>
+            <div>
+              <div class="cycle-phase-label">${phase.label}</div>
+              <div class="cycle-phase-sub">
+                ${calc.enRegles
+                  ? `Fin estimée le ${formatDate(calc.finRegles)}`
+                  : calc.joursAvantRegles > 0
+                    ? `Prochaines règles dans <strong>${calc.joursAvantRegles} jour${calc.joursAvantRegles > 1 ? 's' : ''}</strong>`
+                    : `Règles attendues aujourd'hui`
+                }
+              </div>
+            </div>
+          </div>
+          ` : '<p style="color:#9ca3af;margin-bottom:16px">Aucun cycle enregistré.</p>'}
+
+          ${renderCalendrier(calc)}
+
+          <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+            <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
+              + Enregistrer mes règles
+            </button>
+            ${cycles.length > 0 ? `
+            <button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">
+              Historique (${cycles.length})
+            </button>` : ''}
+          </div>
+
+        </div>
+      `;
+      document.getElementById('overlay').classList.add('on');
+    } catch {
+      alert('Erreur de chargement.');
     }
   }
 
@@ -278,6 +401,6 @@ const Cycle = (() => {
 
   // ── API publique ─────────────────────────────────────────
 
-  return { charger, ouvrirModalAjout, sauvegarder, supprimer, ouvrirHistorique };
+  return { charger, ouvrirModalAjout, ouvrirModalCalendrier, sauvegarder, supprimer, ouvrirHistorique };
 
 })();
