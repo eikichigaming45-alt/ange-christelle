@@ -49,7 +49,6 @@
         }
         .btn-primary:hover { background: #4338ca; }
         #error-msg { color: #ef4444; margin-top: 14px; font-size: 14px; min-height: 20px; }
-
         #app {
             display: none;
             flex-direction: column;
@@ -90,7 +89,6 @@
             transition: background 0.2s;
         }
         .icon-btn:hover { background: rgba(255,255,255,0.35); }
-
         .dashboard-grid {
             flex: 1;
             overflow-y: auto;
@@ -125,7 +123,6 @@
         .widget-title { font-weight: 700; font-size: 15px; color: #333; }
         .widget-content { color: #666; font-size: 14px; line-height: 1.5; }
         .widget-footer { margin-top: 12px; font-size: 12px; color: #9ca3af; text-align: right; }
-
         .w-meteo .widget-icon { background: #e0f2fe; }
         .w-priere .widget-icon { background: #fef3c7; }
         .w-taches .widget-icon { background: #d1fae5; }
@@ -134,13 +131,11 @@
         .w-anniversaires .widget-icon { background: #fce7f3; }
         .w-mails .widget-icon { background: #e0e7ff; }
         .w-profil .widget-icon { background: #f3f4f6; }
-
         .refresh-btn {
             background: none; border: none; cursor: pointer;
             font-size: 16px; padding: 4px; border-radius: 4px;
         }
         .refresh-btn:hover { background: #f3f4f6; }
-
         .app-footer {
             background: #f3f4f6;
             color: #e879a0;
@@ -150,7 +145,6 @@
             font-weight: 600;
             flex-shrink: 0;
         }
-
         .modal-overlay {
             display: none;
             position: fixed;
@@ -176,23 +170,14 @@
             width: 32px; height: 32px; cursor: pointer; font-size: 16px;
         }
         .modal-close:hover { background: #e5e7eb; }
+        .modal-priere { color: #444; font-size: 16px; line-height: 1.8; font-style: italic; }
+        .modal-ref { color: #4f46e5; font-size: 14px; font-weight: 700; font-style: normal; margin-top: 14px; display: block; }
         .modal p { color: #666; font-size: 15px; line-height: 1.6; }
         .ville-form { display: flex; gap: 8px; margin-top: 16px; }
-        .ville-form input {
-            flex: 1; padding: 10px; border: 2px solid #e5e7eb;
-            border-radius: 8px; font-size: 14px; margin: 0;
-        }
-        .ville-form button {
-            padding: 10px 16px; background: #4f46e5; color: white;
-            border: none; border-radius: 8px; cursor: pointer; font-size: 14px;
-            width: auto;
-        }
-        .geo-btn {
-            width: 100%; margin-top: 8px; padding: 10px;
-            background: #10b981; color: white; border: none;
-            border-radius: 8px; cursor: pointer; font-size: 14px;
-        }
-        .meteo-detail { margin-top: 12px; font-size: 15px; color: #333; line-height: 1.8; }
+        .ville-form input { flex: 1; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; margin: 0; }
+        .ville-form button { padding: 10px 16px; background: #4f46e5; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; width: auto; }
+        .geo-btn { width: 100%; margin-top: 8px; padding: 10px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .meteo-detail { font-size: 15px; color: #333; line-height: 2; }
     </style>
 </head>
 <body>
@@ -279,6 +264,16 @@
 
 <script>
     let meteoData = null;
+    let dernierVersetIndex = -1;
+    let priereActuelle = null;
+
+    const codesMeteo = {
+        0:'Ciel dégagé ☀️', 1:'Principalement dégagé 🌤️', 2:'Partiellement nuageux ⛅',
+        3:'Couvert ☁️', 45:'Brouillard 🌫️', 48:'Brouillard givrant 🌫️',
+        51:'Bruine légère 🌦️', 61:'Pluie légère 🌧️', 63:'Pluie modérée 🌧️',
+        65:'Forte pluie 🌧️', 71:'Neige légère 🌨️', 80:'Averses 🌦️',
+        95:'Orage ⛈️', 99:'Orage avec grêle ⛈️'
+    };
 
     window.addEventListener('DOMContentLoaded', () => {
         if (localStorage.getItem('myvibe_user')) showApp();
@@ -323,38 +318,22 @@
         document.getElementById('date-display').textContent = now.toLocaleDateString('fr-FR', options);
     }
 
-    // ===== PRIÈRE =====
     async function chargerPriere() {
         document.getElementById('w-priere-content').textContent = 'Chargement...';
         try {
-            const response = await fetch('/api/priere');
+            const url = dernierVersetIndex >= 0 ? `/api/priere?dernier=${dernierVersetIndex}` : '/api/priere';
+            const response = await fetch(url);
             const data = await response.json();
-            const texteComplet = data.texte;
-            // Version courte : les 12 premiers mots
-            const mots = texteComplet.split(' ');
-            const courte = mots.slice(0, 12).join(' ') + (mots.length > 12 ? '...' : '');
+            dernierVersetIndex = data.index;
+            priereActuelle = data;
+            const mots = data.texte.split(' ');
+            const courte = mots.slice(0, 10).join(' ') + (mots.length > 10 ? '...' : '');
             document.getElementById('w-priere-content').textContent = `"${courte}"`;
-            window.priereJour = {
-                courte: `"${courte}"`,
-                longue: `"${texteComplet}" — ${data.reference}`
-            };
         } catch {
             document.getElementById('w-priere-content').textContent = '"Je puis tout par celui qui me fortifie..."';
-            window.priereJour = {
-                courte: '"Je puis tout par celui qui me fortifie..."',
-                longue: '"Je puis tout par celui qui me fortifie." — Philippiens 4:13'
-            };
+            priereActuelle = { texte: 'Je puis tout par celui qui me fortifie.', ref: 'Philippiens 4:13' };
         }
     }
-
-    // ===== MÉTÉO =====
-    const codesMeteo = {
-        0: 'Ciel dégagé ☀️', 1: 'Principalement dégagé 🌤️', 2: 'Partiellement nuageux ⛅',
-        3: 'Couvert ☁️', 45: 'Brouillard 🌫️', 48: 'Brouillard givrant 🌫️',
-        51: 'Bruine légère 🌦️', 61: 'Pluie légère 🌧️', 63: 'Pluie modérée 🌧️',
-        65: 'Forte pluie 🌧️', 71: 'Neige légère 🌨️', 80: 'Averses 🌦️',
-        95: 'Orage ⛈️', 99: 'Orage avec grêle ⛈️'
-    };
 
     async function chargerMeteo(lat, lon, ville) {
         try {
@@ -368,9 +347,8 @@
             const hum = data.current.relative_humidity_2m;
             const max = Math.round(data.daily.temperature_2m_max[0]);
             const min = Math.round(data.daily.temperature_2m_min[0]);
-
             meteoData = { temp, desc, vent, hum, max, min, ville };
-            document.getElementById('w-meteo-content').textContent = `${desc} — ${temp}°C`;
+            document.getElementById('w-meteo-content').textContent = `${ville} — ${desc} — ${temp}°C`;
             localStorage.setItem('myvibe_ville', JSON.stringify({ lat, lon, ville }));
         } catch {
             document.getElementById('w-meteo-content').textContent = 'Météo non disponible';
@@ -378,9 +356,9 @@
     }
 
     function chargerMeteoGeo() {
-        const villesSauvegardee = localStorage.getItem('myvibe_ville');
-        if (villesSauvegardee) {
-            const v = JSON.parse(villesSauvegardee);
+        const villeSauvegardee = localStorage.getItem('myvibe_ville');
+        if (villeSauvegardee) {
+            const v = JSON.parse(villeSauvegardee);
             chargerMeteo(v.lat, v.lon, v.ville);
             return;
         }
@@ -421,7 +399,6 @@
         }
     }
 
-    // ===== MODALS =====
     function openModal(type) {
         document.getElementById('modal-overlay').classList.add('active');
         if (type === 'meteo') {
@@ -450,12 +427,18 @@
             `;
         } else if (type === 'priere') {
             document.getElementById('modal-title').textContent = '🙏 Prière du jour';
-            document.getElementById('modal-body').innerHTML = `<p>${window.priereJour ? window.priereJour.longue : ''}</p>`;
+            document.getElementById('modal-body').innerHTML = priereActuelle ? `
+                <p class="modal-priere">"${priereActuelle.texte}"</p>
+                <span class="modal-ref">— ${priereActuelle.ref}</span>
+            ` : '<p>Chargement...</p>';
         } else {
             const titres = {
-                taches: '✅ Tâches du jour', rdv: '📅 Rendez-vous',
-                planning: '📋 Planning', anniversaires: '🎂 Anniversaires',
-                mails: '📧 Mails', profil: '👤 Mon Profil'
+                taches: '✅ Tâches du jour',
+                rdv: '📅 Rendez-vous',
+                planning: '📋 Planning',
+                anniversaires: '🎂 Anniversaires',
+                mails: '📧 Mails',
+                profil: '👤 Mon Profil'
             };
             document.getElementById('modal-title').textContent = titres[type] || type;
             document.getElementById('modal-body').innerHTML = '<p>En construction — disponible prochainement.</p>';
