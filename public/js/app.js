@@ -30,7 +30,12 @@ const codes = {
 
 // ===================== INIT =====================
 window.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem('myvibe_user')) showApp();
+    const stored = localStorage.getItem('myvibe_user');
+    if (stored) {
+        const user = JSON.parse(stored);
+        if (user?.token) showApp();
+        else localStorage.removeItem('myvibe_user');
+    }
 });
 
 document.getElementById('login-form').addEventListener('submit', async e => {
@@ -46,9 +51,9 @@ document.getElementById('login-form').addEventListener('submit', async e => {
     if (d.success) {
         localStorage.setItem('myvibe_user', JSON.stringify({
             username,
-            role    : d.role,
-            userId  : d.userId,
-            token   : d.token
+            role  : d.role,
+            userId: d.userId,
+            token : d.token
         }));
         showApp();
     } else {
