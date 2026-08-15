@@ -7,15 +7,15 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
-// Connexion à la base de données Supabase avec SSL requis
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+    host: 'aws-0-eu-west-2.pooler.supabase.com',
+    port: 6543,
+    database: 'postgres',
+    user: 'postgres.euqnxhfzivikoxkzwsxi',
+    password: process.env.DB_PASSWORD,
+    ssl: { rejectUnauthorized: false }
 });
 
-// Création automatique de la table des utilisateurs au démarrage
 async function initDB() {
     try {
         await pool.query(`
@@ -26,31 +26,25 @@ async function initDB() {
                 role VARCHAR(20) NOT NULL
             );
         `);
-
-        // Créer un compte admin par défaut si inexistant (mdp: admin2026)
         const adminHash = await bcrypt.hash('admin2026', 10);
         await pool.query(`
             INSERT INTO users (username, password, role) 
             VALUES ('admin', \$1, 'admin') 
             ON CONFLICT (username) DO NOTHING;
         `, [adminHash]);
-
-        // Créer le compte d'Ange Christelle par défaut si inexistant (mdp: ange2026)
         const angeHash = await bcrypt.hash('ange2026', 10);
         await pool.query(`
             INSERT INTO users (username, password, role) 
             VALUES ('ange-christelle', \$1, 'user') 
             ON CONFLICT (username) DO NOTHING;
         `, [angeHash]);
-
-        console.log('Base de données initialisée avec succès !');
+        console.log('Base de données initialisée !');
     } catch (err) {
-        console.error('Erreur initialisation BDD :', err);
+        console.error('Erreur BDD :', err.message);
     }
 }
 initDB();
 
-// Route de connexion
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -58,12 +52,10 @@ app.post('/api/login', async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(401).json({ success: false, message: 'Utilisateur inconnu' });
         }
-
         const user = result.rows[0];
         const match = await bcrypt.compare(password, user.password);
-
         if (match) {
-            res.json({ success: true, role: user.role, message: 'Connexion réussie' });
+            res.json({ success: true, role: user.role });
         } else {
             res.status(401).json({ success: false, message: 'Mot de passe incorrect' });
         }
@@ -73,6 +65,4 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Serveur démarré sur le port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));
