@@ -1,0 +1,87 @@
+// ===================== AUTH & NOTIFICATIONS PUSH =====================
+
+document.getElementById('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    document.getElementById('error-msg').textContent = '';
+    const r = await fetch('/api/login', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({username, password})
+    });
+    const d = await r.json();
+    if (d.success) {
+        localStorage.setItem('myvibe_user', JSON.stringify({username, role:d.role, userId:d.userId}));
+        showApp();
+    } else {
+        document.getElementById('error-msg').textContent = d.message;
+    }
+});
+
+async function enregistrerServiceWorker() {
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+    try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+        verifierEvenementsJour();
+    } catch(e) { console.warn('SW non disponible', e); }
+}
+
+async function verifierEvenementsJour() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!user?.userId) return;
+    const today = new Date().toISOString().split('T')[0];
+    const lastCheck = localStorage.getItem(`myvibe_check_${user.userId}`);
+    if (lastCheck === today) return;
+    localStorage.setItem(`myvibe_check_${user.userId}`, today);
+
+    const now = new Date();
+    const jour = now.getDate();
+    const mois = now.getMonth() + 1;
+
+    try {
+        // Anniversaires du jour
+        const ra = await fetch(`/api/anniversaires?userId=${user.userId}`);
+        const da = await ra.json();
+        if (da.success) {
+            da.anniversaires.forEach(a => {
+                if (parseInt(a.jour) === jour && parseInt(a.mois) === mois) {
+                    const age = a.annee ? ` — ${now.getFullYear() - a.annee} ans` : '';
+                    envoyerNotif(
+                        `🎂 Anniversaire aujourd'hui !`,
+                        `${a.prenom}${a.nom ? ' '+a.nom : ''}${age}`,
+                        'anniversaire-'+a.id
+                    );
+                }
+            });
+        }
+
+        // Tâches du jour
+        const rt = await fetch(`/api/taches?userId=${user.userId}`);
+        const dt = await rt.json();
+        if (dt.success) {
+            dt.taches.forEach(t => {
+                if (!t.faite && t.date && t.date.split('T')[0] === today) {
+                    envoyerNotif(
+                        `✅ Tâche du jour`,
+                        t.titre,
+                        'tache-'+t.id
+                    );
+                }
+            });
+        }
+    } catch(e) { console.warn('Erreur check événements', e); }
+}
+
+function envoyerNotif(titre, corps, tag) {
+    if (Notification.permission !== 'granted') return;
+    navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(titre, {
+            body: corps,
+            icon: '/icon.png',
+            tag: tag,
+            renotify: false
+        });
+    });
+}
