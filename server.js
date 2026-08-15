@@ -4,13 +4,6 @@ const bcrypt = require('bcryptjs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const {
-    generateRegistrationOptions,
-    verifyRegistrationResponse,
-    generateAuthenticationOptions,
-    verifyAuthenticationResponse
-} = require('@simplewebauthn/server');
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
@@ -26,12 +19,6 @@ const pool = new Pool({
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000
 });
-
-const RP_NAME = 'MyVibe';
-const RP_ID = process.env.RP_ID || 'localhost';
-const ORIGIN = process.env.ORIGIN || 'http://localhost:3000';
-
-const challengeStore = new Map();
 
 async function initDB() {
     try {
@@ -57,16 +44,6 @@ async function initDB() {
                 photo TEXT,
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
-            );
-        `);
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS webauthn_credentials (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                credential_id TEXT UNIQUE NOT NULL,
-                public_key TEXT NOT NULL,
-                counter BIGINT DEFAULT 0,
-                created_at TIMESTAMP DEFAULT NOW()
             );
         `);
         const adminHash = await bcrypt.hash('admin2026', 10);
@@ -124,133 +101,6 @@ app.post('/api/profil', async (req, res) => {
         console.error(err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
-});
-
-// ===== WEBAUTHN =====
-app.post('/api/webauthn/register/options', async (req, res) => {
-    const { userId, username } = req.body;
-    try {
-        const existing = await pool.query('SELECT credential_id FROM webauthn_credentials WHERE user_id = \$1', [userId]);
-        const excludeCredentials = existing.rows.map(r => ({
-            id: r.credential_id,
-            type: 'public-key'
-        }));
-        const options = await generateRegistrationOptions({
-            rpName: RP_NAME,
-            rpID: RP_ID,
-            userID: new TextEncoder().encode(String(userId)),
-            userName: username,
-            attestationType: 'none',
-            excludeCredentials,
-            authenticatorSelection: {
-                residentKey: 'preferred',
-                userVerification: 'preferred'
-            }
-        });
-        challengeStore.set(String(userId), options.challenge);
-        res.json(options);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: 'Erreur génération options' });
-    }
-});
-
-app.post('/api/webauthn/register/verify', async (req, res) => {
-    const { userId, response } = req.body;
-    const expectedChallenge = challengeStore.get(String(userId));
-    if (!expectedChallenge) return res.status(400).json({ success: false, message: 'Challenge expiré' });
-    try {
-        const verification = await verifyRegistrationResponse({
-            response,
-            expectedChallenge,
-            expectedOrigin: ORIGIN,
-            expectedRPID: RP_ID
-        });
-        if (verification.verified && verification.registrationInfo) {
-            const { credential } = verification.registrationInfo;
-            const credId = Buffer.from(credential.id).toString('base64url');
-            const pubKey = Buffer.from(credential.publicKey).toString('base64url');
-            await pool.query(
-                `INSERT INTO webauthn_credentials (user_id, credential_id, public_key, counter)
-                 VALUES (\$1, \$2, \$3, \$4) ON CONFLICT (credential_id) DO UPDATE SET counter = \$4`,
-                [userId, credId, pubKey, credential.counter]
-            );
-            challengeStore.delete(String(userId));
-            res.json({ success: true });
-        } else {
-            res.status(400).json({ success: false, message: 'Vérification échouée' });
-        }
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
-
-app.post('/api/webauthn/login/options', async (req, res) => {
-    const { username } = req.body;
-    try {
-        const userResult = await pool.query('SELECT id FROM users WHERE username = \$1', [username]);
-        if (userResult.rows.length === 0) return res.status(404).json({ success: false, message: 'Utilisateur inconnu' });
-        const userId = userResult.rows[0].id;
-        const creds = await pool.query('SELECT credential_id FROM webauthn_credentials WHERE user_id = \$1', [userId]);
-        if (creds.rows.length === 0) return res.status(404).json({ success: false, message: 'Aucune biométrie enregistrée' });
-        const allowCredentials = creds.rows.map(r => ({ id: r.credential_id, type: 'public-key' }));
-        const options = await generateAuthenticationOptions({
-            rpID: RP_ID,
-            userVerification: 'preferred',
-            allowCredentials
-        });
-        challengeStore.set('login_' + username, { challenge: options.challenge, userId });
-        res.json(options);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: 'Erreur génération options' });
-    }
-});
-
-app.post('/api/webauthn/login/verify', async (req, res) => {
-    const { username, response } = req.body;
-    const stored = challengeStore.get('login_' + username);
-    if (!stored) return res.status(400).json({ success: false, message: 'Challenge expiré' });
-    try {
-        const credId = response.id;
-        const credResult = await pool.query('SELECT * FROM webauthn_credentials WHERE credential_id = \$1', [credId]);
-        if (credResult.rows.length === 0) return res.status(404).json({ success: false, message: 'Credential inconnu' });
-        const cred = credResult.rows[0];
-        const verification = await verifyAuthenticationResponse({
-            response,
-            expectedChallenge: stored.challenge,
-            expectedOrigin: ORIGIN,
-            expectedRPID: RP_ID,
-            credential: {
-                id: cred.credential_id,
-                publicKey: Buffer.from(cred.public_key, 'base64url'),
-                counter: Number(cred.counter)
-            }
-        });
-        if (verification.verified) {
-            await pool.query('UPDATE webauthn_credentials SET counter = \$1 WHERE credential_id = \$2',
-                [verification.authenticationInfo.newCounter, credId]);
-            challengeStore.delete('login_' + username);
-            const userResult = await pool.query('SELECT * FROM users WHERE id = \$1', [stored.userId]);
-            const user = userResult.rows[0];
-            res.json({ success: true, role: user.role, userId: user.id, username: user.username });
-        } else {
-            res.status(401).json({ success: false, message: 'Authentification biométrique échouée' });
-        }
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
-
-app.get('/api/webauthn/has-credential', async (req, res) => {
-    const { userId } = req.query;
-    if (!userId) return res.json({ has: false });
-    try {
-        const result = await pool.query('SELECT id FROM webauthn_credentials WHERE user_id = \$1', [userId]);
-        res.json({ has: result.rows.length > 0 });
-    } catch { res.json({ has: false }); }
 });
 
 const versets = [

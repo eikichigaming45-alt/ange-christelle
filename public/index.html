@@ -17,13 +17,9 @@
         .login-card p{color:#888;font-size:14px;margin-bottom:28px}
         input{width:100%;padding:14px;margin-bottom:16px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;outline:none;transition:border-color .2s}
         input:focus{border-color:#4f46e5}
-        .btn{width:100%;padding:14px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px}
+        .btn{width:100%;padding:14px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
         .btn:hover{background:#4338ca}
-        .btn-bio{width:100%;padding:14px;background:#10b981;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px;display:none}
-        .btn-bio:hover{background:#059669}
-        .btn-outline{width:100%;padding:12px;background:none;color:#4f46e5;border:2px solid #4f46e5;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:10px;display:none}
-        .btn-outline:hover{background:#f5f3ff}
-        #error-msg{color:#ef4444;margin-top:6px;font-size:14px;min-height:20px}
+        #error-msg{color:#ef4444;margin-top:14px;font-size:14px;min-height:20px}
         #app{display:none;flex-direction:column;width:100vw;height:100vh;background:#f3f4f6}
         .topbar{background:#4f46e5;color:#fff;padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
         .topbar-left{display:flex;align-items:center;gap:12px}
@@ -39,7 +35,7 @@
         .widget:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
         .wh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
         .whl{display:flex;align-items:center;gap:10px}
-        .wi{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+        .wi{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden;flex-shrink:0}
         .wt{font-weight:700;font-size:15px;color:#333}
         .wc{color:#666;font-size:14px;line-height:1.5}
         .wf{margin-top:12px;font-size:12px;color:#9ca3af;text-align:right}
@@ -50,8 +46,8 @@
         .w-planning .wi{background:#fee2e2}
         .w-anniversaires .wi{background:#fce7f3}
         .w-mails .wi{background:#e0e7ff}
-        .w-profil .wi{background:#f3f4f6;overflow:hidden}
-        .w-profil .wi img{width:40px;height:40px;object-fit:cover;border-radius:10px}
+        .w-profil .wi{background:#f3f4f6}
+        .wi img{width:40px;height:40px;object-fit:cover;border-radius:10px}
         .rbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;border-radius:4px}
         .rbtn:hover{background:#f3f4f6}
         .footer{background:#f3f4f6;color:#e879a0;text-align:center;padding:10px;font-size:13px;font-weight:600;flex-shrink:0}
@@ -76,8 +72,6 @@
         .save-btn:hover{background:#4338ca}
         .photo-circle{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;cursor:pointer;display:block;margin:0 auto 8px}
         .initiales{width:96px;height:96px;border-radius:50%;background:#4f46e5;color:#fff;font-size:32px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer}
-        .bio-banner{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px;margin-top:16px;text-align:center;font-size:14px;color:#166534}
-        .bio-banner button{margin-top:8px;padding:8px 20px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700}
     </style>
 </head>
 <body>
@@ -85,15 +79,11 @@
 <div class="login-card" id="login-page">
     <h1>🏡 MyVibe</h1>
     <p>Mon Sanctuaire</p>
-    <button class="btn-bio" id="btn-bio-login" onclick="loginBiometrie()">🪪 Se connecter avec la biométrie</button>
-    <div id="login-form-zone">
-        <form id="login-form">
-            <input type="text" id="username" placeholder="Nom d'utilisateur" required>
-            <input type="password" id="password" placeholder="Mot de passe" required>
-            <button type="submit" class="btn">Se connecter</button>
-        </form>
-    </div>
-    <button class="btn-outline" id="btn-show-form" onclick="afficherFormulaire()">🔑 Connexion par mot de passe</button>
+    <form id="login-form">
+        <input type="text" id="username" placeholder="Nom d'utilisateur" required>
+        <input type="password" id="password" placeholder="Mot de passe" required>
+        <button type="submit" class="btn">Se connecter</button>
+    </form>
     <div id="error-msg"></div>
 </div>
 
@@ -180,25 +170,9 @@ const codes = {
     95:'Orage ⛈️',99:'Orage avec grêle ⛈️'
 };
 
-const bioSupporte = () => window.PublicKeyCredential !== undefined;
-
 window.addEventListener('DOMContentLoaded', () => {
-    const user = localStorage.getItem('myvibe_user');
-    if (user) { showApp(); return; }
-    const bioUser = localStorage.getItem('myvibe_bio_user');
-    if (bioUser && bioSupporte()) {
-        document.getElementById('btn-bio-login').style.display = 'block';
-        document.getElementById('btn-bio-login').textContent = `🪪 Se connecter en tant que ${bioUser}`;
-        document.getElementById('login-form-zone').style.display = 'none';
-        document.getElementById('btn-show-form').style.display = 'block';
-    }
+    if (localStorage.getItem('myvibe_user')) showApp();
 });
-
-function afficherFormulaire() {
-    document.getElementById('login-form-zone').style.display = 'block';
-    document.getElementById('btn-bio-login').style.display = 'none';
-    document.getElementById('btn-show-form').style.display = 'none';
-}
 
 document.getElementById('login-form').addEventListener('submit', async e => {
     e.preventDefault();
@@ -213,127 +187,10 @@ document.getElementById('login-form').addEventListener('submit', async e => {
     if (d.success) {
         localStorage.setItem('myvibe_user', JSON.stringify({username, role:d.role, userId:d.userId}));
         showApp();
-        if (bioSupporte()) proposerBiometrie(d.userId, username);
     } else {
         document.getElementById('error-msg').textContent = d.message;
     }
 });
-
-async function loginBiometrie() {
-    const username = localStorage.getItem('myvibe_bio_user');
-    if (!username) return;
-    document.getElementById('error-msg').textContent = '';
-    try {
-        const optR = await fetch('/api/webauthn/login/options', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({username})
-        });
-        const options = await optR.json();
-        if (!options.challenge) { document.getElementById('error-msg').textContent = 'Biométrie non configurée.'; return; }
-        options.challenge = base64ToBuffer(options.challenge);
-        if (options.allowCredentials) {
-            options.allowCredentials = options.allowCredentials.map(c => ({...c, id: base64ToBuffer(c.id)}));
-        }
-        const credential = await navigator.credentials.get({publicKey: options});
-        const verR = await fetch('/api/webauthn/login/verify', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({username, response: credentialToJSON(credential)})
-        });
-        const vd = await verR.json();
-        if (vd.success) {
-            localStorage.setItem('myvibe_user', JSON.stringify({username: vd.username, role: vd.role, userId: vd.userId}));
-            showApp();
-        } else {
-            document.getElementById('error-msg').textContent = vd.message;
-        }
-    } catch(err) {
-        document.getElementById('error-msg').textContent = 'Biométrie annulée ou non disponible.';
-    }
-}
-
-async function proposerBiometrie(userId, username) {
-    if (!bioSupporte()) return;
-    const check = await fetch(`/api/webauthn/has-credential?userId=${userId}`);
-    const cd = await check.json();
-    if (cd.has) { localStorage.setItem('myvibe_bio_user', username); return; }
-    const banner = document.createElement('div');
-    banner.className = 'bio-banner';
-    banner.id = 'bio-banner';
-    banner.innerHTML = `
-        <strong>🪪 Activer la connexion biométrique ?</strong><br>
-        Face ID, empreinte ou Windows Hello pour vous connecter sans mot de passe.<br>
-        <button onclick="activerBiometrie(${userId},'${username}')">Activer</button>
-        <button onclick="document.getElementById('bio-banner').remove()" style="margin-left:8px;background:#9ca3af">Plus tard</button>
-    `;
-    document.querySelector('.grid').prepend(banner);
-}
-
-async function activerBiometrie(userId, username) {
-    try {
-        const optR = await fetch('/api/webauthn/register/options', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({userId, username})
-        });
-        const options = await optR.json();
-        options.challenge = base64ToBuffer(options.challenge);
-        options.user.id = base64ToBuffer(options.user.id);
-        if (options.excludeCredentials) {
-            options.excludeCredentials = options.excludeCredentials.map(c => ({...c, id: base64ToBuffer(c.id)}));
-        }
-        const credential = await navigator.credentials.create({publicKey: options});
-        const verR = await fetch('/api/webauthn/register/verify', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({userId, response: credentialToJSON(credential)})
-        });
-        const vd = await verR.json();
-        if (vd.success) {
-            localStorage.setItem('myvibe_bio_user', username);
-            document.getElementById('bio-banner')?.remove();
-            alert('✅ Biométrie activée ! Vous pourrez vous connecter sans mot de passe la prochaine fois.');
-        } else {
-            alert('Erreur activation biométrie : ' + vd.message);
-        }
-    } catch(err) {
-        alert('Biométrie annulée ou non supportée sur cet appareil.');
-    }
-}
-
-function base64ToBuffer(base64) {
-    const b = base64.replace(/-/g,'+').replace(/_/g,'/');
-    const bin = atob(b);
-    const buf = new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++) buf[i] = bin.charCodeAt(i);
-    return buf.buffer;
-}
-
-function bufferToBase64(buffer) {
-    const bytes = new Uint8Array(buffer);
-    let str = '';
-    for(const b of bytes) str += String.fromCharCode(b);
-    return btoa(str).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-}
-
-function credentialToJSON(credential) {
-    const response = {};
-    if (credential.response.clientDataJSON) 
-        response.clientDataJSON = bufferToBase64(credential.response.clientDataJSON);
-    if (credential.response.attestationObject) 
-        response.attestationObject = bufferToBase64(credential.response.attestationObject);
-    if (credential.response.authenticatorData) 
-        response.authenticatorData = bufferToBase64(credential.response.authenticatorData);
-    if (credential.response.signature) 
-        response.signature = bufferToBase64(credential.response.signature);
-    if (credential.response.userHandle) 
-        response.userHandle = bufferToBase64(credential.response.userHandle);
-    return {
-        id: credential.id,
-        rawId: bufferToBase64(credential.rawId),
-        type: credential.type,
-        clientExtensionResults: credential.getClientExtensionResults ? credential.getClientExtensionResults() : {},
-        response
-    };
-}
-
 
 function showApp() {
     document.getElementById('login-page').style.display = 'none';
@@ -373,15 +230,25 @@ async function chargerProfilHeader() {
         if (d.success && d.profil) {
             profilCache = d.profil;
             const p = d.profil;
-            const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase()||'👤';
+            const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase()||'';
             const btnHeader = document.getElementById('btn-profil-header');
-            if (p.photo) { btnHeader.innerHTML = `<img src="${p.photo}" alt="profil">`; }
-            else { btnHeader.innerHTML = initiales; btnHeader.style.fontSize='14px'; btnHeader.style.fontWeight='700'; }
+            if (p.photo) {
+                btnHeader.innerHTML = `<img src="${p.photo}" alt="profil">`;
+            } else if (initiales) {
+                btnHeader.innerHTML = initiales;
+                btnHeader.style.fontSize = '13px';
+                btnHeader.style.fontWeight = '700';
+            } else {
+                btnHeader.innerHTML = '👤';
+            }
             const wi = document.getElementById('w-profil-icon');
-            if (p.photo) { wi.innerHTML = `<img src="${p.photo}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`; }
-            else { wi.textContent = '👤'; }
+            if (p.photo) {
+                wi.innerHTML = `<img src="${p.photo}" alt="profil">`;
+            } else {
+                wi.textContent = '👤';
+            }
             const txt = document.getElementById('w-profil-txt');
-            txt.textContent = (p.prenom||'') + (p.nom ? ' '+p.nom : '') || 'Cliquez pour modifier votre profil';
+            txt.textContent = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Cliquez pour modifier votre profil';
         }
     } catch(e) { console.error(e); }
 }
@@ -459,7 +326,10 @@ function previewPhoto(event) {
     if (!file) return;
     if (file.size > 2*1024*1024) { alert('Photo trop lourde (max 2 Mo)'); return; }
     const reader = new FileReader();
-    reader.onload = e => { document.getElementById('profil-photo-preview').src = e.target.result; };
+    reader.onload = e => {
+        const preview = document.getElementById('profil-photo-preview');
+        if (preview) preview.src = e.target.result;
+    };
     reader.readAsDataURL(file);
 }
 
@@ -469,12 +339,12 @@ async function sauvegarderProfil() {
     msg.textContent = 'Sauvegarde...';
     msg.style.color = '#9ca3af';
     const photoEl = document.getElementById('profil-photo-preview');
-    const photo = photoEl ? (photoEl.src.startsWith('data:') ? photoEl.src : (profilCache?.photo||null)) : null;
+    const photo = photoEl?.src?.startsWith('data:') ? photoEl.src : (profilCache?.photo || null);
     const body = {
         userId: user.userId,
         prenom: document.getElementById('p-prenom').value,
         nom: document.getElementById('p-nom').value,
-        date_naissance: document.getElementById('p-naissance').value||null,
+        date_naissance: document.getElementById('p-naissance').value || null,
         email: document.getElementById('p-email').value,
         telephone: document.getElementById('p-tel').value,
         profession: document.getElementById('p-prof').value,
@@ -547,17 +417,18 @@ async function openModal(type) {
         try {
             const r = await fetch(`/api/profil?userId=${user.userId}`);
             const d = await r.json();
-            const p = d.profil||{};
+            const p = d.profil || {};
             profilCache = p;
-            const photoSrc = p.photo||'';
+            const photoSrc = p.photo || '';
+            const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '👤';
             document.getElementById('modal-body').innerHTML = `
                 <div style="text-align:center;margin-bottom:16px">
                     ${photoSrc
                         ? `<img id="profil-photo-preview" src="${photoSrc}" class="photo-circle" onclick="document.getElementById('photo-input').click()" title="Changer la photo">`
-                        : `<div class="initiales" onclick="document.getElementById('photo-input').click()">${((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase()||'👤'}</div>`
+                        : `<div class="initiales" onclick="document.getElementById('photo-input').click()" title="Ajouter une photo">${initiales}</div>`
                     }
                     <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="previewPhoto(event)">
-                    <div style="font-size:12px;color:#9ca3af">Cliquez sur la photo pour changer</div>
+                    <div style="font-size:12px;color:#9ca3af;margin-bottom:8px">Cliquez sur la photo pour changer</div>
                 </div>
                 <div class="profil-form">
                     <input id="p-prenom" placeholder="Prénom" value="${p.prenom||''}">
