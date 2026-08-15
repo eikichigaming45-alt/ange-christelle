@@ -5,179 +5,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MyVibe - Mon Sanctuaire</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .login-card {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-            width: 100%;
-            max-width: 380px;
-            text-align: center;
-        }
-        .login-card h1 { color: #4f46e5; font-size: 24px; margin-bottom: 8px; }
-        .login-card p { color: #888; font-size: 14px; margin-bottom: 28px; }
-        input {
-            width: 100%;
-            padding: 14px;
-            margin-bottom: 16px;
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
-            font-size: 15px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        input:focus { border-color: #4f46e5; }
-        .btn-primary {
-            width: 100%;
-            padding: 14px;
-            background: #4f46e5;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .btn-primary:hover { background: #4338ca; }
-        #error-msg { color: #ef4444; margin-top: 14px; font-size: 14px; min-height: 20px; }
-        #app {
-            display: none;
-            flex-direction: column;
-            width: 100vw;
-            height: 100vh;
-            background: #f3f4f6;
-        }
-        .topbar {
-            background: #4f46e5;
-            color: white;
-            padding: 0 24px;
-            height: 60px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-        }
-        .topbar-left { display: flex; align-items: center; gap: 12px; }
-        .topbar-left h2 { font-size: 18px; font-weight: 700; }
-        .topbar-right { display: flex; align-items: center; gap: 10px; }
-        .date-badge {
-            background: rgba(255,255,255,0.15);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-        }
-        .icon-btn {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            width: 38px; height: 38px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
-        }
-        .icon-btn:hover { background: rgba(255,255,255,0.35); }
-        .dashboard-grid {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 16px;
-            align-content: start;
-        }
-        .widget {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .widget:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
-        .widget-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 14px;
-        }
-        .widget-header-left { display: flex; align-items: center; gap: 10px; }
-        .widget-icon {
-            width: 40px; height: 40px;
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px;
-        }
-        .widget-title { font-weight: 700; font-size: 15px; color: #333; }
-        .widget-content { color: #666; font-size: 14px; line-height: 1.5; }
-        .widget-footer { margin-top: 12px; font-size: 12px; color: #9ca3af; text-align: right; }
-        .w-meteo .widget-icon { background: #e0f2fe; }
-        .w-priere .widget-icon { background: #fef3c7; }
-        .w-taches .widget-icon { background: #d1fae5; }
-        .w-rdv .widget-icon { background: #ede9fe; }
-        .w-planning .widget-icon { background: #fee2e2; }
-        .w-anniversaires .widget-icon { background: #fce7f3; }
-        .w-mails .widget-icon { background: #e0e7ff; }
-        .w-profil .widget-icon { background: #f3f4f6; }
-        .refresh-btn {
-            background: none; border: none; cursor: pointer;
-            font-size: 16px; padding: 4px; border-radius: 4px;
-        }
-        .refresh-btn:hover { background: #f3f4f6; }
-        .app-footer {
-            background: #f3f4f6;
-            color: #e879a0;
-            text-align: center;
-            padding: 10px;
-            font-size: 13px;
-            font-weight: 600;
-            flex-shrink: 0;
-        }
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-overlay.active { display: flex; }
-        .modal {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            width: 90%; max-width: 500px;
-            max-height: 80vh; overflow-y: auto;
-            position: relative;
-        }
-        .modal h3 { font-size: 20px; color: #333; margin-bottom: 16px; }
-        .modal-close {
-            position: absolute; top: 16px; right: 16px;
-            background: #f3f4f6; border: none; border-radius: 50%;
-            width: 32px; height: 32px; cursor: pointer; font-size: 16px;
-        }
-        .modal-close:hover { background: #e5e7eb; }
-        .modal-priere { color: #444; font-size: 16px; line-height: 1.8; font-style: italic; }
-        .modal-ref { color: #4f46e5; font-size: 14px; font-weight: 700; font-style: normal; margin-top: 14px; display: block; }
-        .modal p { color: #666; font-size: 15px; line-height: 1.6; }
-        .ville-form { display: flex; gap: 8px; margin-top: 16px; }
-        .ville-form input { flex: 1; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; margin: 0; }
-        .ville-form button { padding: 10px 16px; background: #4f46e5; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; width: auto; }
-        .geo-btn { width: 100%; margin-top: 8px; padding: 10px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
-        .meteo-detail { font-size: 15px; color: #333; line-height: 2; }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);height:100vh;display:flex;justify-content:center;align-items:center}
+        /* LOGIN */
+        .login-card{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);width:100%;max-width:380px;text-align:center}
+        .login-card h1{color:#4f46e5;font-size:24px;margin-bottom:8px}
+        .login-card p{color:#888;font-size:14px;margin-bottom:28px}
+        input{width:100%;padding:14px;margin-bottom:16px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;outline:none;transition:border-color .2s}
+        input:focus{border-color:#4f46e5}
+        .btn{width:100%;padding:14px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
+        .btn:hover{background:#4338ca}
+        #error-msg{color:#ef4444;margin-top:14px;font-size:14px;min-height:20px}
+        /* APP */
+        #app{display:none;flex-direction:column;width:100vw;height:100vh;background:#f3f4f6}
+        .topbar{background:#4f46e5;color:#fff;padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+        .topbar-left{display:flex;align-items:center;gap:12px}
+        .topbar-left h2{font-size:18px;font-weight:700;cursor:pointer;user-select:none}
+        .topbar-left h2:hover{opacity:.85}
+        .date-badge{background:rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px}
+        .topbar-right{display:flex;align-items:center;gap:10px}
+        .icon-btn{background:rgba(255,255,255,.2);border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s}
+        .icon-btn:hover{background:rgba(255,255,255,.35)}
+        /* GRID */
+        .grid{flex:1;overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-content:start}
+        .widget{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;transition:transform .2s,box-shadow .2s}
+        .widget:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+        .wh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+        .whl{display:flex;align-items:center;gap:10px}
+        .wi{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+        .wt{font-weight:700;font-size:15px;color:#333}
+        .wc{color:#666;font-size:14px;line-height:1.5}
+        .wf{margin-top:12px;font-size:12px;color:#9ca3af;text-align:right}
+        .w-meteo .wi{background:#e0f2fe}
+        .w-priere .wi{background:#fef3c7}
+        .w-taches .wi{background:#d1fae5}
+        .w-rdv .wi{background:#ede9fe}
+        .w-planning .wi{background:#fee2e2}
+        .w-anniversaires .wi{background:#fce7f3}
+        .w-mails .wi{background:#e0e7ff}
+        .w-profil .wi{background:#f3f4f6}
+        .rbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;border-radius:4px}
+        .rbtn:hover{background:#f3f4f6}
+        /* FOOTER */
+        .footer{background:#f3f4f6;color:#e879a0;text-align:center;padding:10px;font-size:13px;font-weight:600;flex-shrink:0}
+        /* MODAL */
+        .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center}
+        .overlay.on{display:flex}
+        .modal{background:#fff;border-radius:20px;padding:30px;width:90%;max-width:500px;max-height:80vh;overflow-y:auto;position:relative}
+        .modal h3{font-size:20px;color:#333;margin-bottom:16px}
+        .mclos{position:absolute;top:16px;right:16px;background:#f3f4f6;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px}
+        .mclos:hover{background:#e5e7eb}
+        .modal p{color:#666;font-size:15px;line-height:1.6}
+        .priere-txt{color:#444;font-size:16px;line-height:1.8;font-style:italic}
+        .priere-ref{color:#4f46e5;font-size:14px;font-weight:700;font-style:normal;margin-top:14px;display:block}
+        .meteo-detail{font-size:15px;color:#333;line-height:2}
+        .ville-form{display:flex;gap:8px;margin-top:16px}
+        .ville-form input{flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin:0}
+        .ville-form button{padding:10px 16px;background:#4f46e5;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;width:auto}
+        .geo-btn{width:100%;margin-top:8px;padding:10px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px}
     </style>
 </head>
 <body>
@@ -188,7 +73,7 @@
     <form id="login-form">
         <input type="text" id="username" placeholder="Nom d'utilisateur" required>
         <input type="password" id="password" placeholder="Mot de passe" required>
-        <button type="submit" class="btn-primary">Se connecter</button>
+        <button type="submit" class="btn">Se connecter</button>
     </form>
     <div id="error-msg"></div>
 </div>
@@ -196,7 +81,7 @@
 <div id="app">
     <div class="topbar">
         <div class="topbar-left">
-            <h2>MyVibe</h2>
+            <h2 onclick="actualiserDashboard()" title="Actualiser">MyVibe</h2>
             <span class="date-badge" id="date-display"></span>
         </div>
         <div class="topbar-right">
@@ -205,58 +90,58 @@
         </div>
     </div>
 
-    <div class="dashboard-grid">
+    <div class="grid">
         <div class="widget w-meteo" onclick="openModal('meteo')">
-            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">🌤️</div><div class="widget-title">Météo du jour</div></div></div>
-            <div class="widget-content" id="w-meteo-content">Chargement...</div>
-            <div class="widget-footer">Cliquez pour les détails</div>
+            <div class="wh"><div class="whl"><div class="wi">🌤️</div><div class="wt">Météo du jour</div></div></div>
+            <div class="wc" id="w-meteo">Chargement...</div>
+            <div class="wf">Cliquez pour les détails</div>
         </div>
         <div class="widget w-priere" onclick="openModal('priere')">
-            <div class="widget-header">
-                <div class="widget-header-left"><div class="widget-icon">🙏</div><div class="widget-title">Prière du jour</div></div>
-                <button class="refresh-btn" onclick="event.stopPropagation(); chargerPriere();" title="Nouveau verset">🔄</button>
+            <div class="wh">
+                <div class="whl"><div class="wi">🙏</div><div class="wt">Prière du jour</div></div>
+                <button class="rbtn" onclick="event.stopPropagation();chargerPriere()" title="Nouveau verset">🔄</button>
             </div>
-            <div class="widget-content" id="w-priere-content">Chargement...</div>
-            <div class="widget-footer">Cliquez pour la version complète</div>
+            <div class="wc" id="w-priere">Chargement...</div>
+            <div class="wf">Cliquez pour la version complète</div>
         </div>
         <div class="widget w-taches" onclick="openModal('taches')">
-            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">✅</div><div class="widget-title">Tâches du jour</div></div></div>
-            <div class="widget-content" id="w-taches-content">Aucune tâche pour aujourd'hui</div>
-            <div class="widget-footer">Cliquez pour gérer</div>
+            <div class="wh"><div class="whl"><div class="wi">✅</div><div class="wt">Tâches du jour</div></div></div>
+            <div class="wc">Aucune tâche pour aujourd'hui</div>
+            <div class="wf">Cliquez pour gérer</div>
         </div>
         <div class="widget w-rdv" onclick="openModal('rdv')">
-            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">📅</div><div class="widget-title">Rendez-vous</div></div></div>
-            <div class="widget-content" id="w-rdv-content">Aucun rendez-vous aujourd'hui</div>
-            <div class="widget-footer">Cliquez pour gérer</div>
+            <div class="wh"><div class="whl"><div class="wi">📅</div><div class="wt">Rendez-vous</div></div></div>
+            <div class="wc">Aucun rendez-vous aujourd'hui</div>
+            <div class="wf">Cliquez pour gérer</div>
         </div>
         <div class="widget w-planning" onclick="openModal('planning')">
-            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">📋</div><div class="widget-title">Planning</div></div></div>
-            <div class="widget-content" id="w-planning-content">Pas de garde aujourd'hui</div>
-            <div class="widget-footer">Cliquez pour voir le planning</div>
+            <div class="wh"><div class="whl"><div class="wi">📋</div><div class="wt">Planning</div></div></div>
+            <div class="wc">Pas de garde aujourd'hui</div>
+            <div class="wf">Cliquez pour voir le planning</div>
         </div>
         <div class="widget w-anniversaires" onclick="openModal('anniversaires')">
-            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">🎂</div><div class="widget-title">Anniversaires</div></div></div>
-            <div class="widget-content" id="w-anniversaires-content">Aucun anniversaire à venir</div>
-            <div class="widget-footer">Cliquez pour gérer</div>
+            <div class="wh"><div class="whl"><div class="wi">🎂</div><div class="wt">Anniversaires</div></div></div>
+            <div class="wc">Aucun anniversaire à venir</div>
+            <div class="wf">Cliquez pour gérer</div>
         </div>
         <div class="widget w-mails" onclick="openModal('mails')">
-            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">📧</div><div class="widget-title">Mails</div></div></div>
-            <div class="widget-content" id="w-mails-content">Bientôt disponible</div>
-            <div class="widget-footer">Cliquez pour consulter</div>
+            <div class="wh"><div class="whl"><div class="wi">📧</div><div class="wt">Mails</div></div></div>
+            <div class="wc">Bientôt disponible</div>
+            <div class="wf">Cliquez pour consulter</div>
         </div>
         <div class="widget w-profil" onclick="openModal('profil')">
-            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">👤</div><div class="widget-title">Mon Profil</div></div></div>
-            <div class="widget-content" id="w-profil-content">Cliquez pour modifier votre profil</div>
-            <div class="widget-footer">Modifier</div>
+            <div class="wh"><div class="whl"><div class="wi">👤</div><div class="wt">Mon Profil</div></div></div>
+            <div class="wc">Cliquez pour modifier votre profil</div>
+            <div class="wf">Modifier</div>
         </div>
     </div>
 
-    <div class="app-footer">❤️ Je t'aime - Ton mari ❤️</div>
+    <div class="footer">❤️ Je t'aime - Ton mari ❤️</div>
 </div>
 
-<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
-    <div class="modal" id="modal">
-        <button class="modal-close" onclick="closeModal()">✕</button>
+<div class="overlay" id="overlay" onclick="closeOutside(event)">
+    <div class="modal">
+        <button class="mclos" onclick="closeModal()">✕</button>
         <h3 id="modal-title"></h3>
         <div id="modal-body"></div>
     </div>
@@ -264,36 +149,36 @@
 
 <script>
     let meteoData = null;
-    let dernierVersetIndex = -1;
-    let priereActuelle = null;
+    let dernierIndex = -1;
+    let priere = null;
 
-    const codesMeteo = {
-        0:'Ciel dégagé ☀️', 1:'Principalement dégagé 🌤️', 2:'Partiellement nuageux ⛅',
-        3:'Couvert ☁️', 45:'Brouillard 🌫️', 48:'Brouillard givrant 🌫️',
-        51:'Bruine légère 🌦️', 61:'Pluie légère 🌧️', 63:'Pluie modérée 🌧️',
-        65:'Forte pluie 🌧️', 71:'Neige légère 🌨️', 80:'Averses 🌦️',
-        95:'Orage ⛈️', 99:'Orage avec grêle ⛈️'
+    const codes = {
+        0:'Ciel dégagé ☀️',1:'Principalement dégagé 🌤️',2:'Partiellement nuageux ⛅',
+        3:'Couvert ☁️',45:'Brouillard 🌫️',48:'Brouillard givrant 🌫️',
+        51:'Bruine légère 🌦️',61:'Pluie légère 🌧️',63:'Pluie modérée 🌧️',
+        65:'Forte pluie 🌧️',71:'Neige légère 🌨️',80:'Averses 🌦️',
+        95:'Orage ⛈️',99:'Orage avec grêle ⛈️'
     };
 
     window.addEventListener('DOMContentLoaded', () => {
         if (localStorage.getItem('myvibe_user')) showApp();
     });
 
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
+    document.getElementById('login-form').addEventListener('submit', async e => {
         e.preventDefault();
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
-        const response = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+        const r = await fetch('/api/login', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({username, password})
         });
-        const data = await response.json();
-        if (data.success) {
-            localStorage.setItem('myvibe_user', JSON.stringify({ username, role: data.role }));
+        const d = await r.json();
+        if (d.success) {
+            localStorage.setItem('myvibe_user', JSON.stringify({username, role:d.role}));
             showApp();
         } else {
-            document.getElementById('error-msg').textContent = data.message;
+            document.getElementById('error-msg').textContent = d.message;
         }
     });
 
@@ -307,6 +192,12 @@
         chargerMeteoGeo();
     }
 
+    function actualiserDashboard() {
+        chargerPriere();
+        chargerMeteoGeo();
+        afficherDate();
+    }
+
     function logout() {
         localStorage.removeItem('myvibe_user');
         window.location.reload();
@@ -314,61 +205,66 @@
 
     function afficherDate() {
         const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('date-display').textContent = now.toLocaleDateString('fr-FR', options);
+        document.getElementById('date-display').textContent =
+            now.toLocaleDateString('fr-FR', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
     }
 
     async function chargerPriere() {
-        document.getElementById('w-priere-content').textContent = 'Chargement...';
+        document.getElementById('w-priere').textContent = 'Chargement...';
         try {
-            const url = dernierVersetIndex >= 0 ? `/api/priere?dernier=${dernierVersetIndex}` : '/api/priere';
-            const response = await fetch(url);
-            const data = await response.json();
-            dernierVersetIndex = data.index;
-            priereActuelle = data;
-            const mots = data.texte.split(' ');
+            const url = dernierIndex >= 0 ? `/api/priere?dernier=${dernierIndex}` : '/api/priere';
+            const r = await fetch(url);
+            const d = await r.json();
+            dernierIndex = d.index;
+            priere = d;
+            const mots = d.texte.split(' ');
             const courte = mots.slice(0, 10).join(' ') + (mots.length > 10 ? '...' : '');
-            document.getElementById('w-priere-content').textContent = `"${courte}"`;
+            document.getElementById('w-priere').textContent = `"${courte}"`;
         } catch {
-            document.getElementById('w-priere-content').textContent = '"Je puis tout par celui qui me fortifie..."';
-            priereActuelle = { texte: 'Je puis tout par celui qui me fortifie.', ref: 'Philippiens 4:13' };
+            priere = {texte:'Je puis tout par celui qui me fortifie.', ref:'Philippiens 4:13'};
+            document.getElementById('w-priere').textContent = '"Je puis tout par celui qui me fortifie..."';
         }
     }
 
-    async function chargerMeteo(lat, lon, ville) {
+    async function chargerMeteo(lat, lon) {
         try {
+            // Géocodage inversé pour obtenir le vrai nom de la ville
+            const geoR = await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=fr`);
+            const geoD = await geoR.json();
+            const ville = geoD.results?.[0]?.name || 'Ma position';
+
             const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FParis&forecast_days=1`;
-            const response = await fetch(url);
-            const data = await response.json();
-            const temp = Math.round(data.current.temperature_2m);
-            const code = data.current.weather_code;
-            const desc = codesMeteo[code] || 'Variable';
-            const vent = Math.round(data.current.wind_speed_10m);
-            const hum = data.current.relative_humidity_2m;
-            const max = Math.round(data.daily.temperature_2m_max[0]);
-            const min = Math.round(data.daily.temperature_2m_min[0]);
-            meteoData = { temp, desc, vent, hum, max, min, ville };
-            document.getElementById('w-meteo-content').textContent = `${ville} — ${desc} — ${temp}°C`;
-            localStorage.setItem('myvibe_ville', JSON.stringify({ lat, lon, ville }));
+            const r = await fetch(url);
+            const d = await r.json();
+            const temp = Math.round(d.current.temperature_2m);
+            const desc = codes[d.current.weather_code] || 'Variable';
+            const vent = Math.round(d.current.wind_speed_10m);
+            const hum = d.current.relative_humidity_2m;
+            const max = Math.round(d.daily.temperature_2m_max[0]);
+            const min = Math.round(d.daily.temperature_2m_min[0]);
+
+            meteoData = {temp, desc, vent, hum, max, min, ville, lat, lon};
+            document.getElementById('w-meteo').textContent = `${ville} — ${desc} — ${temp}°C`;
+            localStorage.setItem('myvibe_ville', JSON.stringify({lat, lon}));
         } catch {
-            document.getElementById('w-meteo-content').textContent = 'Météo non disponible';
+            document.getElementById('w-meteo').textContent = 'Météo non disponible';
         }
     }
 
     function chargerMeteoGeo() {
-        const villeSauvegardee = localStorage.getItem('myvibe_ville');
-        if (villeSauvegardee) {
-            const v = JSON.parse(villeSauvegardee);
-            chargerMeteo(v.lat, v.lon, v.ville);
+        const saved = localStorage.getItem('myvibe_ville');
+        if (saved) {
+            const v = JSON.parse(saved);
+            chargerMeteo(v.lat, v.lon);
             return;
         }
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                pos => chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'),
-                () => chargerMeteo(48.8566, 2.3522, 'Paris')
+                pos => chargerMeteo(pos.coords.latitude, pos.coords.longitude),
+                () => chargerMeteo(48.8566, 2.3522)
             );
         } else {
-            chargerMeteo(48.8566, 2.3522, 'Paris');
+            chargerMeteo(48.8566, 2.3522);
         }
     }
 
@@ -376,33 +272,38 @@
         const ville = document.getElementById('ville-input').value.trim();
         if (!ville) return;
         try {
-            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(ville)}&count=1&language=fr`);
-            const geoData = await geoRes.json();
-            if (geoData.results && geoData.results.length > 0) {
-                const r = geoData.results[0];
-                await chargerMeteo(r.latitude, r.longitude, r.name);
+            const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(ville)}&count=1&language=fr`);
+            const d = await r.json();
+            if (d.results?.length > 0) {
+                localStorage.removeItem('myvibe_ville');
+                await chargerMeteo(d.results[0].latitude, d.results[0].longitude);
                 closeModal();
             } else {
-                alert('Ville introuvable. Essayez un autre nom.');
+                alert('Ville introuvable.');
             }
-        } catch {
-            alert('Erreur de recherche.');
-        }
+        } catch { alert('Erreur de recherche.'); }
     }
 
     function geoLocaliser() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                pos => { chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'); closeModal(); },
-                () => alert('Géolocalisation refusée ou indisponible.')
+                pos => { localStorage.removeItem('myvibe_ville'); chargerMeteo(pos.coords.latitude, pos.coords.longitude); closeModal(); },
+                () => alert('Géolocalisation refusée.')
             );
         }
     }
 
     function openModal(type) {
-        document.getElementById('modal-overlay').classList.add('active');
+        document.getElementById('overlay').classList.add('on');
+        const titres = {
+            meteo:'🌤️ Météo du jour', priere:'🙏 Prière du jour',
+            taches:'✅ Tâches du jour', rdv:'📅 Rendez-vous',
+            planning:'📋 Planning', anniversaires:'🎂 Anniversaires',
+            mails:'📧 Mails', profil:'👤 Mon Profil'
+        };
+        document.getElementById('modal-title').textContent = titres[type] || type;
+
         if (type === 'meteo') {
-            document.getElementById('modal-title').textContent = '🌤️ Météo du jour';
             const d = meteoData;
             document.getElementById('modal-body').innerHTML = d ? `
                 <div class="meteo-detail">
@@ -417,41 +318,24 @@
                     <button onclick="rechercherVille()">OK</button>
                 </div>
                 <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
-            ` : `
-                <p>Météo non disponible.</p>
+            ` : `<p>Météo non disponible.</p>
                 <div class="ville-form">
                     <input type="text" id="ville-input" placeholder="Rechercher une ville...">
                     <button onclick="rechercherVille()">OK</button>
                 </div>
-                <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
-            `;
+                <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>`;
         } else if (type === 'priere') {
-            document.getElementById('modal-title').textContent = '🙏 Prière du jour';
-            document.getElementById('modal-body').innerHTML = priereActuelle ? `
-                <p class="modal-priere">"${priereActuelle.texte}"</p>
-                <span class="modal-ref">— ${priereActuelle.ref}</span>
+            document.getElementById('modal-body').innerHTML = priere ? `
+                <p class="priere-txt">"${priere.texte}"</p>
+                <span class="priere-ref">— ${priere.ref}</span>
             ` : '<p>Chargement...</p>';
         } else {
-            const titres = {
-                taches: '✅ Tâches du jour',
-                rdv: '📅 Rendez-vous',
-                planning: '📋 Planning',
-                anniversaires: '🎂 Anniversaires',
-                mails: '📧 Mails',
-                profil: '👤 Mon Profil'
-            };
-            document.getElementById('modal-title').textContent = titres[type] || type;
             document.getElementById('modal-body').innerHTML = '<p>En construction — disponible prochainement.</p>';
         }
     }
 
-    function closeModal() {
-        document.getElementById('modal-overlay').classList.remove('active');
-    }
-
-    function closeModalOutside(e) {
-        if (e.target === document.getElementById('modal-overlay')) closeModal();
-    }
+    function closeModal() { document.getElementById('overlay').classList.remove('on'); }
+    function closeOutside(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
 </script>
 </body>
 </html>
