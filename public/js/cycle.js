@@ -262,9 +262,7 @@ const Cycle = (() => {
 
       // Reset navigation au mois du dernier cycle (ou mois courant)
       _calcCourant = calc;
-      _moisAffiche = calc
-        ? new Date(calc.debut.getFullYear(), calc.debut.getMonth(), 1)
-        : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      _moisAffiche = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
       document.getElementById('modal-title').textContent = '🌸 Suivi du cycle';
       document.getElementById('modal-body').innerHTML = `
