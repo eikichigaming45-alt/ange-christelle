@@ -37,6 +37,11 @@ const Cycle = (() => {
            a.getDate()     === b.getDate();
   }
 
+  // ── State navigation calendrier ──────────────────────────
+
+  let _calcCourant  = null;
+  let _moisAffiche  = null;
+
   // ── Calculs cycle ────────────────────────────────────────
 
   function calculerCycle(dernierCycle) {
@@ -87,23 +92,16 @@ const Cycle = (() => {
     if (!calc) return '';
 
     const aujourd_hui = new Date(); aujourd_hui.setHours(0,0,0,0);
+    const moisRef     = new Date(_moisAffiche.getFullYear(), _moisAffiche.getMonth(), 1);
+    const moisNom     = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const nbJours     = new Date(moisRef.getFullYear(), moisRef.getMonth() + 1, 0).getDate();
 
-    // On affiche le mois du dernier début de règles
-    const moisRef  = new Date(calc.debut.getFullYear(), calc.debut.getMonth(), 1);
-    const moisNom  = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-
-    // Nombre de jours dans le mois
-    const nbJours  = new Date(moisRef.getFullYear(), moisRef.getMonth() + 1, 0).getDate();
-
-    // Jour de la semaine du 1er (0=dim, ajusté lundi=0)
     let premierJour = moisRef.getDay();
     premierJour = premierJour === 0 ? 6 : premierJour - 1;
 
     const jours = ['L','M','M','J','V','S','D'];
+    let cases   = '';
 
-    let cases = '';
-
-    // Cases vides avant le 1er
     for (let i = 0; i < premierJour; i++) {
       cases += `<div class="cal-day cal-empty"></div>`;
     }
@@ -112,27 +110,31 @@ const Cycle = (() => {
       const date = new Date(moisRef.getFullYear(), moisRef.getMonth(), j);
       date.setHours(0,0,0,0);
 
-      const estAujourdhui  = memeJour(date, aujourd_hui);
-      const estRegles      = date >= calc.debut     && date <= calc.finRegles;
-      const estFertile     = date >= calc.debutFertile && date <= calc.finFertile;
-      const estOvulation   = memeJour(date, calc.ovulation);
-      const estProchain    = memeJour(date, calc.prochainDebut);
+      const estAujourdhui = memeJour(date, aujourd_hui);
+      const estRegles     = date >= calc.debut        && date <= calc.finRegles;
+      const estFertile    = date >= calc.debutFertile && date <= calc.finFertile;
+      const estOvulation  = memeJour(date, calc.ovulation);
+      const estProchain   = memeJour(date, calc.prochainDebut);
 
-      let cls  = 'cal-day';
+      let cls   = 'cal-day';
       let badge = '';
 
-      if (estRegles)    cls += ' cal-regles';
-      if (estFertile)   cls += ' cal-fertile';
-      if (estOvulation) badge = '<span class="cal-ovulation-star">★</span>';
-      if (estProchain)  cls += ' cal-prochain';
-      if (estAujourdhui) cls += ' cal-today';
+      if (estRegles)     cls  += ' cal-regles';
+      if (estFertile)    cls  += ' cal-fertile';
+      if (estOvulation)  badge = '<span class="cal-ovulation-star">★</span>';
+      if (estProchain)   cls  += ' cal-prochain';
+      if (estAujourdhui) cls  += ' cal-today';
 
       cases += `<div class="${cls}">${j}${badge}</div>`;
     }
 
     return `
       <div class="cal-wrap">
-        <div class="cal-titre">${moisNom.charAt(0).toUpperCase() + moisNom.slice(1)}</div>
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="Cycle.naviguerCalendrier(-1)">&#8249;</button>
+          <div class="cal-titre">${moisNom.charAt(0).toUpperCase() + moisNom.slice(1)}</div>
+          <button class="cal-nav-btn" onclick="Cycle.naviguerCalendrier(1)">&#8250;</button>
+        </div>
         <div class="cal-grid">
           ${jours.map(j => `<div class="cal-head">${j}</div>`).join('')}
           ${cases}
@@ -147,6 +149,15 @@ const Cycle = (() => {
     `;
   }
 
+  // ── Navigation calendrier ────────────────────────────────
+
+  function naviguerCalendrier(offset) {
+    if (!_calcCourant || !_moisAffiche) return;
+    _moisAffiche = new Date(_moisAffiche.getFullYear(), _moisAffiche.getMonth() + offset, 1);
+    const container = document.getElementById('cal-container');
+    if (container) container.innerHTML = renderCalendrier(_calcCourant);
+  }
+
   // ── Rendu widget ─────────────────────────────────────────
 
   function renderWidget(cycles) {
@@ -156,7 +167,6 @@ const Cycle = (() => {
 
     return `
       <div class="widget-cycle">
-
         <div class="cycle-phase" style="border-left:4px solid ${phase.color}">
           <span class="cycle-phase-emoji">${phase.emoji}</span>
           <div>
@@ -221,7 +231,6 @@ const Cycle = (() => {
             Historique (${cycles.length})
           </button>` : ''}
         </div>
-
       </div>
     `;
   }
@@ -250,10 +259,15 @@ const Cycle = (() => {
       const calc   = calculerCycle(dernierCycle);
       const phase  = getPhase(calc);
 
+      // Reset navigation au mois du dernier cycle (ou mois courant)
+      _calcCourant = calc;
+      _moisAffiche = calc
+        ? new Date(calc.debut.getFullYear(), calc.debut.getMonth(), 1)
+        : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
       document.getElementById('modal-title').textContent = '🌸 Suivi du cycle';
       document.getElementById('modal-body').innerHTML = `
         <div class="modal-cycle-main">
-
           ${calc ? `
           <div class="cycle-phase" style="border-left:4px solid ${phase.color};margin-bottom:16px">
             <span class="cycle-phase-emoji">${phase.emoji}</span>
@@ -271,7 +285,7 @@ const Cycle = (() => {
           </div>
           ` : '<p style="color:#9ca3af;margin-bottom:16px">Aucun cycle enregistré.</p>'}
 
-          ${renderCalendrier(calc)}
+          <div id="cal-container">${renderCalendrier(calc)}</div>
 
           <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
             <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
@@ -282,7 +296,6 @@ const Cycle = (() => {
               Historique (${cycles.length})
             </button>` : ''}
           </div>
-
         </div>
       `;
       document.getElementById('overlay').classList.add('on');
@@ -401,6 +414,6 @@ const Cycle = (() => {
 
   // ── API publique ─────────────────────────────────────────
 
-  return { charger, ouvrirModalAjout, ouvrirModalCalendrier, sauvegarder, supprimer, ouvrirHistorique };
+  return { charger, ouvrirModalAjout, ouvrirModalCalendrier, naviguerCalendrier, sauvegarder, supprimer, ouvrirHistorique };
 
 })();

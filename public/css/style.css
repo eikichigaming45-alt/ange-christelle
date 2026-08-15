@@ -175,7 +175,10 @@ input:focus{border-color:#4f46e5}
 
 /* ==================== CALENDRIER CYCLE ==================== */
 .cal-wrap{background:#fdf2f8;border-radius:12px;padding:14px;margin-bottom:8px}
-.cal-titre{font-size:14px;font-weight:700;color:#333;text-align:center;margin-bottom:10px;text-transform:capitalize}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-nav-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#e83e8c;padding:0 8px;line-height:1;border-radius:6px}
+.cal-nav-btn:hover{background:#fce7f3}
+.cal-titre{font-size:14px;font-weight:700;color:#333;text-align:center;text-transform:capitalize}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
 .cal-head{text-align:center;font-size:10px;font-weight:700;color:#9ca3af;padding:4px 0}
 .cal-day{text-align:center;font-size:12px;padding:5px 2px;border-radius:6px;position:relative;color:#333;min-height:28px;display:flex;align-items:center;justify-content:center}
