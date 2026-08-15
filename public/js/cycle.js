@@ -18,8 +18,9 @@ const Cycle = (() => {
   function addDays(date, days) {
     const d = new Date(date);
     d.setDate(d.getDate() + days);
+    d.setHours(0, 0, 0, 0);
     return d;
-  }
+}
 
   function formatDate(date) {
     return new Date(date).toLocaleDateString('fr-FR', {
