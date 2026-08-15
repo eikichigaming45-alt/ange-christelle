@@ -1,6 +1,11 @@
 // ===================== GRID & DRAG DROP =====================
 
+let gridConstruit = false; // ← GUARD anti-double-build
+
 async function buildGrid() {
+    if (gridConstruit) return; // ← bloque le double appel
+    gridConstruit = true;
+
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const grid = document.getElementById('main-grid');
     grid.innerHTML = '';
@@ -23,7 +28,6 @@ async function buildGrid() {
     }
     defs.forEach(def => grid.appendChild(creerWidget(def)));
 
-    // Chargement initial des nouveaux widgets
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
 }
@@ -34,7 +38,6 @@ function creerWidget(def) {
     div.dataset.id = def.id;
     div.draggable = true;
 
-    // Conteneur dynamique pour cycle et rendezvous
     let contentHtml = def.desc;
     if (def.id === 'cycle')      contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
     if (def.id === 'rendezvous') contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
