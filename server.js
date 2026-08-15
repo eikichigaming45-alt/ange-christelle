@@ -103,6 +103,56 @@ app.post('/api/profil', async (req, res) => {
     }
 });
 
+// ===== CHANGER MOT DE PASSE =====
+app.post('/api/changer-mdp', async (req, res) => {
+    const { userId, ancienMdp, nouveauMdp } = req.body;
+    if (!userId || !ancienMdp || !nouveauMdp) return res.status(400).json({ success: false, message: 'Champs manquants' });
+    if (nouveauMdp.length < 6) return res.status(400).json({ success: false, message: 'Mot de passe trop court (6 caractères min)' });
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE id = \$1', [userId]);
+        if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
+        const user = result.rows[0];
+        const match = await bcrypt.compare(ancienMdp, user.password);
+        if (!match) return res.status(401).json({ success: false, message: 'Ancien mot de passe incorrect' });
+        const hash = await bcrypt.hash(nouveauMdp, 10);
+        await pool.query('UPDATE users SET password = \$1 WHERE id = \$2', [hash, userId]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// ===== ADMIN =====
+app.get('/api/admin/users', async (req, res) => {
+    const { adminId } = req.query;
+    try {
+        const check = await pool.query('SELECT role FROM users WHERE id = \$1', [adminId]);
+        if (!check.rows.length || check.rows[0].role !== 'admin') return res.status(403).json({ success: false, message: 'Accès refusé' });
+        const result = await pool.query('SELECT id, username, role FROM users ORDER BY id');
+        res.json({ success: true, users: result.rows });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+app.post('/api/admin/reset-mdp', async (req, res) => {
+    const { adminId, targetUserId, nouveauMdp } = req.body;
+    if (!adminId || !targetUserId || !nouveauMdp) return res.status(400).json({ success: false, message: 'Champs manquants' });
+    if (nouveauMdp.length < 6) return res.status(400).json({ success: false, message: 'Mot de passe trop court (6 caractères min)' });
+    try {
+        const check = await pool.query('SELECT role FROM users WHERE id = \$1', [adminId]);
+        if (!check.rows.length || check.rows[0].role !== 'admin') return res.status(403).json({ success: false, message: 'Accès refusé' });
+        const hash = await bcrypt.hash(nouveauMdp, 10);
+        await pool.query('UPDATE users SET password = \$1 WHERE id = \$2', [hash, targetUserId]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 const versets = [
     { texte: "Je puis tout par celui qui me fortifie.", ref: "Philippiens 4:13" },
     { texte: "Car je connais les projets que j'ai formés sur vous, projets de paix et non de malheur.", ref: "Jérémie 29:11" },

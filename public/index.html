@@ -47,6 +47,7 @@
         .w-anniversaires .wi{background:#fce7f3}
         .w-mails .wi{background:#e0e7ff}
         .w-profil .wi{background:#f3f4f6}
+        .w-admin .wi{background:#fef3c7}
         .wi img{width:40px;height:40px;object-fit:cover;border-radius:10px}
         .rbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;border-radius:4px}
         .rbtn:hover{background:#f3f4f6}
@@ -70,8 +71,17 @@
         .profil-form textarea{resize:vertical}
         .save-btn{width:100%;padding:12px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px}
         .save-btn:hover{background:#4338ca}
+        .danger-btn{width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px}
+        .danger-btn:hover{background:#dc2626}
         .photo-circle{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;cursor:pointer;display:block;margin:0 auto 8px}
         .initiales{width:96px;height:96px;border-radius:50%;background:#4f46e5;color:#fff;font-size:32px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer}
+        .separateur{border:none;border-top:2px solid #f3f4f6;margin:20px 0}
+        .mdp-form input{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:10px;outline:none}
+        .mdp-form input:focus{border-color:#4f46e5}
+        .admin-user-row{display:flex;align-items:center;justify-content:space-between;padding:10px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px}
+        .admin-user-row span{font-size:14px;color:#333;font-weight:600}
+        .admin-user-row input{flex:1;margin:0 8px;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px}
+        .admin-user-row button{padding:8px 12px;background:#4f46e5;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap}
     </style>
 </head>
 <body>
@@ -99,15 +109,15 @@
         </div>
     </div>
 
-    <div class="grid">
+    <div class="grid" id="main-grid">
         <div class="widget w-meteo" onclick="openModal('meteo')">
-    <div class="wh">
-        <div class="whl"><div class="wi">🌤️</div><div class="wt">Météo du jour</div></div>
-        <button class="rbtn" onclick="event.stopPropagation();chargerMeteoAuto()" title="Actualiser la météo">🔄</button>
-    </div>
-    <div class="wc" id="w-meteo">Chargement...</div>
-    <div class="wf">Cliquez pour les détails</div>
-		</div>
+            <div class="wh">
+                <div class="whl"><div class="wi">🌤️</div><div class="wt">Météo du jour</div></div>
+                <button class="rbtn" onclick="event.stopPropagation();chargerMeteoAuto()" title="Actualiser">🔄</button>
+            </div>
+            <div class="wc" id="w-meteo">Chargement...</div>
+            <div class="wf">Cliquez pour les détails</div>
+        </div>
         <div class="widget w-priere" onclick="openModal('priere')">
             <div class="wh">
                 <div class="whl"><div class="wi">🙏</div><div class="wt">Prière du jour</div></div>
@@ -204,6 +214,22 @@ function showApp() {
     chargerPriere();
     chargerMeteoAuto();
     chargerProfilHeader();
+    afficherWidgetAdmin();
+}
+
+function afficherWidgetAdmin() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (user?.role !== 'admin') return;
+    const grid = document.getElementById('main-grid');
+    const w = document.createElement('div');
+    w.className = 'widget w-admin';
+    w.onclick = () => openModal('admin');
+    w.innerHTML = `
+        <div class="wh"><div class="whl"><div class="wi">⚙️</div><div class="wt">Administration</div></div></div>
+        <div class="wc">Gérer les utilisateurs et réinitialiser les mots de passe</div>
+        <div class="wf">Accès admin</div>
+    `;
+    grid.appendChild(w);
 }
 
 function actualiser() {
@@ -245,11 +271,8 @@ async function chargerProfilHeader() {
                 btnHeader.innerHTML = '👤';
             }
             const wi = document.getElementById('w-profil-icon');
-            if (p.photo) {
-                wi.innerHTML = `<img src="${p.photo}" alt="profil">`;
-            } else {
-                wi.textContent = '👤';
-            }
+            if (p.photo) { wi.innerHTML = `<img src="${p.photo}" alt="profil">`; }
+            else { wi.textContent = '👤'; }
             const txt = document.getElementById('w-profil-txt');
             txt.textContent = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Cliquez pour modifier votre profil';
         }
@@ -334,12 +357,11 @@ function previewPhoto(event) {
             const canvas = document.createElement('canvas');
             const MAX = 300;
             let w = img.width, h = img.height;
-            if (w > h) { if (w > MAX) { h = h * MAX / w; w = MAX; } }
-            else { if (h > MAX) { w = w * MAX / h; h = MAX; } }
-            canvas.width = w;
-            canvas.height = h;
-            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            if (w > h) { if (w > MAX) { h = h*MAX/w; w = MAX; } }
+            else { if (h > MAX) { w = w*MAX/h; h = MAX; } }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img,0,0,w,h);
+            const dataUrl = canvas.toDataURL('image/jpeg',0.7);
             const preview = document.getElementById('profil-photo-preview');
             if (preview) {
                 preview.src = dataUrl;
@@ -360,19 +382,18 @@ function previewPhoto(event) {
     reader.readAsDataURL(file);
 }
 
-
 async function sauvegarderProfil() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const msg = document.getElementById('profil-msg');
     msg.textContent = 'Sauvegarde...';
     msg.style.color = '#9ca3af';
     const photoEl = document.getElementById('profil-photo-preview');
-    const photo = photoEl?.src?.startsWith('data:') ? photoEl.src : (profilCache?.photo || null);
+    const photo = photoEl?.src?.startsWith('data:') ? photoEl.src : (profilCache?.photo||null);
     const body = {
         userId: user.userId,
         prenom: document.getElementById('p-prenom').value,
         nom: document.getElementById('p-nom').value,
-        date_naissance: document.getElementById('p-naissance').value || null,
+        date_naissance: document.getElementById('p-naissance').value||null,
         email: document.getElementById('p-email').value,
         telephone: document.getElementById('p-tel').value,
         profession: document.getElementById('p-prof').value,
@@ -380,24 +401,44 @@ async function sauvegarderProfil() {
         photo
     };
     try {
-        const r = await fetch('/api/profil', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify(body)
-        });
+        const r = await fetch('/api/profil', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
         const d = await r.json();
         if (d.success) {
             msg.textContent = '✅ Profil sauvegardé !';
             msg.style.color = '#10b981';
-            profilCache = {...profilCache, ...body};
+            profilCache = {...profilCache,...body};
             chargerProfilHeader();
-        } else {
-            msg.textContent = '❌ ' + d.message;
-            msg.style.color = '#ef4444';
-        }
-    } catch {
-        msg.textContent = '❌ Erreur réseau';
-        msg.style.color = '#ef4444';
-    }
+        } else { msg.textContent = '❌ '+d.message; msg.style.color='#ef4444'; }
+    } catch { msg.textContent='❌ Erreur réseau'; msg.style.color='#ef4444'; }
+}
+
+async function changerMdp() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const ancien = document.getElementById('mdp-ancien').value;
+    const nouveau = document.getElementById('mdp-nouveau').value;
+    const confirm = document.getElementById('mdp-confirm').value;
+    const msg = document.getElementById('mdp-msg');
+    if (nouveau !== confirm) { msg.textContent='❌ Les mots de passe ne correspondent pas'; msg.style.color='#ef4444'; return; }
+    msg.textContent='Sauvegarde...'; msg.style.color='#9ca3af';
+    try {
+        const r = await fetch('/api/changer-mdp', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.userId,ancienMdp:ancien,nouveauMdp:nouveau})});
+        const d = await r.json();
+        if (d.success) { msg.textContent='✅ Mot de passe changé !'; msg.style.color='#10b981'; document.getElementById('mdp-ancien').value=''; document.getElementById('mdp-nouveau').value=''; document.getElementById('mdp-confirm').value=''; }
+        else { msg.textContent='❌ '+d.message; msg.style.color='#ef4444'; }
+    } catch { msg.textContent='❌ Erreur réseau'; msg.style.color='#ef4444'; }
+}
+
+async function resetMdpUser(userId, btn) {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const input = document.getElementById('reset-mdp-'+userId);
+    const nouveauMdp = input.value.trim();
+    if (!nouveauMdp) { alert('Entrez un nouveau mot de passe'); return; }
+    try {
+        const r = await fetch('/api/admin/reset-mdp', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId,nouveauMdp})});
+        const d = await r.json();
+        if (d.success) { input.value=''; btn.textContent='✅'; setTimeout(()=>btn.textContent='Réinitialiser',2000); }
+        else { alert('Erreur : '+d.message); }
+     } catch { alert('Erreur réseau'); }
 }
 
 async function openModal(type) {
@@ -406,7 +447,7 @@ async function openModal(type) {
         meteo:'🌤️ Météo du jour', priere:'🙏 Prière du jour',
         taches:'✅ Tâches du jour', rdv:'📅 Rendez-vous',
         planning:'📋 Planning', anniversaires:'🎂 Anniversaires',
-        mails:'📧 Mails', profil:'👤 Mon Profil'
+        mails:'📧 Mails', profil:'👤 Mon Profil', admin:'⚙️ Administration'
     };
     document.getElementById('modal-title').textContent = titres[type]||type;
 
@@ -445,15 +486,15 @@ async function openModal(type) {
         try {
             const r = await fetch(`/api/profil?userId=${user.userId}`);
             const d = await r.json();
-            const p = d.profil || {};
+            const p = d.profil||{};
             profilCache = p;
-            const photoSrc = p.photo || '';
-            const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '👤';
+            const photoSrc = p.photo||'';
+            const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase()||'👤';
             document.getElementById('modal-body').innerHTML = `
                 <div style="text-align:center;margin-bottom:16px">
                     ${photoSrc
-                        ? `<img id="profil-photo-preview" src="${photoSrc}" class="photo-circle" onclick="document.getElementById('photo-input').click()" title="Changer la photo">`
-                        : `<div class="initiales" onclick="document.getElementById('photo-input').click()" title="Ajouter une photo">${initiales}</div>`
+                        ? `<img id="profil-photo-preview" src="${photoSrc}" class="photo-circle" onclick="document.getElementById('photo-input').click()">`
+                        : `<div class="initiales" onclick="document.getElementById('photo-input').click()">${initiales}</div>`
                     }
                     <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="previewPhoto(event)">
                     <div style="font-size:12px;color:#9ca3af;margin-bottom:8px">Cliquez sur la photo pour changer</div>
@@ -469,9 +510,39 @@ async function openModal(type) {
                 </div>
                 <button class="save-btn" onclick="sauvegarderProfil()">💾 Sauvegarder</button>
                 <div id="profil-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+                <hr class="separateur">
+                <h4 style="color:#333;margin-bottom:12px">🔑 Changer mon mot de passe</h4>
+                <div class="mdp-form">
+                    <input type="password" id="mdp-ancien" placeholder="Ancien mot de passe">
+                    <input type="password" id="mdp-nouveau" placeholder="Nouveau mot de passe">
+                    <input type="password" id="mdp-confirm" placeholder="Confirmer le nouveau mot de passe">
+                </div>
+                <button class="danger-btn" onclick="changerMdp()">🔑 Changer le mot de passe</button>
+                <div id="mdp-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
             `;
         } catch {
             document.getElementById('modal-body').innerHTML = '<p>❌ Erreur de chargement du profil.</p>';
+        }
+    } else if (type === 'admin') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        const user = JSON.parse(localStorage.getItem('myvibe_user'));
+        try {
+            const r = await fetch(`/api/admin/users?adminId=${user.userId}`);
+            const d = await r.json();
+            if (!d.success) { document.getElementById('modal-body').innerHTML = '<p>❌ Accès refusé.</p>'; return; }
+            const rows = d.users.map(u => `
+                <div class="admin-user-row">
+                    <span>${u.username} <small style="color:#9ca3af">(${u.role})</small></span>
+                    <input type="password" id="reset-mdp-${u.id}" placeholder="Nouveau mdp">
+                    <button onclick="resetMdpUser(${u.id}, this)">Réinitialiser</button>
+                </div>
+            `).join('');
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#666;margin-bottom:16px;font-size:14px">Entrez un nouveau mot de passe pour chaque utilisateur et cliquez sur Réinitialiser.</p>
+                ${rows}
+            `;
+        } catch {
+            document.getElementById('modal-body').innerHTML = '<p>❌ Erreur de chargement.</p>';
         }
     } else {
         document.getElementById('modal-body').innerHTML = '<p>En construction — disponible prochainement.</p>';
