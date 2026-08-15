@@ -324,14 +324,39 @@ function geoLocaliser() {
 function previewPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
-    if (file.size > 2*1024*1024) { alert('Photo trop lourde (max 2 Mo)'); return; }
     const reader = new FileReader();
     reader.onload = e => {
-        const preview = document.getElementById('profil-photo-preview');
-        if (preview) preview.src = e.target.result;
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX = 300;
+            let w = img.width, h = img.height;
+            if (w > h) { if (w > MAX) { h = h * MAX / w; w = MAX; } }
+            else { if (h > MAX) { w = w * MAX / h; h = MAX; } }
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            const preview = document.getElementById('profil-photo-preview');
+            if (preview) {
+                preview.src = dataUrl;
+            } else {
+                const zone = document.querySelector('.initiales');
+                if (zone) {
+                    const newImg = document.createElement('img');
+                    newImg.id = 'profil-photo-preview';
+                    newImg.src = dataUrl;
+                    newImg.className = 'photo-circle';
+                    newImg.onclick = () => document.getElementById('photo-input').click();
+                    zone.replaceWith(newImg);
+                }
+            }
+        };
+        img.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
+
 
 async function sauvegarderProfil() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
