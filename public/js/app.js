@@ -12,7 +12,8 @@ const WIDGETS_DEF = [
     { id:'meteo',         label:'Météo du jour',    icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',                      foot:'Cliquez pour les détails',       refresh:true },
     { id:'priere',        label:'Prière du jour',   icon:'🙏',  cls:'w-priere',        desc:'Chargement...',                      foot:'Cliquez pour la version complète',refresh:true },
     { id:'taches',        label:'Tâches du jour',   icon:'✅',  cls:'w-taches',        desc:'Chargement...',                      foot:'Cliquez pour gérer' },
-    { id:'rdv',           label:'Rendez-vous',       icon:'📅',  cls:'w-rdv',           desc:'Aucun rendez-vous aujourd\'hui',     foot:'Cliquez pour gérer' },
+    { id:'cycle',         label:'Suivi du cycle',   icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',                      foot:'Cycle féminin & fertilité',      refresh:true },
+    { id:'rendezvous',    label:'Rendez-vous',      icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',                      foot:'Consultations & santé',          refresh:true },
     { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'Pas de garde aujourd\'hui',          foot:'Cliquez pour voir le planning' },
     { id:'anniversaires', label:'Anniversaires',     icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',                      foot:'Cliquez pour gérer' },
     { id:'mails',         label:'Mails',             icon:'📧',  cls:'w-mails',         desc:'Bientôt disponible',                 foot:'Cliquez pour consulter' },
@@ -43,7 +44,12 @@ document.getElementById('login-form').addEventListener('submit', async e => {
     });
     const d = await r.json();
     if (d.success) {
-        localStorage.setItem('myvibe_user', JSON.stringify({username, role:d.role, userId:d.userId}));
+        localStorage.setItem('myvibe_user', JSON.stringify({
+            username,
+            role    : d.role,
+            userId  : d.userId,
+            token   : d.token
+        }));
         showApp();
     } else {
         document.getElementById('error-msg').textContent = d.message;
@@ -62,6 +68,8 @@ async function showApp() {
     chargerProfilHeader();
     chargerWidgetTaches();
     chargerWidgetAnniversaires();
+    if (typeof Cycle !== 'undefined') Cycle.charger();
+    if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
     enregistrerServiceWorker();
 }
 
@@ -72,6 +80,8 @@ function actualiser() {
     chargerProfilHeader();
     chargerWidgetTaches();
     chargerWidgetAnniversaires();
+    if (typeof Cycle !== 'undefined') Cycle.charger();
+    if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
 }
 
 function logout() { 

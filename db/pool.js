@@ -80,10 +80,48 @@ async function initDB() {
             );
         `);
 
+        // Nouvelles tables : Suivi du cycle & Rendez-vous médicaux
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS cycles (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                date_debut DATE NOT NULL,
+                duree_regles INTEGER DEFAULT 5,
+                duree_cycle INTEGER DEFAULT 28,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS cycle_journal (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                date DATE NOT NULL,
+                humeur VARCHAR(50),
+                symptomes TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS rendezvous (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                titre VARCHAR(255) NOT NULL,
+                date_rdv TIMESTAMP NOT NULL,
+                praticien VARCHAR(255),
+                lieu VARCHAR(255),
+                type_rdv VARCHAR(100),
+                notes TEXT,
+                rappel_active BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
+
         const adminHash = await bcrypt.hash('admin2026', 10);
-        await pool.query(`INSERT INTO users (username, password, role) VALUES ('admin', \$1, 'admin') ON CONFLICT (username) DO NOTHING;`, [adminHash]);
+        await pool.query(`INSERT INTO users (username, password, role) VALUES ('admin', \\$1, 'admin') ON CONFLICT (username) DO NOTHING;`, [adminHash]);
         const angeHash = await bcrypt.hash('ange2026', 10);
-        await pool.query(`INSERT INTO users (username, password, role) VALUES ('ange-christelle', \$1, 'user') ON CONFLICT (username) DO NOTHING;`, [angeHash]);
+        await pool.query(`INSERT INTO users (username, password, role) VALUES ('ange-christelle', \\$1, 'user') ON CONFLICT (username) DO NOTHING;`, [angeHash]);
         console.log('Base de données initialisée !');
     } catch (err) {
         console.error('Erreur BDD :', err.message);

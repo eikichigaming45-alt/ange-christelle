@@ -20,5 +20,7 @@ app.use('/api/anniversaires', require('./routes/anniversaires'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/priere', require('./routes/priere'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/cycle', require('./routes/cycle'));
+app.use('/api/rendezvous', require('./routes/rendezvous'));
 
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));

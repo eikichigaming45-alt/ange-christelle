@@ -6,7 +6,8 @@ async function openModal(type) {
         meteo:'🌤️ Météo du jour', priere:'🙏 Prière du jour',
         taches:'✅ Tâches du jour', rdv:'📅 Rendez-vous',
         planning:'📋 Planning', anniversaires:'🎂 Anniversaires',
-        mails:'📧 Mails', profil:'👤 Mon Profil', admin:'⚙️ Administration'
+        mails:'📧 Mails', profil:'👤 Mon Profil', admin:'⚙️ Administration',
+        cycle:'🌸 Suivi du cycle', rendezvous:'🩺 Rendez-vous médicaux'
     };
     document.getElementById('modal-title').textContent = titres[type]||type;
 
@@ -47,6 +48,14 @@ async function openModal(type) {
     } else if (type === 'anniversaires') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         await chargerModalAnniversaires();
+
+    } else if (type === 'cycle') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        await Cycle.ouvrirModalAjout();
+
+    } else if (type === 'rendezvous') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        await Rendezvous.ouvrirListe();
 
     } else if (type === 'profil') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';

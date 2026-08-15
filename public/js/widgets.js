@@ -22,6 +22,10 @@ async function buildGrid() {
         defs = sorted;
     }
     defs.forEach(def => grid.appendChild(creerWidget(def)));
+
+    // Chargement initial des nouveaux widgets
+    if (typeof Cycle !== 'undefined') Cycle.charger();
+    if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
 }
 
 function creerWidget(def) {
@@ -29,6 +33,12 @@ function creerWidget(def) {
     div.className = `widget ${def.cls}`;
     div.dataset.id = def.id;
     div.draggable = true;
+
+    // Conteneur dynamique pour cycle et rendezvous
+    let contentHtml = def.desc;
+    if (def.id === 'cycle')      contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
+    if (def.id === 'rendezvous') contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
+
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
         <div class="wh">
@@ -38,15 +48,20 @@ function creerWidget(def) {
             </div>
             ${def.refresh ? `<button class="rbtn" id="rbtn-${def.id}" title="Actualiser">🔄</button>` : ''}
         </div>
-        <div class="wc" id="wc-${def.id}">${def.desc}</div>
+        <div class="wc" id="wc-${def.id}">${contentHtml}</div>
         <div class="wf">${def.foot}</div>
     `;
+
     div.addEventListener('click', e => {
-        if (e.target.classList.contains('drag-handle') || e.target.classList.contains('rbtn')) return;
+        if (e.target.classList.contains('drag-handle') || e.target.classList.contains('rbtn') || e.target.closest('button')) return;
         openModal(def.id);
     });
-    if (def.id === 'meteo')  div.querySelector('#rbtn-meteo')?.addEventListener('click',  e => { e.stopPropagation(); chargerMeteoAuto(); });
-    if (def.id === 'priere') div.querySelector('#rbtn-priere')?.addEventListener('click', e => { e.stopPropagation(); chargerPriere(); });
+
+    if (def.id === 'meteo')      div.querySelector('#rbtn-meteo')?.addEventListener('click',      e => { e.stopPropagation(); chargerMeteoAuto(); });
+    if (def.id === 'priere')     div.querySelector('#rbtn-priere')?.addEventListener('click',     e => { e.stopPropagation(); chargerPriere(); });
+    if (def.id === 'cycle')      div.querySelector('#rbtn-cycle')?.addEventListener('click',      e => { e.stopPropagation(); Cycle.charger(); });
+    if (def.id === 'rendezvous') div.querySelector('#rbtn-rendezvous')?.addEventListener('click', e => { e.stopPropagation(); Rendezvous.charger(); });
+
     div.addEventListener('dragstart', onDragStart);
     div.addEventListener('dragover',  onDragOver);
     div.addEventListener('dragleave', onDragLeave);

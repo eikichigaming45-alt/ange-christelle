@@ -41,6 +41,7 @@ input:focus{border-color:#4f46e5}
 .w-mails .wi{background:#e0e7ff}
 .w-profil .wi{background:#f3f4f6}
 .w-admin .wi{background:#fef3c7}
+.w-cycle .wi{background:#fce7f3}
 .wi img{width:40px;height:40px;object-fit:cover;border-radius:10px}
 .rbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;border-radius:4px}
 .rbtn:hover{background:#f3f4f6}
@@ -128,3 +129,90 @@ input:focus{border-color:#4f46e5}
 .btn-crop-ok:hover{background:#4338ca}
 .btn-crop-cancel{background:#f3f4f6;color:#666}
 .btn-crop-cancel:hover{background:#e5e7eb}
+
+/* ==================== WIDGET CYCLE ==================== */
+.widget.w-cycle{background:linear-gradient(135deg,#fff0f5 0%,#ffffff 100%)}
+.widget-cycle{display:flex;flex-direction:column;gap:10px}
+.cycle-phase{display:flex;align-items:center;gap:12px;background:#fff;padding:12px 14px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.cycle-phase-emoji{font-size:24px;flex-shrink:0}
+.cycle-phase-label{font-weight:600;font-size:14px;color:#333}
+.cycle-phase-sub{font-size:12px;color:#666;margin-top:2px}
+.cycle-infos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cycle-info-item{display:flex;align-items:center;gap:8px;background:#faf5f7;padding:8px 10px;border-radius:8px}
+.cycle-info-icon{font-size:16px;flex-shrink:0}
+.cycle-info-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.3px}
+.cycle-info-value{font-size:12px;font-weight:600;color:#333;margin-top:1px}
+.cycle-progress-wrap{background:#fff;padding:10px 12px;border-radius:8px}
+.cycle-progress-label{font-size:11px;color:#666;margin-bottom:6px}
+.cycle-progress-bar{height:6px;background:#f0e0ea;border-radius:3px;overflow:hidden}
+.cycle-progress-fill{height:100%;border-radius:3px;transition:width .4s ease}
+.cycle-actions{display:flex;gap:8px}
+.btn-cycle-primary{flex:1;background:#e83e8c;color:#fff;border:none;padding:9px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;transition:background .2s}
+.btn-cycle-primary:hover{background:#d63384}
+.btn-cycle-secondary{background:#f8f9fa;color:#555;border:1px solid #ddd;padding:9px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;transition:background .2s}
+.btn-cycle-secondary:hover{background:#e9ecef}
+.cycle-historique{display:flex;flex-direction:column;gap:2px}
+.cycle-historique-item{display:flex;justify-content:space-between;align-items:center;padding:10px 6px;border-bottom:1px solid #f3f4f6}
+.cycle-historique-item:last-child{border-bottom:none}
+.cycle-histo-detail{display:block;font-size:11px;color:#666;margin-top:2px}
+.cycle-histo-notes{display:block;font-size:11px;color:#aaa;font-style:italic;margin-top:2px}
+.cycle-error{color:#ef4444;font-size:13px;text-align:center;padding:12px}
+.modal-cycle-form{display:flex;flex-direction:column;gap:8px}
+.modal-cycle-form h3{font-size:17px;font-weight:700;color:#333;margin-bottom:4px}
+.modal-cycle-form label{font-size:13px;font-weight:600;color:#555;margin-top:4px}
+.modal-cycle-form input,.modal-cycle-form textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;font-family:inherit;margin:0}
+.modal-cycle-form input:focus,.modal-cycle-form textarea:focus{border-color:#e83e8c}
+.modal-cycle-form textarea{resize:vertical}
+.modal-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.btn-save{flex:1;padding:10px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
+.btn-save:hover{background:#4338ca}
+.btn-delete{padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
+.btn-delete:hover{background:#ef4444;color:#fff}
+.btn-cancel{padding:10px 14px;background:#f3f4f6;color:#666;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}
+.btn-cancel:hover{background:#e5e7eb}
+.btn-edit-small{background:none;border:none;cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;flex-shrink:0}
+.btn-edit-small:hover{background:#f3f4f6}
+
+/* ==================== WIDGET RENDEZ-VOUS ==================== */
+.widget.w-rdv{background:linear-gradient(135deg,#f0f8ff 0%,#ffffff 100%)}
+.widget-rdv{display:flex;flex-direction:column;gap:8px}
+.rdv-card{display:flex;align-items:center;gap:12px;background:#fff;padding:10px 12px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.04);cursor:pointer;transition:transform .15s;position:relative;border-left:4px solid #e5e7eb}
+.rdv-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.rdv-card.rdv-today{border-left-color:#fa5252}
+.rdv-card.rdv-soon{border-left-color:#fab005}
+.rdv-card.rdv-futur{border-left-color:#1c7ed6}
+.rdv-card.rdv-passe{border-left-color:#dee2e6;opacity:.65}
+.rdv-card-icon{font-size:22px;flex-shrink:0}
+.rdv-card-body{flex:1;min-width:0}
+.rdv-card-titre{font-weight:600;font-size:13px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdv-card-date{font-size:11px;color:#1c7ed6;font-weight:500;margin-top:2px}
+.rdv-card-sub{font-size:11px;color:#666;margin-top:1px}
+.rdv-badge{font-size:10px;padding:3px 8px;border-radius:12px;font-weight:600;white-space:nowrap;flex-shrink:0}
+.rdv-today .rdv-badge{background:#ffe3e3;color:#c92a2a}
+.rdv-soon .rdv-badge{background:#fff3bf;color:#e67700}
+.rdv-futur .rdv-badge{background:#e7f5ff;color:#1c7ed6}
+.rdv-passe .rdv-badge{background:#f1f3f5;color:#adb5bd}
+.rdv-actions{display:flex;gap:8px;margin-top:4px}
+.btn-rdv-primary{flex:1;background:#1c7ed6;color:#fff;border:none;padding:9px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;transition:background .2s}
+.btn-rdv-primary:hover{background:#1864ab}
+.btn-rdv-secondary{background:#f8f9fa;color:#555;border:1px solid #ddd;padding:9px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .2s}
+.btn-rdv-secondary:hover{background:#e9ecef}
+.rdv-passe-badge{background:#dee2e6;color:#495057;font-size:9px;padding:1px 6px;border-radius:10px}
+.rdv-empty{color:#9ca3af;font-size:13px;text-align:center;padding:16px 0}
+.rdv-error{color:#ef4444;font-size:13px;text-align:center;padding:12px}
+.rdv-liste{display:flex;flex-direction:column}
+.rdv-liste-item{display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid #f3f4f6}
+.rdv-liste-item:last-child{border-bottom:none}
+.rdv-liste-icon{font-size:18px;flex-shrink:0}
+.rdv-liste-body{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.rdv-liste-body strong{font-size:13px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdv-liste-body span{font-size:11px;color:#666}
+.rdv-liste-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.rdv-section-title{font-size:11px;font-weight:700;text-transform:uppercase;color:#9ca3af;letter-spacing:.5px;margin:12px 0 6px}
+.rdv-passe-title{color:#ced4da}
+.modal-rdv-form{display:flex;flex-direction:column;gap:8px}
+.modal-rdv-form h3{font-size:17px;font-weight:700;color:#333;margin-bottom:4px}
+.modal-rdv-form label{font-size:13px;font-weight:600;color:#555;margin-top:4px}
+.modal-rdv-form input,.modal-rdv-form select,.modal-rdv-form textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;font-family:inherit;margin:0;background:#fff}
+.modal-rdv-form input:focus,.modal-rdv-form select:focus,.modal-rdv-form textarea:focus{border-color:#1c7ed6}
+.modal-rdv-form textarea{resize:vertical}
