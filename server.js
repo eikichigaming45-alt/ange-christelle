@@ -46,6 +46,14 @@ async function initDB() {
                 updated_at TIMESTAMP DEFAULT NOW()
             );
         `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS widget_order (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+                ordre TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
         const adminHash = await bcrypt.hash('admin2026', 10);
         await pool.query(`INSERT INTO users (username, password, role) VALUES ('admin', \$1, 'admin') ON CONFLICT (username) DO NOTHING;`, [adminHash]);
         const angeHash = await bcrypt.hash('ange2026', 10);
@@ -57,6 +65,7 @@ async function initDB() {
 }
 initDB();
 
+// ===== AUTH =====
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -72,6 +81,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// ===== PROFIL =====
 app.get('/api/profil', async (req, res) => {
     const userId = req.query.userId;
     if (!userId) return res.status(400).json({ success: false, message: 'userId manquant' });
@@ -103,7 +113,7 @@ app.post('/api/profil', async (req, res) => {
     }
 });
 
-// ===== CHANGER MOT DE PASSE =====
+// ===== MOT DE PASSE =====
 app.post('/api/changer-mdp', async (req, res) => {
     const { userId, ancienMdp, nouveauMdp } = req.body;
     if (!userId || !ancienMdp || !nouveauMdp) return res.status(400).json({ success: false, message: 'Champs manquants' });
@@ -123,14 +133,107 @@ app.post('/api/changer-mdp', async (req, res) => {
     }
 });
 
+// ===== WIDGET ORDER =====
+app.get('/api/widget-order', async (req, res) => {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ success: false, message: 'userId manquant' });
+    try {
+        const result = await pool.query('SELECT ordre FROM widget_order WHERE user_id = \$1', [userId]);
+        if (result.rows.length === 0) return res.json({ success: true, ordre: null });
+        res.json({ success: true, ordre: JSON.parse(result.rows[0].ordre) });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+app.post('/api/widget-order', async (req, res) => {
+    const { userId, ordre } = req.body;
+    if (!userId || !ordre) return res.status(400).json({ success: false, message: 'Données manquantes' });
+    try {
+        await pool.query(`
+            INSERT INTO widget_order (user_id, ordre, updated_at)
+            VALUES (\$1, \$2, NOW())
+            ON CONFLICT (user_id) DO UPDATE SET ordre = \$2, updated_at = NOW();
+        `, [userId, JSON.stringify(ordre)]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 // ===== ADMIN =====
+async function isAdmin(adminId) {
+    const check = await pool.query('SELECT role FROM users WHERE id = \$1', [adminId]);
+    return check.rows.length > 0 && check.rows[0].role === 'admin';
+}
+
 app.get('/api/admin/users', async (req, res) => {
     const { adminId } = req.query;
     try {
-        const check = await pool.query('SELECT role FROM users WHERE id = \$1', [adminId]);
-        if (!check.rows.length || check.rows[0].role !== 'admin') return res.status(403).json({ success: false, message: 'Accès refusé' });
-        const result = await pool.query('SELECT id, username, role FROM users ORDER BY id');
+        if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
+        const result = await pool.query(`
+            SELECT u.id, u.username, u.role, p.prenom, p.nom, p.email, p.profession, p.created_at
+            FROM users u
+            LEFT JOIN profiles p ON p.user_id = u.id
+            ORDER BY u.id
+        `);
         res.json({ success: true, users: result.rows });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+app.post('/api/admin/create-user', async (req, res) => {
+    const { adminId, username, password, role } = req.body;
+    if (!adminId || !username || !password || !role) return res.status(400).json({ success: false, message: 'Champs manquants' });
+    if (password.length < 6) return res.status(400).json({ success: false, message: 'Mot de passe trop court' });
+    if (!['admin', 'user'].includes(role)) return res.status(400).json({ success: false, message: 'Rôle invalide' });
+    try {
+        if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
+        const exists = await pool.query('SELECT id FROM users WHERE username = \$1', [username]);
+        if (exists.rows.length > 0) return res.status(409).json({ success: false, message: 'Nom d\'utilisateur déjà pris' });
+        const hash = await bcrypt.hash(password, 10);
+        const result = await pool.query(
+            'INSERT INTO users (username, password, role) VALUES (\$1, \$2, \$3) RETURNING id',
+            [username, hash, role]
+        );
+        res.json({ success: true, userId: result.rows[0].id });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+app.post('/api/admin/update-user', async (req, res) => {
+    const { adminId, targetUserId, username, role } = req.body;
+    if (!adminId || !targetUserId) return res.status(400).json({ success: false, message: 'Champs manquants' });
+    try {
+        if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
+        if (username) {
+            const exists = await pool.query('SELECT id FROM users WHERE username = \$1 AND id != \$2', [username, targetUserId]);
+            if (exists.rows.length > 0) return res.status(409).json({ success: false, message: 'Nom d\'utilisateur déjà pris' });
+            await pool.query('UPDATE users SET username = \$1 WHERE id = \$2', [username, targetUserId]);
+        }
+        if (role && ['admin', 'user'].includes(role)) {
+            await pool.query('UPDATE users SET role = \$1 WHERE id = \$2', [role, targetUserId]);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+app.post('/api/admin/delete-user', async (req, res) => {
+    const { adminId, targetUserId } = req.body;
+    if (!adminId || !targetUserId) return res.status(400).json({ success: false, message: 'Champs manquants' });
+    try {
+        if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
+        const self = await pool.query('SELECT id FROM users WHERE id = \$1', [adminId]);
+        if (self.rows[0]?.id == targetUserId) return res.status(400).json({ success: false, message: 'Impossible de se supprimer soi-même' });
+        await pool.query('DELETE FROM users WHERE id = \$1', [targetUserId]);
+        res.json({ success: true });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
@@ -140,10 +243,9 @@ app.get('/api/admin/users', async (req, res) => {
 app.post('/api/admin/reset-mdp', async (req, res) => {
     const { adminId, targetUserId, nouveauMdp } = req.body;
     if (!adminId || !targetUserId || !nouveauMdp) return res.status(400).json({ success: false, message: 'Champs manquants' });
-    if (nouveauMdp.length < 6) return res.status(400).json({ success: false, message: 'Mot de passe trop court (6 caractères min)' });
+    if (nouveauMdp.length < 6) return res.status(400).json({ success: false, message: 'Mot de passe trop court' });
     try {
-        const check = await pool.query('SELECT role FROM users WHERE id = \$1', [adminId]);
-        if (!check.rows.length || check.rows[0].role !== 'admin') return res.status(403).json({ success: false, message: 'Accès refusé' });
+        if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
         const hash = await bcrypt.hash(nouveauMdp, 10);
         await pool.query('UPDATE users SET password = \$1 WHERE id = \$2', [hash, targetUserId]);
         res.json({ success: true });
@@ -153,6 +255,33 @@ app.post('/api/admin/reset-mdp', async (req, res) => {
     }
 });
 
+app.get('/api/admin/stats', async (req, res) => {
+    const { adminId } = req.query;
+    try {
+        if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
+        const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
+        const totalAdmins = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'admin'");
+        const totalProfiles = await pool.query('SELECT COUNT(*) FROM profiles');
+        const lastLogins = await pool.query(`
+            SELECT u.username, p.updated_at
+            FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+            ORDER BY p.updated_at DESC NULLS LAST LIMIT 5
+        `);
+        res.json({
+            success: true,
+            stats: {
+                totalUsers: parseInt(totalUsers.rows[0].count),
+                totalAdmins: parseInt(totalAdmins.rows[0].count),
+                totalProfiles: parseInt(totalProfiles.rows[0].count),
+                lastActivity: lastLogins.rows
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// ===== PRIERE =====
 const versets = [
     { texte: "Je puis tout par celui qui me fortifie.", ref: "Philippiens 4:13" },
     { texte: "Car je connais les projets que j'ai formés sur vous, projets de paix et non de malheur.", ref: "Jérémie 29:11" },
