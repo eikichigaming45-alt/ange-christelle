@@ -20,7 +20,7 @@ const Cycle = (() => {
     d.setDate(d.getDate() + days);
     d.setHours(0, 0, 0, 0);
     return d;
-}
+  }
 
   function formatDate(date) {
     return new Date(date).toLocaleDateString('fr-FR', {
@@ -40,8 +40,8 @@ const Cycle = (() => {
 
   // ── State navigation calendrier ──────────────────────────
 
-  let _calcCourant  = null;
-  let _moisAffiche  = null;
+  let _calcCourant = null;
+  let _moisAffiche = null;
 
   // ── Calculs cycle ────────────────────────────────────────
 
@@ -241,8 +241,17 @@ const Cycle = (() => {
   async function charger() {
     const container = document.getElementById('widget-cycle-content');
     if (!container) return;
+
+    // Retry si token pas encore disponible
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!user?.token) {
+      setTimeout(() => charger(), 300);
+      return;
+    }
+
     try {
-      const res    = await fetch('/api/cycle', { headers: authHeaders() });
+      const res = await fetch('/api/cycle', { headers: authHeaders() });
+      if (!res.ok) throw new Error();
       const cycles = await res.json();
       container.innerHTML = renderWidget(Array.isArray(cycles) ? cycles : []);
     } catch (e) {
@@ -254,13 +263,12 @@ const Cycle = (() => {
 
   async function ouvrirModalCalendrier() {
     try {
-      const res    = await fetch('/api/cycle', { headers: authHeaders() });
-      const cycles = await res.json();
+      const res        = await fetch('/api/cycle', { headers: authHeaders() });
+      const cycles     = await res.json();
       const dernierCycle = Array.isArray(cycles) && cycles.length > 0 ? cycles[0] : null;
-      const calc   = calculerCycle(dernierCycle);
-      const phase  = getPhase(calc);
+      const calc       = calculerCycle(dernierCycle);
+      const phase      = getPhase(calc);
 
-      // Reset navigation au mois du dernier cycle (ou mois courant)
       _calcCourant = calc;
       _moisAffiche = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
