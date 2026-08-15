@@ -101,10 +101,13 @@
 
     <div class="grid">
         <div class="widget w-meteo" onclick="openModal('meteo')">
-            <div class="wh"><div class="whl"><div class="wi">🌤️</div><div class="wt">Météo du jour</div></div></div>
-            <div class="wc" id="w-meteo">Chargement...</div>
-            <div class="wf">Cliquez pour les détails</div>
-        </div>
+    <div class="wh">
+        <div class="whl"><div class="wi">🌤️</div><div class="wt">Météo du jour</div></div>
+        <button class="rbtn" onclick="event.stopPropagation();chargerMeteoAuto()" title="Actualiser la météo">🔄</button>
+    </div>
+    <div class="wc" id="w-meteo">Chargement...</div>
+    <div class="wf">Cliquez pour les détails</div>
+		</div>
         <div class="widget w-priere" onclick="openModal('priere')">
             <div class="wh">
                 <div class="whl"><div class="wi">🙏</div><div class="wt">Prière du jour</div></div>
