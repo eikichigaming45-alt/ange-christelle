@@ -29,7 +29,6 @@
         .icon-btn{background:rgba(255,255,255,.2);border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s;overflow:hidden;padding:0}
         .icon-btn:hover{background:rgba(255,255,255,.35)}
         .icon-btn img{width:38px;height:38px;object-fit:cover;border-radius:50%}
-
         .grid{flex:1;overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-content:start}
         .widget{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .15s;position:relative;user-select:none}
         .widget:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
@@ -38,7 +37,6 @@
         .drag-handle{position:absolute;top:12px;right:44px;color:#d1d5db;font-size:15px;cursor:grab;padding:4px 6px;border-radius:4px;line-height:1;opacity:0;transition:opacity .15s}
         .widget:hover .drag-handle{opacity:1}
         .drag-handle:hover{color:#6b7280;background:#f3f4f6}
-
         .wh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
         .whl{display:flex;align-items:center;gap:10px}
         .wi{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden;flex-shrink:0}
@@ -58,7 +56,6 @@
         .rbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;border-radius:4px}
         .rbtn:hover{background:#f3f4f6}
         .footer{background:#f3f4f6;color:#e879a0;text-align:center;padding:10px;font-size:13px;font-weight:600;flex-shrink:0}
-
         .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center}
         .overlay.on{display:flex}
         .modal{background:#fff;border-radius:20px;padding:30px;width:90%;max-width:560px;max-height:88vh;overflow-y:auto;position:relative}
@@ -85,8 +82,26 @@
         .separateur{border:none;border-top:2px solid #f3f4f6;margin:20px 0}
         .mdp-form input{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:10px;outline:none}
         .mdp-form input:focus{border-color:#4f46e5}
-
-        /* ADMIN STYLES */
+        /* TACHES & ANNIVERSAIRES */
+        .liste-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px}
+        .liste-item.faite{opacity:.5}
+        .liste-item.faite .item-titre{text-decoration:line-through}
+        .item-check{width:20px;height:20px;border-radius:50%;border:2px solid #4f46e5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff}
+        .item-check.checked{background:#4f46e5;border-color:#4f46e5;color:#fff}
+        .item-info{flex:1;min-width:0}
+        .item-titre{font-weight:600;font-size:14px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .item-meta{font-size:12px;color:#9ca3af;margin-top:2px}
+        .item-del{background:none;border:none;cursor:pointer;color:#d1d5db;font-size:16px;padding:4px;flex-shrink:0}
+        .item-del:hover{color:#ef4444}
+        .badge-today{display:inline-block;background:#fef3c7;color:#d97706;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;margin-left:6px}
+        .badge-recur{display:inline-block;background:#d1fae5;color:#059669;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;margin-left:4px}
+        .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+        .form-row input,.form-row select{flex:1;min-width:100px;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;margin:0;background:#fff}
+        .form-row input:focus,.form-row select:focus{border-color:#4f46e5}
+        .add-btn{width:100%;padding:10px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px}
+        .add-btn:hover{background:#4338ca}
+        .section-title{font-size:13px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
+        /* ADMIN */
         .admin-tabs{display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid #f3f4f6;padding-bottom:0}
         .admin-tab{padding:10px 18px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-size:14px;font-weight:600;color:#9ca3af;transition:all .15s}
         .admin-tab.active{color:#4f46e5;border-bottom-color:#4f46e5}
@@ -99,7 +114,7 @@
         .user-card{border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:10px}
         .user-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
         .user-card-name{font-weight:700;font-size:15px;color:#333}
-        .user-card-role{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600}
+        .user-card-role{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600;margin-left:8px}
         .role-admin{background:#fef3c7;color:#d97706}
         .role-user{background:#d1fae5;color:#059669}
         .user-card-meta{font-size:12px;color:#9ca3af;margin-bottom:10px}
@@ -118,8 +133,6 @@
         .activity-row:last-child{border-bottom:none}
         .activity-row .u{font-weight:600;color:#333}
         .activity-row .d{color:#9ca3af}
-        .badge-success{display:inline-block;background:#d1fae5;color:#059669;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600;margin-top:4px}
-        .badge-error{display:inline-block;background:#fee2e2;color:#ef4444;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600;margin-top:4px}
     </style>
 </head>
 <body>
@@ -146,9 +159,7 @@
             <button class="icon-btn" onclick="logout()" title="Se déconnecter">🔓</button>
         </div>
     </div>
-
     <div class="grid" id="main-grid"></div>
-
     <div class="footer">❤️ Je t'aime - Ton mari ❤️</div>
 </div>
 
@@ -170,16 +181,15 @@ let dragSrc = null;
 let longPressTimer = null;
 let dragActif = false;
 
-
 const WIDGETS_DEF = [
-    { id:'meteo',        label:'Météo du jour',   icon:'🌤️', cls:'w-meteo',        desc:'Chargement...', foot:'Cliquez pour les détails', refresh:true },
-    { id:'priere',       label:'Prière du jour',  icon:'🙏',  cls:'w-priere',       desc:'Chargement...', foot:'Cliquez pour la version complète', refresh:true },
-    { id:'taches',       label:'Tâches du jour',  icon:'✅',  cls:'w-taches',       desc:'Aucune tâche pour aujourd\'hui', foot:'Cliquez pour gérer' },
-    { id:'rdv',          label:'Rendez-vous',      icon:'📅',  cls:'w-rdv',          desc:'Aucun rendez-vous aujourd\'hui', foot:'Cliquez pour gérer' },
-    { id:'planning',     label:'Planning',         icon:'📋',  cls:'w-planning',     desc:'Pas de garde aujourd\'hui', foot:'Cliquez pour voir le planning' },
-    { id:'anniversaires',label:'Anniversaires',    icon:'🎂',  cls:'w-anniversaires',desc:'Aucun anniversaire à venir', foot:'Cliquez pour gérer' },
-    { id:'mails',        label:'Mails',            icon:'📧',  cls:'w-mails',        desc:'Bientôt disponible', foot:'Cliquez pour consulter' },
-    { id:'profil',       label:'Mon Profil',       icon:'👤',  cls:'w-profil',       desc:'Cliquez pour modifier votre profil', foot:'Modifier' },
+    { id:'meteo',         label:'Météo du jour',    icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',                      foot:'Cliquez pour les détails',       refresh:true },
+    { id:'priere',        label:'Prière du jour',   icon:'🙏',  cls:'w-priere',        desc:'Chargement...',                      foot:'Cliquez pour la version complète',refresh:true },
+    { id:'taches',        label:'Tâches du jour',   icon:'✅',  cls:'w-taches',        desc:'Chargement...',                      foot:'Cliquez pour gérer' },
+    { id:'rdv',           label:'Rendez-vous',       icon:'📅',  cls:'w-rdv',           desc:'Aucun rendez-vous aujourd\'hui',     foot:'Cliquez pour gérer' },
+    { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'Pas de garde aujourd\'hui',          foot:'Cliquez pour voir le planning' },
+    { id:'anniversaires', label:'Anniversaires',     icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',                      foot:'Cliquez pour gérer' },
+    { id:'mails',         label:'Mails',             icon:'📧',  cls:'w-mails',         desc:'Bientôt disponible',                 foot:'Cliquez pour consulter' },
+    { id:'profil',        label:'Mon Profil',        icon:'👤',  cls:'w-profil',        desc:'Cliquez pour modifier votre profil', foot:'Modifier' },
 ];
 
 const codes = {
@@ -223,6 +233,78 @@ async function showApp() {
     chargerPriere();
     chargerMeteoAuto();
     chargerProfilHeader();
+    chargerWidgetTaches();
+    chargerWidgetAnniversaires();
+    enregistrerServiceWorker();
+}
+
+// ===================== NOTIFICATIONS PUSH =====================
+async function enregistrerServiceWorker() {
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+    try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+        verifierEvenementsJour();
+    } catch(e) { console.warn('SW non disponible', e); }
+}
+
+async function verifierEvenementsJour() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!user?.userId) return;
+    const today = new Date().toISOString().split('T')[0];
+    const lastCheck = localStorage.getItem(`myvibe_check_${user.userId}`);
+    if (lastCheck === today) return;
+    localStorage.setItem(`myvibe_check_${user.userId}`, today);
+
+    const now = new Date();
+    const jour = now.getDate();
+    const mois = now.getMonth() + 1;
+
+    try {
+        // Anniversaires du jour
+        const ra = await fetch(`/api/anniversaires?userId=${user.userId}`);
+        const da = await ra.json();
+        if (da.success) {
+            da.anniversaires.forEach(a => {
+                if (parseInt(a.jour) === jour && parseInt(a.mois) === mois) {
+                    const age = a.annee ? ` — ${now.getFullYear() - a.annee} ans` : '';
+                    envoyerNotif(
+                        `🎂 Anniversaire aujourd'hui !`,
+                        `${a.prenom}${a.nom ? ' '+a.nom : ''}${age}`,
+                        'anniversaire-'+a.id
+                    );
+                }
+            });
+        }
+
+        // Tâches du jour
+        const rt = await fetch(`/api/taches?userId=${user.userId}`);
+        const dt = await rt.json();
+        if (dt.success) {
+            dt.taches.forEach(t => {
+                if (!t.faite && t.date && t.date.split('T')[0] === today) {
+                    envoyerNotif(
+                        `✅ Tâche du jour`,
+                        t.titre,
+                        'tache-'+t.id
+                    );
+                }
+            });
+        }
+    } catch(e) { console.warn('Erreur check événements', e); }
+}
+
+function envoyerNotif(titre, corps, tag) {
+    if (Notification.permission !== 'granted') return;
+    navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(titre, {
+            body: corps,
+            icon: '/icon.png',
+            tag: tag,
+            renotify: false
+        });
+    });
 }
 
 // ===================== GRID & DRAG DROP =====================
@@ -230,7 +312,6 @@ async function buildGrid() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const grid = document.getElementById('main-grid');
     grid.innerHTML = '';
-
     let ordre = null;
     try {
         const r = await fetch(`/api/widget-order?userId=${user.userId}`);
@@ -242,16 +323,13 @@ async function buildGrid() {
     if (user?.role === 'admin') {
         defs.push({ id:'admin', label:'Administration', icon:'⚙️', cls:'w-admin', desc:'Gérer les utilisateurs et les paramètres', foot:'Accès admin' });
     }
-
     if (ordre) {
         const sorted = [];
         ordre.forEach(id => { const w = defs.find(d => d.id === id); if(w) sorted.push(w); });
         defs.forEach(w => { if(!ordre.includes(w.id)) sorted.push(w); });
         defs = sorted;
     }
-
     defs.forEach(def => grid.appendChild(creerWidget(def)));
-    updateWidgetDynamics();
 }
 
 function creerWidget(def) {
@@ -259,7 +337,6 @@ function creerWidget(def) {
     div.className = `widget ${def.cls}`;
     div.dataset.id = def.id;
     div.draggable = true;
-
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
         <div class="wh">
@@ -272,86 +349,51 @@ function creerWidget(def) {
         <div class="wc" id="wc-${def.id}">${def.desc}</div>
         <div class="wf">${def.foot}</div>
     `;
-
-    // Click sur widget (pas sur handle ni rbtn)
     div.addEventListener('click', e => {
         if (e.target.classList.contains('drag-handle') || e.target.classList.contains('rbtn')) return;
         openModal(def.id);
     });
-
-    // Refresh buttons
-    if (def.id === 'meteo') {
-        div.querySelector('#rbtn-meteo')?.addEventListener('click', e => { e.stopPropagation(); chargerMeteoAuto(); });
-    }
-    if (def.id === 'priere') {
-        div.querySelector('#rbtn-priere')?.addEventListener('click', e => { e.stopPropagation(); chargerPriere(); });
-    }
-
-    // Drag events
+    if (def.id === 'meteo')  div.querySelector('#rbtn-meteo')?.addEventListener('click',  e => { e.stopPropagation(); chargerMeteoAuto(); });
+    if (def.id === 'priere') div.querySelector('#rbtn-priere')?.addEventListener('click', e => { e.stopPropagation(); chargerPriere(); });
     div.addEventListener('dragstart', onDragStart);
     div.addEventListener('dragover',  onDragOver);
     div.addEventListener('dragleave', onDragLeave);
     div.addEventListener('drop',      onDrop);
     div.addEventListener('dragend',   onDragEnd);
-
-    // Touch drag (mobile)
     ajouterTouchDrag(div);
-
     return div;
 }
 
-function onDragStart(e) {
-    dragSrc = this;
-    this.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', this.dataset.id);
-}
-function onDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (this !== dragSrc) this.classList.add('drag-over');
-}
-function onDragLeave() { this.classList.remove('drag-over'); }
+function onDragStart(e) { dragSrc=this; this.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',this.dataset.id); }
+function onDragOver(e)  { e.preventDefault(); e.dataTransfer.dropEffect='move'; if(this!==dragSrc) this.classList.add('drag-over'); }
+function onDragLeave()  { this.classList.remove('drag-over'); }
 function onDrop(e) {
-    e.preventDefault();
-    this.classList.remove('drag-over');
-    if (this === dragSrc) return;
-    const grid = document.getElementById('main-grid');
-    const widgets = [...grid.children];
-    const srcIdx = widgets.indexOf(dragSrc);
-    const tgtIdx = widgets.indexOf(this);
-    if (srcIdx < tgtIdx) grid.insertBefore(dragSrc, this.nextSibling);
-    else grid.insertBefore(dragSrc, this);
+    e.preventDefault(); this.classList.remove('drag-over');
+    if(this===dragSrc) return;
+    const grid=document.getElementById('main-grid');
+    const widgets=[...grid.children];
+    const si=widgets.indexOf(dragSrc), ti=widgets.indexOf(this);
+    if(si<ti) grid.insertBefore(dragSrc,this.nextSibling); else grid.insertBefore(dragSrc,this);
     sauvegarderOrdre();
 }
-function onDragEnd() {
-    this.classList.remove('dragging');
-    document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
-}
+function onDragEnd() { this.classList.remove('dragging'); document.querySelectorAll('.widget').forEach(w=>w.classList.remove('drag-over')); }
 
 function ajouterTouchDrag(el) {
     let startX, startY, clone, origRect;
-
     el.addEventListener('touchstart', e => {
         dragActif = false;
         const t = e.touches[0];
-        startX = t.clientX;
-        startY = t.clientY;
-
+        startX = t.clientX; startY = t.clientY;
         longPressTimer = setTimeout(() => {
             dragActif = true;
             origRect = el.getBoundingClientRect();
             clone = el.cloneNode(true);
-            clone.style.cssText = `
-                position:fixed;z-index:9999;opacity:.75;pointer-events:none;
-                width:${origRect.width}px;left:${origRect.left}px;top:${origRect.top}px;
-                margin:0;transition:none;border-radius:16px;
-                box-shadow:0 12px 32px rgba(0,0,0,.2);
-            `;
+            clone.style.cssText = `position:fixed;z-index:9999;opacity:.75;pointer-events:none;width:${origRect.width}px;left:${origRect.left}px;top:${origRect.top}px;margin:0;transition:none;border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,.2);`;
             document.body.appendChild(clone);
             el.classList.add('dragging');
             dragSrc = el;
-            if (navigator.vibrate) navigator.vibrate(40);
+            if (navigator.vibrate) navigator
+.vibrate(40);
         }, 500);
     }, {passive:true});
 
@@ -359,21 +401,13 @@ function ajouterTouchDrag(el) {
         const t = e.touches[0];
         const dx = Math.abs(t.clientX - startX);
         const dy = Math.abs(t.clientY - startY);
-
-        if (!dragActif && (dx > 8 || dy > 8)) {
-            clearTimeout(longPressTimer);
-            return;
-        }
-
+        if (!dragActif && (dx > 8 || dy > 8)) { clearTimeout(longPressTimer); return; }
         if (!dragActif) return;
-
         e.preventDefault();
-
         const moveX = t.clientX - startX;
         const moveY = t.clientY - startY;
         clone.style.left = (origRect.left + moveX) + 'px';
         clone.style.top  = (origRect.top  + moveY) + 'px';
-
         clone.style.display = 'none';
         const below = document.elementFromPoint(t.clientX, t.clientY);
         clone.style.display = '';
@@ -385,27 +419,22 @@ function ajouterTouchDrag(el) {
     el.addEventListener('touchend', e => {
         clearTimeout(longPressTimer);
         if (!dragActif) return;
-
         const t = e.changedTouches[0];
         if (clone) clone.remove();
         el.classList.remove('dragging');
         dragActif = false;
-
         const below = document.elementFromPoint(t.clientX, t.clientY);
         const target = below?.closest('.widget');
         document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
-
         if (target && target !== el) {
             const grid = document.getElementById('main-grid');
             const widgets = [...grid.children];
-            const srcIdx = widgets.indexOf(el);
-            const tgtIdx = widgets.indexOf(target);
-            if (srcIdx < tgtIdx) grid.insertBefore(el, target.nextSibling);
-            else grid.insertBefore(el, target);
+            const si = widgets.indexOf(el), ti = widgets.indexOf(target);
+            if (si < ti) grid.insertBefore(el, target.nextSibling); else grid.insertBefore(el, target);
             sauvegarderOrdre();
         }
     }, {passive:true});
-	
+
     el.addEventListener('touchcancel', () => {
         clearTimeout(longPressTimer);
         if (clone) clone.remove();
@@ -414,7 +443,6 @@ function ajouterTouchDrag(el) {
         document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
     }, {passive:true});
 }
-
 
 async function sauvegarderOrdre() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
@@ -427,22 +455,17 @@ async function sauvegarderOrdre() {
     } catch(e) {}
 }
 
-function updateWidgetDynamics() {
-    chargerProfilHeader();
-}
-
 // ===================== APP LOGIC =====================
 function actualiser() {
     afficherDate();
     chargerPriere();
     chargerMeteoAuto();
     chargerProfilHeader();
+    chargerWidgetTaches();
+    chargerWidgetAnniversaires();
 }
 
-function logout() {
-    localStorage.removeItem('myvibe_user');
-    window.location.reload();
-}
+function logout() { localStorage.removeItem('myvibe_user'); window.location.reload(); }
 
 function afficherDate() {
     const now = new Date();
@@ -465,7 +488,7 @@ async function chargerProfilHeader() {
             else if (initiales) { btnHeader.innerHTML = initiales; btnHeader.style.fontSize='13px'; btnHeader.style.fontWeight='700'; }
             else { btnHeader.innerHTML = '👤'; }
             const wi = document.getElementById('wi-profil');
-            if (wi) { wi.innerHTML = p.photo ? `<img src="${p.photo}" alt="profil">` : '👤'; }
+            if (wi) wi.innerHTML = p.photo ? `<img src="${p.photo}" alt="profil">` : '👤';
             const wc = document.getElementById('wc-profil');
             if (wc) wc.textContent = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Cliquez pour modifier votre profil';
         }
@@ -478,8 +501,7 @@ async function chargerPriere() {
     try {
         const r = await fetch(`/api/priere?dernier=${dernierIndex}`);
         const d = await r.json();
-        dernierIndex = d.index;
-        priere = d;
+        dernierIndex = d.index; priere = d;
         const mots = d.texte.split(' ');
         const courte = mots.slice(0,10).join(' ')+(mots.length>10?'...':'');
         if (el) el.textContent = `"${courte}"`;
@@ -499,9 +521,9 @@ async function chargerMeteo(lat, lon, nomVille) {
         const temp = Math.round(d.current.temperature_2m);
         const desc = codes[d.current.weather_code]||'Variable';
         const vent = Math.round(d.current.wind_speed_10m);
-        const hum = d.current.relative_humidity_2m;
-        const max = Math.round(d.daily.temperature_2m_max[0]);
-        const min = Math.round(d.daily.temperature_2m_min[0]);
+        const hum  = d.current.relative_humidity_2m;
+        const max  = Math.round(d.daily.temperature_2m_max[0]);
+        const min  = Math.round(d.daily.temperature_2m_min[0]);
         meteoData = {temp,desc,vent,hum,max,min,ville:nomVille,lat,lon};
         if (el) el.textContent = `${nomVille} — ${desc} — ${temp}°C`;
         localStorage.setItem('myvibe_ville', JSON.stringify({lat,lon,ville:nomVille}));
@@ -542,6 +564,67 @@ function geoLocaliser() {
     }
 }
 
+// ===================== WIDGET TACHES =====================
+async function chargerWidgetTaches() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!user?.userId) return;
+    const el = document.getElementById('wc-taches');
+    if (!el) return;
+    try {
+        const r = await fetch(`/api/taches?userId=${user.userId}`);
+        const d = await r.json();
+        if (!d.success) return;
+        const today = new Date().toISOString().split('T')[0];
+        const taches = d.taches;
+        const duJour = taches.filter(t => !t.faite && t.date && t.date.split('T')[0] === today);
+        const avenir = taches.filter(t => !t.faite && t.date && t.date.split('T')[0] > today).slice(0,3);
+        const flottantes = taches.filter(t => !t.faite && !t.date).slice(0,2);
+        if (duJour.length === 0 && avenir.length === 0 && flottantes.length === 0) {
+            el.textContent = 'Aucune tâche à venir';
+            return;
+        }
+        let html = '';
+        if (duJour.length > 0) html += `<strong style="font-size:12px;color:#059669">Aujourd'hui (${duJour.length})</strong><br>${duJour.map(t=>`• ${t.titre}`).join('<br>')}`;
+        if (avenir.length > 0) html += `${duJour.length?'<br>':''}<strong style="font-size:12px;color:#6b7280">À venir</strong><br>${avenir.map(t=>`• ${t.titre} <span style="color:#9ca3af;font-size:11px">${new Date(t.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}</span>`).join('<br>')}`;
+        if (flottantes.length > 0) html += `<br><strong style="font-size:12px;color:#6b7280">Sans date</strong><br>${flottantes.map(t=>`• ${t.titre}`).join('<br>')}`;
+        el.innerHTML = html;
+    } catch(e) { if(el) el.textContent = 'Erreur de chargement'; }
+}
+
+// ===================== WIDGET ANNIVERSAIRES =====================
+async function chargerWidgetAnniversaires() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!user?.userId) return;
+    const el = document.getElementById('wc-anniversaires');
+    if (!el) return;
+    try {
+        const r = await fetch(`/api/anniversaires?userId=${user.userId}`);
+        const d = await r.json();
+        if (!d.success) return;
+        const now = new Date();
+        const annee = now.getFullYear();
+
+        const avec_jours = d.anniversaires.map(a => {
+            let prochaine = new Date(annee, a.mois-1, a.jour);
+            if (prochaine < now && !(prochaine.getDate()===now.getDate() && prochaine.getMonth()===now.getMonth())) {
+                prochaine = new Date(annee+1, a.mois-1, a.jour);
+            }
+            const diff = Math.ceil((prochaine - now) / 86400000);
+            return { ...a, diff, prochaine };
+        }).sort((a,b) => a.diff - b.diff).slice(0,5);
+
+        if (avec_jours.length === 0) { el.textContent = 'Aucun anniversaire enregistré'; return; }
+
+        el.innerHTML = avec_jours.map(a => {
+            const label = a.diff === 0 ? `<span style="color:#e879a0;font-weight:700">Aujourd'hui 🎂</span>` :
+                          a.diff === 1 ? `<span style="color:#d97706">Demain</span>` :
+                          `<span style="color:#9ca3af">Dans ${a.diff}j</span>`;
+            const age = (a.annee && a.diff === 0) ? ` — ${annee - a.annee} ans` : (a.annee && a.diff > 0) ? ` — ${annee - a.annee + (a.prochaine.getFullYear()>annee?1:0)} ans` : '';
+            return `• ${a.prenom}${a.nom?' '+a.nom:''} ${label}${age}`;
+        }).join('<br>');
+    } catch(e) { if(el) el.textContent = 'Erreur de chargement'; }
+}
+
 // ===================== PHOTO =====================
 function previewPhoto(event) {
     const file = event.target.files[0];
@@ -553,22 +636,18 @@ function previewPhoto(event) {
             const canvas = document.createElement('canvas');
             const MAX = 300;
             let w = img.width, h = img.height;
-            if (w > h) { if (w > MAX) { h = h*MAX/w; w = MAX; } }
-            else { if (h > MAX) { w = w*MAX/h; h = MAX; } }
-            canvas.width = w; canvas.height = h;
+            if (w>h) { if(w>MAX){h=h*MAX/w;w=MAX;} } else { if(h>MAX){w=w*MAX/h;h=MAX;} }
+            canvas.width=w; canvas.height=h;
             canvas.getContext('2d').drawImage(img,0,0,w,h);
             const dataUrl = canvas.toDataURL('image/jpeg',0.7);
             const preview = document.getElementById('profil-photo-preview');
-            if (preview) {
-                preview.src = dataUrl;
-            } else {
+            if (preview) { preview.src = dataUrl; }
+            else {
                 const zone = document.querySelector('.initiales');
                 if (zone) {
                     const newImg = document.createElement('img');
-                    newImg.id = 'profil-photo-preview';
-                    newImg.src = dataUrl;
-                    newImg.className = 'photo-circle';
-                    newImg.onclick = () => document.getElementById('photo-input').click();
+                    newImg.id='profil-photo-preview'; newImg.src=dataUrl; newImg.className='photo-circle';
+                    newImg.onclick=()=>document.getElementById('photo-input').click();
                     zone.replaceWith(newImg);
                 }
             }
@@ -582,41 +661,41 @@ function previewPhoto(event) {
 async function sauvegarderProfil() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const msg = document.getElementById('profil-msg');
-    msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
+    msg.textContent='Sauvegarde...'; msg.style.color='#9ca3af';
     const photoEl = document.getElementById('profil-photo-preview');
     const photo = photoEl?.src?.startsWith('data:') ? photoEl.src : (profilCache?.photo||null);
     const body = {
-        userId: user.userId,
-        prenom: document.getElementById('p-prenom').value,
-        nom: document.getElementById('p-nom').value,
-        date_naissance: document.getElementById('p-naissance').value||null,
-        email: document.getElementById('p-email').value,
-        telephone: document.getElementById('p-tel').value,
-        profession: document.getElementById('p-prof').value,
-        note: document.getElementById('p-note').value,
+        userId:user.userId,
+        prenom:document.getElementById('p-prenom').value,
+        nom:document.getElementById('p-nom').value,
+        date_naissance:document.getElementById('p-naissance').value||null,
+        email:document.getElementById('p-email').value,
+        telephone:document.getElementById('p-tel').value,
+        profession:document.getElementById('p-prof').value,
+        note:document.getElementById('p-note').value,
         photo
     };
     try {
-        const r = await fetch('/api/profil', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const r = await fetch('/api/profil',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
         const d = await r.json();
         if (d.success) {
-            msg.textContent = '✅ Profil sauvegardé !'; msg.style.color = '#10b981';
-            profilCache = {...profilCache,...body};
+            msg.textContent='✅ Profil sauvegardé !'; msg.style.color='#10b981';
+            profilCache={...profilCache,...body};
             chargerProfilHeader();
-        } else { msg.textContent = '❌ '+d.message; msg.style.color='#ef4444'; }
+        } else { msg.textContent='❌ '+d.message; msg.style.color='#ef4444'; }
     } catch { msg.textContent='❌ Erreur réseau'; msg.style.color='#ef4444'; }
 }
 
 async function changerMdp() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const ancien  = document.getElementById('mdp-ancien').value;
-    const nouveau = document.getElementById('mdp-nouveau').value;
-    const confirm = document.getElementById('mdp-confirm').value;
-    const msg = document.getElementById('mdp-msg');
-    if (nouveau !== confirm) { msg.textContent='❌ Les mots de passe ne correspondent pas'; msg.style.color='#ef4444'; return; }
+    const ancien=document.getElementById('mdp-ancien').value;
+    const nouveau=document.getElementById('mdp-nouveau').value;
+    const confirm=document.getElementById('mdp-confirm').value;
+    const msg=document.getElementById('mdp-msg');
+    if (nouveau!==confirm) { msg.textContent='❌ Les mots de passe ne correspondent pas'; msg.style.color='#ef4444'; return; }
     msg.textContent='Sauvegarde...'; msg.style.color='#9ca3af';
     try {
-        const r = await fetch('/api/changer-mdp', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.userId,ancienMdp:ancien,nouveauMdp:nouveau})});
+        const r = await fetch('/api/changer-mdp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.userId,ancienMdp:ancien,nouveauMdp:nouveau})});
         const d = await r.json();
         if (d.success) {
             msg.textContent='✅ Mot de passe changé !'; msg.style.color='#10b981';
@@ -627,10 +706,196 @@ async function changerMdp() {
     } catch { msg.textContent='❌ Erreur réseau'; msg.style.color='#ef4444'; }
 }
 
+// ===================== TACHES MODAL =====================
+async function chargerModalTaches() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const r = await fetch(`/api/taches?userId=${user.userId}`);
+    const d = await r.json();
+    if (!d.success) return;
+    const today = new Date().toISOString().split('T')[0];
+    const taches = d.taches;
+    const duJour   = taches.filter(t => t.date && t.date.split('T')[0] === today);
+    const avenir   = taches.filter(t => t.date && t.date.split('T')[0] > today && !t.faite);
+    const flott    = taches.filter(t => !t.date && !t.faite);
+    const termines = taches.filter(t => t.faite).slice(0,5);
+
+    document.getElementById('modal-body').innerHTML = `
+        <div style="margin-bottom:16px">
+            <div class="form-row">
+                <input type="text" id="t-titre" placeholder="Titre de la tâche">
+            </div>
+            <div class="form-row">
+                <input type="date" id="t-date">
+                <input type="time" id="t-heure">
+                <select id="t-recur">
+                    <option value="none">Une fois</option>
+                    <option value="daily">Quotidien</option>
+                    <option value="weekly">Hebdo</option>
+                    <option value="monthly">Mensuel</option>
+                </select>
+            </div>
+            <button class="add-btn" onclick="ajouterTache()">➕ Ajouter la tâche</button>
+        </div>
+
+        ${duJour.length > 0 ? `<div class="section-title">Aujourd'hui</div>${duJour.map(t => renderTache(t, today)).join('')}` : ''}
+        ${avenir.length > 0 ? `<div class="section-title">À venir</div>${avenir.map(t => renderTache(t, today)).join('')}` : ''}
+        ${flott.length  > 0 ? `<div class="section-title">Sans date</div>${flott.map(t => renderTache(t, today)).join('')}` : ''}
+        ${termines.length > 0 ? `<div class="section-title">Terminées</div>${termines.map(t => renderTache(t, today)).join('')}` : ''}
+        ${taches.length === 0 ? '<p style="color:#9ca3af;text-align:center;margin-top:20px">Aucune tâche pour l\'instant</p>' : ''}
+    `;
+}
+
+function renderTache(t, today) {
+    const dateStr = t.date ? t.date.split('T')[0] : null;
+    const heureStr = t.heure ? t.heure.slice(0,5) : '';
+    const isToday = dateStr === today;
+    const recuLabels = {daily:'Quotidien',weekly:'Hebdo',monthly:'Mensuel'};
+    return `
+        <div class="liste-item ${t.faite?'faite':''}" id="tache-${t.id}">
+            <div class="item-check ${t.faite?'checked':''}" onclick="cocherTache(${t.id})">
+                ${t.faite?'✓':''}
+            </div>
+            <div class="item-info">
+                <div class="item-titre">
+                    ${t.titre}
+                    ${isToday && !t.faite ? '<span class="badge-today">Aujourd\'hui</span>' : ''}
+                    ${t.recurrence!=='none' ? `<span class="badge-recur">${recuLabels[t.recurrence]}</span>` : ''}
+                </div>
+                <div class="item-meta">
+                    ${dateStr ? new Date(dateStr+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'}) : 'Sans date'}
+                    ${heureStr ? ' à '+heureStr : ''}
+                </div>
+            </div>
+            <button class="item-del" onclick="supprimerTache(${t.id})">🗑️</button>
+        </div>
+    `;
+}
+
+async function ajouterTache() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const titre = document.getElementById('t-titre').value.trim();
+    if (!titre) { alert('Entrez un titre'); return; }
+    const body = {
+        userId: user.userId,
+        titre,
+        date: document.getElementById('t-date').value || null,
+        heure: document.getElementById('t-heure').value || null,
+        recurrence: document.getElementById('t-recur').value
+    };
+    try {
+        const r = await fetch('/api/taches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const d = await r.json();
+        if (d.success) { chargerModalTaches(); chargerWidgetTaches(); }
+        else alert('Erreur : '+d.message);
+    } catch { alert('Erreur réseau'); }
+}
+
+async function cocherTache(id) {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    try {
+        await fetch(`/api/taches/${id}/cocher`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.userId})});
+        chargerModalTaches();
+        chargerWidgetTaches();
+    } catch { alert('Erreur réseau'); }
+}
+
+async function supprimerTache(id) {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!confirm('Supprimer cette tâche ?')) return;
+    try {
+        await fetch(`/api/taches/${id}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.userId})});
+        chargerModalTaches();
+        chargerWidgetTaches();
+    } catch { alert('Erreur réseau'); }
+}
+
+// ===================== ANNIVERSAIRES MODAL =====================
+async function chargerModalAnniversaires() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const r = await fetch(`/api/anniversaires?userId=${user.userId}`);
+    const d = await r.json();
+    if (!d.success) return;
+    const now = new Date();
+    const annee = now.getFullYear();
+
+    const tries = d.anniversaires.map(a => {
+        let prochaine = new Date(annee, a.mois-1, a.jour);
+        if (prochaine < now && !(prochaine.getDate()===now.getDate() && prochaine.getMonth()===now.getMonth())) {
+            prochaine = new Date(annee+1, a.mois-1, a.jour);
+        }
+        const diff = Math.ceil((prochaine - now) / 86400000);
+        return {...a, diff, prochaine};
+    }).sort((a,b) => a.diff - b.diff);
+
+    document.getElementById('modal-body').innerHTML = `
+        <div style="margin-bottom:16px">
+            <div class="form-row">
+                <input type="text" id="a-prenom" placeholder="Prénom *">
+                <input type="text" id="a-nom" placeholder="Nom (optionnel)">
+            </div>
+            <div class="form-row">
+                <input type="number" id="a-jour" placeholder="Jour *" min="1" max="31">
+                <input type="number" id="a-mois" placeholder="Mois *" min="1" max="12">
+                <input type="number" id="a-annee" placeholder="Année (opt.)">
+            </div>
+            <button class="add-btn" onclick="ajouterAnniversaire()">➕ Ajouter</button>
+        </div>
+        ${tries.length === 0 ? '<p style="color:#9ca3af;text-align:center">Aucun anniversaire enregistré</p>' : tries.map(a => {
+            const age = a.annee ? ` — ${annee - a.annee + (a.prochaine.getFullYear() > annee ? 1 : 0)} ans` : '';
+            const label = a.diff===0 ? `<span class="badge-today">Aujourd'hui 🎂</span>` :
+                          a.diff===1 ? `<span style="color:#d97706;font-size:12px">Demain</span>` :
+                          `<span style="color:#9ca3af;font-size:12px">Dans ${a.diff}j</span>`;
+            const dateStr = `${String(a.jour).padStart(2,'0')}/${String(a.mois).padStart(2,'0')}${a.annee?' '+a.annee:''}`;
+            return `
+                <div class="liste-item" id="anniv-${a.id}">
+                    <div class="wi" style="background:#fce7f3;font-size:18px">🎂</div>
+                    <div class="item-info">
+                        <div class="item-titre">${a.prenom}${a.nom?' '+a.nom:''} ${label}${age}</div>
+                        <div class="item-meta">${dateStr}</div>
+                    </div>
+                    <button class="item-del" onclick="supprimerAnniversaire(${a.id})">🗑️</button>
+                </div>
+            `;
+        }).join('')}
+    `;
+}
+
+async function ajouterAnniversaire() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const prenom = document.getElementById('a-prenom').value.trim();
+    const jour   = document.getElementById('a-jour').value;
+    const mois   = document.getElementById('a-mois').value;
+    if (!prenom || !jour || !mois) { alert('Prénom, jour et mois sont obligatoires'); return; }
+    const body = {
+        userId: user.userId,
+        prenom,
+        nom:    document.getElementById('a-nom').value.trim()||null,
+        jour:   parseInt(jour),
+        mois:   parseInt(mois),
+        annee:  document.getElementById('a-annee').value ? parseInt(document.getElementById('a-annee').value) : null
+    };
+    try {
+        const r = await fetch('/api/anniversaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const d = await r.json();
+        if (d.success) { chargerModalAnniversaires(); chargerWidgetAnniversaires(); }
+        else alert('Erreur : '+d.message);
+    } catch { alert('Erreur réseau'); }
+}
+
+async function supprimerAnniversaire(id) {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!confirm('Supprimer cet anniversaire ?')) return;
+    try {
+        await fetch(`/api/anniversaires/${id}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.userId})});
+        chargerModalAnniversaires();
+        chargerWidgetAnniversaires();
+    } catch { alert('Erreur réseau'); }
+}
+
 // ===================== ADMIN =====================
 function switchAdminTab(tab) {
-    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-content').forEach(t=>t.classList.remove('active'));
     document.querySelector(`.admin-tab[data-tab="${tab}"]`).classList.add('active');
     document.getElementById(`admin-tab-${tab}`).classList.add('active');
 }
@@ -646,11 +911,11 @@ async function chargerAdminStats() {
             <div class="stat-card"><div class="val">${s.totalUsers}</div><div class="lbl">Utilisateurs</div></div>
             <div class="stat-card"><div class="val">${s.totalAdmins}</div><div class="lbl">Admins</div></div>
             <div class="stat-card"><div class="val">${s.totalProfiles}</div><div class="lbl">Profils remplis</div></div>
-            <div class="stat-card"><div class="val">${s.totalUsers - s.totalProfiles}</div><div class="lbl">Sans profil</div></div>
+            <div class="stat-card"><div class="val">${s.totalUsers-s.totalProfiles}</div><div class="lbl">Sans profil</div></div>
         </div>
-        <h4 style="color:#333;margin-bottom:10px;font-size:14px">Dernière activité profil</h4>
-        ${s.lastActivity.map(a => `
-            <div class="activity-row">
+        <h4 style="color:#333;margin-bottom:10px;font-size:14px">Dernière activité</h4>
+        ${s.lastActivity.map(a=>`
+             <div class="activity-row">
                 <span class="u">${a.username}</span>
                 <span class="d">${a.updated_at ? new Date(a.updated_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) : 'Jamais'}</span>
             </div>
@@ -673,17 +938,17 @@ async function chargerAdminUsers() {
                 <span style="font-size:11px;color:#9ca3af">#${u.id}</span>
             </div>
             <div class="user-card-meta">
-                ${[u.prenom, u.nom].filter(Boolean).join(' ') || '<em>Pas de profil</em>'}
-                ${u.email ? ' · '+u.email : ''}
-                ${u.profession ? ' · '+u.profession : ''}
+                ${[u.prenom,u.nom].filter(Boolean).join(' ')||'<em>Pas de profil</em>'}
+                ${u.email?' · '+u.email:''}
+                ${u.profession?' · '+u.profession:''}
             </div>
             <div class="user-card-actions">
                 <input type="password" id="reset-mdp-${u.id}" placeholder="Nouveau mot de passe">
-                <button class="ua-btn ua-btn-blue" onclick="resetMdpUser(${u.id}, this)">🔑 MDP</button>
-                <button class="ua-btn ua-btn-green" onclick="toggleRole(${u.id}, '${u.role}', this)">
-                    ${u.role==='admin' ? '👤 → user' : '⚙️ → admin'}
+                <button class="ua-btn ua-btn-blue" onclick="resetMdpUser(${u.id},this)">🔑 MDP</button>
+                <button class="ua-btn ua-btn-green" onclick="toggleRole(${u.id},'${u.role}',this)">
+                    ${u.role==='admin'?'👤 → user':'⚙️ → admin'}
                 </button>
-                <button class="ua-btn ua-btn-red" onclick="supprimerUser(${u.id}, '${u.username}')">🗑️ Suppr.</button>
+                <button class="ua-btn ua-btn-red" onclick="supprimerUser(${u.id},'${u.username}')">🗑️ Suppr.</button>
             </div>
         </div>
     `).join('');
@@ -695,22 +960,22 @@ async function resetMdpUser(userId, btn) {
     const nouveauMdp = input.value.trim();
     if (!nouveauMdp) { alert('Entrez un nouveau mot de passe'); return; }
     try {
-        const r = await fetch('/api/admin/reset-mdp', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId,nouveauMdp})});
+        const r = await fetch('/api/admin/reset-mdp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId,nouveauMdp})});
         const d = await r.json();
         if (d.success) { input.value=''; btn.textContent='✅'; setTimeout(()=>btn.textContent='🔑 MDP',2000); }
-        else { alert('Erreur : '+d.message); }
+        else alert('Erreur : '+d.message);
     } catch { alert('Erreur réseau'); }
 }
 
 async function toggleRole(userId, roleActuel, btn) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const newRole = roleActuel === 'admin' ? 'user' : 'admin';
+    const newRole = roleActuel==='admin'?'user':'admin';
     if (!confirm(`Changer ce compte en "${newRole}" ?`)) return;
     try {
-        const r = await fetch('/api/admin/update-user', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId,role:newRole})});
+        const r = await fetch('/api/admin/update-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId,role:newRole})});
         const d = await r.json();
-        if (d.success) { chargerAdminUsers(); }
-        else { alert('Erreur : '+d.message); }
+        if (d.success) chargerAdminUsers();
+        else alert('Erreur : '+d.message);
     } catch { alert('Erreur réseau'); }
 }
 
@@ -718,10 +983,10 @@ async function supprimerUser(userId, username) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     if (!confirm(`Supprimer définitivement "${username}" ? Cette action est irréversible.`)) return;
     try {
-        const r = await fetch('/api/admin/delete-user', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId})});
+        const r = await fetch('/api/admin/delete-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId})});
         const d = await r.json();
         if (d.success) { document.getElementById('ucard-'+userId)?.remove(); chargerAdminStats(); }
-        else { alert('Erreur : '+d.message); }
+        else alert('Erreur : '+d.message);
     } catch { alert('Erreur réseau'); }
 }
 
@@ -731,10 +996,10 @@ async function creerUser() {
     const password = document.getElementById('new-password').value.trim();
     const role     = document.getElementById('new-role').value;
     const msg      = document.getElementById('create-msg');
-    if (!username || !password) { msg.textContent='Remplissez tous les champs'; msg.style.color='#ef4444'; return; }
+    if (!username||!password) { msg.textContent='Remplissez tous les champs'; msg.style.color='#ef4444'; return; }
     msg.textContent='Création...'; msg.style.color='#9ca3af';
     try {
-        const r = await fetch('/api/admin/create-user', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,username,password,role})});
+        const r = await fetch('/api/admin/create-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,username,password,role})});
         const d = await r.json();
         if (d.success) {
             msg.textContent='✅ Utilisateur créé !'; msg.style.color='#10b981';
@@ -787,6 +1052,14 @@ async function openModal(type) {
             <span class="priere-ref">— ${priere.ref}</span>
         ` : '<p>Chargement...</p>';
 
+    } else if (type === 'taches') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        await chargerModalTaches();
+
+    } else if (type === 'anniversaires') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        await chargerModalAnniversaires();
+
     } else if (type === 'profil') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         const user = JSON.parse(localStorage.getItem('myvibe_user'));
@@ -810,7 +1083,7 @@ async function openModal(type) {
                 <div class="profil-form">
                     <input id="p-prenom" placeholder="Prénom" value="${p.prenom||''}">
                     <input id="p-nom" placeholder="Nom" value="${p.nom||''}">
-                    <input id="p-naissance" type="date" value="${p.date_naissance ? p.date_naissance.split('T')[0]:''}">
+                    <input id="p-naissance" type="date" value="${p.date_naissance?p.date_naissance.split('T')[0]:''}">
                     <input id="p-email" placeholder="Email" value="${p.email||''}">
                     <input id="p-tel" placeholder="Téléphone" value="${p.telephone||''}">
                     <input id="p-prof" placeholder="Profession" value="${p.profession||''}">
@@ -835,13 +1108,13 @@ async function openModal(type) {
     } else if (type === 'admin') {
         document.getElementById('modal-body').innerHTML = `
             <div class="admin-tabs">
-                <button class="admin-tab active" data-tab="stats"    onclick="switchAdminTab('stats')">📊 Stats</button>
-                <button class="admin-tab"         data-tab="users"   onclick="switchAdminTab('users')">👥 Utilisateurs</button>
-                <button class="admin-tab"         data-tab="creer"   onclick="switchAdminTab('creer')">➕ Créer</button>
+                <button class="admin-tab active" data-tab="stats"  onclick="switchAdminTab('stats')">📊 Stats</button>
+                <button class="admin-tab"        data-tab="users"  onclick="switchAdminTab('users')">👥 Utilisateurs</button>
+                <button class="admin-tab"        data-tab="creer"  onclick="switchAdminTab('creer')">➕ Créer</button>
             </div>
-            <div id="admin-tab-stats"  class="admin-tab-content active"><p style="color:#9ca3af">Chargement...</p></div>
-            <div id="admin-tab-users"  class="admin-tab-content"><p style="color:#9ca3af">Chargement...</p></div>
-            <div id="admin-tab-creer"  class="admin-tab-content">
+            <div id="admin-tab-stats" class="admin-tab-content active"><p style="color:#9ca3af">Chargement...</p></div>
+            <div id="admin-tab-users" class="admin-tab-content"><p style="color:#9ca3af">Chargement...</p></div>
+            <div id="admin-tab-creer" class="admin-tab-content">
                 <div class="create-form">
                     <input type="text"     id="new-username" placeholder="Nom d'utilisateur">
                     <input type="password" id="new-password" placeholder="Mot de passe (6 caractères min)">
@@ -863,7 +1136,7 @@ async function openModal(type) {
 }
 
 function closeModal() { document.getElementById('overlay').classList.remove('on'); }
-function closeOutside(e) { if (e.target===document.getElementById('overlay')) closeModal(); }
+function closeOutside(e) { if(e.target===document.getElementById('overlay')) closeModal(); }
 </script>
 </body>
 </html>
