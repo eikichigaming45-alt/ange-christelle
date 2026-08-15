@@ -22,8 +22,9 @@
         .topbar-left h2:hover{opacity:.85}
         .date-badge{background:rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px}
         .topbar-right{display:flex;align-items:center;gap:10px}
-        .icon-btn{background:rgba(255,255,255,.2);border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s}
+        .icon-btn{background:rgba(255,255,255,.2);border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s;overflow:hidden;padding:0}
         .icon-btn:hover{background:rgba(255,255,255,.35)}
+        .icon-btn img{width:38px;height:38px;object-fit:cover;border-radius:50%}
         .grid{flex:1;overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-content:start}
         .widget{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;transition:transform .2s,box-shadow .2s}
         .widget:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
@@ -40,13 +41,14 @@
         .w-planning .wi{background:#fee2e2}
         .w-anniversaires .wi{background:#fce7f3}
         .w-mails .wi{background:#e0e7ff}
-        .w-profil .wi{background:#f3f4f6}
+        .w-profil .wi{background:#f3f4f6;overflow:hidden}
+        .w-profil .wi img{width:40px;height:40px;object-fit:cover;border-radius:10px}
         .rbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;border-radius:4px}
         .rbtn:hover{background:#f3f4f6}
         .footer{background:#f3f4f6;color:#e879a0;text-align:center;padding:10px;font-size:13px;font-weight:600;flex-shrink:0}
         .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center}
         .overlay.on{display:flex}
-        .modal{background:#fff;border-radius:20px;padding:30px;width:90%;max-width:500px;max-height:80vh;overflow-y:auto;position:relative}
+        .modal{background:#fff;border-radius:20px;padding:30px;width:90%;max-width:500px;max-height:85vh;overflow-y:auto;position:relative}
         .modal h3{font-size:20px;color:#333;margin-bottom:16px}
         .mclos{position:absolute;top:16px;right:16px;background:#f3f4f6;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px}
         .mclos:hover{background:#e5e7eb}
@@ -58,6 +60,13 @@
         .ville-form input{flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin:0}
         .ville-form button{padding:10px 16px;background:#4f46e5;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;width:auto}
         .geo-btn{width:100%;margin-top:8px;padding:10px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px}
+        .profil-form input,.profil-form textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:10px;outline:none;font-family:inherit}
+        .profil-form input:focus,.profil-form textarea:focus{border-color:#4f46e5}
+        .profil-form textarea{resize:vertical}
+        .save-btn{width:100%;padding:12px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px}
+        .save-btn:hover{background:#4338ca}
+        .photo-circle{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;cursor:pointer;display:block;margin:0 auto 8px}
+        .initiales{width:96px;height:96px;border-radius:50%;background:#4f46e5;color:#fff;font-size:32px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer}
     </style>
 </head>
 <body>
@@ -76,11 +85,11 @@
 <div id="app">
     <div class="topbar">
         <div class="topbar-left">
-            <h2 onclick="actualiser()" title="Actualiser le dashboard">MyVibe</h2>
+            <h2 onclick="actualiser()" title="Actualiser">MyVibe</h2>
             <span class="date-badge" id="date-display"></span>
         </div>
         <div class="topbar-right">
-            <button class="icon-btn" onclick="openModal('profil')" title="Mon Profil">👤</button>
+            <button class="icon-btn" id="btn-profil-header" onclick="openModal('profil')" title="Mon Profil">👤</button>
             <button class="icon-btn" onclick="logout()" title="Se déconnecter">🔓</button>
         </div>
     </div>
@@ -125,8 +134,8 @@
             <div class="wf">Cliquez pour consulter</div>
         </div>
         <div class="widget w-profil" onclick="openModal('profil')">
-            <div class="wh"><div class="whl"><div class="wi">👤</div><div class="wt">Mon Profil</div></div></div>
-            <div class="wc">Cliquez pour modifier votre profil</div>
+            <div class="wh"><div class="whl"><div class="wi" id="w-profil-icon">👤</div><div class="wt">Mon Profil</div></div></div>
+            <div class="wc" id="w-profil-txt">Cliquez pour modifier votre profil</div>
             <div class="wf">Modifier</div>
         </div>
     </div>
@@ -143,193 +152,300 @@
 </div>
 
 <script>
-    let meteoData = null;
-    let dernierIndex = -1;
-    let priere = null;
+let meteoData = null;
+let dernierIndex = -1;
+let priere = null;
+let profilCache = null;
 
-    const codes = {
-        0:'Ciel dégagé ☀️',1:'Principalement dégagé 🌤️',2:'Partiellement nuageux ⛅',
-        3:'Couvert ☁️',45:'Brouillard 🌫️',48:'Brouillard givrant 🌫️',
-        51:'Bruine légère 🌦️',61:'Pluie légère 🌧️',63:'Pluie modérée 🌧️',
-        65:'Forte pluie 🌧️',71:'Neige légère 🌨️',80:'Averses 🌦️',
-        95:'Orage ⛈️',99:'Orage avec grêle ⛈️'
-    };
+const codes = {
+    0:'Ciel dégagé ☀️',1:'Principalement dégagé 🌤️',2:'Partiellement nuageux ⛅',
+    3:'Couvert ☁️',45:'Brouillard 🌫️',48:'Brouillard givrant 🌫️',
+    51:'Bruine légère 🌦️',61:'Pluie légère 🌧️',63:'Pluie modérée 🌧️',
+    65:'Forte pluie 🌧️',71:'Neige légère 🌨️',80:'Averses 🌦️',
+    95:'Orage ⛈️',99:'Orage avec grêle ⛈️'
+};
 
-    window.addEventListener('DOMContentLoaded', () => {
-        if (localStorage.getItem('myvibe_user')) showApp();
+window.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('myvibe_user')) showApp();
+});
+
+document.getElementById('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const r = await fetch('/api/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({username, password})
     });
+    const d = await r.json();
+    if (d.success) {
+        localStorage.setItem('myvibe_user', JSON.stringify({username, role:d.role, userId:d.userId}));
+        showApp();
+    } else {
+        document.getElementById('error-msg').textContent = d.message;
+    }
+});
 
-    document.getElementById('login-form').addEventListener('submit', async e => {
-        e.preventDefault();
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const r = await fetch('/api/login', {
+function showApp() {
+    document.getElementById('login-page').style.display = 'none';
+    document.body.style.background = '#f3f4f6';
+    document.body.style.alignItems = 'stretch';
+    document.getElementById('app').style.display = 'flex';
+    afficherDate();
+    chargerPriere();
+    chargerMeteoAuto();
+    chargerProfilHeader();
+}
+
+function actualiser() {
+    afficherDate();
+    chargerPriere();
+    chargerMeteoAuto();
+    chargerProfilHeader();
+}
+
+function logout() {
+    localStorage.removeItem('myvibe_user');
+    window.location.reload();
+}
+
+function afficherDate() {
+    const now = new Date();
+    document.getElementById('date-display').textContent =
+        now.toLocaleDateString('fr-FR', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+}
+
+async function chargerProfilHeader() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!user?.userId) return;
+    try {
+        const r = await fetch(`/api/profil?userId=${user.userId}`);
+        const d = await r.json();
+        if (d.success && d.profil) {
+            profilCache = d.profil;
+            const p = d.profil;
+            const initiales = ((p.prenom?.[0]||'') + (p.nom?.[0]||'')).toUpperCase() || '👤';
+            // Header
+            const btnHeader = document.getElementById('btn-profil-header');
+            if (p.photo) {
+                btnHeader.innerHTML = `<img src="${p.photo}" alt="profil">`;
+            } else {
+                btnHeader.innerHTML = initiales || '👤';
+                btnHeader.style.fontSize = '14px';
+                btnHeader.style.fontWeight = '700';
+            }
+            // Tuile
+            const wi = document.getElementById('w-profil-icon');
+            if (p.photo) {
+                wi.innerHTML = `<img src="${p.photo}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`;
+            } else {
+                wi.textContent = '👤';
+            }
+            const txt = document.getElementById('w-profil-txt');
+            txt.textContent = (p.prenom || '') + (p.nom ? ' ' + p.nom : '') || 'Cliquez pour modifier votre profil';
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function chargerPriere() {
+    document.getElementById('w-priere').textContent = 'Chargement...';
+    try {
+        const r = await fetch(`/api/priere?dernier=${dernierIndex}`);
+        const d = await r.json();
+        dernierIndex = d.index;
+        priere = d;
+        const mots = d.texte.split(' ');
+        const courte = mots.slice(0,10).join(' ') + (mots.length > 10 ? '...' : '');
+        document.getElementById('w-priere').textContent = `"${courte}"`;
+    } catch {
+        priere = {texte:'Je puis tout par celui qui me fortifie.', ref:'Philippiens 4:13'};
+        document.getElementById('w-priere').textContent = '"Je puis tout par celui qui me fortifie..."';
+    }
+}
+
+async function chargerMeteo(lat, lon, nomVille) {
+    document.getElementById('w-meteo').textContent = 'Chargement...';
+    try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FParis&forecast_days=1`;
+        const r = await fetch(url);
+        const d = await r.json();
+        const temp = Math.round(d.current.temperature_2m);
+        const desc = codes[d.current.weather_code] || 'Variable';
+        const vent = Math.round(d.current.wind_speed_10m);
+        const hum = d.current.relative_humidity_2m;
+        const max = Math.round(d.daily.temperature_2m_max[0]);
+        const min = Math.round(d.daily.temperature_2m_min[0]);
+        meteoData = {temp, desc, vent, hum, max, min, ville:nomVille, lat, lon};
+        document.getElementById('w-meteo').textContent = `${nomVille} — ${desc} — ${temp}°C`;
+        localStorage.setItem('myvibe_ville', JSON.stringify({lat, lon, ville:nomVille}));
+    } catch {
+        document.getElementById('w-meteo').textContent = 'Météo non disponible';
+    }
+}
+
+function chargerMeteoAuto() {
+    const saved = localStorage.getItem('myvibe_ville');
+    if (saved) { const v = JSON.parse(saved); chargerMeteo(v.lat, v.lon, v.ville); return; }
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            pos => chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'),
+            () => chargerMeteo(48.8566, 2.3522, 'Paris')
+        );
+    } else { chargerMeteo(48.8566, 2.3522, 'Paris'); }
+}
+
+async function rechercherVille() {
+    const ville = document.getElementById('ville-input').value.trim();
+    if (!ville) return;
+    try {
+        const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(ville)}&count=1&language=fr`);
+        const d = await r.json();
+        if (d.results?.length > 0) {
+            const res = d.results[0];
+            await chargerMeteo(res.latitude, res.longitude, res.name);
+            closeModal();
+        } else { alert('Ville introuvable.'); }
+    } catch { alert('Erreur de recherche.'); }
+}
+
+function geoLocaliser() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            pos => { chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'); closeModal(); },
+            () => alert('Géolocalisation refusée.')
+        );
+    }
+}
+
+function previewPhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert('Photo trop lourde (max 2 Mo)'); return; }
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById('profil-photo-preview').src = e.target.result; };
+    reader.readAsDataURL(file);
+}
+
+async function sauvegarderProfil() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const msg = document.getElementById('profil-msg');
+    msg.textContent = 'Sauvegarde...';
+    msg.style.color = '#9ca3af';
+    const photoEl = document.getElementById('profil-photo-preview');
+    const photo = photoEl ? (photoEl.src.startsWith('data:') ? photoEl.src : (profilCache?.photo || null)) : null;
+    const body = {
+        userId: user.userId,
+        prenom: document.getElementById('p-prenom').value,
+        nom: document.getElementById('p-nom').value,
+        date_naissance: document.getElementById('p-naissance').value || null,
+        email: document.getElementById('p-email').value,
+        telephone: document.getElementById('p-tel').value,
+        profession: document.getElementById('p-prof').value,
+        note: document.getElementById('p-note').value,
+        photo
+    };
+    try {
+        const r = await fetch('/api/profil', {
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({username, password})
+            body:JSON.stringify(body)
         });
         const d = await r.json();
         if (d.success) {
-            localStorage.setItem('myvibe_user', JSON.stringify({username, role:d.role}));
-            showApp();
+            msg.textContent = '✅ Profil sauvegardé !';
+            msg.style.color = '#10b981';
+            profilCache = {...profilCache, ...body};
+            chargerProfilHeader();
         } else {
-            document.getElementById('error-msg').textContent = d.message;
+            msg.textContent = '❌ ' + d.message;
+            msg.style.color = '#ef4444';
         }
-    });
-
-    function showApp() {
-        document.getElementById('login-page').style.display = 'none';
-        document.body.style.background = '#f3f4f6';
-        document.body.style.alignItems = 'stretch';
-        document.getElementById('app').style.display = 'flex';
-        afficherDate();
-        chargerPriere();
-        chargerMeteoAuto();
+    } catch {
+        msg.textContent = '❌ Erreur réseau';
+        msg.style.color = '#ef4444';
     }
+}
 
-    function actualiser() {
-        afficherDate();
-        chargerPriere();
-        chargerMeteoAuto();
-    }
+async function openModal(type) {
+    document.getElementById('overlay').classList.add('on');
+    const titres = {
+        meteo:'🌤️ Météo du jour', priere:'🙏 Prière du jour',
+        taches:'✅ Tâches du jour', rdv:'📅 Rendez-vous',
+        planning:'📋 Planning', anniversaires:'🎂 Anniversaires',
+        mails:'📧 Mails', profil:'👤 Mon Profil'
+    };
+    document.getElementById('modal-title').textContent = titres[type] || type;
 
-    function logout() {
-        localStorage.removeItem('myvibe_user');
-        window.location.reload();
-    }
-
-    function afficherDate() {
-        const now = new Date();
-        document.getElementById('date-display').textContent =
-            now.toLocaleDateString('fr-FR', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
-    }
-
-    async function chargerPriere() {
-        document.getElementById('w-priere').textContent = 'Chargement...';
+    if (type === 'meteo') {
+        const d = meteoData;
+        document.getElementById('modal-body').innerHTML = d ? `
+            <div class="meteo-detail">
+                <strong>📍 ${d.ville}</strong><br>
+                ${d.desc}<br>
+                🌡️ Température : <strong>${d.temp}°C</strong> (min ${d.min}°C / max ${d.max}°C)<br>
+                💨 Vent : ${d.vent} km/h<br>
+                💧 Humidité : ${d.hum}%
+            </div>
+            <div class="ville-form">
+                <input type="text" id="ville-input" placeholder="Rechercher une ville...">
+                <button onclick="rechercherVille()">OK</button>
+            </div>
+            <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
+        ` : `
+            <p>Météo non disponible.</p>
+            <div class="ville-form">
+                <input type="text" id="ville-input" placeholder="Rechercher une ville...">
+                <button onclick="rechercherVille()">OK</button>
+            </div>
+            <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
+        `;
+    } else if (type === 'priere') {
+        document.getElementById('modal-body').innerHTML = priere ? `
+            <p class="priere-txt">"${priere.texte}"</p>
+            <span class="priere-ref">— ${priere.ref}</span>
+        ` : '<p>Chargement...</p>';
+    } else if (type === 'profil') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        const user = JSON.parse(localStorage.getItem('myvibe_user'));
+        if (!user?.userId) { document.getElementById('modal-body').innerHTML = '<p>Erreur : utilisateur non identifié.</p>'; return; }
         try {
-            const r = await fetch(`/api/priere?dernier=${dernierIndex}`);
+            const r = await fetch(`/api/profil?userId=${user.userId}`);
             const d = await r.json();
-            dernierIndex = d.index;
-            priere = d;
-            const mots = d.texte.split(' ');
-            const courte = mots.slice(0, 10).join(' ') + (mots.length > 10 ? '...' : '');
-            document.getElementById('w-priere').textContent = `"${courte}"`;
-        } catch {
-            priere = {texte:'Je puis tout par celui qui me fortifie.', ref:'Philippiens 4:13'};
-            document.getElementById('w-priere').textContent = '"Je puis tout par celui qui me fortifie..."';
-        }
-    }
-
-    async function chargerMeteo(lat, lon, nomVille) {
-        document.getElementById('w-meteo').textContent = 'Chargement...';
-        try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FParis&forecast_days=1`;
-            const r = await fetch(url);
-            const d = await r.json();
-            const temp = Math.round(d.current.temperature_2m);
-            const desc = codes[d.current.weather_code] || 'Variable';
-            const vent = Math.round(d.current.wind_speed_10m);
-            const hum = d.current.relative_humidity_2m;
-            const max = Math.round(d.daily.temperature_2m_max[0]);
-            const min = Math.round(d.daily.temperature_2m_min[0]);
-            meteoData = {temp, desc, vent, hum, max, min, ville:nomVille, lat, lon};
-            document.getElementById('w-meteo').textContent = `${nomVille} — ${desc} — ${temp}°C`;
-            localStorage.setItem('myvibe_ville', JSON.stringify({lat, lon, ville:nomVille}));
-        } catch {
-            document.getElementById('w-meteo').textContent = 'Météo non disponible';
-        }
-    }
-
-    function chargerMeteoAuto() {
-        const saved = localStorage.getItem('myvibe_ville');
-        if (saved) {
-            const v = JSON.parse(saved);
-            chargerMeteo(v.lat, v.lon, v.ville);
-            return;
-        }
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                pos => chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'),
-                () => chargerMeteo(48.8566, 2.3522, 'Paris')
-            );
-        } else {
-            chargerMeteo(48.8566, 2.3522, 'Paris');
-        }
-    }
-
-    async function rechercherVille() {
-        const ville = document.getElementById('ville-input').value.trim();
-        if (!ville) return;
-        try {
-            const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(ville)}&count=1&language=fr`);
-            const d = await r.json();
-            if (d.results?.length > 0) {
-                const res = d.results[0];
-                await chargerMeteo(res.latitude, res.longitude, res.name);
-                closeModal();
-            } else {
-                alert('Ville introuvable.');
-            }
-        } catch { alert('Erreur de recherche.'); }
-    }
-
-    function geoLocaliser() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                pos => {
-                    chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position');
-                    closeModal();
-                },
-                () => alert('Géolocalisation refusée.')
-            );
-        }
-    }
-
-    function openModal(type) {
-        document.getElementById('overlay').classList.add('on');
-        const titres = {
-            meteo:'🌤️ Météo du jour', priere:'🙏 Prière du jour',
-            taches:'✅ Tâches du jour', rdv:'📅 Rendez-vous',
-            planning:'📋 Planning', anniversaires:'🎂 Anniversaires',
-            mails:'📧 Mails', profil:'👤 Mon Profil'
-        };
-        document.getElementById('modal-title').textContent = titres[type] || type;
-
-        if (type === 'meteo') {
-            const d = meteoData;
-            document.getElementById('modal-body').innerHTML = d ? `
-                <div class="meteo-detail">
-                    <strong>📍 ${d.ville}</strong><br>
-                    ${d.desc}<br>
-                    🌡️ Température : <strong>${d.temp}°C</strong> (min ${d.min}°C / max ${d.max}°C)<br>
-                    💨 Vent : ${d.vent} km/h<br>
-                    💧 Humidité : ${d.hum}%
+            const p = d.profil || {};
+            profilCache = p;
+            const photoSrc = p.photo || '';
+            document.getElementById('modal-body').innerHTML = `
+                <div style="text-align:center;margin-bottom:16px">
+                    ${photoSrc
+                        ? `<img id="profil-photo-preview" src="${photoSrc}" class="photo-circle" onclick="document.getElementById('photo-input').click()" title="Changer la photo">`
+                        : `<div class="initiales" onclick="document.getElementById('photo-input').click()" title="Ajouter une photo">${((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase()||'👤'}</div>`
+                    }
+                    <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="previewPhoto(event)">
+                    <div style="font-size:12px;color:#9ca3af">Cliquez sur la photo pour changer</div>
                 </div>
-                <div class="ville-form">
-                    <input type="text" id="ville-input" placeholder="Rechercher une ville...">
-                    <button onclick="rechercherVille()">OK</button>
+                <div class="profil-form">
+                    <input id="p-prenom" placeholder="Prénom" value="${p.prenom||''}">
+                    <input id="p-nom" placeholder="Nom" value="${p.nom||''}">
+                    <input id="p-naissance" type="date" value="${p.date_naissance ? p.date_naissance.split('T')[0] : ''}">
+                    <input id="p-email" placeholder="Email" value="${p.email||''}">
+                    <input id="p-tel" placeholder="Téléphone" value="${p.telephone||''}">
+                    <input id="p-prof" placeholder="Profession" value="${p.profession||''}">
+                    <textarea id="p-note" placeholder="Note personnelle..." rows="3">${p.note||''}</textarea>
                 </div>
-                <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
-            ` : `
-                <p>Météo non disponible.</p>
-                <div class="ville-form">
-                    <input type="text" id="ville-input" placeholder="Rechercher une ville...">
-                    <button onclick="rechercherVille()">OK</button>
-                </div>
-                <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
+                <button class="save-btn" onclick="sauvegarderProfil()">💾 Sauvegarder</button>
+                <div id="profil-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
             `;
-        } else if (type === 'priere') {
-            document.getElementById('modal-body').innerHTML = priere ? `
-                <p class="priere-txt">"${priere.texte}"</p>
-                <span class="priere-ref">— ${priere.ref}</span>
-            ` : '<p>Chargement...</p>';
-        } else {
-            document.getElementById('modal-body').innerHTML = '<p>En construction — disponible prochainement.</p>';
+        } catch {
+            document.getElementById('modal-body').innerHTML = '<p>❌ Erreur de chargement du profil.</p>';
         }
+    } else {
+        document.getElementById('modal-body').innerHTML = '<p>En construction — disponible prochainement.</p>';
     }
+}
 
-    function closeModal() { document.getElementById('overlay').classList.remove('on'); }
-    function closeOutside(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
+function closeModal() { document.getElementById('overlay').classList.remove('on'); }
+function closeOutside(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
 </script>
 </body>
 </html>
