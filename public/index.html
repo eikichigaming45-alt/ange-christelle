@@ -7,7 +7,6 @@
     <style>
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);height:100vh;display:flex;justify-content:center;align-items:center}
-        /* LOGIN */
         .login-card{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);width:100%;max-width:380px;text-align:center}
         .login-card h1{color:#4f46e5;font-size:24px;margin-bottom:8px}
         .login-card p{color:#888;font-size:14px;margin-bottom:28px}
@@ -16,7 +15,6 @@
         .btn{width:100%;padding:14px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
         .btn:hover{background:#4338ca}
         #error-msg{color:#ef4444;margin-top:14px;font-size:14px;min-height:20px}
-        /* APP */
         #app{display:none;flex-direction:column;width:100vw;height:100vh;background:#f3f4f6}
         .topbar{background:#4f46e5;color:#fff;padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
         .topbar-left{display:flex;align-items:center;gap:12px}
@@ -26,7 +24,6 @@
         .topbar-right{display:flex;align-items:center;gap:10px}
         .icon-btn{background:rgba(255,255,255,.2);border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s}
         .icon-btn:hover{background:rgba(255,255,255,.35)}
-        /* GRID */
         .grid{flex:1;overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-content:start}
         .widget{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;transition:transform .2s,box-shadow .2s}
         .widget:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
@@ -46,9 +43,7 @@
         .w-profil .wi{background:#f3f4f6}
         .rbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;border-radius:4px}
         .rbtn:hover{background:#f3f4f6}
-        /* FOOTER */
         .footer{background:#f3f4f6;color:#e879a0;text-align:center;padding:10px;font-size:13px;font-weight:600;flex-shrink:0}
-        /* MODAL */
         .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center}
         .overlay.on{display:flex}
         .modal{background:#fff;border-radius:20px;padding:30px;width:90%;max-width:500px;max-height:80vh;overflow-y:auto;position:relative}
@@ -81,7 +76,7 @@
 <div id="app">
     <div class="topbar">
         <div class="topbar-left">
-            <h2 onclick="actualiserDashboard()" title="Actualiser">MyVibe</h2>
+            <h2 onclick="actualiser()" title="Actualiser le dashboard">MyVibe</h2>
             <span class="date-badge" id="date-display"></span>
         </div>
         <div class="topbar-right">
@@ -189,13 +184,13 @@
         document.getElementById('app').style.display = 'flex';
         afficherDate();
         chargerPriere();
-        chargerMeteoGeo();
+        chargerMeteoAuto();
     }
 
-    function actualiserDashboard() {
-        chargerPriere();
-        chargerMeteoGeo();
+    function actualiser() {
         afficherDate();
+        chargerPriere();
+        chargerMeteoAuto();
     }
 
     function logout() {
@@ -212,8 +207,7 @@
     async function chargerPriere() {
         document.getElementById('w-priere').textContent = 'Chargement...';
         try {
-            const url = dernierIndex >= 0 ? `/api/priere?dernier=${dernierIndex}` : '/api/priere';
-            const r = await fetch(url);
+            const r = await fetch(`/api/priere?dernier=${dernierIndex}`);
             const d = await r.json();
             dernierIndex = d.index;
             priere = d;
@@ -226,13 +220,9 @@
         }
     }
 
-    async function chargerMeteo(lat, lon) {
+    async function chargerMeteo(lat, lon, nomVille) {
+        document.getElementById('w-meteo').textContent = 'Chargement...';
         try {
-            // Géocodage inversé pour obtenir le vrai nom de la ville
-            const geoR = await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=fr`);
-            const geoD = await geoR.json();
-            const ville = geoD.results?.[0]?.name || 'Ma position';
-
             const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FParis&forecast_days=1`;
             const r = await fetch(url);
             const d = await r.json();
@@ -242,29 +232,28 @@
             const hum = d.current.relative_humidity_2m;
             const max = Math.round(d.daily.temperature_2m_max[0]);
             const min = Math.round(d.daily.temperature_2m_min[0]);
-
-            meteoData = {temp, desc, vent, hum, max, min, ville, lat, lon};
-            document.getElementById('w-meteo').textContent = `${ville} — ${desc} — ${temp}°C`;
-            localStorage.setItem('myvibe_ville', JSON.stringify({lat, lon}));
+            meteoData = {temp, desc, vent, hum, max, min, ville:nomVille, lat, lon};
+            document.getElementById('w-meteo').textContent = `${nomVille} — ${desc} — ${temp}°C`;
+            localStorage.setItem('myvibe_ville', JSON.stringify({lat, lon, ville:nomVille}));
         } catch {
             document.getElementById('w-meteo').textContent = 'Météo non disponible';
         }
     }
 
-    function chargerMeteoGeo() {
+    function chargerMeteoAuto() {
         const saved = localStorage.getItem('myvibe_ville');
         if (saved) {
             const v = JSON.parse(saved);
-            chargerMeteo(v.lat, v.lon);
+            chargerMeteo(v.lat, v.lon, v.ville);
             return;
         }
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                pos => chargerMeteo(pos.coords.latitude, pos.coords.longitude),
-                () => chargerMeteo(48.8566, 2.3522)
+                pos => chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'),
+                () => chargerMeteo(48.8566, 2.3522, 'Paris')
             );
         } else {
-            chargerMeteo(48.8566, 2.3522);
+            chargerMeteo(48.8566, 2.3522, 'Paris');
         }
     }
 
@@ -275,8 +264,8 @@
             const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(ville)}&count=1&language=fr`);
             const d = await r.json();
             if (d.results?.length > 0) {
-                localStorage.removeItem('myvibe_ville');
-                await chargerMeteo(d.results[0].latitude, d.results[0].longitude);
+                const res = d.results[0];
+                await chargerMeteo(res.latitude, res.longitude, res.name);
                 closeModal();
             } else {
                 alert('Ville introuvable.');
@@ -287,7 +276,10 @@
     function geoLocaliser() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                pos => { localStorage.removeItem('myvibe_ville'); chargerMeteo(pos.coords.latitude, pos.coords.longitude); closeModal(); },
+                pos => {
+                    chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position');
+                    closeModal();
+                },
                 () => alert('Géolocalisation refusée.')
             );
         }
@@ -318,12 +310,14 @@
                     <button onclick="rechercherVille()">OK</button>
                 </div>
                 <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
-            ` : `<p>Météo non disponible.</p>
+            ` : `
+                <p>Météo non disponible.</p>
                 <div class="ville-form">
                     <input type="text" id="ville-input" placeholder="Rechercher une ville...">
                     <button onclick="rechercherVille()">OK</button>
                 </div>
-                <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>`;
+                <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
+            `;
         } else if (type === 'priere') {
             document.getElementById('modal-body').innerHTML = priere ? `
                 <p class="priere-txt">"${priere.texte}"</p>

@@ -118,10 +118,13 @@ const versets = [
 
 app.get('/api/priere', (req, res) => {
     const dernierIndex = parseInt(req.query.dernier);
+    const dernier = isNaN(dernierIndex) ? -1 : dernierIndex;
     let index;
+    let tentatives = 0;
     do {
         index = Math.floor(Math.random() * versets.length);
-    } while (index === dernierIndex && versets.length > 1);
+        tentatives++;
+    } while (index === dernier && tentatives < 20);
     res.json({ ...versets[index], index });
 });
 
