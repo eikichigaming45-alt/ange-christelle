@@ -7,10 +7,12 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
-// Connexion à la base de données Supabase
+// Connexion à la base de données Supabase avec SSL requis
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 // Création automatique de la table des utilisateurs au démarrage
