@@ -29,6 +29,23 @@ const codes = {
 };
 
 // ===================== INIT =====================
+
+// Cacher immédiatement la page login si token présent — évite le flash
+(function() {
+    try {
+        const stored = localStorage.getItem('myvibe_user');
+        if (stored) {
+            const user = JSON.parse(stored);
+            if (user?.token) {
+                document.getElementById('login-page').style.display = 'none';
+                document.getElementById('app').style.display = 'flex';
+                document.body.style.background = '#f3f4f6';
+                document.body.style.alignItems = 'stretch';
+            }
+        }
+    } catch(e) {}
+})();
+
 window.addEventListener('DOMContentLoaded', () => {
     const stored = localStorage.getItem('myvibe_user');
     if (stored) {
@@ -61,7 +78,12 @@ document.getElementById('login-form').addEventListener('submit', async e => {
     }
 });
 
+let _appInitialisee = false;
+
 async function showApp() {
+    if (_appInitialisee) return;
+    _appInitialisee = true;
+
     document.getElementById('login-page').style.display = 'none';
     document.body.style.background = '#f3f4f6';
     document.body.style.alignItems = 'stretch';

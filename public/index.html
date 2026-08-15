@@ -10,19 +10,6 @@
     <meta name="theme-color" content="#4f46e5">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <link rel="stylesheet" href="/css/style.css">
-    <script>
-        (function() {
-            try {
-                const stored = localStorage.getItem('myvibe_user');
-                if (stored) {
-                    const user = JSON.parse(stored);
-                    if (user?.token) {
-                        document.write('<style>#login-page{display:none!important}#app{display:flex!important}</style>');
-                    }
-                }
-            } catch(e) {}
-        })();
-    </script>
 </head>
 <body>
 
