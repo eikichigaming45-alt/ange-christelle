@@ -118,9 +118,10 @@
         .widget-header {
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: space-between;
             margin-bottom: 14px;
         }
+        .widget-header-left { display: flex; align-items: center; gap: 10px; }
         .widget-icon {
             width: 40px; height: 40px;
             border-radius: 10px;
@@ -139,6 +140,23 @@
         .w-anniversaires .widget-icon { background: #fce7f3; }
         .w-mails .widget-icon { background: #e0e7ff; }
         .w-profil .widget-icon { background: #f3f4f6; }
+
+        .refresh-btn {
+            background: none; border: none; cursor: pointer;
+            font-size: 16px; padding: 4px; border-radius: 4px;
+        }
+        .refresh-btn:hover { background: #f3f4f6; }
+
+        /* ========== FOOTER ========== */
+        .app-footer {
+            background: #f3f4f6;
+            color: #6b7280;
+            text-align: center;
+            padding: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
 
         /* ========== MODAL ========== */
         .modal-overlay {
@@ -198,45 +216,52 @@
 
     <div class="dashboard-grid">
         <div class="widget w-meteo" onclick="openModal('meteo')">
-            <div class="widget-header"><div class="widget-icon">🌤️</div><div class="widget-title">Météo du jour</div></div>
+            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">🌤️</div><div class="widget-title">Météo du jour</div></div></div>
             <div class="widget-content" id="w-meteo-content">Chargement...</div>
             <div class="widget-footer">Cliquez pour les détails</div>
         </div>
         <div class="widget w-priere" onclick="openModal('priere')">
-            <div class="widget-header"><div class="widget-icon">🙏</div><div class="widget-title">Prière du jour</div></div>
+            <div class="widget-header">
+                <div class="widget-header-left"><div class="widget-icon">🙏</div><div class="widget-title">Prière du jour</div></div>
+                <button class="refresh-btn" onclick="event.stopPropagation(); chargerPriere();" title="Changer de prière">🔄</button>
+            </div>
             <div class="widget-content" id="w-priere-content">Chargement...</div>
             <div class="widget-footer">Cliquez pour la version complète</div>
         </div>
         <div class="widget w-taches" onclick="openModal('taches')">
-            <div class="widget-header"><div class="widget-icon">✅</div><div class="widget-title">Tâches du jour</div></div>
+            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">✅</div><div class="widget-title">Tâches du jour</div></div></div>
             <div class="widget-content" id="w-taches-content">Aucune tâche pour aujourd'hui</div>
             <div class="widget-footer">Cliquez pour gérer</div>
         </div>
         <div class="widget w-rdv" onclick="openModal('rdv')">
-            <div class="widget-header"><div class="widget-icon">📅</div><div class="widget-title">Rendez-vous</div></div>
+            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">📅</div><div class="widget-title">Rendez-vous</div></div></div>
             <div class="widget-content" id="w-rdv-content">Aucun rendez-vous aujourd'hui</div>
             <div class="widget-footer">Cliquez pour gérer</div>
         </div>
         <div class="widget w-planning" onclick="openModal('planning')">
-            <div class="widget-header"><div class="widget-icon">📋</div><div class="widget-title">Planning</div></div>
+            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">📋</div><div class="widget-title">Planning</div></div></div>
             <div class="widget-content" id="w-planning-content">Pas de garde aujourd'hui</div>
             <div class="widget-footer">Cliquez pour voir le planning</div>
         </div>
         <div class="widget w-anniversaires" onclick="openModal('anniversaires')">
-            <div class="widget-header"><div class="widget-icon">🎂</div><div class="widget-title">Anniversaires</div></div>
+            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">🎂</div><div class="widget-title">Anniversaires</div></div></div>
             <div class="widget-content" id="w-anniversaires-content">Aucun anniversaire à venir</div>
             <div class="widget-footer">Cliquez pour gérer</div>
         </div>
         <div class="widget w-mails" onclick="openModal('mails')">
-            <div class="widget-header"><div class="widget-icon">📧</div><div class="widget-title">Mails</div></div>
+            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">📧</div><div class="widget-title">Mails</div></div></div>
             <div class="widget-content" id="w-mails-content">Bientôt disponible</div>
             <div class="widget-footer">Cliquez pour consulter</div>
         </div>
         <div class="widget w-profil" onclick="openModal('profil')">
-            <div class="widget-header"><div class="widget-icon">👤</div><div class="widget-title">Mon Profil</div></div>
+            <div class="widget-header"><div class="widget-header-left"><div class="widget-icon">👤</div><div class="widget-title">Mon Profil</div></div></div>
             <div class="widget-content" id="w-profil-content">Cliquez pour modifier votre profil</div>
             <div class="widget-footer">Modifier</div>
         </div>
+    </div>
+
+    <div class="app-footer">
+        ❤️ Je t'aime - Ton mari ❤️
     </div>
 </div>
 
@@ -250,7 +275,6 @@
 </div>
 
 <script>
-    // Vérifier si l'utilisateur est déjà connecté au chargement de la page
     window.addEventListener('DOMContentLoaded', () => {
         const savedUser = localStorage.getItem('myvibe_user');
         if (savedUser) {
@@ -282,19 +306,13 @@
         document.body.style.alignItems = 'stretch';
         document.getElementById('app').style.display = 'flex';
         afficherDate();
-        afficherPriere();
+        chargerPriere();
         afficherMeteo();
     }
 
     function logout() {
         localStorage.removeItem('myvibe_user');
-        document.getElementById('login-page').style.display = 'flex';
-        document.getElementById('app').style.display = 'none';
-        document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        document.body.style.alignItems = 'center';
-        document.getElementById('username').value = '';
-        document.getElementById('password').value = '';
-        document.getElementById('error-msg').textContent = '';
+        window.location.reload();
     }
 
     function afficherDate() {
@@ -303,20 +321,23 @@
         document.getElementById('date-display').textContent = now.toLocaleDateString('fr-FR', options);
     }
 
-    function afficherPriere() {
-        const prieres = [
-            { courte: "Que ta paix guide chaque pas de cette journée.", longue: "Seigneur, que ta paix, qui dépasse tout entendement, garde mon cœur et mes pensées. Que chaque pas de cette journée soit guidé par ta sagesse et ton amour. Amen. (inspiré de Philippiens 4:7)" },
-            { courte: "Ta force est parfaite dans ma faiblesse.", longue: "Père céleste, dans mes moments de faiblesse, rappelle-moi que c'est là que ta force se manifeste pleinement. Aide-moi à m'appuyer sur toi et non sur mes propres capacités. Amen. (inspiré de 2 Corinthiens 12:9)" },
-            { courte: "Tu es ma lumière dans les moments sombres.", longue: "Seigneur, tu es ma lumière et mon salut. Même dans les jours les plus sombres, ta présence illumine mon chemin. Que je marche aujourd'hui dans ta lumière. Amen. (inspiré du Psaume 27:1)" },
-            { courte: "Que l'amour guide toutes mes actions aujourd'hui.", longue: "Père, que tout ce que je fais aujourd'hui soit empreint d'amour. Que mes paroles réconfortent, que mes actes aident, et que mes présence soit une bénédiction pour ceux qui m'entourent. Amen. (inspiré de 1 Corinthiens 13)" },
-            { courte: "Repose-toi en moi, je prends soin de toi.", longue: "Seigneur, tu m'invites à venir à toi quand je suis chargée et épuisée. Aujourd'hui, je dépose mes fardeaux entre tes mains et je choisis de me reposer dans ton amour. Amen. (inspiré de Matthieu 11:28)" },
-            { courte: "Chaque matin est un nouveau cadeau.", longue: "Père, merci pour ce nouveau matin, pour ce souffle de vie et cette nouvelle opportunité. Que je ne tienne rien pour acquis et que je vive cette journée avec gratitude et espérance. Amen. (inspiré des Lamentations 3:22-23)" },
-            { courte: "Je ne suis jamais seule, tu marches avec moi.", longue: "Seigneur, même quand je me sens seule, tu es là. Tu marches à mes côtés, tu connais chacune de mes pensées, chacun de mes pas. Que cette certitude remplisse mon cœur de paix aujourd'hui. Amen. (inspiré du Psaume 139)" }
-        ];
-        const index = new Date().getDay();
-        const priere = prieres[index];
-        document.getElementById('w-priere-content').textContent = priere.courte;
-        window.priereJour = priere;
+    async function chargerPriere() {
+        document.getElementById('w-priere-content').textContent = 'Chargement d\'un verset...';
+        try {
+            const response = await fetch('/api/priere');
+            const data = await response.json();
+            document.getElementById('w-priere-content').textContent = `"${data.texte}"`;
+            window.priereJour = {
+                courte: `"${data.texte}"`,
+                longue: `"${data.texte}" — ${data.reference}`
+            };
+        } catch {
+            document.getElementById('w-priere-content').textContent = '"Je puis tout par celui qui me fortifie."';
+            window.priereJour = {
+                courte: '"Je puis tout par celui qui me fortifie."',
+                longue: '"Je puis tout par celui qui me fortifie." — Philippiens 4:13'
+            };
+        }
     }
 
     async function afficherMeteo() {
