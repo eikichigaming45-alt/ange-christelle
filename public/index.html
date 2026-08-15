@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ange Christelle</title>
+    <title>MyVibe - Mon Sanctuaire</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -49,16 +49,53 @@
             transition: background 0.2s;
         }
         button:hover { background: #4338ca; }
-        #error-msg {
-            color: #ef4444;
-            margin-top: 14px;
+        #error-msg { color: #ef4444; margin-top: 14px; font-size: 14px; min-height: 20px; }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            flex-direction: column;
+        }
+        .topbar {
+            background: #4f46e5;
+            color: white;
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .topbar h2 { font-size: 18px; }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
             font-size: 14px;
-            min-height: 20px;
+            width: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .logout-btn:hover { background: rgba(255,255,255,0.3); }
+        .content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #4f46e5;
+            font-size: 20px;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <div class="login-card">
+
+    <!-- Page de connexion -->
+    <div class="login-card" id="login-page">
         <h1>MyVibe - Mon Sanctuaire</h1>
         <p>Connectez-vous à votre espace personnel</p>
         <form id="login-form">
@@ -69,7 +106,22 @@
         <div id="error-msg"></div>
     </div>
 
+    <!-- Dashboard après connexion -->
+    <div class="dashboard" id="dashboard-page">
+        <div class="topbar">
+            <h2 id="welcome-msg">Bienvenue !</h2>
+            <button class="logout-btn" onclick="logout()">
+                🔓 Se déconnecter
+            </button>
+        </div>
+        <div class="content" id="dashboard-content">
+            Dashboard en construction...
+        </div>
+    </div>
+
     <script>
+        let currentUser = null;
+
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value;
@@ -83,15 +135,37 @@
 
             const data = await response.json();
             if (data.success) {
-                if (data.role === 'admin') {
-                    document.body.innerHTML = "<h1 style='text-align:center;margin-top:20vh;color:#4f46e5;'>Bienvenue Admin ! Panneau de gestion (en construction)</h1>";
-                } else {
-                    document.body.innerHTML = "<h1 style='text-align:center;margin-top:20vh;color:#4f46e5;'>Bienvenue Ange Christelle ! Dashboard (en construction)</h1>";
-                }
+                currentUser = { username, role: data.role };
+                showDashboard();
             } else {
                 document.getElementById('error-msg').textContent = data.message;
             }
         });
+
+        function showDashboard() {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('dashboard-page').style.display = 'flex';
+            document.body.style.background = '#f3f4f6';
+
+            if (currentUser.role === 'admin') {
+                document.getElementById('welcome-msg').textContent = 'Bienvenue Admin !';
+                document.getElementById('dashboard-content').textContent = 'Panneau de gestion (en construction)';
+            } else {
+                document.getElementById('welcome-msg').textContent = 'Bienvenue Ange Christelle !';
+                document.getElementById('dashboard-content').textContent = 'Votre dashboard arrive bientôt...';
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('login-page').style.display = 'flex';
+            document.getElementById('dashboard-page').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('error-msg').textContent = '';
+            document.body.style.background = '';
+        }
     </script>
+
 </body>
 </html>
