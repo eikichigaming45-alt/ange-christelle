@@ -167,6 +167,9 @@ let dernierIndex = -1;
 let priere = null;
 let profilCache = null;
 let dragSrc = null;
+let longPressTimer = null;
+let dragActif = false;
+
 
 const WIDGETS_DEF = [
     { id:'meteo',        label:'Météo du jour',   icon:'🌤️', cls:'w-meteo',        desc:'Chargement...', foot:'Cliquez pour les détails', refresh:true },
@@ -326,26 +329,51 @@ function onDragEnd() {
     document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
 }
 
-// Touch drag pour mobile
 function ajouterTouchDrag(el) {
     let startX, startY, clone, origRect;
+
     el.addEventListener('touchstart', e => {
+        dragActif = false;
         const t = e.touches[0];
-        startX = t.clientX; startY = t.clientY;
-        origRect = el.getBoundingClientRect();
-        clone = el.cloneNode(true);
-        clone.style.cssText = `position:fixed;z-index:9999;opacity:.7;pointer-events:none;width:${origRect.width}px;left:${origRect.left}px;top:${origRect.top}px;margin:0;transition:none`;
-        document.body.appendChild(clone);
-        el.classList.add('dragging');
-        dragSrc = el;
+        startX = t.clientX;
+        startY = t.clientY;
+
+        longPressTimer = setTimeout(() => {
+            dragActif = true;
+            origRect = el.getBoundingClientRect();
+            clone = el.cloneNode(true);
+            clone.style.cssText = `
+                position:fixed;z-index:9999;opacity:.75;pointer-events:none;
+                width:${origRect.width}px;left:${origRect.left}px;top:${origRect.top}px;
+                margin:0;transition:none;border-radius:16px;
+                box-shadow:0 12px 32px rgba(0,0,0,.2);
+            `;
+            document.body.appendChild(clone);
+            el.classList.add('dragging');
+            dragSrc = el;
+            if (navigator.vibrate) navigator.vibrate(40);
+        }, 500);
     }, {passive:true});
 
     el.addEventListener('touchmove', e => {
-        e.preventDefault();
         const t = e.touches[0];
-        const dx = t.clientX - startX, dy = t.clientY - startY;
-        clone.style.left = (origRect.left + dx) + 'px';
-        clone.style.top  = (origRect.top  + dy) + 'px';
+        const dx = Math.abs(t.clientX - startX);
+        const dy = Math.abs(t.clientY - startY);
+
+        if (!dragActif && (dx > 8 || dy > 8)) {
+            clearTimeout(longPressTimer);
+            return;
+        }
+
+        if (!dragActif) return;
+
+        e.preventDefault();
+
+        const moveX = t.clientX - startX;
+        const moveY = t.clientY - startY;
+        clone.style.left = (origRect.left + moveX) + 'px';
+        clone.style.top  = (origRect.top  + moveY) + 'px';
+
         clone.style.display = 'none';
         const below = document.elementFromPoint(t.clientX, t.clientY);
         clone.style.display = '';
@@ -355,13 +383,18 @@ function ajouterTouchDrag(el) {
     }, {passive:false});
 
     el.addEventListener('touchend', e => {
+        clearTimeout(longPressTimer);
+        if (!dragActif) return;
+
         const t = e.changedTouches[0];
-        clone.remove();
+        if (clone) clone.remove();
         el.classList.remove('dragging');
-        clone.style.display = 'none';
+        dragActif = false;
+
         const below = document.elementFromPoint(t.clientX, t.clientY);
         const target = below?.closest('.widget');
         document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
+
         if (target && target !== el) {
             const grid = document.getElementById('main-grid');
             const widgets = [...grid.children];
@@ -372,7 +405,16 @@ function ajouterTouchDrag(el) {
             sauvegarderOrdre();
         }
     }, {passive:true});
+	
+    el.addEventListener('touchcancel', () => {
+        clearTimeout(longPressTimer);
+        if (clone) clone.remove();
+        el.classList.remove('dragging');
+        dragActif = false;
+        document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
+    }, {passive:true});
 }
+
 
 async function sauvegarderOrdre() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
