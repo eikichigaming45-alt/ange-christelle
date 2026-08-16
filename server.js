@@ -12,7 +12,7 @@ app.use(express.static('public'));
 initDB();
 
 // Montage des routes modulaires
-app.use('/api', require('./routes/auth'));
+app.use('/api', require('./routes/auth').router); // ← .router ajouté
 app.use('/api/profil', require('./routes/profil'));
 app.use('/api/widget-order', require('./routes/widgets'));
 app.use('/api/taches', require('./routes/taches'));
@@ -22,5 +22,6 @@ app.use('/api/priere', require('./routes/priere'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/cycle', require('./routes/cycle'));
 app.use('/api/rendezvous', require('./routes/rendezvous'));
+
 
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));
