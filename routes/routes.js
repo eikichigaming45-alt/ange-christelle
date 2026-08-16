@@ -1,74 +1,49 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db/pool').pool;
-const jwt = require('jsonwebtoken');
+const { pool } = require('../db/pool');
+const webpush = require('web-push');
 
-function authMiddleware(req, res, next) {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Non autorisé' });
-    try {
-        req.user = jwt.verify(token, process.env.JWT_SECRET);
-        next();
-    } catch {
-        res.status(401).json({ error: 'Token invalide' });
-    }
-}
+webpush.setVapidDetails(
+    process.env.VAPID_MAILTO,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+);
 
-// GET — tous les cycles de l'utilisatrice connectée uniquement
-router.get('/', authMiddleware, async (req, res) => {
+// Enregistrer un abonnement
+router.post('/subscribe', async (req, res) => {
+    const { userId, subscription } = req.body;
+    if (!userId || !subscription) return res.status(400).json({ success: false });
     try {
-        const result = await pool.query(
-            'SELECT * FROM cycles WHERE user_id = \$1 ORDER BY date_debut DESC',
-            [req.user.id]
-        );
-        res.json(result.rows);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// POST — ajouter un cycle
-router.post('/', authMiddleware, async (req, res) => {
-    const { date_debut, duree_regles, duree_cycle, notes } = req.body;
-    try {
-        const result = await pool.query(
-            `INSERT INTO cycles (user_id, date_debut, duree_regles, duree_cycle, notes)
-             VALUES (\$1, \$2, \$3, \$4, \$5) RETURNING *`,
-            [req.user.id, date_debut, duree_regles || 5, duree_cycle || 28, notes]
-        );
-        res.json(result.rows[0]);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// PUT — modifier un cycle
-router.put('/:id', authMiddleware, async (req, res) => {
-    const { date_debut, duree_regles, duree_cycle, notes } = req.body;
-    try {
-        const result = await pool.query(
-            `UPDATE cycles SET date_debut=\$1, duree_regles=\$2, duree_cycle=\$3, notes=\$4
-             WHERE id=\$5 AND user_id=\$6 RETURNING *`,
-            [date_debut, duree_regles, duree_cycle, notes, req.params.id, req.user.id]
-        );
-        if (result.rowCount === 0) return res.status(403).json({ error: 'Accès refusé' });
-        res.json(result.rows[0]);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// DELETE — supprimer un cycle
-router.delete('/:id', authMiddleware, async (req, res) => {
-    try {
-        const result = await pool.query(
-            'DELETE FROM cycles WHERE id=\$1 AND user_id=\$2',
-            [req.params.id, req.user.id]
-        );
-        if (result.rowCount === 0) return res.status(403).json({ error: 'Accès refusé' });
+        await pool.query(`
+            INSERT INTO push_subscriptions (user_id, subscription, updated_at)
+            VALUES (\$1, \$2, NOW())
+            ON CONFLICT (user_id) DO UPDATE SET subscription=\$2, updated_at=NOW();
+        `, [userId, JSON.stringify(subscription)]);
         res.json({ success: true });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+    } catch (err) {
+        res.status(500).json({ success: false });
+    }
+});
+
+// Envoyer une notification
+router.post('/send', async (req, res) => {
+    const { userId, titre, corps, url } = req.body;
+    try {
+        const result = await pool.query(
+            'SELECT subscription FROM push_subscriptions WHERE user_id = \$1',
+            [userId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Aucun abonnement' });
+        const subscription = JSON.parse(result.rows[0].subscription);
+        await webpush.sendNotification(subscription, JSON.stringify({
+            titre: titre || 'MyVibe',
+            corps: corps || '',
+            url: url || '/',
+            tag: 'myvibe'
+        }));
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 

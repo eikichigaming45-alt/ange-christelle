@@ -29,7 +29,6 @@ const codes = {
 
 // ===================== INIT =====================
 
-// Cacher immédiatement la page login si token présent — évite le flash
 (function() {
     try {
         const stored = localStorage.getItem('myvibe_user');
@@ -97,6 +96,7 @@ async function showApp() {
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
     enregistrerServiceWorker();
+    initPush(); // ✅ AJOUT : initialise les notifications push après le login
 }
 
 function actualiser() {
