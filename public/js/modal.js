@@ -6,7 +6,7 @@ async function openModal(type) {
         meteo:'🌤️ Météo du jour', priere:'🙏 Prière du jour',
         taches:'✅ Tâches du jour', rdv:'📅 Rendez-vous',
         planning:'📋 Planning', anniversaires:'🎂 Anniversaires',
-        mails:'📧 Mails', profil:'👤 Mon Profil', admin:'⚙️ Administration',
+        profil:'👤 Mon Profil', admin:'⚙️ Administration',
         cycle:'🌸 Suivi du cycle', rendezvous:'🩺 Rendez-vous médicaux'
     };
     document.getElementById('modal-title').textContent = titres[type]||type;

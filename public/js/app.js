@@ -16,7 +16,6 @@ const WIDGETS_DEF = [
     { id:'rendezvous',    label:'Rendez-vous',      icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',                      foot:'Consultations & santé',          refresh:true },
     { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'Pas de garde aujourd\'hui',          foot:'Cliquez pour voir le planning' },
     { id:'anniversaires', label:'Anniversaires',     icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',                      foot:'Cliquez pour gérer' },
-    { id:'mails',         label:'Mails',             icon:'📧',  cls:'w-mails',         desc:'Bientôt disponible',                 foot:'Cliquez pour consulter' },
     { id:'profil',        label:'Mon Profil',        icon:'👤',  cls:'w-profil',        desc:'Cliquez pour modifier votre profil', foot:'Modifier' },
 ];
 
