@@ -87,6 +87,7 @@ async function showApp() {
     document.body.style.alignItems = 'stretch';
     document.getElementById('app').style.display = 'flex';
     afficherDate();
+    afficherVersion(); // ✅ Version automatique
     await buildGrid();
     chargerPriere();
     chargerMeteoAuto();
@@ -96,7 +97,7 @@ async function showApp() {
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
     enregistrerServiceWorker();
-    initPush(); // ✅ AJOUT : initialise les notifications push après le login
+    initPush();
 }
 
 function actualiser() {
@@ -119,4 +120,16 @@ function afficherDate() {
     const now = new Date();
     document.getElementById('date-display').textContent =
         now.toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+
+async function afficherVersion() {
+    try {
+        const r = await fetch('/sw.js');
+        const txt = await r.text();
+        const match = txt.match(/CACHE_NAME\s*=\s*['"]([^'"]+)['"]/);
+        if (match) {
+            const el = document.querySelector('.footer');
+            if (el) el.innerHTML += ` <span style="font-size:10px;opacity:0.4;margin-left:8px">${match[1]}</span>`;
+        }
+    } catch(e) {}
 }
