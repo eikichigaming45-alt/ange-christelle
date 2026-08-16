@@ -26,7 +26,7 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
-// Middleware JWT
+
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -39,5 +39,3 @@ function authenticateToken(req, res, next) {
 }
 
 module.exports = { router, authenticateToken };
-
-module.exports = router;
