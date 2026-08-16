@@ -7,7 +7,7 @@ async function buildGrid() {
     gridConstruit = true;
 
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const token = user?.token; // ✅ CORRECTION CRITIQUE
+    const token = user?.token;
     const grid = document.getElementById('main-grid');
     grid.innerHTML = '';
     let ordre = null;
@@ -29,7 +29,6 @@ async function buildGrid() {
         defs.push({ id:'admin', label:'Administration', icon:'⚙️', cls:'w-admin', desc:'Gérer les utilisateurs et les paramètres', foot:'Accès admin' });
     }
 
-    // Appliquer l'ordre sauvegardé
     if (ordre) {
         const sorted = [];
         ordre.forEach(id => { const w = defs.find(d => d.id === id); if(w) sorted.push(w); });
@@ -37,7 +36,6 @@ async function buildGrid() {
         defs = sorted;
     }
 
-    // Filtrer les widgets non visibles
     const TOUJOURS_VISIBLES = ['profil', 'admin'];
     if (Array.isArray(actifs)) {
         defs = defs.filter(w => TOUJOURS_VISIBLES.includes(w.id) || actifs.includes(w.id));
@@ -47,6 +45,7 @@ async function buildGrid() {
 
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
+    if (typeof chargerWidgetPlanning === 'function') chargerWidgetPlanning();
 }
 
 function creerWidget(def) {
@@ -58,6 +57,7 @@ function creerWidget(def) {
     let contentHtml = def.desc;
     if (def.id === 'cycle')      contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
     if (def.id === 'rendezvous') contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
+    if (def.id === 'planning')   contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
 
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
