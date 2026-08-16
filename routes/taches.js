@@ -20,16 +20,31 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-    const { userId, titre, date, heure, recurrence } = req.body;
+    const { userId, titre, date, heure, recurrence, rappel_avant } = req.body;
     if (!userId || !titre) return res.status(400).json({ success: false, message: 'Champs manquants' });
     try {
         const result = await pool.query(`
-            INSERT INTO taches (user_id, titre, date, heure, recurrence)
-            VALUES (\$1, \$2, \$3, \$4, \$5) RETURNING *
-        `, [userId, titre, date||null, heure||null, recurrence||'none']);
+            INSERT INTO taches (user_id, titre, date, heure, recurrence, rappel_avant)
+            VALUES (\$1, \$2, \$3, \$4, \$5, \$6) RETURNING *
+        `, [userId, titre, date||null, heure||null, recurrence||'none', rappel_avant||0]);
         res.json({ success: true, tache: result.rows[0] });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+router.put('/:id', async (req, res) => {
+    const { userId, titre, date, heure, recurrence, rappel_avant } = req.body;
+    if (!userId || !titre) return res.status(400).json({ success: false, message: 'Champs manquants' });
+    try {
+        const result = await pool.query(`
+            UPDATE taches SET titre=\$1, date=\$2, heure=\$3, recurrence=\$4, rappel_avant=\$5
+            WHERE id=\$6 AND user_id=\$7 RETURNING *
+        `, [titre, date||null, heure||null, recurrence||'none', rappel_avant||0, req.params.id, userId]);
+        if (result.rowCount === 0) return res.status(403).json({ success: false, message: 'Accès refusé' });
+        res.json({ success: true, tache: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
@@ -42,7 +57,6 @@ router.post('/:id/cocher', async (req, res) => {
         const tache = t.rows[0];
         await pool.query('UPDATE taches SET faite=TRUE WHERE id=\$1', [id]);
 
-        // Recréer si récurrente (fix timezone UTC)
         if (tache.recurrence !== 'none' && tache.date) {
             const base = new Date(tache.date.toISOString().split('T')[0] + 'T00:00:00Z');
             let next = new Date(base);
@@ -51,9 +65,9 @@ router.post('/:id/cocher', async (req, res) => {
             if (tache.recurrence === 'monthly') next.setMonth(base.getUTCMonth() + 1);
             const nextDate = next.toISOString().split('T')[0];
             await pool.query(`
-                INSERT INTO taches (user_id, titre, date, heure, recurrence)
-                VALUES (\$1, \$2, \$3, \$4, \$5)
-            `, [userId, tache.titre, nextDate, tache.heure, tache.recurrence]);
+                INSERT INTO taches (user_id, titre, date, heure, recurrence, rappel_avant)
+                VALUES (\$1, \$2, \$3, \$4, \$5, \$6)
+            `, [userId, tache.titre, nextDate, tache.heure, tache.recurrence, tache.rappel_avant||0]);
         }
         res.json({ success: true });
     } catch (err) {
