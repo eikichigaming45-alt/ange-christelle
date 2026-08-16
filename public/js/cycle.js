@@ -501,7 +501,7 @@ const Cycle = (() => {
       </div>
     `;
     document.getElementById('overlay').classList.add('on');
-	document.querySelector('.mclos').onclick = () => closeModal();
+	document.querySelector('.mclos').onclick = null;
   }
 
   // ── Sauvegarder ──────────────────────────────────────────
