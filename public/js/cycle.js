@@ -458,6 +458,7 @@ const Cycle = (() => {
         </div>
       `;
       document.getElementById('overlay').classList.add('on');
+	  document.querySelector('.mclos').onclick = () => Cycle.ouvrirModalCalendrier();
     } catch {
       alert('Erreur de chargement.');
     }
