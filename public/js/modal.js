@@ -67,10 +67,19 @@ async function openModal(type) {
         `;
 
     } else if (type === 'priere') {
-        document.getElementById('modal-body').innerHTML = priere ? `
-            <p class="priere-txt">"${priere.texte}"</p>
-            <span class="priere-ref">— ${priere.ref}</span>
-        ` : '<p>Chargement...</p>';
+    document.getElementById('modal-body').innerHTML = priere ? `
+        <div class="priere-modal">
+            ${priere.titre ? `<div class="priere-titre-jour">📖 ${priere.titre}</div>` : ''}
+            ${priere.ref ? `<div class="priere-ref-court">${priere.ref}</div>` : ''}
+            <div class="priere-texte-complet">${(priere.evangile || priere.texte || '').replace(/\n/g, '<br>')}</div>
+            ${priere.lecture1 ? `
+            <details class="priere-lecture1">
+                <summary>📜 Première lecture</summary>
+                <div class="priere-texte-complet" style="margin-top:10px">${priere.lecture1.replace(/\n/g, '<br>')}</div>
+            </details>` : ''}
+            ${priere.source === 'catholique.fr' ? `<div class="priere-source">Source : eglise.catholique.fr</div>` : ''}
+        </div>
+    ` : '<p>Chargement...</p>';
 
     } else if (type === 'taches') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';

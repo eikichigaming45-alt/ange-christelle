@@ -52,8 +52,6 @@ input:focus{border-color:#4f46e5}
 .mclos{position:absolute;top:16px;right:16px;background:#f3f4f6;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px}
 .mclos:hover{background:#e5e7eb}
 .modal p{color:#666;font-size:15px;line-height:1.6}
-.priere-txt{color:#444;font-size:16px;line-height:1.8;font-style:italic}
-.priere-ref{color:#4f46e5;font-size:14px;font-weight:700;font-style:normal;margin-top:14px;display:block}
 .meteo-detail{font-size:15px;color:#333;line-height:2}
 .ville-form{display:flex;gap:8px;margin-top:16px}
 .ville-form input{flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin:0}
@@ -287,3 +285,14 @@ input:focus{border-color:#4f46e5}
 .meteo-detail-jour-date{font-size:13px;font-weight:700;color:#0369a1;text-transform:capitalize}
 .meteo-detail-jour-desc{font-size:13px;color:#555;margin:4px 0}
 .meteo-detail-jour-temp{font-size:20px;font-weight:800;color:#1e3a5f}
+
+/* ==================== PRIERES ==================== */
+.priere-txt{color:#444;font-size:16px;line-height:1.8;font-style:italic}
+.priere-ref{color:#4f46e5;font-size:14px;font-weight:700;font-style:normal;margin-top:14px;display:block}
+.priere-modal{display:flex;flex-direction:column;gap:12px}
+.priere-titre-jour{font-size:16px;font-weight:700;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:10px;border-left:4px solid #d97706}
+.priere-ref-court{font-size:13px;color:#4f46e5;font-weight:600}
+.priere-texte-complet{font-size:14px;color:#444;line-height:1.8;font-style:italic;max-height:400px;overflow-y:auto}
+.priere-lecture1{margin-top:8px;border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px}
+.priere-lecture1 summary{font-weight:600;color:#555;cursor:pointer;font-size:13px}
+.priere-source{font-size:11px;color:#9ca3af;text-align:right}
