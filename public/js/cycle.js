@@ -458,7 +458,9 @@ const Cycle = (() => {
         </div>
       `;
       document.getElementById('overlay').classList.add('on');
-	  document.querySelector('.mclos').onclick = () => Cycle.ouvrirModalCalendrier();
+	  const mclos = document.querySelector('.mclos');
+	  const _origOnclick = mclos.onclick;
+	  mclos.onclick = () => { mclos.onclick = _origOnclick; Cycle.ouvrirModalCalendrier(); };
     } catch {
       alert('Erreur de chargement.');
     }
@@ -499,6 +501,7 @@ const Cycle = (() => {
       </div>
     `;
     document.getElementById('overlay').classList.add('on');
+	document.querySelector('.mclos').onclick = () => closeModal();
   }
 
   // ── Sauvegarder ──────────────────────────────────────────
