@@ -290,9 +290,10 @@ input:focus{border-color:#4f46e5}
 .priere-txt{color:#444;font-size:16px;line-height:1.8;font-style:italic}
 .priere-ref{color:#4f46e5;font-size:14px;font-weight:700;font-style:normal;margin-top:14px;display:block}
 .priere-modal{display:flex;flex-direction:column;gap:12px}
-.priere-titre-jour{font-size:16px;font-weight:700;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:10px;border-left:4px solid #d97706}
-.priere-ref-court{font-size:13px;color:#4f46e5;font-weight:600}
-.priere-texte-complet{font-size:14px;color:#444;line-height:1.8;font-style:italic;max-height:400px;overflow-y:auto}
-.priere-lecture1{margin-top:8px;border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px}
+.priere-titre-jour{font-size:15px;font-weight:700;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:10px;border-left:4px solid #d97706}
+.priere-section-label{font-size:11px;font-weight:700;color:#4f46e5;text-transform:uppercase;letter-spacing:.5px}
+.priere-texte-complet{font-size:13px;color:#444;line-height:1.7;font-style:italic;max-height:220px;overflow-y:auto;padding-right:4px}
+.priere-lecture1{border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;background:#f9fafb}
 .priere-lecture1 summary{font-weight:600;color:#555;cursor:pointer;font-size:13px}
-.priere-source{font-size:11px;color:#9ca3af;text-align:right}
+.priere-lecture1 .priere-texte-complet{max-height:150px}
+.priere-source{font-size:11px;color:#9ca3af;text-align:right;margin-top:4px}

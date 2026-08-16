@@ -70,12 +70,17 @@ async function openModal(type) {
     document.getElementById('modal-body').innerHTML = priere ? `
         <div class="priere-modal">
             ${priere.titre ? `<div class="priere-titre-jour">📖 ${priere.titre}</div>` : ''}
-            ${priere.ref ? `<div class="priere-ref-court">${priere.ref}</div>` : ''}
-            <div class="priere-texte-complet">${(priere.evangile || priere.texte || '').replace(/\n/g, '<br>')}</div>
+            ${priere.evangile ? `
+            <div class="priere-section">
+                <div class="priere-section-label">Évangile du jour</div>
+                <div class="priere-texte-complet">${priere.evangile.replace(/\n/g, '<br>')}</div>
+            </div>` : `
+            <div class="priere-texte-complet">"${priere.texte}"<br><br><em>— ${priere.ref}</em></div>
+            `}
             ${priere.lecture1 ? `
             <details class="priere-lecture1">
-                <summary>📜 Première lecture</summary>
-                <div class="priere-texte-complet" style="margin-top:10px">${priere.lecture1.replace(/\n/g, '<br>')}</div>
+                <summary>📜 Première lecture (cliquer pour lire)</summary>
+                <div class="priere-texte-complet" style="margin-top:10px;max-height:200px">${priere.lecture1.replace(/\n/g, '<br>')}</div>
             </details>` : ''}
             ${priere.source === 'catholique.fr' ? `<div class="priere-source">Source : eglise.catholique.fr</div>` : ''}
         </div>
