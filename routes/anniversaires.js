@@ -30,6 +30,21 @@ router.post('/', async (req, res) => {
     }
 });
 
+router.put('/:id', async (req, res) => {
+    const { id } = req.params;
+    const { userId, prenom, nom, jour, mois, annee } = req.body;
+    if (!userId || !prenom || !jour || !mois) return res.status(400).json({ success: false, message: 'Champs manquants' });
+    try {
+        await pool.query(
+            'UPDATE anniversaires SET prenom=\$1, nom=\$2, jour=\$3, mois=\$4, annee=\$5 WHERE id=\$6 AND user_id=\$7',
+            [prenom, nom||null, parseInt(jour), parseInt(mois), annee||null, id, userId]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
 router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     const userId = req.query.userId || req.body.userId;
