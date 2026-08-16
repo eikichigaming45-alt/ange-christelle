@@ -90,7 +90,6 @@ const Cycle = (() => {
     const debutFertile    = addDays(debut, dureeCycle - 16);
     const finFertile      = addDays(debut, dureeCycle - 12);
     const ovulation       = addDays(debut, dureeCycle - 14);
-    const debutZoneRegles = addDays(prochainDebut, -3);
 
     const aujourd_hui = new Date();
     aujourd_hui.setHours(0, 0, 0, 0);
@@ -102,7 +101,6 @@ const Cycle = (() => {
     return {
       debut, finRegles, prochainDebut,
       debutFertile, finFertile, ovulation,
-      debutZoneRegles,
       joursAvantRegles, enRegles, enFenetre,
       dureeRegles, dureeCycle
     };
@@ -167,7 +165,7 @@ const Cycle = (() => {
       const estFertile    = date >= calc.debutFertile && date <= calc.finFertile;
       const estOvulation  = memeJour(date, calc.ovulation);
       const estProchain   = memeJour(date, calc.prochainDebut);
-      const estZoneRegles = date >= calc.debutZoneRegles && date < calc.prochainDebut && !estRegles;
+      const estProchainesRegles = date >= calc.prochainDebut && date <= addDays(calc.prochainDebut, calc.dureeRegles - 1);
 
       const journal   = _journalCache[dateStr];
       const aRapport  = journal?.humeur === 'protege' || journal?.humeur === 'non_protege';
@@ -177,9 +175,8 @@ const Cycle = (() => {
       let badge = '';
       let icons = '';
 
-      if (estRegles || estProchain) cls += ' cal-regles';
-      else if (estFertile)          cls += ' cal-fertile';
-      else if (estZoneRegles)       cls += ' cal-zone-regles';
+      if (estRegles || estProchainesRegles) cls += ' cal-regles';
+	  else if (estFertile)                  cls += ' cal-fertile';
       if (estAujourdhui)  cls += ' cal-today';
       if (estOvulation)   badge = '<span class="cal-ovulation-star">★</span>';
       if (aRapport)       icons += `<span class="cal-icon-rapport ${journal.humeur === 'protege' ? 'protege' : 'non-protege'}">♥</span>`;
@@ -202,7 +199,6 @@ const Cycle = (() => {
         <div class="cal-legende">
           <span class="cal-leg-item"><span class="cal-leg-dot" style="background:#fca5a5"></span> Règles</span>
           <span class="cal-leg-item"><span class="cal-leg-dot" style="background:#fde68a"></span> Fertile</span>
-          <span class="cal-leg-item"><span class="cal-leg-dot" style="background:#fbcfe8"></span> Règles proches</span>
           <span class="cal-leg-item"><span style="color:#f59e0b;font-size:14px">★</span> Ovulation</span>
           <span class="cal-leg-item"><span class="cal-leg-dot" style="background:#4f46e5"></span> Aujourd'hui</span>
           <span class="cal-leg-item"><span style="color:#e83e8c">♥</span> Rapport</span>

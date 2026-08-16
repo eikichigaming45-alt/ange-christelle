@@ -186,7 +186,6 @@ input:focus{border-color:#4f46e5}
 .cal-empty:hover{background:transparent}
 .cal-regles{background:#fca5a5;color:#7f1d1d;font-weight:600}
 .cal-fertile{background:#fde68a;color:#78350f;font-weight:600}
-.cal-zone-regles{background:#fbcfe8;color:#9d174d;font-weight:500}
 .cal-today{outline:2px solid #4f46e5;outline-offset:-2px;font-weight:700;border-radius:6px}
 .cal-prochain{background:#ddd6fe;color:#4c1d95;font-weight:600}
 .cal-ovulation-star{position:absolute;top:-4px;right:0;font-size:10px;color:#f59e0b}
