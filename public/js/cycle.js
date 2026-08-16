@@ -140,7 +140,7 @@ const Cycle = (() => {
     let cases   = '';
 
     for (let i = 0; i < premierJour; i++) {
-      cases += `<div class="cal-day cal-empty"></div>`;
+      cases += `<div class="cal-day cal-empty" onclick="event.stopPropagation()"></div>`;
     }
 
     for (let j = 1; j <= nbJours; j++) {
@@ -549,8 +549,9 @@ const Cycle = (() => {
 
   // ── API publique ─────────────────────────────────────────
 
-  async function _supprimerJournal(id) {
-    if (!confirm('Supprimer cette entrée ?')) return;
+    async function _supprimerJournal(id, dateStr) {
+    const dateAff = new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+    if (!confirm(`Supprimer l'entrée du ${dateAff} ?`)) return;
     try {
       await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
       await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
