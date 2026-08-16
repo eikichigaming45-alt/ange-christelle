@@ -164,7 +164,8 @@ const TOUS_WIDGETS = [
 ];
 
 async function afficherSectionWidgets() {
-    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const token = user?.token;
     const container = document.getElementById('widgets-choix');
     if (!container) return;
     try {
@@ -185,7 +186,8 @@ async function afficherSectionWidgets() {
 }
 
 async function sauvegarderWidgetsVisibles() {
-    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const token = user?.token;
     const msg = document.getElementById('widgets-msg');
     const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
     const widgets_visibles = [...checkboxes].filter(cb => cb.checked).map(cb => cb.value);
