@@ -1,6 +1,6 @@
 // ===================== GESTION DES MODALES =====================
 
-const JOURS_MODAL = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const JOURS_MODAL = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 async function openModal(type) {
     document.getElementById('overlay').classList.add('on');
@@ -33,8 +33,13 @@ async function openModal(type) {
                 </div>
                 ${d.daily ? `
                 <div class="meteo-7j" style="margin-bottom:8px">
-                    ${d.daily.time.slice(0,5).map((t, i) => {
-                        const jour = i === 0 ? 'Auj.' : JOURS_MODAL[new Date(t).getDay()];
+                    ${d.daily.time.slice(0,7).map((t, i) => {
+                        // Ajustement pour que la semaine commence par Lundi (index 0 = Lundi)
+                        const dateObj = new Date(t + 'T12:00:00');
+                        let jsDay = dateObj.getDay(); // 0=Dim, 1=Lun...6=Sam
+                        let indexJour = jsDay === 0 ? 6 : jsDay - 1; 
+
+                        const jour = i === 0 ? 'Auj.' : JOURS_MODAL[indexJour];
                         const iMax = Math.round(d.daily.temperature_2m_max[i]);
                         const iMin = Math.round(d.daily.temperature_2m_min[i]);
                         const iIcon = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
@@ -69,7 +74,12 @@ async function openModal(type) {
     } else if (type === 'priere') {
         document.getElementById('modal-body').innerHTML = priere ? `
             <div class="priere-modal">
-                ${priere.titre ? `<div class="priere-titre-jour">📖 ${priere.titre}</div>` : ''}
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    ${priere.titre ? `<div class="priere-titre-jour" style="margin-bottom:0;">📖 ${priere.titre}</div>` : '<div></div>'}
+                    <button onclick="lirePriereModal(event)" title="Écouter la prière" style="background:#f3f4f6; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.1);" id="btn-speaker-modal">
+                        🔊
+                    </button>
+                </div>
                 ${priere.evangile ? `
                 <div class="priere-section">
                     <div class="priere-section-label">Évangile du jour</div>
@@ -225,6 +235,35 @@ function afficherDetailJour(i) {
             </div>
         </div>
     `;
+}
+
+// ── Lecture audio de la prière dans la modale ──────────────
+function lirePriereModal(e) {
+    if (!('speechSynthesis' in window)) {
+        alert("La synthèse vocale n'est pas supportée par votre navigateur.");
+        return;
+    }
+
+    const synth = window.speechSynthesis;
+
+    if (synth.speaking) {
+        synth.cancel();
+        if (e && e.currentTarget) e.currentTarget.textContent = '🔊';
+        return;
+    }
+
+    const texteALire = `${priere.titre || ''}. ${priere.evangile || priere.texte || ''} ${priere.ref || ''}`;
+    const utterance = new SpeechSynthesisUtterance(texteALire);
+    utterance.lang = 'fr-FR';
+    utterance.rate = 0.95;
+
+    if (e && e.currentTarget) {
+        e.currentTarget.textContent = '⏹️';
+        utterance.onend = () => { e.currentTarget.textContent = '🔊'; };
+        utterance.onerror = () => { e.currentTarget.textContent = '🔊'; };
+    }
+
+    synth.speak(utterance);
 }
 
 function closeModal() { document.getElementById('overlay').classList.remove('on'); }
