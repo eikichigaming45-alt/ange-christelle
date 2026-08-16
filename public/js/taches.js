@@ -120,10 +120,22 @@ async function cocherTache(id) {
 
 async function supprimerTache(id) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    if (!confirm('Supprimer cette tâche ?')) return;
-    try {
-        await fetch(`/api/taches/${id}?userId=${user.userId}`,{method:'DELETE'});
-        chargerModalTaches();
-        chargerWidgetTaches();
-    } catch { alert('Erreur réseau'); }
+    document.getElementById('modal-title').textContent = '✅ Confirmation';
+    document.getElementById('modal-body').innerHTML = `
+      <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer cette tâche ?</p>
+      <div class="modal-actions">
+        <button class="btn-delete" id="btn-tache-oui">Confirmer</button>
+        <button class="btn-cancel" id="btn-tache-non">Annuler</button>
+      </div>
+    `;
+    document.getElementById('overlay').classList.add('on');
+    document.getElementById('btn-tache-oui').onclick = async () => {
+        try {
+            await fetch(`/api/taches/${id}?userId=${user.userId}`,{method:'DELETE'});
+            chargerModalTaches();
+            chargerWidgetTaches();
+        } catch { alert('Erreur réseau'); }
+    };
+    document.getElementById('btn-tache-non').onclick = () => chargerModalTaches();
 }
+

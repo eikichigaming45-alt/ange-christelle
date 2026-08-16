@@ -145,10 +145,23 @@ async function modifierAnniversaire(id) {
 
 async function supprimerAnniversaire(id) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    if (!confirm('Supprimer cet anniversaire ?')) return;
-    try {
-        await fetch(`/api/anniversaires/${id}?userId=${user.userId}`,{method:'DELETE'});
-        chargerModalAnniversaires();
-        chargerWidgetAnniversaires();
-    } catch { alert('Erreur réseau'); }
+    const overlay = document.getElementById('overlay');
+    document.getElementById('modal-title').textContent = '🎂 Confirmation';
+    document.getElementById('modal-body').innerHTML = `
+      <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer cet anniversaire ?</p>
+      <div class="modal-actions">
+        <button class="btn-delete" id="btn-anniv-oui">Confirmer</button>
+        <button class="btn-cancel" id="btn-anniv-non">Annuler</button>
+      </div>
+    `;
+    overlay.classList.add('on');
+    document.getElementById('btn-anniv-oui').onclick = async () => {
+        try {
+            await fetch(`/api/anniversaires/${id}?userId=${user.userId}`,{method:'DELETE'});
+            chargerModalAnniversaires();
+            chargerWidgetAnniversaires();
+        } catch { alert('Erreur réseau'); }
+    };
+    document.getElementById('btn-anniv-non').onclick = () => chargerModalAnniversaires();
 }
+
