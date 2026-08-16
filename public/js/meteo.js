@@ -16,7 +16,7 @@ async function chargerMeteo(lat, lon, nomVille) {
     const el = document.getElementById('wc-meteo');
     if (el) el.textContent = 'Chargement...';
     try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max&timezone=Europe%2FParis&forecast_days=7`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max&timezone=Europe%2FParis&forecast_days=5`;
         const r = await fetch(url);
         const d = await r.json();
 
@@ -47,7 +47,7 @@ async function chargerMeteo(lat, lon, nomVille) {
                     <span class="meteo-badge">🌧️ ${pluie}%</span>
                 </div>
                 <div class="meteo-7j">
-                    ${d.daily.time.map((t, i) => {
+                    ${d.daily.time.slice(0, 5).map((t, i) => {
                         const jour = i === 0 ? 'Auj.' : JOURS_COURT[new Date(t).getDay()];
                         const iMax = Math.round(d.daily.temperature_2m_max[i]);
                         const iMin = Math.round(d.daily.temperature_2m_min[i]);
