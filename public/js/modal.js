@@ -1,5 +1,7 @@
 // ===================== GESTION DES MODALES =====================
 
+const JOURS_MODAL = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+
 async function openModal(type) {
     document.getElementById('overlay').classList.add('on');
     const titres = {
@@ -14,18 +16,44 @@ async function openModal(type) {
     if (type === 'meteo') {
         const d = meteoData;
         document.getElementById('modal-body').innerHTML = d ? `
-            <div class="meteo-detail">
-                <strong>📍 ${d.ville}</strong><br>
-                ${d.desc}<br>
-                🌡️ Température : <strong>${d.temp}°C</strong> (min ${d.min}°C / max ${d.max}°C)<br>
-                💨 Vent : ${d.vent} km/h<br>
-                💧 Humidité : ${d.hum}%
+            <div class="meteo-modal">
+                <div class="meteo-modal-top">
+                    <div class="meteo-modal-left">
+                        <div class="meteo-modal-temp">${d.temp}°</div>
+                        <div class="meteo-modal-desc">${d.icon} ${codes[d.code] || 'Variable'}</div>
+                        <div class="meteo-modal-minmax">↑ ${d.max}°  ↓ ${d.min}°</div>
+                        <div class="meteo-ville" style="margin-top:4px">📍 ${d.ville}</div>
+                    </div>
+                    <div class="meteo-modal-icon">${d.icon}</div>
+                </div>
+                <div class="meteo-badges" style="margin:12px 0">
+                    <span class="meteo-badge">💧 ${d.hum}%</span>
+                    <span class="meteo-badge">💨 ${d.vent} km/h</span>
+                    <span class="meteo-badge">🌧️ ${d.pluie}%</span>
+                </div>
+                ${d.daily ? `
+                <div class="meteo-7j" style="margin-bottom:16px">
+                    ${d.daily.time.slice(0,5).map((t, i) => {
+                        const jour = i === 0 ? 'Auj.' : JOURS_MODAL[new Date(t).getDay()];
+                        const iMax = Math.round(d.daily.temperature_2m_max[i]);
+                        const iMin = Math.round(d.daily.temperature_2m_min[i]);
+                        const iIcon = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
+                        return `
+                            <div class="meteo-jour ${i === 0 ? 'meteo-jour-today' : ''}">
+                                <div class="meteo-jour-nom">${jour}</div>
+                                <div class="meteo-jour-icon">${iIcon}</div>
+                                <div class="meteo-jour-max">${iMax}°</div>
+                                <div class="meteo-jour-min">${iMin}°</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>` : ''}
+                <div class="ville-form">
+                    <input type="text" id="ville-input" placeholder="Rechercher une ville...">
+                    <button onclick="rechercherVille()">OK</button>
+                </div>
+                <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
             </div>
-            <div class="ville-form">
-                <input type="text" id="ville-input" placeholder="Rechercher une ville...">
-                <button onclick="rechercherVille()">OK</button>
-            </div>
-            <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
         ` : `
             <p>Météo non disponible.</p>
             <div class="ville-form">
@@ -54,8 +82,8 @@ async function openModal(type) {
         await Cycle.ouvrirModalCalendrier();
 
     } else if (type === 'rendezvous') {
-    document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
-    await Rendezvous.ouvrirListe();
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        await Rendezvous.ouvrirListe();
 
     } else if (type === 'profil') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
