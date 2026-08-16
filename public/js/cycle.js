@@ -163,10 +163,9 @@ const Cycle = (() => {
       let badge = '';
       let icons = '';
 
-      if (estRegles)      cls += ' cal-regles';
-      else if (estFertile) cls += ' cal-fertile';
-      else if (estZoneRegles) cls += ' cal-zone-regles';
-      if (estProchain)    cls += ' cal-prochain';
+	  if (estRegles || estProchain) cls += ' cal-regles';
+	  else if (estFertile)          cls += ' cal-fertile';
+	  else if (estZoneRegles)       cls += ' cal-zone-regles';
       if (estAujourdhui)  cls += ' cal-today';
       if (estOvulation)   badge = '<span class="cal-ovulation-star">★</span>';
       if (aRapport)       icons += `<span class="cal-icon-rapport ${journal.humeur === 'protege' ? 'protege' : 'non-protege'}">♥</span>`;
@@ -249,6 +248,7 @@ const Cycle = (() => {
 
         <div class="modal-actions" style="margin-top:16px">
           <button class="btn-save" onclick="Cycle._sauvegarderJournal('${dateStr}')">💾 Sauvegarder</button>
+          ${journal.id ? `<button class="btn-delete" onclick="Cycle._supprimerJournal(${journal.id}, '${dateStr}')">🗑️ Supprimer</button>` : ''}
           <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Annuler</button>
         </div>
       </div>
@@ -549,6 +549,17 @@ const Cycle = (() => {
 
   // ── API publique ─────────────────────────────────────────
 
-  return { charger, ouvrirModalAjout, ouvrirModalCalendrier, naviguerCalendrier, sauvegarder, supprimer, ouvrirHistorique, ouvrirJournal, _toggleRapport, _sauvegarderJournal };
+  async function _supprimerJournal(id) {
+    if (!confirm('Supprimer cette entrée ?')) return;
+    try {
+      await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
+      await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+      ouvrirModalCalendrier();
+    } catch {
+      alert('Erreur lors de la suppression.');
+    }
+  }
+
+  return { charger, ouvrirModalAjout, ouvrirModalCalendrier, naviguerCalendrier, sauvegarder, supprimer, ouvrirHistorique, ouvrirJournal, _toggleRapport, _sauvegarderJournal, _supprimerJournal };
 
 })();

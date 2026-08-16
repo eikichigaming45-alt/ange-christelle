@@ -106,4 +106,18 @@ router.post('/journal', authMiddleware, async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+// DELETE — supprimer une entrée journal
+router.delete('/journal/:id', authMiddleware, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'DELETE FROM cycle_journal WHERE id=\$1 AND user_id=\$2',
+            [req.params.id, req.user.id]
+        );
+        if (result.rowCount === 0) return res.status(403).json({ error: 'Accès refusé' });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = router;
