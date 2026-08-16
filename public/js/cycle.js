@@ -65,9 +65,51 @@ const Cycle = (() => {
     return Math.round(durees.reduce((a, b) => a + b, 0) / durees.length);
   }
 
-  let _calcCourant = null;
-  let _moisAffiche = null;
-  let _journalCache = {};
+  // Calcule toutes les périodes pour tous les cycles + projections futures
+  function calculerToutesPeriodes(cycles, dureeMoyenne) {
+    const periodes = [];
+    const dureeCycleRef = dureeMoyenne || (cycles[0]?.duree_cycle) || 28;
+
+    cycles.forEach(c => {
+      const debut = new Date(c.date_debut); debut.setHours(0,0,0,0);
+      const dureeRegles = c.duree_regles || 5;
+      const dureeCycle  = dureeMoyenne || c.duree_cycle || 28;
+      periodes.push({
+        debutRegles : debut,
+        finRegles   : addDays(debut, dureeRegles - 1),
+        debutFertile: addDays(debut, dureeCycle - 16),
+        finFertile  : addDays(debut, dureeCycle - 12),
+        ovulation   : addDays(debut, dureeCycle - 14),
+        prochainDebut: addDays(debut, dureeCycle),
+        dureeRegles
+      });
+    });
+
+    // Projection : 3 cycles futurs à partir du dernier cycle
+    if (cycles.length > 0) {
+      let dernierDebut = new Date(cycles[0].date_debut); dernierDebut.setHours(0,0,0,0);
+      const dureeReglesRef = cycles[0].duree_regles || 5;
+      for (let i = 1; i <= 3; i++) {
+        const debut = addDays(dernierDebut, dureeCycleRef * i);
+        periodes.push({
+          debutRegles : debut,
+          finRegles   : addDays(debut, dureeReglesRef - 1),
+          debutFertile: addDays(debut, dureeCycleRef - 16),
+          finFertile  : addDays(debut, dureeCycleRef - 12),
+          ovulation   : addDays(debut, dureeCycleRef - 14),
+          prochainDebut: addDays(debut, dureeCycleRef),
+          dureeRegles : dureeReglesRef
+        });
+      }
+    }
+
+    return periodes;
+  }
+
+  let _calcCourant   = null;
+  let _moisAffiche   = null;
+  let _journalCache  = {};
+  let _toutesLesP    = []; // toutes les périodes calculées
 
   function calculerCycle(dernierCycle, dureeMoyenne) {
     if (!dernierCycle) return null;
@@ -80,8 +122,7 @@ const Cycle = (() => {
     const debutFertile  = addDays(debut, dureeCycle - 16);
     const finFertile    = addDays(debut, dureeCycle - 12);
     const ovulation     = addDays(debut, dureeCycle - 14);
-    const aujourd_hui = new Date();
-    aujourd_hui.setHours(0, 0, 0, 0);
+    const aujourd_hui   = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
     const joursAvantRegles = Math.ceil((prochainDebut - aujourd_hui) / (1000 * 60 * 60 * 24));
     const enRegles         = aujourd_hui >= debut && aujourd_hui <= finRegles;
     const enFenetre        = aujourd_hui >= debutFertile && aujourd_hui <= finFertile;
@@ -107,51 +148,60 @@ const Cycle = (() => {
       const res = await fetch(`/api/cycle/journal?mois=${mois}&annee=${annee}`, { headers: authHeaders() });
       const rows = await res.json();
       _journalCache = {};
-      rows.forEach(r => {
-        const key = r.date.split('T')[0];
-        _journalCache[key] = r;
-      });
-    } catch {
-      _journalCache = {};
-    }
+      rows.forEach(r => { _journalCache[r.date.split('T')[0]] = r; });
+    } catch { _journalCache = {}; }
   }
 
   function renderCalendrier(calc) {
-    if (!calc) return '';
     const aujourd_hui = new Date(); aujourd_hui.setHours(0,0,0,0);
     const moisRef     = new Date(_moisAffiche.getFullYear(), _moisAffiche.getMonth(), 1);
     const moisNom     = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     const nbJours     = new Date(moisRef.getFullYear(), moisRef.getMonth() + 1, 0).getDate();
     let premierJour   = moisRef.getDay();
     premierJour = premierJour === 0 ? 6 : premierJour - 1;
+
     const jours = ['L','M','M','J','V','S','D'];
     let cases = '';
+
     for (let i = 0; i < premierJour; i++) {
       cases += `<div class="cal-day cal-empty"></div>`;
     }
+
     for (let j = 1; j <= nbJours; j++) {
       const date = new Date(moisRef.getFullYear(), moisRef.getMonth(), j);
       date.setHours(0,0,0,0);
       const dateStr = formatDateInput(date);
-      const estAujourdhui      = memeJour(date, aujourd_hui);
-      const estRegles          = date >= calc.debut && date <= calc.finRegles;
-      const estFertile         = date >= calc.debutFertile && date <= calc.finFertile;
-      const estOvulation       = memeJour(date, calc.ovulation);
-      const estProchainesRegles = date >= calc.prochainDebut && date <= addDays(calc.prochainDebut, calc.dureeRegles - 1);
+
+      // Cherche dans toutes les périodes
+      let estRegles   = false;
+      let estFertile  = false;
+      let estOvul     = false;
+
+      for (const p of _toutesLesP) {
+        if (date >= p.debutRegles && date <= p.finRegles) estRegles  = true;
+        if (date >= p.debutFertile && date <= p.finFertile) estFertile = true;
+        if (memeJour(date, p.ovulation)) estOvul = true;
+      }
+
+      const estAujourdhui = memeJour(date, aujourd_hui);
       const journal    = _journalCache[dateStr];
       const aRapport   = journal?.humeur === 'protege' || journal?.humeur === 'non_protege';
       const aSymptomes = journal?.symptomes;
+
       let cls   = 'cal-day';
       let badge = '';
       let icons = '';
-      if (estRegles || estProchainesRegles) cls += ' cal-regles';
-      else if (estFertile)                  cls += ' cal-fertile';
-      if (estAujourdhui) cls += ' cal-today';
-      if (estOvulation)  badge = '<span class="cal-ovulation-star">★</span>';
-      if (aRapport)      icons += `<span class="cal-icon-rapport ${journal.humeur === 'protege' ? 'protege' : 'non-protege'}">♥</span>`;
-      if (aSymptomes)    icons += `<span class="cal-icon-symptome">●</span>`;
+
+      if (estRegles)        cls += ' cal-regles';
+      else if (estFertile)  cls += ' cal-fertile';
+      if (estAujourdhui)    cls += ' cal-today';
+      if (estOvul)          badge = '<span class="cal-ovulation-star">★</span>';
+      if (aRapport)         icons += `<span class="cal-icon-rapport ${journal.humeur === 'protege' ? 'protege' : 'non-protege'}">♥</span>`;
+      if (aSymptomes)       icons += `<span class="cal-icon-symptome">●</span>`;
+
       cases += `<div class="${cls}" onclick="Cycle.ouvrirJournal('${dateStr}')">${j}${badge}${icons ? `<div class="cal-day-icons">${icons}</div>` : ''}</div>`;
     }
+
     return `
       <div class="cal-wrap">
         <div class="cal-nav">
@@ -176,7 +226,7 @@ const Cycle = (() => {
   }
 
   async function naviguerCalendrier(offset) {
-    if (!_calcCourant || !_moisAffiche) return;
+    if (!_moisAffiche) return;
     _moisAffiche = new Date(_moisAffiche.getFullYear(), _moisAffiche.getMonth() + offset, 1);
     await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
     const container = document.getElementById('cal-container');
@@ -232,22 +282,17 @@ const Cycle = (() => {
 
   async function _sauvegarderJournal(dateStr) {
     const rapportBtn = document.querySelector('.btn-rapport.active');
-    const rapport    = rapportBtn
-      ? (rapportBtn.textContent.includes('Protégé') ? 'protege' : 'non_protege')
-      : null;
-    const symptomes = [...document.querySelectorAll('.journal-symptomes input:checked')].map(i => i.value).join(',');
-    const notes     = document.getElementById('journal-notes').value;
+    const rapport    = rapportBtn ? (rapportBtn.textContent.includes('Protégé') ? 'protege' : 'non_protege') : null;
+    const symptomes  = [...document.querySelectorAll('.journal-symptomes input:checked')].map(i => i.value).join(',');
+    const notes      = document.getElementById('journal-notes').value;
     try {
       await fetch('/api/cycle/journal', {
-        method: 'POST',
-        headers: authHeaders(),
+        method: 'POST', headers: authHeaders(),
         body: JSON.stringify({ date: dateStr, rapport, symptomes, notes })
       });
       await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
       ouvrirModalCalendrier();
-    } catch {
-      alert('Erreur lors de la sauvegarde.');
-    }
+    } catch { alert('Erreur lors de la sauvegarde.'); }
   }
 
   async function _supprimerJournal(id, dateStr) {
@@ -257,9 +302,7 @@ const Cycle = (() => {
         await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
         await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
         ouvrirModalCalendrier();
-      } catch {
-        alert('Erreur lors de la suppression.');
-      }
+      } catch { alert('Erreur lors de la suppression.'); }
     });
   }
 
@@ -278,8 +321,7 @@ const Cycle = (() => {
                 ? `Fin estimée le ${formatDate(calc.finRegles)}`
                 : calc.joursAvantRegles > 0
                   ? `Prochaines règles dans <strong>${calc.joursAvantRegles} jour${calc.joursAvantRegles > 1 ? 's' : ''}</strong>`
-                  : `Règles attendues aujourd'hui`
-              }
+                  : `Règles attendues aujourd'hui`}
             </div>` : ''}
           </div>
         </div>
@@ -319,16 +361,10 @@ const Cycle = (() => {
           <div class="cycle-progress-bar">
             <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0, Math.round(((new Date() - calc.debut) / (1000 * 60 * 60 * 24)) / calc.dureeCycle * 100)))}%;background:${phase.color}"></div>
           </div>
-        </div>
-        ` : ''}
+        </div>` : ''}
         <div class="cycle-actions">
-          <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
-            + Enregistrer mes règles
-          </button>
-          ${cycles.length > 0 ? `
-          <button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">
-            Historique (${cycles.length})
-          </button>` : ''}
+          <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
+          ${cycles.length > 0 ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>` : ''}
         </div>
       </div>
     `;
@@ -358,9 +394,13 @@ const Cycle = (() => {
       const dernierCycle = Array.isArray(cycles) && cycles.length > 0 ? cycles[0] : null;
       const calc         = calculerCycle(dernierCycle, dureeMoyenne);
       const phase        = getPhase(calc);
-      _calcCourant = calc;
-      _moisAffiche = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+      _calcCourant  = calc;
+      _moisAffiche  = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      _toutesLesP   = calculerToutesPeriodes(Array.isArray(cycles) ? cycles : [], dureeMoyenne);
+
       await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+
       document.getElementById('modal-title').textContent = '🌸 Suivi du cycle';
       document.getElementById('modal-body').innerHTML = `
         <div class="modal-cycle-main">
@@ -374,8 +414,7 @@ const Cycle = (() => {
                   ? `Fin estimée le ${formatDate(calc.finRegles)}`
                   : calc.joursAvantRegles > 0
                     ? `Prochaines règles dans <strong>${calc.joursAvantRegles} jour${calc.joursAvantRegles > 1 ? 's' : ''}</strong>`
-                    : `Règles attendues aujourd'hui`
-                }
+                    : `Règles attendues aujourd'hui`}
               </div>
             </div>
           </div>
@@ -383,20 +422,13 @@ const Cycle = (() => {
           ${dureeMoyenne ? `<div class="cycle-duree-info">Durée moyenne calculée : <strong>${dureeMoyenne} jours</strong> (sur ${cycles.length} cycles)</div>` : ''}
           <div id="cal-container">${renderCalendrier(calc)}</div>
           <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
-            <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
-              + Enregistrer mes règles
-            </button>
-            ${cycles.length > 0 ? `
-            <button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">
-              Historique (${cycles.length})
-            </button>` : ''}
+            <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
+            ${cycles.length > 0 ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>` : ''}
           </div>
         </div>
       `;
       document.getElementById('overlay').classList.add('on');
-    } catch {
-      alert('Erreur de chargement.');
-    }
+    } catch { alert('Erreur de chargement.'); }
   }
 
   function ouvrirModalAjout(cycleExistant = null) {
@@ -439,16 +471,13 @@ const Cycle = (() => {
     const url    = id ? `/api/cycle/${id}` : '/api/cycle';
     try {
       const res = await fetch(url, {
-        method,
-        headers: authHeaders(),
+        method, headers: authHeaders(),
         body: JSON.stringify({ date_debut, duree_regles, duree_cycle, notes })
       });
       if (!res.ok) throw new Error();
       closeModal();
       charger();
-    } catch {
-      alert('Erreur lors de la sauvegarde.');
-    }
+    } catch { alert('Erreur lors de la sauvegarde.'); }
   }
 
   async function supprimer(id) {
@@ -457,9 +486,7 @@ const Cycle = (() => {
         await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
         closeModal();
         charger();
-      } catch {
-        alert('Erreur lors de la suppression.');
-      }
+      } catch { alert('Erreur lors de la suppression.'); }
     });
   }
 
@@ -486,7 +513,7 @@ const Cycle = (() => {
           <button class="btn-cycle-primary" style="margin-top:12px" onclick="Cycle.ouvrirModalAjout()">+ Nouveau cycle</button>
         </div>
       `;
-      document.getElementById('overlay').classList.add('on');
+            document.getElementById('overlay').classList.add('on');
     } catch {
       alert('Erreur de chargement de l\'historique.');
     }
