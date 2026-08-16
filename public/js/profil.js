@@ -124,7 +124,7 @@ async function changerMdp() {
     if (nouveau!==confirm) { msg.textContent='❌ Les mots de passe ne correspondent pas'; msg.style.color='#ef4444'; return; }
     msg.textContent='Sauvegarde...'; msg.style.color='#9ca3af';
     try {
-        const r = await fetch('/api/changer-mdp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.userId,ancienMdp:ancien,nouveauMdp:nouveau})});
+        const r = await fetch('/api/profil/changer-mdp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.userId,ancienMdp:ancien,nouveauMdp:nouveau})});
         const d = await r.json();
         if (d.success) {
             msg.textContent='✅ Mot de passe changé !'; msg.style.color='#10b981';

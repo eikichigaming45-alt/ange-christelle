@@ -103,9 +103,16 @@ const Rendezvous = (() => {
 
   // ── Chargement principal ─────────────────────────────────
 
-  async function charger() {
+async function charger() {
     const container = document.getElementById('widget-rdv-content');
     if (!container) return;
+
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!user?.token) {
+      setTimeout(() => charger(), 300);
+      return;
+    }
+
     try {
       const res  = await fetch('/api/rendezvous', { headers: authHeaders() });
       const rdvs = await res.json();
@@ -114,6 +121,7 @@ const Rendezvous = (() => {
       container.innerHTML = `<p class="rdv-error">Erreur de chargement.</p>`;
     }
   }
+
 
   // ── Modal ajout / édition ────────────────────────────────
 

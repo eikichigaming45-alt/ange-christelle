@@ -1,23 +1,5 @@
 // ===================== AUTH & NOTIFICATIONS PUSH =====================
 
-document.getElementById('login-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    document.getElementById('error-msg').textContent = '';
-    const r = await fetch('/api/login', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({username, password})
-    });
-    const d = await r.json();
-    if (d.success) {
-        localStorage.setItem('myvibe_user', JSON.stringify({username, role:d.role, userId:d.userId}));
-        showApp();
-    } else {
-        document.getElementById('error-msg').textContent = d.message;
-    }
-});
-
 async function enregistrerServiceWorker() {
     if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
     try {
