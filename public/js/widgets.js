@@ -39,17 +39,13 @@ async function buildGrid() {
         defs = sorted;
     }
 
-    // Filtrer les widgets non visibles (si préférence enregistrée)
-    // Les widgets profil et admin ne sont jamais masqués
+    // 🔒 FILTRAGE ROBUSTE DES WIDGETS VISIBLES
     const TOUJOURS_VISIBLES = ['profil', 'admin'];
-    if (actifs) {
+    if (Array.isArray(actifs)) {
         defs = defs.filter(w => TOUJOURS_VISIBLES.includes(w.id) || actifs.includes(w.id));
     }
 
     defs.forEach(def => grid.appendChild(creerWidget(def)));
-
-    // Sécurité supplémentaire : appliquer visibilité au cas où
-    if (actifs) appliquerWidgetsVisibles(actifs);
 
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
