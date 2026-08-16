@@ -7,12 +7,10 @@ async function buildGrid() {
     gridConstruit = true;
 
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const token = user?.token; // ✅ CORRECTION CRITIQUE
     const grid = document.getElementById('main-grid');
     grid.innerHTML = '';
     let ordre = null;
-
-    // Charger widgets visibles + ordre en parallèle
-    const token = localStorage.getItem('token');
     let actifs = null;
 
     try {
@@ -39,7 +37,7 @@ async function buildGrid() {
         defs = sorted;
     }
 
-    // 🔒 FILTRAGE ROBUSTE DES WIDGETS VISIBLES
+    // Filtrer les widgets non visibles
     const TOUJOURS_VISIBLES = ['profil', 'admin'];
     if (Array.isArray(actifs)) {
         defs = defs.filter(w => TOUJOURS_VISIBLES.includes(w.id) || actifs.includes(w.id));
