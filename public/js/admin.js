@@ -77,24 +77,28 @@ async function resetMdpUser(userId, btn) {
 async function toggleRole(userId, roleActuel, btn) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const newRole = roleActuel==='admin'?'user':'admin';
-    if (!confirm(`Changer ce compte en "${newRole}" ?`)) return;
-    try {
-        const r = await fetch('/api/admin/update-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId,role:newRole})});
-        const d = await r.json();
-        if (d.success) chargerAdminUsers();
-        else alert('Erreur : '+d.message);
-    } catch { alert('Erreur réseau'); }
+    
+    confirmerAction(`Changer ce compte en "${newRole}" ?`, async () => {
+        try {
+            const r = await fetch('/api/admin/update-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId,role:newRole})});
+            const d = await r.json();
+            if (d.success) chargerAdminUsers();
+            else alert('Erreur : '+d.message);
+        } catch { alert('Erreur réseau'); }
+    });
 }
 
 async function supprimerUser(userId, username) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    if (!confirm(`Supprimer définitivement "${username}" ? Cette action est irréversible.`)) return;
-    try {
-        const r = await fetch('/api/admin/delete-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId})});
-        const d = await r.json();
-        if (d.success) { document.getElementById('ucard-'+userId)?.remove(); chargerAdminStats(); }
-        else alert('Erreur : '+d.message);
-    } catch { alert('Erreur réseau'); }
+    
+    confirmerAction(`Supprimer définitivement "${username}" ? Cette action est irréversible.`, async () => {
+        try {
+            const r = await fetch('/api/admin/delete-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId})});
+            const d = await r.json();
+            if (d.success) { document.getElementById('ucard-'+userId)?.remove(); chargerAdminStats(); }
+            else alert('Erreur : '+d.message);
+        } catch { alert('Erreur réseau'); }
+    });
 }
 
 async function creerUser() {
