@@ -1,33 +1,83 @@
 // ===================== WIDGET METEO =====================
 
+const METEO_ICONS = {
+    0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️',
+    45:'🌫️', 48:'🌫️',
+    51:'🌦️', 53:'🌦️', 55:'🌧️',
+    61:'🌧️', 63:'🌧️', 65:'🌧️',
+    71:'🌨️', 73:'🌨️', 75:'🌨️',
+    80:'🌦️', 81:'🌧️', 82:'🌧️',
+    95:'⛈️', 96:'⛈️', 99:'⛈️'
+};
+
+const JOURS_COURT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+
 async function chargerMeteo(lat, lon, nomVille) {
     const el = document.getElementById('wc-meteo');
     if (el) el.textContent = 'Chargement...';
     try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FParis&forecast_days=1`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max&timezone=Europe%2FParis&forecast_days=7`;
         const r = await fetch(url);
         const d = await r.json();
-        const temp = Math.round(d.current.temperature_2m);
-        const desc = codes[d.current.weather_code]||'Variable';
-        const vent = Math.round(d.current.wind_speed_10m);
-        const hum  = d.current.relative_humidity_2m;
-        const max  = Math.round(d.daily.temperature_2m_max[0]);
-        const min  = Math.round(d.daily.temperature_2m_min[0]);
-        meteoData = {temp,desc,vent,hum,max,min,ville:nomVille,lat,lon};
-        if (el) el.textContent = `${nomVille} — ${desc} — ${temp}°C`;
-        localStorage.setItem('myvibe_ville', JSON.stringify({lat,lon,ville:nomVille}));
+
+        const temp  = Math.round(d.current.temperature_2m);
+        const code  = d.current.weather_code;
+        const icon  = METEO_ICONS[code] || '🌡️';
+        const vent  = Math.round(d.current.wind_speed_10m);
+        const hum   = d.current.relative_humidity_2m;
+        const pluie = d.current.precipitation_probability || 0;
+        const max   = Math.round(d.daily.temperature_2m_max[0]);
+        const min   = Math.round(d.daily.temperature_2m_min[0]);
+
+        meteoData = { temp, icon, code, vent, hum, pluie, max, min, ville: nomVille, lat, lon, daily: d.daily };
+
+        if (el) el.innerHTML = `
+            <div class="meteo-widget">
+                <div class="meteo-top">
+                    <div class="meteo-left">
+                        <div class="meteo-temp">${temp}°</div>
+                        <div class="meteo-minmax">↑${max}° ↓${min}°</div>
+                        <div class="meteo-ville">📍 ${nomVille}</div>
+                    </div>
+                    <div class="meteo-icon-big">${icon}</div>
+                </div>
+                <div class="meteo-badges">
+                    <span class="meteo-badge">💧 ${hum}%</span>
+                    <span class="meteo-badge">💨 ${vent} km/h</span>
+                    <span class="meteo-badge">🌧️ ${pluie}%</span>
+                </div>
+                <div class="meteo-7j">
+                    ${d.daily.time.map((t, i) => {
+                        const jour = i === 0 ? 'Auj.' : JOURS_COURT[new Date(t).getDay()];
+                        const iMax = Math.round(d.daily.temperature_2m_max[i]);
+                        const iMin = Math.round(d.daily.temperature_2m_min[i]);
+                        const iIcon = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
+                        return `
+                            <div class="meteo-jour ${i === 0 ? 'meteo-jour-today' : ''}">
+                                <div class="meteo-jour-nom">${jour}</div>
+                                <div class="meteo-jour-icon">${iIcon}</div>
+                                <div class="meteo-jour-max">${iMax}°</div>
+                                <div class="meteo-jour-min">${iMin}°</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+
+        localStorage.setItem('myvibe_ville', JSON.stringify({ lat, lon, ville: nomVille }));
     } catch { if (el) el.textContent = 'Météo non disponible'; }
 }
 
 function chargerMeteoAuto() {
     const saved = localStorage.getItem('myvibe_ville');
-    if (saved) { const v = JSON.parse(saved); chargerMeteo(v.lat,v.lon,v.ville); return; }
+    if (saved) { const v = JSON.parse(saved); chargerMeteo(v.lat, v.lon, v.ville); return; }
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            pos => chargerMeteo(pos.coords.latitude,pos.coords.longitude,'Ma position'),
-            () => chargerMeteo(48.8566,2.3522,'Paris')
+            pos => chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'),
+            () => chargerMeteo(48.8566, 2.3522, 'Paris')
         );
-    } else { chargerMeteo(48.8566,2.3522,'Paris'); }
+    } else { chargerMeteo(48.8566, 2.3522, 'Paris'); }
 }
 
 async function rechercherVille() {
@@ -47,7 +97,7 @@ async function rechercherVille() {
 function geoLocaliser() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            pos => { chargerMeteo(pos.coords.latitude,pos.coords.longitude,'Ma position'); closeModal(); },
+            pos => { chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'); closeModal(); },
             () => alert('Géolocalisation refusée.')
         );
     }
