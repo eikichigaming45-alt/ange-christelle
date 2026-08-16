@@ -34,11 +34,9 @@ async function openModal(type) {
                 ${d.daily ? `
                 <div class="meteo-7j" style="margin-bottom:8px">
                     ${d.daily.time.slice(0,7).map((t, i) => {
-                        // Ajustement pour que la semaine commence par Lundi (index 0 = Lundi)
                         const dateObj = new Date(t + 'T12:00:00');
-                        let jsDay = dateObj.getDay(); // 0=Dim, 1=Lun...6=Sam
-                        let indexJour = jsDay === 0 ? 6 : jsDay - 1; 
-
+                        let jsDay = dateObj.getDay();
+                        let indexJour = jsDay === 0 ? 6 : jsDay - 1;
                         const jour = i === 0 ? 'Auj.' : JOURS_MODAL[indexJour];
                         const iMax = Math.round(d.daily.temperature_2m_max[i]);
                         const iMin = Math.round(d.daily.temperature_2m_min[i]);
@@ -168,7 +166,6 @@ async function openModal(type) {
                 <div id="widgets-msg" style="text-align:center;margin-top:8px;font-size:13px;min-height:18px"></div>
             `;
 
-            // Charge les widgets visibles dans la foulée
             await afficherSectionWidgets();
 
         } catch {
@@ -237,7 +234,7 @@ function afficherDetailJour(i) {
     `;
 }
 
-// ── Lecture audio de la prière dans la modale ──────────────
+// ── Lecture audio de la prière — voix masculine française ──
 function lirePriereModal(e) {
     if (!('speechSynthesis' in window)) {
         alert("La synthèse vocale n'est pas supportée par votre navigateur.");
@@ -255,15 +252,40 @@ function lirePriereModal(e) {
     const texteALire = `${priere.titre || ''}. ${priere.evangile || priere.texte || ''} ${priere.ref || ''}`;
     const utterance = new SpeechSynthesisUtterance(texteALire);
     utterance.lang = 'fr-FR';
-    utterance.rate = 0.95;
+    utterance.rate = 0.9;
+    utterance.pitch = 0.7; // Plus grave = plus masculin
 
-    if (e && e.currentTarget) {
-        e.currentTarget.textContent = '⏹️';
-        utterance.onend = () => { e.currentTarget.textContent = '🔊'; };
-        utterance.onerror = () => { e.currentTarget.textContent = '🔊'; };
+    // Cherche une voix masculine française
+    const lancerLecture = () => {
+        const voix = synth.getVoices();
+        const voixMasc = voix.find(v =>
+            v.lang.startsWith('fr') && (
+                v.name.toLowerCase().includes('thomas') ||
+                v.name.toLowerCase().includes('nicolas') ||
+                v.name.toLowerCase().includes('pierre') ||
+                v.name.toLowerCase().includes('jean') ||
+                v.name.toLowerCase().includes('male') ||
+                v.name.toLowerCase().includes('man')
+            )
+        ) || voix.find(v => v.lang.startsWith('fr'));
+
+        if (voixMasc) utterance.voice = voixMasc;
+
+        if (e && e.currentTarget) {
+            e.currentTarget.textContent = '⏹️';
+            utterance.onend  = () => { e.currentTarget.textContent = '🔊'; };
+            utterance.onerror = () => { e.currentTarget.textContent = '🔊'; };
+        }
+
+        synth.speak(utterance);
+    };
+
+    // Les voix sont parfois chargées en asynchrone (surtout Chrome)
+    if (synth.getVoices().length === 0) {
+        synth.onvoiceschanged = lancerLecture;
+    } else {
+        lancerLecture();
     }
-
-    synth.speak(utterance);
 }
 
 function closeModal() { document.getElementById('overlay').classList.remove('on'); }
