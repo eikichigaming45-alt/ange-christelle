@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db/pool');
+const { authenticateToken } = require('./auth');
 
+// GET profil
 router.get('/', async (req, res) => {
     const userId = req.query.userId;
     if (!userId) return res.status(400).json({ success: false, message: 'userId manquant' });
@@ -15,6 +17,7 @@ router.get('/', async (req, res) => {
     }
 });
 
+// POST profil
 router.post('/', async (req, res) => {
     const { userId, prenom, nom, date_naissance, email, telephone, profession, note, photo } = req.body;
     if (!userId) return res.status(400).json({ success: false, message: 'userId manquant' });
@@ -32,6 +35,7 @@ router.post('/', async (req, res) => {
     }
 });
 
+// POST changer mdp
 router.post('/changer-mdp', async (req, res) => {
     const { userId, ancienMdp, nouveauMdp } = req.body;
     if (!userId || !ancienMdp || !nouveauMdp) return res.status(400).json({ success: false, message: 'Champs manquants' });
@@ -46,6 +50,35 @@ router.post('/changer-mdp', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// GET widgets visibles
+router.get('/widgets-visibles', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT widgets_visibles FROM profiles WHERE user_id = \$1',
+            [req.user.id]
+        );
+        const widgets = result.rows[0]?.widgets_visibles ||
+            ['meteo','priere','planning','rendezvous','cycle','taches','anniversaires'];
+        res.json({ widgets_visibles: widgets });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// PATCH widgets visibles
+router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
+    try {
+        const { widgets_visibles } = req.body;
+        await pool.query(
+            `UPDATE profiles SET widgets_visibles = \$1 WHERE user_id = \$2`,
+            [widgets_visibles, req.user.id]
+        );
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 

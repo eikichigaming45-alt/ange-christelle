@@ -47,12 +47,9 @@ function previewPhoto(event) {
         const cropImg = document.getElementById('crop-img');
         cropImg.src = e.target.result;
         cropperInstance = new Cropper(cropImg, {
-            aspectRatio: 1,
-            viewMode: 1,
-            movable: true,
-            zoomable: true,
-            rotatable: false,
-            scalable: false,
+            aspectRatio: 1, viewMode: 1,
+            movable: true, zoomable: true,
+            rotatable: false, scalable: false,
         });
     };
     reader.readAsDataURL(file);
@@ -90,47 +87,132 @@ function annulerCrop() {
 async function sauvegarderProfil() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const msg = document.getElementById('profil-msg');
-    msg.textContent='Sauvegarde...'; msg.style.color='#9ca3af';
+    msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
     const photoEl = document.getElementById('profil-photo-preview');
     const photo = photoEl?.src?.startsWith('data:') ? photoEl.src : (profilCache?.photo||null);
     const body = {
-        userId:user.userId,
-        prenom:document.getElementById('p-prenom').value,
-        nom:document.getElementById('p-nom').value,
-        date_naissance:document.getElementById('p-naissance').value||null,
-        email:document.getElementById('p-email').value,
-        telephone:document.getElementById('p-tel').value,
-        profession:document.getElementById('p-prof').value,
-        note:document.getElementById('p-note').value,
+        userId: user.userId,
+        prenom: document.getElementById('p-prenom').value,
+        nom: document.getElementById('p-nom').value,
+        date_naissance: document.getElementById('p-naissance').value || null,
+        email: document.getElementById('p-email').value,
+        telephone: document.getElementById('p-tel').value,
+        profession: document.getElementById('p-prof').value,
+        note: document.getElementById('p-note').value,
         photo
     };
     try {
-        const r = await fetch('/api/profil',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const r = await fetch('/api/profil', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
         const d = await r.json();
         if (d.success) {
-            msg.textContent='✅ Profil sauvegardé !'; msg.style.color='#10b981';
-            profilCache={...profilCache,...body};
+            msg.textContent = '✅ Profil sauvegardé !'; msg.style.color = '#10b981';
+            profilCache = { ...profilCache, ...body };
             chargerProfilHeader();
-        } else { msg.textContent='❌ '+d.message; msg.style.color='#ef4444'; }
-    } catch { msg.textContent='❌ Erreur réseau'; msg.style.color='#ef4444'; }
+        } else {
+            msg.textContent = '❌ ' + d.message; msg.style.color = '#ef4444';
+        }
+    } catch {
+        msg.textContent = '❌ Erreur réseau'; msg.style.color = '#ef4444';
+    }
 }
 
 async function changerMdp() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const ancien=document.getElementById('mdp-ancien').value;
-    const nouveau=document.getElementById('mdp-nouveau').value;
-    const confirm=document.getElementById('mdp-confirm').value;
-    const msg=document.getElementById('mdp-msg');
-    if (nouveau!==confirm) { msg.textContent='❌ Les mots de passe ne correspondent pas'; msg.style.color='#ef4444'; return; }
-    msg.textContent='Sauvegarde...'; msg.style.color='#9ca3af';
+    const ancien  = document.getElementById('mdp-ancien').value;
+    const nouveau = document.getElementById('mdp-nouveau').value;
+    const confirm = document.getElementById('mdp-confirm').value;
+    const msg = document.getElementById('mdp-msg');
+    if (nouveau !== confirm) {
+        msg.textContent = '❌ Les mots de passe ne correspondent pas';
+        msg.style.color = '#ef4444'; return;
+    }
+    msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
     try {
-        const r = await fetch('/api/profil/changer-mdp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.userId,ancienMdp:ancien,nouveauMdp:nouveau})});
+        const r = await fetch('/api/profil/changer-mdp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.userId, ancienMdp: ancien, nouveauMdp: nouveau })
+        });
         const d = await r.json();
         if (d.success) {
-            msg.textContent='✅ Mot de passe changé !'; msg.style.color='#10b981';
-            document.getElementById('mdp-ancien').value='';
-            document.getElementById('mdp-nouveau').value='';
-            document.getElementById('mdp-confirm').value='';
-        } else { msg.textContent='❌ '+d.message; msg.style.color='#ef4444'; }
-    } catch { msg.textContent='❌ Erreur réseau'; msg.style.color='#ef4444'; }
+            msg.textContent = '✅ Mot de passe changé !'; msg.style.color = '#10b981';
+            document.getElementById('mdp-ancien').value = '';
+            document.getElementById('mdp-nouveau').value = '';
+            document.getElementById('mdp-confirm').value = '';
+        } else {
+            msg.textContent = '❌ ' + d.message; msg.style.color = '#ef4444';
+        }
+    } catch {
+        msg.textContent = '❌ Erreur réseau'; msg.style.color = '#ef4444';
+    }
+}
+
+// ===================== WIDGETS VISIBLES =====================
+
+const TOUS_WIDGETS = [
+    { slug: 'meteo',         label: '🌤️ Météo' },
+    { slug: 'priere',        label: '🙏 Prière du jour' },
+    { slug: 'planning',      label: '📋 Planning' },
+    { slug: 'rendezvous',    label: '🩺 Rendez-vous' },
+    { slug: 'cycle',         label: '🌸 Suivi du cycle' },
+    { slug: 'taches',        label: '✅ Tâches' },
+    { slug: 'anniversaires', label: '🎂 Anniversaires' },
+];
+
+async function afficherSectionWidgets() {
+    const token = localStorage.getItem('token');
+    const container = document.getElementById('widgets-choix');
+    if (!container) return;
+    try {
+        const res = await fetch('/api/profil/widgets-visibles', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        const actifs = data.widgets_visibles || TOUS_WIDGETS.map(w => w.slug);
+        container.innerHTML = TOUS_WIDGETS.map(w => `
+            <label class="widget-choix-item">
+                <input type="checkbox" value="${w.slug}" ${actifs.includes(w.slug) ? 'checked' : ''}>
+                <span>${w.label}</span>
+            </label>
+        `).join('');
+    } catch {
+        container.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement.</p>';
+    }
+}
+
+async function sauvegarderWidgetsVisibles() {
+    const token = localStorage.getItem('token');
+    const msg = document.getElementById('widgets-msg');
+    const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
+    const widgets_visibles = [...checkboxes].filter(cb => cb.checked).map(cb => cb.value);
+
+    if (widgets_visibles.length === 0) {
+        msg.textContent = '❌ Sélectionne au moins un widget.';
+        msg.style.color = '#ef4444'; return;
+    }
+
+    msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
+
+    try {
+        const res = await fetch('/api/profil/widgets-visibles', {
+            method: 'PATCH',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ widgets_visibles })
+        });
+        if (res.ok) {
+            msg.textContent = '✅ Widgets mis à jour !'; msg.style.color = '#10b981';
+            appliquerWidgetsVisibles(widgets_visibles);
+        } else {
+            msg.textContent = '❌ Erreur serveur.'; msg.style.color = '#ef4444';
+        }
+    } catch {
+        msg.textContent = '❌ Erreur réseau.'; msg.style.color = '#ef4444';
+    }
 }

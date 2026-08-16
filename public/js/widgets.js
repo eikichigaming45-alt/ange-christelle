@@ -1,31 +1,51 @@
 // ===================== GRID & DRAG DROP =====================
 
-let gridConstruit = false; // ← GUARD anti-double-build
+let gridConstruit = false;
 
 async function buildGrid() {
-    if (gridConstruit) return; // ← bloque le double appel
+    if (gridConstruit) return;
     gridConstruit = true;
 
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const grid = document.getElementById('main-grid');
     grid.innerHTML = '';
     let ordre = null;
+
+    // Charger widgets visibles + ordre en parallèle
+    const token = localStorage.getItem('token');
+    let actifs = null;
+
     try {
-        const r = await fetch(`/api/widget-order?userId=${user.userId}`);
-        const d = await r.json();
-        if (d.success && d.ordre) ordre = d.ordre;
+        const [rOrdre, rWidgets] = await Promise.all([
+            fetch(`/api/widget-order?userId=${user.userId}`),
+            fetch('/api/profil/widgets-visibles', { headers: { 'Authorization': 'Bearer ' + token } })
+        ]);
+        const dOrdre   = await rOrdre.json();
+        const dWidgets = await rWidgets.json();
+        if (dOrdre.success && dOrdre.ordre) ordre = dOrdre.ordre;
+        actifs = dWidgets.widgets_visibles || null;
     } catch(e) {}
 
     let defs = [...WIDGETS_DEF];
     if (user?.role === 'admin') {
         defs.push({ id:'admin', label:'Administration', icon:'⚙️', cls:'w-admin', desc:'Gérer les utilisateurs et les paramètres', foot:'Accès admin' });
     }
+
+    // Appliquer l'ordre sauvegardé
     if (ordre) {
         const sorted = [];
         ordre.forEach(id => { const w = defs.find(d => d.id === id); if(w) sorted.push(w); });
         defs.forEach(w => { if(!ordre.includes(w.id)) sorted.push(w); });
         defs = sorted;
     }
+
+    // Filtrer les widgets non visibles (si préférence enregistrée)
+    // Les widgets profil et admin ne sont jamais masqués
+    const TOUJOURS_VISIBLES = ['profil', 'admin'];
+    if (actifs) {
+        defs = defs.filter(w => TOUJOURS_VISIBLES.includes(w.id) || actifs.includes(w.id));
+    }
+
     defs.forEach(def => grid.appendChild(creerWidget(def)));
 
     if (typeof Cycle !== 'undefined') Cycle.charger();
@@ -56,10 +76,10 @@ function creerWidget(def) {
     `;
 
     div.addEventListener('click', e => {
-    if (e.target.classList.contains('drag-handle') || e.target.classList.contains('rbtn') || e.target.closest('button')) return;
-    if (e.target.closest('.rdv-card')) return;
-    openModal(def.id);
-});
+        if (e.target.classList.contains('drag-handle') || e.target.classList.contains('rbtn') || e.target.closest('button')) return;
+        if (e.target.closest('.rdv-card')) return;
+        openModal(def.id);
+    });
 
     if (def.id === 'meteo')      div.querySelector('#rbtn-meteo')?.addEventListener('click',      e => { e.stopPropagation(); chargerMeteoAuto(); });
     if (def.id === 'priere')     div.querySelector('#rbtn-priere')?.addEventListener('click',     e => { e.stopPropagation(); chargerPriere(); });
@@ -75,25 +95,25 @@ function creerWidget(def) {
     return div;
 }
 
-function onDragStart(e) { 
-    dragSrc = this; 
-    this.classList.add('dragging'); 
-    e.dataTransfer.effectAllowed = 'move'; 
-    e.dataTransfer.setData('text/plain', this.dataset.id); 
+function onDragStart(e) {
+    dragSrc = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.dataset.id);
 }
 
-function onDragOver(e)  { 
-    e.preventDefault(); 
-    e.dataTransfer.dropEffect = 'move'; 
-    if (this !== dragSrc) this.classList.add('drag-over'); 
+function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (this !== dragSrc) this.classList.add('drag-over');
 }
 
-function onDragLeave()  { 
-    this.classList.remove('drag-over'); 
+function onDragLeave() {
+    this.classList.remove('drag-over');
 }
 
 function onDrop(e) {
-    e.preventDefault(); 
+    e.preventDefault();
     this.classList.remove('drag-over');
     if (this === dragSrc) return;
     const grid = document.getElementById('main-grid');
@@ -103,9 +123,9 @@ function onDrop(e) {
     sauvegarderOrdre();
 }
 
-function onDragEnd() { 
-    this.classList.remove('dragging'); 
-    document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over')); 
+function onDragEnd() {
+    this.classList.remove('dragging');
+    document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
 }
 
 function ajouterTouchDrag(el) {
@@ -178,8 +198,23 @@ async function sauvegarderOrdre() {
     const ordre = [...document.querySelectorAll('.widget')].map(w => w.dataset.id);
     try {
         await fetch('/api/widget-order', {
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: user.userId, ordre })
         });
     } catch(e) {}
+}
+
+// ===================== WIDGETS VISIBLES =====================
+
+function appliquerWidgetsVisibles(actifs) {
+    const TOUJOURS_VISIBLES = ['profil', 'admin'];
+    const grid = document.getElementById('main-grid');
+    if (!grid) return;
+    [...grid.children].forEach(el => {
+        const id = el.dataset.id;
+        if (!id) return;
+        if (TOUJOURS_VISIBLES.includes(id)) return;
+        el.style.display = actifs.includes(id) ? '' : 'none';
+    });
 }

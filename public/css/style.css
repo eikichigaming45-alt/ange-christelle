@@ -297,3 +297,11 @@ input:focus{border-color:#4f46e5}
 .priere-lecture1 summary{font-weight:600;color:#555;cursor:pointer;font-size:13px}
 .priere-lecture1 .priere-texte-complet{max-height:150px}
 .priere-source{font-size:11px;color:#9ca3af;text-align:right;margin-top:4px}
+
+/* ==================== WIDGETS CHOIX ==================== */
+.widgets-choix-grid{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+.widget-choix-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid #e5e7eb;border-radius:10px;cursor:pointer;font-size:14px;transition:background .2s}
+.widget-choix-item:hover{background:#f5f3ff}
+.widget-choix-item input[type=checkbox]{width:18px;height:18px;accent-color:#4f46e5;cursor:pointer}
+.btn-sauver-widgets{width:100%;padding:12px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
+.btn-sauver-widgets:hover{background:#4338ca}

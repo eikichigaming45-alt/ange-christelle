@@ -67,24 +67,24 @@ async function openModal(type) {
         `;
 
     } else if (type === 'priere') {
-    document.getElementById('modal-body').innerHTML = priere ? `
-        <div class="priere-modal">
-            ${priere.titre ? `<div class="priere-titre-jour">📖 ${priere.titre}</div>` : ''}
-            ${priere.evangile ? `
-            <div class="priere-section">
-                <div class="priere-section-label">Évangile du jour</div>
-                <div class="priere-texte-complet">${priere.evangile.replace(/\n/g, '<br>')}</div>
-            </div>` : `
-            <div class="priere-texte-complet">"${priere.texte}"<br><br><em>— ${priere.ref}</em></div>
-            `}
-            ${priere.lecture1 ? `
-            <details class="priere-lecture1">
-                <summary>📜 Première lecture (cliquer pour lire)</summary>
-                <div class="priere-texte-complet" style="margin-top:10px;max-height:200px">${priere.lecture1.replace(/\n/g, '<br>')}</div>
-            </details>` : ''}
-            ${priere.source === 'catholique.fr' ? `<div class="priere-source">Source : eglise.catholique.fr</div>` : ''}
-        </div>
-    ` : '<p>Chargement...</p>';
+        document.getElementById('modal-body').innerHTML = priere ? `
+            <div class="priere-modal">
+                ${priere.titre ? `<div class="priere-titre-jour">📖 ${priere.titre}</div>` : ''}
+                ${priere.evangile ? `
+                <div class="priere-section">
+                    <div class="priere-section-label">Évangile du jour</div>
+                    <div class="priere-texte-complet">${priere.evangile.replace(/\n/g, '<br>')}</div>
+                </div>` : `
+                <div class="priere-texte-complet">"${priere.texte}"<br><br><em>— ${priere.ref}</em></div>
+                `}
+                ${priere.lecture1 ? `
+                <details class="priere-lecture1">
+                    <summary>📜 Première lecture (cliquer pour lire)</summary>
+                    <div class="priere-texte-complet" style="margin-top:10px;max-height:200px">${priere.lecture1.replace(/\n/g, '<br>')}</div>
+                </details>` : ''}
+                ${priere.source === 'catholique.fr' ? `<div class="priere-source">Source : eglise.catholique.fr</div>` : ''}
+            </div>
+        ` : '<p>Chargement...</p>';
 
     } else if (type === 'taches') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
@@ -105,14 +105,18 @@ async function openModal(type) {
     } else if (type === 'profil') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         const user = JSON.parse(localStorage.getItem('myvibe_user'));
-        if (!user?.userId) { document.getElementById('modal-body').innerHTML = '<p>Erreur : utilisateur non identifié.</p>'; return; }
+        if (!user?.userId) {
+            document.getElementById('modal-body').innerHTML = '<p>Erreur : utilisateur non identifié.</p>';
+            return;
+        }
         try {
             const r = await fetch(`/api/profil?userId=${user.userId}`);
             const d = await r.json();
-            const p = d.profil||{};
+            const p = d.profil || {};
             profilCache = p;
-            const photoSrc = p.photo||'';
-            const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase()||'👤';
+            const photoSrc = p.photo || '';
+            const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '👤';
+
             document.getElementById('modal-body').innerHTML = `
                 <div style="text-align:center;margin-bottom:16px">
                     ${photoSrc
@@ -125,14 +129,15 @@ async function openModal(type) {
                 <div class="profil-form">
                     <input id="p-prenom" placeholder="Prénom" value="${p.prenom||''}">
                     <input id="p-nom" placeholder="Nom" value="${p.nom||''}">
-                    <input id="p-naissance" type="date" value="${p.date_naissance?p.date_naissance.split('T')[0]:''}">
+                    <input id="p-naissance" type="date" value="${p.date_naissance ? p.date_naissance.split('T')[0] : ''}">
                     <input id="p-email" placeholder="Email" value="${p.email||''}">
                     <input id="p-tel" placeholder="Téléphone" value="${p.telephone||''}">
                     <input id="p-prof" placeholder="Profession" value="${p.profession||''}">
                     <textarea id="p-note" placeholder="Note personnelle..." rows="3">${p.note||''}</textarea>
                 </div>
-                <button class="save-btn" onclick="sauvegarderProfil()">💾 Sauvegarder</button>
+                <button class="save-btn" onclick="sauvegarderProfil()">💾 Sauvegarder le profil</button>
                 <div id="profil-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+
                 <hr class="separateur">
                 <h4 style="color:#333;margin-bottom:12px">🔑 Changer mon mot de passe</h4>
                 <div class="mdp-form">
@@ -142,7 +147,20 @@ async function openModal(type) {
                 </div>
                 <button class="danger-btn" onclick="changerMdp()">🔑 Changer le mot de passe</button>
                 <div id="mdp-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+
+                <hr class="separateur">
+                <h4 style="color:#333;margin-bottom:4px">📱 Mes widgets</h4>
+                <p style="font-size:12px;color:#9ca3af;margin-bottom:12px">Choisis les widgets affichés sur ton tableau de bord.</p>
+                <div id="widgets-choix" class="widgets-choix-grid">
+                    <p style="color:#9ca3af;font-size:13px">Chargement...</p>
+                </div>
+                <button class="save-btn" style="margin-top:10px" onclick="sauvegarderWidgetsVisibles()">💾 Sauvegarder mes widgets</button>
+                <div id="widgets-msg" style="text-align:center;margin-top:8px;font-size:13px;min-height:18px"></div>
             `;
+
+            // Charge les widgets visibles dans la foulée
+            await afficherSectionWidgets();
+
         } catch {
             document.getElementById('modal-body').innerHTML = '<p>❌ Erreur de chargement du profil.</p>';
         }
@@ -188,7 +206,6 @@ function afficherDetailJour(i) {
     const iPluie = d.daily.precipitation_probability_max?.[i] || 0;
     const desc   = codes[d.daily.weather_code[i]] || 'Variable';
 
-    // Highlight le jour sélectionné
     document.querySelectorAll('.meteo-jour').forEach((el, idx) => {
         el.classList.toggle('meteo-jour-selected', idx === i);
     });
