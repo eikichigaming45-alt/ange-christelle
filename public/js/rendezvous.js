@@ -4,8 +4,6 @@
 
 const Rendezvous = (() => {
 
-  // ── Helpers ──────────────────────────────────────────────
-
   function authHeaders() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     return {
@@ -30,10 +28,10 @@ const Rendezvous = (() => {
   function joursRestants(dt) {
     const diff  = new Date(dt) - new Date();
     const jours = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    if (jours < 0)   return { label: 'Passé',           cls: 'rdv-passe' };
-    if (jours === 0) return { label: 'Aujourd\'hui !',  cls: 'rdv-today' };
-    if (jours === 1) return { label: 'Demain',           cls: 'rdv-soon'  };
-    if (jours <= 7)  return { label: `Dans ${jours}j`,  cls: 'rdv-soon'  };
+    if (jours < 0)   return { label: 'Passé',            cls: 'rdv-passe' };
+    if (jours === 0) return { label: 'Aujourd\'hui !',   cls: 'rdv-today' };
+    if (jours === 1) return { label: 'Demain',            cls: 'rdv-soon'  };
+    if (jours <= 7)  return { label: `Dans ${jours}j`,   cls: 'rdv-soon'  };
     return               { label: `Dans ${jours} jours`, cls: 'rdv-futur' };
   }
 
@@ -79,6 +77,7 @@ const Rendezvous = (() => {
             <div class="rdv-card-date">${formatDateHeure(r.date_rdv)}</div>
             ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>` : ''}
             ${r.lieu      ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>`       : ''}
+            ${r.notes     ? `<div class="rdv-card-sub rdv-card-notes">📝 ${r.notes}</div>` : ''}
           </div>
           <div class="rdv-badge ${cls}">${label}</div>
         </div>
@@ -103,16 +102,11 @@ const Rendezvous = (() => {
 
   // ── Chargement principal ─────────────────────────────────
 
-async function charger() {
+  async function charger() {
     const container = document.getElementById('widget-rdv-content');
     if (!container) return;
-
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    if (!user?.token) {
-      setTimeout(() => charger(), 300);
-      return;
-    }
-
+    if (!user?.token) { setTimeout(() => charger(), 300); return; }
     try {
       const res  = await fetch('/api/rendezvous', { headers: authHeaders() });
       const rdvs = await res.json();
@@ -122,12 +116,10 @@ async function charger() {
     }
   }
 
-
   // ── Modal ajout / édition ────────────────────────────────
 
   async function ouvrirModal(id = null) {
     let rdv = null;
-
     if (id) {
       try {
         const res  = await fetch('/api/rendezvous', { headers: authHeaders() });
@@ -201,8 +193,7 @@ async function charger() {
 
     try {
       const res = await fetch(url, {
-        method,
-        headers: authHeaders(),
+        method, headers: authHeaders(),
         body: JSON.stringify({ titre, date_rdv, type_rdv, praticien, lieu, notes })
       });
       if (!res.ok) throw new Error();
@@ -216,14 +207,23 @@ async function charger() {
   // ── Supprimer ────────────────────────────────────────────
 
   async function supprimer(id) {
-    if (!confirm('Supprimer ce rendez-vous ?')) return;
-    try {
-      await fetch(`/api/rendezvous/${id}`, { method: 'DELETE', headers: authHeaders() });
-      closeModal();
-      charger();
-    } catch {
-      alert('Erreur lors de la suppression.');
-    }
+    document.getElementById('modal-title').textContent = '🩺 Confirmation';
+    document.getElementById('modal-body').innerHTML = `
+      <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer ce rendez-vous ? Cette action est irréversible.</p>
+      <div class="modal-actions">
+        <button class="btn-delete" id="btn-rdv-oui">Confirmer</button>
+        <button class="btn-cancel" id="btn-rdv-non">Annuler</button>
+      </div>
+    `;
+    document.getElementById('overlay').classList.add('on');
+    document.getElementById('btn-rdv-oui').onclick = async () => {
+      try {
+        await fetch(`/api/rendezvous/${id}`, { method: 'DELETE', headers: authHeaders() });
+        closeModal();
+        charger();
+      } catch { alert('Erreur lors de la suppression.'); }
+    };
+    document.getElementById('btn-rdv-non').onclick = () => closeModal();
   }
 
   // ── Liste complète ───────────────────────────────────────
@@ -247,6 +247,7 @@ async function charger() {
               <strong>${r.titre}</strong>
               <span>${formatDateHeure(r.date_rdv)}</span>
               ${r.praticien ? `<span>Dr. ${r.praticien}</span>` : ''}
+              ${r.notes     ? `<span style="color:#888;font-style:italic">📝 ${r.notes}</span>` : ''}
             </div>
             <div class="rdv-liste-right">
               <span class="rdv-badge ${cls}">${label}</span>

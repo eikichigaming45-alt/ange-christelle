@@ -54,8 +54,8 @@ async function openModal(type) {
         await Cycle.ouvrirModalCalendrier();
 
     } else if (type === 'rendezvous') {
-        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
-        await Rendezvous.ouvrirListe();
+    document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+    await Rendezvous.ouvrirListe();
 
     } else if (type === 'profil') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
