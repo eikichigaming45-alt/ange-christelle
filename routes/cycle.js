@@ -14,7 +14,7 @@ function authMiddleware(req, res, next) {
     }
 }
 
-// GET — tous les cycles de l'utilisatrice connectée uniquement
+// GET — tous les cycles
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const result = await pool.query(
@@ -72,4 +72,37 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+// GET — journal d'un mois
+router.get('/journal', authMiddleware, async (req, res) => {
+    const { mois, annee } = req.query;
+    try {
+        const result = await pool.query(
+            `SELECT * FROM cycle_journal 
+             WHERE user_id = \$1 
+             AND EXTRACT(MONTH FROM date) = \$2 
+             AND EXTRACT(YEAR FROM date) = \$3`,
+            [req.user.id, mois, annee]
+        );
+        res.json(result.rows);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST — sauvegarder une entrée journal
+router.post('/journal', authMiddleware, async (req, res) => {
+    const { date, rapport, symptomes, notes } = req.body;
+    try {
+        const result = await pool.query(
+            `INSERT INTO cycle_journal (user_id, date, humeur, symptomes, notes)
+             VALUES (\$1, \$2, \$3, \$4, \$5)
+             ON CONFLICT (user_id, date) DO UPDATE 
+             SET humeur=\$3, symptomes=\$4, notes=\$5
+             RETURNING *`,
+            [req.user.id, date, rapport || null, symptomes || null, notes || null]
+        );
+        res.json(result.rows[0]);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});

@@ -180,16 +180,40 @@ input:focus{border-color:#4f46e5}
 .cal-titre{font-size:14px;font-weight:700;color:#333;text-align:center;text-transform:capitalize}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
 .cal-head{text-align:center;font-size:10px;font-weight:700;color:#9ca3af;padding:4px 0}
-.cal-day{text-align:center;font-size:12px;padding:5px 2px;border-radius:6px;position:relative;color:#333;min-height:28px;display:flex;align-items:center;justify-content:center}
-.cal-empty{background:transparent}
+.cal-day{text-align:center;font-size:12px;padding:5px 2px;border-radius:6px;position:relative;color:#333;min-height:36px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+.cal-day:hover{background:#fce7f3}
+.cal-empty{background:transparent;cursor:default}
+.cal-empty:hover{background:transparent}
 .cal-regles{background:#fca5a5;color:#7f1d1d;font-weight:600}
 .cal-fertile{background:#fde68a;color:#78350f;font-weight:600}
+.cal-zone-regles{background:#fbcfe8;color:#9d174d;font-weight:500}
 .cal-today{outline:2px solid #4f46e5;outline-offset:-2px;font-weight:700;border-radius:6px}
 .cal-prochain{background:#ddd6fe;color:#4c1d95;font-weight:600}
 .cal-ovulation-star{position:absolute;top:-4px;right:0;font-size:10px;color:#f59e0b}
+.cal-day-icons{display:flex;gap:2px;justify-content:center;margin-top:1px}
+.cal-icon-rapport{font-size:9px;line-height:1}
+.cal-icon-rapport.protege{color:#10b981}
+.cal-icon-rapport.non-protege{color:#e83e8c}
+.cal-icon-symptome{font-size:8px;color:#7c3aed;line-height:1}
 .cal-legende{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;justify-content:center}
 .cal-leg-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#555}
 .cal-leg-dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* ==================== JOURNAL CYCLE ==================== */
+.journal-form{display:flex;flex-direction:column;gap:6px}
+.journal-section-title{font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
+.journal-rapport-btns{display:flex;gap:8px}
+.btn-rapport{flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;color:#555}
+.btn-rapport.active{border-color:#e83e8c;background:#fce7f3;color:#e83e8c}
+.btn-rapport:hover{border-color:#e83e8c}
+.journal-symptomes{display:flex;flex-direction:column;gap:8px}
+.symptome-check{display:flex;align-items:center;gap:8px;font-size:14px;color:#333;cursor:pointer;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;transition:background .15s}
+.symptome-check:hover{background:#fdf2f8}
+.symptome-check input{accent-color:#7c3aed;width:16px;height:16px;cursor:pointer}
+.journal-form textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;font-family:inherit;resize:vertical}
+.journal-form textarea:focus{border-color:#e83e8c}
+.cycle-duree-info{background:#fdf2f8;border-radius:8px;padding:8px 12px;font-size:13px;color:#555;text-align:center}
+
 
 /* ==================== WIDGET RENDEZ-VOUS ==================== */
 .widget.w-rdv{background:linear-gradient(135deg,#f0f8ff 0%,#ffffff 100%)}
