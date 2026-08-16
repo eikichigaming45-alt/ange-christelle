@@ -29,13 +29,29 @@ const Cycle = (() => {
   }
 
   function formatDateInput(date) {
-    return new Date(date).toISOString().split('T')[0];
+    const d = new Date(date);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
 
   function memeJour(a, b) {
     return a.getFullYear() === b.getFullYear() &&
            a.getMonth()    === b.getMonth()    &&
            a.getDate()     === b.getDate();
+  }
+
+  function confirmerAction(message, onOui) {
+    document.getElementById('modal-title').textContent = '🌸 Confirmation';
+    document.getElementById('modal-body').innerHTML = `
+      <p style="color:#333;font-size:15px;margin-bottom:20px">${message}</p>
+      <div class="modal-actions">
+        <button class="btn-delete" id="btn-confirmer-oui">Confirmer</button>
+        <button class="btn-cancel" id="btn-confirmer-non">Annuler</button>
+      </div>
+    `;
+    document.getElementById('overlay').classList.add('on');
+    document.getElementById('btn-confirmer-oui').onclick = () => onOui();
+    document.getElementById('btn-confirmer-non').onclick = () => closeModal();
   }
 
   // ── Calcul automatique durée cycle ───────────────────────
@@ -69,13 +85,11 @@ const Cycle = (() => {
     const dureeRegles = dernierCycle.duree_regles || 5;
     const dureeCycle  = dureeMoyenne || dernierCycle.duree_cycle || 28;
 
-    const finRegles     = addDays(debut, dureeRegles - 1);
-    const prochainDebut = addDays(debut, dureeCycle);
-    const debutFertile  = addDays(debut, dureeCycle - 16);
-    const finFertile    = addDays(debut, dureeCycle - 12);
-    const ovulation     = addDays(debut, dureeCycle - 14);
-
-    // Zone rose : 3 jours avant les prochaines règles
+    const finRegles       = addDays(debut, dureeRegles - 1);
+    const prochainDebut   = addDays(debut, dureeCycle);
+    const debutFertile    = addDays(debut, dureeCycle - 16);
+    const finFertile      = addDays(debut, dureeCycle - 12);
+    const ovulation       = addDays(debut, dureeCycle - 14);
     const debutZoneRegles = addDays(prochainDebut, -3);
 
     const aujourd_hui = new Date();
@@ -148,24 +162,24 @@ const Cycle = (() => {
       date.setHours(0,0,0,0);
       const dateStr = formatDateInput(date);
 
-      const estAujourdhui    = memeJour(date, aujourd_hui);
-      const estRegles        = date >= calc.debut && date <= calc.finRegles;
-      const estFertile       = date >= calc.debutFertile && date <= calc.finFertile;
-      const estOvulation     = memeJour(date, calc.ovulation);
-      const estProchain      = memeJour(date, calc.prochainDebut);
-      const estZoneRegles    = date >= calc.debutZoneRegles && date < calc.prochainDebut && !estRegles;
+      const estAujourdhui = memeJour(date, aujourd_hui);
+      const estRegles     = date >= calc.debut && date <= calc.finRegles;
+      const estFertile    = date >= calc.debutFertile && date <= calc.finFertile;
+      const estOvulation  = memeJour(date, calc.ovulation);
+      const estProchain   = memeJour(date, calc.prochainDebut);
+      const estZoneRegles = date >= calc.debutZoneRegles && date < calc.prochainDebut && !estRegles;
 
-      const journal          = _journalCache[dateStr];
-      const aRapport         = journal?.humeur === 'protege' || journal?.humeur === 'non_protege';
-      const aSymptomes       = journal?.symptomes;
+      const journal   = _journalCache[dateStr];
+      const aRapport  = journal?.humeur === 'protege' || journal?.humeur === 'non_protege';
+      const aSymptomes = journal?.symptomes;
 
       let cls   = 'cal-day';
       let badge = '';
       let icons = '';
 
-	  if (estRegles || estProchain) cls += ' cal-regles';
-	  else if (estFertile)          cls += ' cal-fertile';
-	  else if (estZoneRegles)       cls += ' cal-zone-regles';
+      if (estRegles || estProchain) cls += ' cal-regles';
+      else if (estFertile)          cls += ' cal-fertile';
+      else if (estZoneRegles)       cls += ' cal-zone-regles';
       if (estAujourdhui)  cls += ' cal-today';
       if (estOvulation)   badge = '<span class="cal-ovulation-star">★</span>';
       if (aRapport)       icons += `<span class="cal-icon-rapport ${journal.humeur === 'protege' ? 'protege' : 'non-protege'}">♥</span>`;
@@ -216,9 +230,9 @@ const Cycle = (() => {
     const symptomesActifs = journal.symptomes ? journal.symptomes.split(',') : [];
 
     const SYMPTOMES = [
-      { key: 'douleur_pelvienne', label: 'Douleur pelvienne' },
-      { key: 'pertes_claires',    label: 'Pertes claires' },
-      { key: 'glaire_cervicale',  label: 'Glaire cervicale' },
+      { key: 'douleur_pelvienne',    label: 'Douleur pelvienne' },
+      { key: 'pertes_claires',       label: 'Pertes claires' },
+      { key: 'glaire_cervicale',     label: 'Glaire cervicale' },
       { key: 'sensibilite_poitrine', label: 'Sensibilité poitrine' },
     ];
 
@@ -227,10 +241,10 @@ const Cycle = (() => {
       <div class="journal-form">
         <div class="journal-section-title">Rapport sexuel</div>
         <div class="journal-rapport-btns">
-          <button class="btn-rapport ${journal.humeur === 'protege' ? 'active' : ''}" 
-            onclick="Cycle._toggleRapport(this, 'protege')">🛡️ Protégé</button>
-          <button class="btn-rapport ${journal.humeur === 'non_protege' ? 'active' : ''}" 
-            onclick="Cycle._toggleRapport(this, 'non_protege')">♥ Non protégé</button>
+          <button class="btn-rapport ${journal.humeur === 'protege' ? 'active' : ''}"
+            onclick="Cycle._toggleRapport(this)">🛡️ Protégé</button>
+          <button class="btn-rapport ${journal.humeur === 'non_protege' ? 'active' : ''}"
+            onclick="Cycle._toggleRapport(this)">♥ Non protégé</button>
         </div>
 
         <div class="journal-section-title" style="margin-top:14px">Symptômes</div>
@@ -256,14 +270,17 @@ const Cycle = (() => {
     document.getElementById('overlay').classList.add('on');
   }
 
-  function _toggleRapport(btn, val) {
+  function _toggleRapport(btn) {
+    const estDejaActif = btn.classList.contains('active');
     document.querySelectorAll('.btn-rapport').forEach(b => b.classList.remove('active'));
-    btn.classList.toggle('active');
+    if (!estDejaActif) btn.classList.add('active');
   }
 
   async function _sauvegarderJournal(dateStr) {
     const rapportBtn = document.querySelector('.btn-rapport.active');
-    const rapport    = rapportBtn ? rapportBtn.dataset?.val || (rapportBtn.textContent.includes('Protégé') ? 'protege' : 'non_protege') : null;
+    const rapport    = rapportBtn
+      ? (rapportBtn.textContent.includes('Protégé') ? 'protege' : 'non_protege')
+      : null;
     const symptomes  = [...document.querySelectorAll('.journal-symptomes input:checked')].map(i => i.value).join(',');
     const notes      = document.getElementById('journal-notes').value;
 
@@ -278,6 +295,19 @@ const Cycle = (() => {
     } catch {
       alert('Erreur lors de la sauvegarde.');
     }
+  }
+
+  async function _supprimerJournal(id, dateStr) {
+    const dateAff = new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+    confirmerAction(`Supprimer l'entrée du <strong>${dateAff}</strong> ?`, async () => {
+      try {
+        await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
+        await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+        ouvrirModalCalendrier();
+      } catch {
+        alert('Erreur lors de la suppression.');
+      }
+    });
   }
 
   // ── Rendu widget ─────────────────────────────────────────
@@ -384,12 +414,12 @@ const Cycle = (() => {
 
   async function ouvrirModalCalendrier() {
     try {
-      const res        = await fetch('/api/cycle', { headers: authHeaders() });
-      const cycles     = await res.json();
+      const res          = await fetch('/api/cycle', { headers: authHeaders() });
+      const cycles       = await res.json();
       const dureeMoyenne = calculerDureeMoyenne(Array.isArray(cycles) ? cycles : []);
       const dernierCycle = Array.isArray(cycles) && cycles.length > 0 ? cycles[0] : null;
-      const calc       = calculerCycle(dernierCycle, dureeMoyenne);
-      const phase      = getPhase(calc);
+      const calc         = calculerCycle(dernierCycle, dureeMoyenne);
+      const phase        = getPhase(calc);
 
       _calcCourant = calc;
       _moisAffiche = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -501,25 +531,26 @@ const Cycle = (() => {
     }
   }
 
-  // ── Supprimer ────────────────────────────────────────────
+  // ── Supprimer cycle ───────────────────────────────────────
 
   async function supprimer(id) {
-    if (!confirm('Supprimer ce cycle ?')) return;
-    try {
-      await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
-      closeModal();
-      charger();
-    } catch {
-      alert('Erreur lors de la suppression.');
-    }
+    confirmerAction('Supprimer ce cycle ? Cette action est irréversible.', async () => {
+      try {
+        await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
+        closeModal();
+        charger();
+      } catch {
+        alert('Erreur lors de la suppression.');
+      }
+    });
   }
 
   // ── Historique ───────────────────────────────────────────
 
   async function ouvrirHistorique() {
     try {
-      const res    = await fetch('/api/cycle', { headers: authHeaders() });
-      const cycles = await res.json();
+      const res          = await fetch('/api/cycle', { headers: authHeaders() });
+      const cycles       = await res.json();
       const dureeMoyenne = calculerDureeMoyenne(cycles);
 
       const lignes = cycles.map(c => `
@@ -548,18 +579,6 @@ const Cycle = (() => {
   }
 
   // ── API publique ─────────────────────────────────────────
-
-    async function _supprimerJournal(id, dateStr) {
-    const dateAff = new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
-    if (!confirm(`Supprimer l'entrée du ${dateAff} ?`)) return;
-    try {
-      await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
-      await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
-      ouvrirModalCalendrier();
-    } catch {
-      alert('Erreur lors de la suppression.');
-    }
-  }
 
   return { charger, ouvrirModalAjout, ouvrirModalCalendrier, naviguerCalendrier, sauvegarder, supprimer, ouvrirHistorique, ouvrirJournal, _toggleRapport, _sauvegarderJournal, _supprimerJournal };
 
