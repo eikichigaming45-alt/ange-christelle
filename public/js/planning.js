@@ -63,8 +63,8 @@ async function chargerWidgetPlanning() {
   // Indexer par date string
   const map = {};
   entries.forEach(e => {
-    const key = e.date?.slice(0, 10);
-    if (key && !map[key]) map[key] = e; // première entrée du jour
+    const raw = e.date?.slice(0, 10); // déjà YYYY-MM-DD si stocké en DATE
+if (raw && !map[raw]) map[raw] = e; // première entrée du jour
   });
 
   // Construire le HTML
@@ -112,7 +112,7 @@ async function chargerWidgetPlanning() {
   });
 
   html += `<div style="text-align:center;margin-top:6px;">
-    <span onclick="ouvrirModalPlanning()" style="font-size:12px;color:#6c63ff;cursor:pointer;">
+    <span onclick="ouvrirPlanningModal()" style="font-size:12px;color:#6c63ff;cursor:pointer;">
       Cliquez pour voir le planning
     </span>
   </div>`;

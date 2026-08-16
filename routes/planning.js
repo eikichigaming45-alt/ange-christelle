@@ -19,7 +19,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const { mois, annee } = req.query;
     try {
         const result = await pool.query(`
-            SELECT * FROM planning
+            SELECT *, TO_CHAR(date, 'YYYY-MM-DD') as date FROM planning
             WHERE user_id = \$1
             AND EXTRACT(MONTH FROM date) = \$2
             AND EXTRACT(YEAR FROM date) = \$3

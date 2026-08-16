@@ -7,7 +7,7 @@ async function openModal(type) {
     const titres = {
         meteo:'🌤️ Météo du jour', priere:'🙏 Prière du jour',
         taches:'✅ Tâches du jour', rdv:'📅 Rendez-vous',
-        planning:'📋 Planning', anniversaires:'🎂 Anniversaires',
+        planning:'📋 Mon Planning', anniversaires:'🎂 Anniversaires',
         profil:'👤 Mon Profil', admin:'⚙️ Administration',
         cycle:'🌸 Suivi du cycle', rendezvous:'🩺 Rendez-vous médicaux'
     };
@@ -112,7 +112,11 @@ async function openModal(type) {
 
     } else if (type === 'planning') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
-        await ouvrirModalPlanning();
+        if (typeof ouvrirPlanningModal === 'function') {
+            await ouvrirPlanningModal();
+        } else {
+            document.getElementById('modal-body').innerHTML = '<p style="color:red">❌ Module planning non chargé.</p>';
+        }
 
     } else if (type === 'profil') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
@@ -130,14 +134,12 @@ async function openModal(type) {
             const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '👤';
 
             document.getElementById('modal-body').innerHTML = `
-                <!-- ONGLETS -->
                 <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f3f4f6;">
                     <button class="profil-tab active" data-tab="infos" style="flex:1;padding:12px 4px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#4f46e5;border-bottom:2px solid #4f46e5;margin-bottom:-2px">👤 Profil</button>
                     <button class="profil-tab" data-tab="securite" style="flex:1;padding:12px 4px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#9ca3af;border-bottom:2px solid transparent;margin-bottom:-2px">🔑 Sécurité</button>
                     <button class="profil-tab" data-tab="widgets" style="flex:1;padding:12px 4px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#9ca3af;border-bottom:2px solid transparent;margin-bottom:-2px">📱 Widgets</button>
                 </div>
 
-                <!-- ONGLET PROFIL -->
                 <div id="profil-tab-infos" class="profil-tab-content">
                     <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:20px">
                         ${photoSrc
@@ -183,7 +185,6 @@ async function openModal(type) {
                     <div id="profil-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
                 </div>
 
-                <!-- ONGLET SÉCURITÉ -->
                 <div id="profil-tab-securite" class="profil-tab-content" style="display:none">
                     <div style="background:#f8fafc;border-radius:16px;padding:20px">
                         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
@@ -210,7 +211,6 @@ async function openModal(type) {
                     </div>
                 </div>
 
-                <!-- ONGLET WIDGETS -->
                 <div id="profil-tab-widgets" class="profil-tab-content" style="display:none">
                     <div style="background:#f8fafc;border-radius:16px;padding:20px">
                         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
@@ -229,7 +229,6 @@ async function openModal(type) {
                 </div>
             `;
 
-            // Gestion des onglets
             document.querySelectorAll('.profil-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     document.querySelectorAll('.profil-tab').forEach(t => {
@@ -311,7 +310,6 @@ function afficherDetailJour(i) {
     `;
 }
 
-// ── Lecture audio de la prière — voix masculine française ──
 function lirePriereModal(e) {
     if (!('speechSynthesis' in window)) {
         alert("La synthèse vocale n'est pas supportée par votre navigateur.");
