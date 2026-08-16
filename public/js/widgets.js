@@ -48,6 +48,9 @@ async function buildGrid() {
 
     defs.forEach(def => grid.appendChild(creerWidget(def)));
 
+    // Sécurité supplémentaire : appliquer visibilité au cas où
+    if (actifs) appliquerWidgetsVisibles(actifs);
+
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
 }
