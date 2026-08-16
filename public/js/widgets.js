@@ -56,9 +56,10 @@ function creerWidget(def) {
     `;
 
     div.addEventListener('click', e => {
-        if (e.target.classList.contains('drag-handle') || e.target.classList.contains('rbtn') || e.target.closest('button')) return;
-        openModal(def.id);
-    });
+    if (e.target.classList.contains('drag-handle') || e.target.classList.contains('rbtn') || e.target.closest('button')) return;
+    if (e.target.closest('.rdv-card')) return;
+    openModal(def.id);
+});
 
     if (def.id === 'meteo')      div.querySelector('#rbtn-meteo')?.addEventListener('click',      e => { e.stopPropagation(); chargerMeteoAuto(); });
     if (def.id === 'priere')     div.querySelector('#rbtn-priere')?.addEventListener('click',     e => { e.stopPropagation(); chargerPriere(); });
