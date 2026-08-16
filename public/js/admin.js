@@ -74,31 +74,55 @@ async function resetMdpUser(userId, btn) {
     } catch { alert('Erreur réseau'); }
 }
 
+// ── Modale personnalisée pour changer le rôle ──────────────────────────
 async function toggleRole(userId, roleActuel, btn) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const newRole = roleActuel==='admin'?'user':'admin';
-    
-    confirmerAction(`Changer ce compte en "${newRole}" ?`, async () => {
+
+    document.getElementById('modal-title').textContent = '⚙️ Modification du rôle';
+    document.getElementById('modal-body').innerHTML = `
+      <p style="color:#333;font-size:15px;margin-bottom:20px">Changer ce compte en rôle <strong>"${newRole}"</strong> ?</p>
+      <div class="modal-actions">
+        <button class="btn-save" id="btn-role-oui">Confirmer</button>
+        <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+      </div>
+    `;
+    document.getElementById('overlay').classList.add('on');
+
+    document.getElementById('btn-role-oui').onclick = async () => {
         try {
             const r = await fetch('/api/admin/update-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId,role:newRole})});
             const d = await r.json();
+            closeModal();
             if (d.success) chargerAdminUsers();
             else alert('Erreur : '+d.message);
         } catch { alert('Erreur réseau'); }
-    });
+    };
 }
 
+// ── Modale personnalisée pour supprimer un utilisateur ─────────────────
 async function supprimerUser(userId, username) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    
-    confirmerAction(`Supprimer définitivement "${username}" ? Cette action est irréversible.`, async () => {
+
+    document.getElementById('modal-title').textContent = '🗑️ Confirmation de suppression';
+    document.getElementById('modal-body').innerHTML = `
+      <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer définitivement <strong>"${username}"</strong> ? Cette action est irréversible.</p>
+      <div class="modal-actions">
+        <button class="btn-delete" id="btn-suppr-oui">Confirmer</button>
+        <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+      </div>
+    `;
+    document.getElementById('overlay').classList.add('on');
+
+    document.getElementById('btn-suppr-oui').onclick = async () => {
         try {
             const r = await fetch('/api/admin/delete-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminId:user.userId,targetUserId:userId})});
             const d = await r.json();
+            closeModal();
             if (d.success) { document.getElementById('ucard-'+userId)?.remove(); chargerAdminStats(); }
             else alert('Erreur : '+d.message);
         } catch { alert('Erreur réseau'); }
-    });
+    };
 }
 
 async function creerUser() {
