@@ -72,9 +72,9 @@ async function openModal(type) {
     } else if (type === 'priere') {
         document.getElementById('modal-body').innerHTML = priere ? `
             <div class="priere-modal">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                     ${priere.titre ? `<div class="priere-titre-jour" style="margin-bottom:0;">📖 ${priere.titre}</div>` : '<div></div>'}
-                    <button onclick="lirePriereModal(event)" title="Écouter la prière" style="background:#f3f4f6; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.1);" id="btn-speaker-modal">
+                    <button onclick="lirePriereModal(event)" title="Écouter la prière" style="background:#f3f4f6;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.1);" id="btn-speaker-modal">
                         🔊
                     </button>
                 </div>
@@ -126,45 +126,119 @@ async function openModal(type) {
             const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '👤';
 
             document.getElementById('modal-body').innerHTML = `
-                <div style="text-align:center;margin-bottom:16px">
-                    ${photoSrc
-                        ? `<img id="profil-photo-preview" src="${photoSrc}" class="photo-circle" onclick="document.getElementById('photo-input').click()">`
-                        : `<div class="initiales" onclick="document.getElementById('photo-input').click()">${initiales}</div>`
-                    }
-                    <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="previewPhoto(event)">
-                    <div style="font-size:12px;color:#9ca3af;margin-bottom:8px">Cliquez sur la photo pour changer</div>
+                <!-- ONGLETS -->
+                <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f3f4f6;">
+                    <button class="profil-tab active" data-tab="infos" style="flex:1;padding:12px 4px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#4f46e5;border-bottom:2px solid #4f46e5;margin-bottom:-2px">👤 Profil</button>
+                    <button class="profil-tab" data-tab="securite" style="flex:1;padding:12px 4px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#9ca3af;border-bottom:2px solid transparent;margin-bottom:-2px">🔑 Sécurité</button>
+                    <button class="profil-tab" data-tab="widgets" style="flex:1;padding:12px 4px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#9ca3af;border-bottom:2px solid transparent;margin-bottom:-2px">📱 Widgets</button>
                 </div>
-                <div class="profil-form">
-                    <input id="p-prenom" placeholder="Prénom" value="${p.prenom||''}">
-                    <input id="p-nom" placeholder="Nom" value="${p.nom||''}">
-                    <input id="p-naissance" type="date" value="${p.date_naissance ? p.date_naissance.split('T')[0] : ''}">
-                    <input id="p-email" placeholder="Email" value="${p.email||''}">
-                    <input id="p-tel" placeholder="Téléphone" value="${p.telephone||''}">
-                    <input id="p-prof" placeholder="Profession" value="${p.profession||''}">
-                    <textarea id="p-note" placeholder="Note personnelle..." rows="3">${p.note||''}</textarea>
-                </div>
-                <button class="save-btn" onclick="sauvegarderProfil()">💾 Sauvegarder le profil</button>
-                <div id="profil-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
 
-                <hr class="separateur">
-                <h4 style="color:#333;margin-bottom:12px">🔑 Changer mon mot de passe</h4>
-                <div class="mdp-form">
-                    <input type="password" id="mdp-ancien" placeholder="Ancien mot de passe">
-                    <input type="password" id="mdp-nouveau" placeholder="Nouveau mot de passe">
-                    <input type="password" id="mdp-confirm" placeholder="Confirmer le nouveau mot de passe">
-                </div>
-                <button class="danger-btn" onclick="changerMdp()">🔑 Changer le mot de passe</button>
-                <div id="mdp-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+                <!-- ONGLET PROFIL -->
+                <div id="profil-tab-infos" class="profil-tab-content">
+                    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:20px">
+                        ${photoSrc
+                            ? `<img id="profil-photo-preview" src="${photoSrc}" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)" onclick="document.getElementById('photo-input').click()">`
+                            : `<div style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)" onclick="document.getElementById('photo-input').click()">${initiales}</div>`
+                        }
+                        <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="previewPhoto(event)">
+                        <span style="font-size:11px;color:#9ca3af;margin-top:8px">Appuyez sur la photo pour changer</span>
+                    </div>
 
-                <hr class="separateur">
-                <h4 style="color:#333;margin-bottom:4px">📱 Mes widgets</h4>
-                <p style="font-size:12px;color:#9ca3af;margin-bottom:12px">Choisis les widgets affichés sur ton tableau de bord.</p>
-                <div id="widgets-choix" class="widgets-choix-grid">
-                    <p style="color:#9ca3af;font-size:13px">Chargement...</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Prénom</label>
+                            <input id="p-prenom" placeholder="Prénom" value="${p.prenom||''}" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Nom</label>
+                            <input id="p-nom" placeholder="Nom" value="${p.nom||''}" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Date de naissance</label>
+                        <input id="p-naissance" type="date" value="${p.date_naissance ? p.date_naissance.split('T')[0] : ''}" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                    </div>
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Email</label>
+                        <input id="p-email" placeholder="Email" value="${p.email||''}" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Téléphone</label>
+                            <input id="p-tel" placeholder="Téléphone" value="${p.telephone||''}" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Profession</label>
+                            <input id="p-prof" placeholder="Profession" value="${p.profession||''}" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:16px">
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Note personnelle</label>
+                        <textarea id="p-note" placeholder="Note personnelle..." rows="3" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none;outline:none">${p.note||''}</textarea>
+                    </div>
+                    <button onclick="sauvegarderProfil()" style="width:100%;padding:13px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)">💾 Sauvegarder le profil</button>
+                    <div id="profil-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
                 </div>
-                <button class="save-btn" style="margin-top:10px" onclick="sauvegarderWidgetsVisibles()">💾 Sauvegarder mes widgets</button>
-                <div id="widgets-msg" style="text-align:center;margin-top:8px;font-size:13px;min-height:18px"></div>
+
+                <!-- ONGLET SÉCURITÉ -->
+                <div id="profil-tab-securite" class="profil-tab-content" style="display:none">
+                    <div style="background:#f8fafc;border-radius:16px;padding:20px">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+                            <div style="width:48px;height:48px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 10px rgba(245,158,11,0.3)">🔑</div>
+                            <div>
+                                <div style="font-weight:700;color:#111;font-size:15px">Changer le mot de passe</div>
+                                <div style="font-size:12px;color:#9ca3af;margin-top:2px">Minimum 6 caractères requis</div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:10px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Ancien mot de passe</label>
+                            <input type="password" id="mdp-ancien" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div style="margin-bottom:10px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Nouveau mot de passe</label>
+                            <input type="password" id="mdp-nouveau" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div style="margin-bottom:20px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Confirmer le mot de passe</label>
+                            <input type="password" id="mdp-confirm" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <button onclick="changerMdp()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 10px rgba(245,158,11,0.3)">🔑 Changer le mot de passe</button>
+                        <div id="mdp-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+                    </div>
+                </div>
+
+                <!-- ONGLET WIDGETS -->
+                <div id="profil-tab-widgets" class="profil-tab-content" style="display:none">
+                    <div style="background:#f8fafc;border-radius:16px;padding:20px">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                            <div style="width:48px;height:48px;background:linear-gradient(135deg,#10b981,#059669);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 10px rgba(16,185,129,0.3)">📱</div>
+                            <div>
+                                <div style="font-weight:700;color:#111;font-size:15px">Mes widgets</div>
+                                <div style="font-size:12px;color:#9ca3af;margin-top:2px">Choisis ce qui s'affiche sur ton tableau de bord</div>
+                            </div>
+                        </div>
+                        <div id="widgets-choix" class="widgets-choix-grid">
+                            <p style="color:#9ca3af;font-size:13px">Chargement...</p>
+                        </div>
+                        <button onclick="sauvegarderWidgetsVisibles()" style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px;box-shadow:0 4px 10px rgba(16,185,129,0.3)">💾 Sauvegarder mes widgets</button>
+                        <div id="widgets-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+                    </div>
+                </div>
             `;
+
+            // Gestion des onglets
+            document.querySelectorAll('.profil-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.profil-tab').forEach(t => {
+                        t.style.color = '#9ca3af';
+                        t.style.borderBottomColor = 'transparent';
+                    });
+                    tab.style.color = '#4f46e5';
+                    tab.style.borderBottomColor = '#4f46e5';
+                    document.querySelectorAll('.profil-tab-content').forEach(c => c.style.display = 'none');
+                    document.getElementById(`profil-tab-${tab.dataset.tab}`).style.display = 'block';
+                });
+            });
 
             await afficherSectionWidgets();
 
@@ -253,9 +327,8 @@ function lirePriereModal(e) {
     const utterance = new SpeechSynthesisUtterance(texteALire);
     utterance.lang = 'fr-FR';
     utterance.rate = 0.9;
-    utterance.pitch = 0.7; // Plus grave = plus masculin
+    utterance.pitch = 0.7;
 
-    // Cherche une voix masculine française
     const lancerLecture = () => {
         const voix = synth.getVoices();
         const voixMasc = voix.find(v =>
@@ -280,7 +353,6 @@ function lirePriereModal(e) {
         synth.speak(utterance);
     };
 
-    // Les voix sont parfois chargées en asynchrone (surtout Chrome)
     if (synth.getVoices().length === 0) {
         synth.onvoiceschanged = lancerLecture;
     } else {
@@ -288,5 +360,8 @@ function lirePriereModal(e) {
     }
 }
 
-function closeModal() { document.getElementById('overlay').classList.remove('on'); }
+function closeModal() { 
+    window.speechSynthesis?.cancel();
+    document.getElementById('overlay').classList.remove('on'); 
+}
 function closeOutside(e) { if(e.target===document.getElementById('overlay')) closeModal(); }

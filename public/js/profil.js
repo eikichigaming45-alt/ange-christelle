@@ -22,6 +22,13 @@ async function chargerProfilHeader() {
     } catch(e) {}
 }
 
+function switchProfilTab(tab) {
+    document.querySelectorAll('.profil-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.profil-tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.profil-tab[data-tab="${tab}"]`).classList.add('active');
+    document.getElementById(`profil-tab-${tab}`).classList.add('active');
+}
+
 function previewPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -42,7 +49,8 @@ function previewPhoto(event) {
                 </div>
             `;
             const saveBtn = document.querySelector('.save-btn');
-            saveBtn.parentNode.insertBefore(cropZone, saveBtn);
+            if (saveBtn) saveBtn.parentNode.insertBefore(cropZone, saveBtn);
+            else document.getElementById('profil-tab-infos').appendChild(cropZone);
         }
         const cropImg = document.getElementById('crop-img');
         cropImg.src = e.target.result;
