@@ -28,11 +28,11 @@ const Rendezvous = (() => {
   function joursRestants(dt) {
     const diff  = new Date(dt) - new Date();
     const jours = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    if (jours < 0)   return { label: 'Passé',            cls: 'rdv-passe' };
-    if (jours === 0) return { label: 'Aujourd\'hui !',   cls: 'rdv-today' };
-    if (jours === 1) return { label: 'Demain',            cls: 'rdv-soon'  };
-    if (jours <= 7)  return { label: `Dans ${jours}j`,   cls: 'rdv-soon'  };
-    return               { label: `Dans ${jours} jours`, cls: 'rdv-futur' };
+    if (jours < 0)   return { label: 'Passé',             cls: 'rdv-passe' };
+    if (jours === 0) return { label: 'Aujourd\'hui !',    cls: 'rdv-today' };
+    if (jours === 1) return { label: 'Demain',             cls: 'rdv-soon'  };
+    if (jours <= 7)  return { label: `Dans ${jours}j`,    cls: 'rdv-soon'  };
+    return               { label: `Dans ${jours} jours`,  cls: 'rdv-futur' };
   }
 
   const TYPE_ICONS = {
@@ -78,6 +78,7 @@ const Rendezvous = (() => {
             ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>` : ''}
             ${r.lieu      ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>`       : ''}
             ${r.notes     ? `<div class="rdv-card-sub rdv-card-notes">📝 ${r.notes}</div>` : ''}
+            ${r.rappel_avant > 0 ? `<div class="rdv-card-sub">⏰ Rappel ${r.rappel_avant >= 60 ? '1h' : r.rappel_avant+'min'} avant</div>` : ''}
           </div>
           <div class="rdv-badge ${cls}">${label}</div>
         </div>
@@ -133,6 +134,7 @@ const Rendezvous = (() => {
     ).join('');
 
     const now = formatDateTimeInput(new Date());
+    const rappelVal = rdv?.rappel_avant || 0;
 
     document.getElementById('modal-title').textContent = rdv ? '✏️ Modifier le rendez-vous' : '🩺 Nouveau rendez-vous';
     document.getElementById('modal-body').innerHTML = `
@@ -163,6 +165,16 @@ const Rendezvous = (() => {
         <textarea id="rdv-notes" rows="3"
           placeholder="Documents à apporter, questions...">${rdv?.notes || ''}</textarea>
 
+        <label>Rappel avant le rendez-vous</label>
+        <select id="rdv-rappel">
+          <option value="0"    ${rappelVal===0  ?'selected':''}>Pas de rappel anticipé</option>
+          <option value="15"   ${rappelVal===15 ?'selected':''}>15 min avant</option>
+          <option value="30"   ${rappelVal===30 ?'selected':''}>30 min avant</option>
+          <option value="60"   ${rappelVal===60 ?'selected':''}>1h avant</option>
+          <option value="120"  ${rappelVal===120?'selected':''}>2h avant</option>
+          <option value="1440" ${rappelVal===1440?'selected':''}>La veille</option>
+        </select>
+
         <div class="modal-actions">
           <button class="btn-save" onclick="Rendezvous.sauvegarder(${rdv?.id || 'null'})">
             ${rdv ? 'Modifier' : 'Enregistrer'}
@@ -178,12 +190,13 @@ const Rendezvous = (() => {
   // ── Sauvegarder ──────────────────────────────────────────
 
   async function sauvegarder(id = null) {
-    const titre     = document.getElementById('rdv-titre').value.trim();
-    const date_rdv  = document.getElementById('rdv-date').value;
-    const type_rdv  = document.getElementById('rdv-type').value;
-    const praticien = document.getElementById('rdv-praticien').value.trim();
-    const lieu      = document.getElementById('rdv-lieu').value.trim();
-    const notes     = document.getElementById('rdv-notes').value.trim();
+    const titre      = document.getElementById('rdv-titre').value.trim();
+    const date_rdv   = document.getElementById('rdv-date').value;
+    const type_rdv   = document.getElementById('rdv-type').value;
+    const praticien  = document.getElementById('rdv-praticien').value.trim();
+    const lieu       = document.getElementById('rdv-lieu').value.trim();
+    const notes      = document.getElementById('rdv-notes').value.trim();
+    const rappel_avant = parseInt(document.getElementById('rdv-rappel').value) || 0;
 
     if (!titre)    return alert('Le motif est obligatoire.');
     if (!date_rdv) return alert('La date est obligatoire.');
@@ -194,7 +207,7 @@ const Rendezvous = (() => {
     try {
       const res = await fetch(url, {
         method, headers: authHeaders(),
-        body: JSON.stringify({ titre, date_rdv, type_rdv, praticien, lieu, notes })
+        body: JSON.stringify({ titre, date_rdv, type_rdv, praticien, lieu, notes, rappel_avant })
       });
       if (!res.ok) throw new Error();
       closeModal();
@@ -248,6 +261,7 @@ const Rendezvous = (() => {
               <span>${formatDateHeure(r.date_rdv)}</span>
               ${r.praticien ? `<span>Dr. ${r.praticien}</span>` : ''}
               ${r.notes     ? `<span style="color:#888;font-style:italic">📝 ${r.notes}</span>` : ''}
+              ${r.rappel_avant > 0 ? `<span>⏰ Rappel ${r.rappel_avant >= 60 ? (r.rappel_avant === 1440 ? 'la veille' : r.rappel_avant/60+'h') : r.rappel_avant+'min'} avant</span>` : ''}
             </div>
             <div class="rdv-liste-right">
               <span class="rdv-badge ${cls}">${label}</span>

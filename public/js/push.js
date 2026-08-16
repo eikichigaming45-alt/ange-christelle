@@ -32,66 +32,99 @@ async function initPush() {
     }
 }
 
-// ── Vérification locale des tâches toutes les minutes ──────
-const tachesDejaNotifiees = new Set();
+// ── Vérification locale toutes les minutes ──────────────────
+const dejaNotifies = new Set();
 
 async function verifierTachesLocales() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     if (!user?.userId || !user?.token) return;
 
     const maintenant = new Date();
-    const heure   = String(maintenant.getHours()).padStart(2, '0');
-    const minute  = String(maintenant.getMinutes()).padStart(2, '0');
-    const heureActuelle = `${heure}:${minute}`;
-
-    // Date locale (pas UTC)
-    const annee = maintenant.getFullYear();
-    const mois  = String(maintenant.getMonth() + 1).padStart(2, '0');
-    const jour  = String(maintenant.getDate()).padStart(2, '0');
+    const annee  = maintenant.getFullYear();
+    const mois   = String(maintenant.getMonth()+1).padStart(2,'0');
+    const jour   = String(maintenant.getDate()).padStart(2,'0');
     const dateAujourdhui = `${annee}-${mois}-${jour}`;
+    const heureActuelle  = `${String(maintenant.getHours()).padStart(2,'0')}:${String(maintenant.getMinutes()).padStart(2,'0')}`;
 
+    // ── Tâches ────────────────────────────────────────────
     try {
-        const res = await fetch(`/api/taches?userId=${user.userId}`, {
+        const res  = await fetch(`/api/taches?userId=${user.userId}`, {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const data = await res.json();
-        if (!data.success) return;
+        if (data.success) {
+            for (const tache of data.taches) {
+                if (tache.faite || !tache.heure || !tache.date) continue;
 
-        for (const tache of data.taches) {
-            if (tache.faite) continue;
-            if (!tache.heure) continue;
-            if (!tache.date) continue;
+                const dateTache  = tache.date.split('T')[0];
+                const heureTache = tache.heure.substring(0,5);
+                const rappel     = tache.rappel_avant || 0;
 
-            // Date de la tâche (extrait YYYY-MM-DD)
-            const dateTache = tache.date.split('T')[0];
-            // Heure de la tâche (extrait HH:MM)
-            const heureTache = tache.heure.substring(0, 5);
+                const tacheDate  = new Date(`${dateTache}T${heureTache}`);
+                const notifDate  = new Date(tacheDate.getTime() - rappel * 60 * 1000);
 
-            if (dateTache !== dateAujourdhui) continue;
-            if (heureTache !== heureActuelle) continue;
+                const hN = String(notifDate.getHours()).padStart(2,'0');
+                const mN = String(notifDate.getMinutes()).padStart(2,'0');
+                const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
 
-            // Évite les doublons
-            const cle = `${tache.id}-${dateAujourdhui}-${heureActuelle}`;
-            if (tachesDejaNotifiees.has(cle)) continue;
-            tachesDejaNotifiees.add(cle);
+                if (dN !== dateAujourdhui) continue;
+                if (`${hN}:${mN}` !== heureActuelle) continue;
 
-            // Affiche la notification via le Service Worker
+                const cle = `tache-${tache.id}-${dN}-${hN}:${mN}`;
+                if (dejaNotifies.has(cle)) continue;
+                dejaNotifies.add(cle);
+
+                const corps = rappel > 0
+                    ? `${tache.titre} — dans ${rappel >= 60 ? '1h' : rappel+'min'}`
+                    : tache.titre;
+
+                const reg = await navigator.serviceWorker.ready;
+                reg.showNotification('✅ Rappel de tâche', {
+                    body: corps, icon: '/icon-192.png', badge: '/icon-192.png',
+                    tag: `tache-${tache.id}`, renotify: true, data: { url: '/' }
+                });
+            }
+        }
+    } catch(e) { console.warn('Erreur tâches push:', e); }
+
+    // ── Rendez-vous ───────────────────────────────────────
+    try {
+        const res  = await fetch('/api/rendezvous', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const rdvs = await res.json();
+        if (!Array.isArray(rdvs)) return;
+
+        for (const rdv of rdvs) {
+            if (!rdv.date_rdv) continue;
+            const rappel = rdv.rappel_avant || 0;
+
+            const rdvDate   = new Date(rdv.date_rdv);
+            const notifDate = new Date(rdvDate.getTime() - rappel * 60 * 1000);
+
+            const hN = String(notifDate.getHours()).padStart(2,'0');
+            const mN = String(notifDate.getMinutes()).padStart(2,'0');
+            const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
+
+            if (dN !== dateAujourdhui) continue;
+            if (`${hN}:${mN}` !== heureActuelle) continue;
+
+            const cle = `rdv-${rdv.id}-${dN}-${hN}:${mN}`;
+            if (dejaNotifies.has(cle)) continue;
+            dejaNotifies.add(cle);
+
+            const corps = rappel > 0
+                ? `${rdv.titre} — dans ${rappel >= 1440 ? 'la veille' : rappel >= 60 ? rdv.rappel_avant/60+'h' : rappel+'min'}`
+                : rdv.titre;
+
             const reg = await navigator.serviceWorker.ready;
-            reg.showNotification('✅ Rappel de tâche', {
-                body: tache.titre,
-                icon: '/icon-192.png',
-                badge: '/icon-192.png',
-                tag: `tache-${tache.id}`,
-                renotify: true,
-                data: { url: '/' }
+            reg.showNotification('🩺 Rappel rendez-vous', {
+                body: corps, icon: '/icon-192.png', badge: '/icon-192.png',
+                tag: `rdv-${rdv.id}`, renotify: true, data: { url: '/' }
             });
         }
-    } catch (e) {
-        console.warn('Erreur vérification tâches:', e);
-    }
+    } catch(e) { console.warn('Erreur RDV push:', e); }
 }
 
-// Démarre la vérification toutes les minutes
 setInterval(verifierTachesLocales, 60 * 1000);
-// Vérifie aussi au chargement
 verifierTachesLocales();

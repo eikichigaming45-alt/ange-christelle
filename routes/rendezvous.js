@@ -29,12 +29,12 @@ router.get('/', authMiddleware, async (req, res) => {
 
 // POST — ajouter un RDV
 router.post('/', authMiddleware, async (req, res) => {
-    const { titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_active } = req.body;
+    const { titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant } = req.body;
     try {
         const result = await pool.query(
-            `INSERT INTO rendezvous (user_id, titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_active)
+            `INSERT INTO rendezvous (user_id, titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant)
              VALUES (\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8) RETURNING *`,
-            [req.user.id, titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_active || false]
+            [req.user.id, titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant || 0]
         );
         res.json(result.rows[0]);
     } catch (e) {
@@ -44,13 +44,13 @@ router.post('/', authMiddleware, async (req, res) => {
 
 // PUT — modifier un RDV
 router.put('/:id', authMiddleware, async (req, res) => {
-    const { titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_active } = req.body;
+    const { titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant } = req.body;
     try {
         const result = await pool.query(
             `UPDATE rendezvous SET titre=\$1, date_rdv=\$2, praticien=\$3, lieu=\$4,
-             type_rdv=\$5, notes=\$6, rappel_active=\$7
+             type_rdv=\$5, notes=\$6, rappel_avant=\$7
              WHERE id=\$8 AND user_id=\$9 RETURNING *`,
-            [titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_active, req.params.id, req.user.id]
+            [titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant || 0, req.params.id, req.user.id]
         );
         if (result.rowCount === 0) return res.status(403).json({ error: 'Accès refusé' });
         res.json(result.rows[0]);
