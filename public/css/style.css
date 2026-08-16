@@ -282,3 +282,8 @@ input:focus{border-color:#4f46e5}
 .meteo-modal-desc{font-size:14px;color:#555;font-weight:500}
 .meteo-modal-minmax{font-size:13px;color:#9ca3af;font-weight:600}
 .meteo-modal-icon{font-size:72px;line-height:1}
+.meteo-detail-jour{background:#f0f9ff;border-radius:12px;padding:14px;border:1px solid #bae6fd}
+.meteo-detail-jour-top{display:flex;justify-content:space-between;align-items:center}
+.meteo-detail-jour-date{font-size:13px;font-weight:700;color:#0369a1;text-transform:capitalize}
+.meteo-detail-jour-desc{font-size:13px;color:#555;margin:4px 0}
+.meteo-detail-jour-temp{font-size:20px;font-weight:800;color:#1e3a5f}
