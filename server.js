@@ -27,5 +27,6 @@ app.use('/api/priere', require('./routes/priere'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/cycle', require('./routes/cycle'));
 app.use('/api/rendezvous', require('./routes/rendezvous'));
+app.use('/api/planning', require('./routes/planning'));
 
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));

@@ -94,6 +94,7 @@ async function showApp() {
     chargerProfilHeader();
     chargerWidgetTaches();
     chargerWidgetAnniversaires();
+	chargerWidgetPlanning();
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
     enregistrerServiceWorker();

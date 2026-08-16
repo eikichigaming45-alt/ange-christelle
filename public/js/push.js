@@ -123,6 +123,42 @@ async function verifierTachesLocales() {
             }
         }
     } catch(e) { console.warn('Erreur RDV push:', e); }
+	
+    // ── Planning ──────────────────────────────────────────
+    try {
+        const res = await fetch(`/api/planning/jour?date=${dateAujourdhui}`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+            for (const p of data.planning) {
+                if (!p.heure_debut || !p.rappel_avant || p.rappel_avant === 0) continue;
+
+                const debutDate  = new Date(`${dateAujourdhui}T${p.heure_debut}`);
+                const notifDate  = new Date(debutDate.getTime() - p.rappel_avant * 60 * 1000);
+
+                const hN = String(notifDate.getHours()).padStart(2,'0');
+                const mN = String(notifDate.getMinutes()).padStart(2,'0');
+                const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
+
+                if (dN !== dateAujourdhui) continue;
+                if (`${hN}:${mN}` !== heureActuelle) continue;
+
+                const cle = `planning-${p.id}-${dN}-${hN}:${mN}`;
+                if (dejaNotifies.has(cle)) continue;
+                dejaNotifies.add(cle);
+
+                const label = p.rappel_avant >= 60 ? `${p.rappel_avant/60}h` : `${p.rappel_avant}min`;
+                const reg = await navigator.serviceWorker.ready;
+                reg.showNotification('📋 Rappel Planning', {
+                    body: `🌙 ${p.type} — dans ${label} (${p.heure_debut.slice(0,5)}) — ${p.employeur || ''}`,
+                    icon: '/icon-192.png', badge: '/icon-192.png',
+                    tag: `planning-${p.id}`, renotify: true, data: { url: '/' }
+                });
+            }
+        }
+    } catch(e) { console.warn('Erreur planning push:', e); }
+
 
     // ── Anniversaires ─────────────────────────────────────
     try {

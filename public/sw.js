@@ -1,10 +1,11 @@
-const CACHE_NAME = 'myvibe-v2.11';
+const CACHE_NAME = 'myvibe-v2.12';
 const ASSETS = [
   '/', '/index.html', '/css/style.css',
   '/js/app.js', '/js/auth.js', '/js/widgets.js', '/js/modal.js',
   '/js/meteo.js', '/js/priere.js', '/js/taches.js',
   '/js/anniversaires.js', '/js/profil.js', '/js/admin.js',
-  '/js/cycle.js', '/js/rendezvous.js', '/manifest.json',
+  '/js/cycle.js', '/js/rendezvous.js', '/js/push.js',
+  '/js/planning.js', '/manifest.json',
   '/icon-192.png', '/icon-512.png'
 ];
 

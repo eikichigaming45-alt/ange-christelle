@@ -110,6 +110,10 @@ async function openModal(type) {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         await Rendezvous.ouvrirListe();
 
+    } else if (type === 'planning') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        await ouvrirModalPlanning();
+
     } else if (type === 'profil') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         const user = JSON.parse(localStorage.getItem('myvibe_user'));
@@ -143,7 +147,6 @@ async function openModal(type) {
                         <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="previewPhoto(event)">
                         <span style="font-size:11px;color:#9ca3af;margin-top:8px">Appuyez sur la photo pour changer</span>
                     </div>
-
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
                         <div>
                             <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Prénom</label>
