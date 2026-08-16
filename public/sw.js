@@ -1,4 +1,4 @@
-const CACHE_NAME = 'myvibe-v1';
+const CACHE_NAME = 'myvibe-v2';
 const ASSETS = [
   '/', '/index.html', '/css/style.css',
   '/js/app.js', '/js/auth.js', '/js/widgets.js', '/js/modal.js',
