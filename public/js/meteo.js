@@ -12,6 +12,17 @@ const METEO_ICONS = {
 
 const JOURS_COURT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 
+// Résolution coordonnées → nom de ville via API de géocodage inversé
+async function getNomVille(lat, lon) {
+    try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=fr`);
+        const d = await r.json();
+        return d.address?.city || d.address?.town || d.address?.village || d.address?.municipality || 'Ma position';
+    } catch {
+        return 'Ma position';
+    }
+}
+
 async function chargerMeteo(lat, lon, nomVille) {
     const el = document.getElementById('wc-meteo');
     if (el) el.textContent = 'Chargement...';
@@ -46,11 +57,11 @@ async function chargerMeteo(lat, lon, nomVille) {
                     <span class="meteo-badge">💨 ${vent} km/h</span>
                     <span class="meteo-badge">🌧️ ${pluie}%</span>
                 </div>
-                <div class="meteo-7j">
+                <div class="meteo-7j" style="justify-content:center">
                     ${d.daily.time.slice(0, 5).map((t, i) => {
                         const jour = i === 0 ? 'Auj.' : JOURS_COURT[new Date(t + 'T12:00:00').getDay()];
-                        const iMax = Math.round(d.daily.temperature_2m_max[i]);
-                        const iMin = Math.round(d.daily.temperature_2m_min[i]);
+                        const iMax  = Math.round(d.daily.temperature_2m_max[i]);
+                        const iMin  = Math.round(d.daily.temperature_2m_min[i]);
                         const iIcon = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
                         return `
                             <div class="meteo-jour ${i === 0 ? 'meteo-jour-today' : ''}">
@@ -58,8 +69,7 @@ async function chargerMeteo(lat, lon, nomVille) {
                                 <div class="meteo-jour-icon">${iIcon}</div>
                                 <div class="meteo-jour-max">${iMax}°</div>
                                 <div class="meteo-jour-min">${iMin}°</div>
-                            </div>
-                        `;
+                            </div>`;
                     }).join('')}
                 </div>
             </div>
@@ -69,15 +79,26 @@ async function chargerMeteo(lat, lon, nomVille) {
     } catch { if (el) el.textContent = 'Météo non disponible'; }
 }
 
-function chargerMeteoAuto() {
+async function chargerMeteoAuto() {
     const saved = localStorage.getItem('myvibe_ville');
-    if (saved) { const v = JSON.parse(saved); chargerMeteo(v.lat, v.lon, v.ville); return; }
+    if (saved) {
+        const v = JSON.parse(saved);
+        chargerMeteo(v.lat, v.lon, v.ville);
+        return;
+    }
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            pos => chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'),
+            async pos => {
+                const lat  = pos.coords.latitude;
+                const lon  = pos.coords.longitude;
+                const ville = await getNomVille(lat, lon);
+                chargerMeteo(lat, lon, ville);
+            },
             () => chargerMeteo(48.8566, 2.3522, 'Paris')
         );
-    } else { chargerMeteo(48.8566, 2.3522, 'Paris'); }
+    } else {
+        chargerMeteo(48.8566, 2.3522, 'Paris');
+    }
 }
 
 async function rechercherVille() {
@@ -93,36 +114,81 @@ async function rechercherVille() {
         } else {
             document.getElementById('modal-title').textContent = 'Ville introuvable';
             document.getElementById('modal-body').innerHTML = `
-                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Aucune ville trouvée pour cette recherche.</p>
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Aucune ville trouvée.</p>
                 <div class="modal-actions">
-                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
-                </div>
-            `;
+                    <button class="btn-cancel" onclick="openModal('meteo')">Retour</button>
+                </div>`;
         }
     } catch {
-        document.getElementById('modal-title').textContent = 'Erreur réseau';
         document.getElementById('modal-body').innerHTML = `
-            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Impossible de contacter le service de recherche.</p>
+            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur réseau.</p>
             <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeModal()">Fermer</button>
-            </div>
-        `;
+                <button class="btn-cancel" onclick="openModal('meteo')">Retour</button>
+            </div>`;
     }
 }
 
-function geoLocaliser() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            pos => { chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'); closeModal(); },
-            () => {
-                document.getElementById('modal-title').textContent = 'Géolocalisation refusée';
-                document.getElementById('modal-body').innerHTML = `
-                    <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Autorisation de localisation refusée par le navigateur.</p>
-                    <div class="modal-actions">
-                        <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+async function geoLocaliser() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+        async pos => {
+            const lat   = pos.coords.latitude;
+            const lon   = pos.coords.longitude;
+            // Efface la ville sauvegardée pour forcer la résolution du nom
+            localStorage.removeItem('myvibe_ville');
+            const ville = await getNomVille(lat, lon);
+            await chargerMeteo(lat, lon, ville);
+            closeModal();
+        },
+        () => {
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Localisation refusée par le navigateur.</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="openModal('meteo')">Retour</button>
+                </div>`;
+        }
+    );
+}
+
+// Appelée depuis modal.js quand on clique sur un jour
+function afficherDetailJour(i) {
+    const d = meteoData;
+    if (!d?.daily) return;
+
+    // Encadrer le jour sélectionné, désencadrer les autres
+    document.querySelectorAll('.meteo-jour').forEach((el, idx) => {
+        el.style.outline      = idx === i ? '2px solid #4f46e5' : 'none';
+        el.style.outlineOffset = '2px';
+        el.style.borderRadius  = '10px';
+        el.classList.toggle('meteo-jour-selected', idx === i);
+    });
+
+    const t      = d.daily.time[i];
+    const dateObj = new Date(t + 'T12:00:00');
+    const date   = dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'2-digit', month:'long' });
+    const iMax   = Math.round(d.daily.temperature_2m_max[i]);
+    const iMin   = Math.round(d.daily.temperature_2m_min[i]);
+    const iIcon  = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
+    const iPluie = d.daily.precipitation_probability_max?.[i] || 0;
+    const desc   = codes[d.daily.weather_code[i]] || 'Variable';
+
+    document.getElementById('meteo-detail-jour').innerHTML = `
+        <div class="meteo-detail-jour" style="
+            background:#f0f9ff;border-radius:14px;padding:16px;
+            border:2px solid #bae6fd;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <div style="font-size:13px;font-weight:700;color:#0369a1;text-transform:capitalize;margin-bottom:4px">
+                        ${date}
                     </div>
-                `;
-            }
-        );
-    }
+                    <div style="font-size:13px;color:#555;margin-bottom:4px">${iIcon} ${desc}</div>
+                    <div style="font-size:22px;font-weight:800;color:#1e3a5f">↑${iMax}° ↓${iMin}°</div>
+                    <div style="margin-top:6px">
+                        <span class="meteo-badge">🌧️ ${iPluie}%</span>
+                    </div>
+                </div>
+                <div style="font-size:52px;line-height:1">${iIcon}</div>
+            </div>
+        </div>
+    `;
 }
