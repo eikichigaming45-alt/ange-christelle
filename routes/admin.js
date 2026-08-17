@@ -93,15 +93,16 @@ router.get('/stats', async (req, res) => {
         const totalAdmins   = await pool.query("SELECT COUNT(*) FROM users WHERE role='admin'");
         const totalProfiles = await pool.query('SELECT COUNT(*) FROM profiles');
         const lastLogins    = await pool.query(`
-            SELECT u.username, p.updated_at FROM users u
-            LEFT JOIN profiles p ON p.user_id=u.id
+            SELECT u.username, u.role, p.updated_at
+            FROM users u
+            LEFT JOIN profiles p ON p.user_id = u.id
             ORDER BY p.updated_at DESC NULLS LAST LIMIT 5
         `);
         res.json({ success: true, stats: {
-            totalUsers: parseInt(totalUsers.rows[0].count),
-            totalAdmins: parseInt(totalAdmins.rows[0].count),
+            totalUsers:    parseInt(totalUsers.rows[0].count),
+            totalAdmins:   parseInt(totalAdmins.rows[0].count),
             totalProfiles: parseInt(totalProfiles.rows[0].count),
-            lastActivity: lastLogins.rows
+            lastActivity:  lastLogins.rows
         }});
     } catch (err) {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
