@@ -1,5 +1,57 @@
 // ===================== ADMIN =====================
 
+async function chargerWidgetAdmin() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!user?.userId || user.role !== 'admin') return;
+    const el = document.getElementById('widget-admin-content');
+    if (!el) return;
+    try {
+        const r = await fetch(`/api/admin/stats?adminId=${user.userId}`);
+        const d = await r.json();
+        if (!d.success) {
+            el.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur serveur</p>';
+            return;
+        }
+        el.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+                <div style="background:#eff6ff;border-radius:8px;padding:10px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#2563eb">${d.totalUsers}</div>
+                    <div style="font-size:11px;color:#6b7280">Utilisateurs</div>
+                </div>
+                <div style="background:#f5f3ff;border-radius:8px;padding:10px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#7c3aed">${d.totalAdmins}</div>
+                    <div style="font-size:11px;color:#6b7280">Admins</div>
+                </div>
+                <div style="background:#f0fdf4;border-radius:8px;padding:10px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#16a34a">${d.profilsRemplis}</div>
+                    <div style="font-size:11px;color:#6b7280">Profils remplis</div>
+                </div>
+                <div style="background:#fff7ed;border-radius:8px;padding:10px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#ea580c">${d.sansProfile}</div>
+                    <div style="font-size:11px;color:#6b7280">Sans profil</div>
+                </div>
+            </div>
+            <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:6px">
+                Dernière activité
+            </div>
+            ${(d.lastLogins || []).map(u => `
+                <div style="display:flex;justify-content:space-between;align-items:center;
+                            padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px">
+                    <span>
+                        <strong>${u.username}</strong>
+                        <span style="color:#6b7280;margin-left:4px">(${u.role})</span>
+                    </span>
+                    <span style="color:#9ca3af">
+                        ${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR') : '—'}
+                    </span>
+                </div>
+            `).join('')}
+        `;
+    } catch {
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur réseau</p>';
+    }
+}
+
 async function chargerAdminStats() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const el = document.getElementById('admin-tab-stats');
@@ -12,19 +64,6 @@ async function chargerAdminStats() {
             el.innerHTML = `<p style="color:#ef4444;text-align:center">${d.message}</p>`;
             return;
         }
-        const activite = (d.lastLogins || []).map(u => `
-            <div style="display:flex;justify-content:space-between;align-items:center;
-                        padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px">
-                <span>
-                    <strong>${u.username}</strong>
-                    <span style="font-size:11px;color:#6b7280;margin-left:4px">(${u.role})</span>
-                </span>
-                <span style="color:#9ca3af">
-                    ${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR') : '—'}
-                </span>
-            </div>
-        `).join('');
-
         el.innerHTML = `
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
                 <div style="background:#eff6ff;border-radius:10px;padding:14px;text-align:center">
@@ -44,9 +83,21 @@ async function chargerAdminStats() {
                     <div style="font-size:11px;color:#6b7280;margin-top:4px">Sans profil</div>
                 </div>
             </div>
-            <div style="font-size:11px;font-weight:600;color:#6b7280;
-                        text-transform:uppercase;margin-bottom:8px">Dernière activité</div>
-            ${activite || '<p style="color:#9ca3af;font-size:13px">Aucune activité.</p>'}
+            <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:8px">
+                Dernière activité
+            </div>
+            ${(d.lastLogins || []).map(u => `
+                <div style="display:flex;justify-content:space-between;align-items:center;
+                            padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px">
+                    <span>
+                        <strong>${u.username}</strong>
+                        <span style="font-size:11px;color:#6b7280;margin-left:4px">(${u.role})</span>
+                    </span>
+                    <span style="color:#9ca3af">
+                        ${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR') : '—'}
+                    </span>
+                </div>
+            `).join('') || '<p style="color:#9ca3af;font-size:13px">Aucune activité.</p>'}
         `;
     } catch {
         el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
