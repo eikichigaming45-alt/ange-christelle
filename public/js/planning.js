@@ -46,7 +46,6 @@ function _optionsRappelPlanning(selected = 120) {
   ).join('');
 }
 
-// ── Récupère tous les employeurs distincts depuis la route dédiée ─────────────
 async function _fetchEmployeurs(token) {
   try {
     const res = await fetch('/api/planning/employeurs', {
@@ -54,7 +53,8 @@ async function _fetchEmployeurs(token) {
     });
     if (!res.ok) throw new Error();
     const data = await res.json();
-    return Array.isArray(data) && data.length > 0 ? data : ['EPSM Georges Daumezon'];
+    const noms = Array.isArray(data) ? data.map(e => e.nom).filter(Boolean) : [];
+    return noms.length > 0 ? noms : ['EPSM Georges Daumezon'];
   } catch {
     return ['EPSM Georges Daumezon'];
   }
@@ -243,6 +243,13 @@ async function _afficherCalendrierPlanning() {
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px">
         ${cellules}
       </div>
+      <button onclick="_ouvrirGestionEmployeurs()" style="
+          width:100%;padding:11px;margin-bottom:8px;
+          background:#f3f4f6;color:#374151;
+          border:none;border-radius:12px;
+          font-size:14px;font-weight:600;cursor:pointer">
+        🏥 Gérer mes employeurs
+      </button>
       <button onclick="_ouvrirFormulaireEntreePlanning(null)" style="
           width:100%;padding:13px;
           background:linear-gradient(135deg,#4f46e5,#7c3aed);
@@ -345,11 +352,10 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
     } catch { entry = {}; }
   }
 
-  // ── Employeurs depuis la route dédiée BDD ────────────────────────────────
   const employeurs   = await _fetchEmployeurs(token);
   const dateVal      = entry.date_str || entry.date?.slice(0,10) || dateDefaut || '';
   const rappelVal    = entry.rappel_avant ?? 120;
-  const employeurVal = entry.employeur || (employeurs[0] || 'EPSM Georges Daumezon');
+  const employeurVal = entry.employeur || employeurs[0] || '';
 
   const typesOptions = Object.keys(SHIFT_CONFIG).map(t =>
     `<option value="${t}" ${entry.type === t ? 'selected' : ''}>${t}</option>`
@@ -436,11 +442,11 @@ async function _sauvegarderEntreePlanning(id) {
   const body = {
     date        : document.getElementById('pl-date').value,
     type        : document.getElementById('pl-type').value,
-    heure_debut : document.getElementById('pl-debut').value    || null,
-    heure_fin   : document.getElementById('pl-fin').value      || null,
-    employeur   : document.getElementById('pl-employeur').value || null,
-    adresse     : document.getElementById('pl-adresse').value   || null,
-    notes       : document.getElementById('pl-notes').value     || null,
+    heure_debut : document.getElementById('pl-debut').value         || null,
+    heure_fin   : document.getElementById('pl-fin').value           || null,
+    employeur   : document.getElementById('pl-employeur').value.trim() || null,
+    adresse     : document.getElementById('pl-adresse').value       || null,
+    notes       : document.getElementById('pl-notes').value         || null,
     rappel_avant: parseInt(document.getElementById('pl-rappel').value) || 0,
   };
 
@@ -455,6 +461,16 @@ async function _sauvegarderEntreePlanning(id) {
       body: JSON.stringify(body)
     });
     if (!res.ok) throw new Error();
+
+    // ── Auto-enregistre l'employeur dans la table dédiée ──────────────────
+    if (body.employeur) {
+      fetch('/api/planning/employeurs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ nom: body.employeur })
+      }).catch(() => {});
+    }
+
     await _afficherCalendrierPlanning();
     chargerWidgetPlanning();
   } catch {
@@ -486,4 +502,99 @@ async function _supprimerEntreePlanning(id, dateStr) {
     }
   };
   document.getElementById('btn-planning-non').onclick = () => _afficherCalendrierPlanning();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GESTION DES EMPLOYEURS
+// ══════════════════════════════════════════════════════════════════════════════
+async function _ouvrirGestionEmployeurs() {
+  const body = document.getElementById('modal-body');
+  const { token } = _planningAuth();
+  body.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>';
+
+  let employeurs = [];
+  try {
+    const res = await fetch('/api/planning/employeurs', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    employeurs = await res.json(); // [{ id, nom }, ...]
+  } catch { employeurs = []; }
+
+  const liste = employeurs.length > 0
+    ? employeurs.map(e => `
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:10px 12px;background:#f9fafb;border-radius:10px;
+                    margin-bottom:8px;border:1px solid #e5e7eb">
+          <span style="font-size:14px;font-weight:600;color:#1f2937">🏥 ${e.nom}</span>
+          <button onclick="_supprimerEmployeur(${e.id})" style="
+              background:#fee2e2;color:#ef4444;border:none;border-radius:8px;
+              padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer">
+            Supprimer
+          </button>
+        </div>`).join('')
+    : '<p style="color:#9ca3af;text-align:center;padding:12px">Aucun employeur enregistré</p>';
+
+  body.innerHTML = `
+    <div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:16px;color:#1f2937">
+        Mes employeurs
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="display:flex;gap:8px">
+          <input type="text" id="new-employeur-input" placeholder="Nom de l'employeur"
+            style="flex:1;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                   font-size:14px;box-sizing:border-box">
+          <button onclick="_ajouterEmployeur()" style="
+              padding:10px 16px;
+              background:linear-gradient(135deg,#4f46e5,#7c3aed);
+              color:white;border:none;border-radius:10px;
+              font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap">
+            + Ajouter
+          </button>
+        </div>
+        <div id="emp-msg" style="font-size:12px;color:#ef4444;min-height:16px;margin-top:4px"></div>
+      </div>
+      <div id="emp-liste">${liste}</div>
+      <button onclick="_afficherCalendrierPlanning()" style="
+          width:100%;padding:12px;background:#f3f4f6;color:#374151;
+          border:none;border-radius:12px;font-size:14px;font-weight:600;
+          cursor:pointer;margin-top:12px">
+        ← Retour au calendrier
+      </button>
+    </div>`;
+}
+
+async function _ajouterEmployeur() {
+  const { token } = _planningAuth();
+  const input = document.getElementById('new-employeur-input');
+  const msg   = document.getElementById('emp-msg');
+  const nom   = input?.value?.trim();
+  if (!nom) { if (msg) msg.textContent = 'Nom requis.'; return; }
+
+  try {
+    const res = await fetch('/api/planning/employeurs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ nom })
+    });
+    if (!res.ok) throw new Error();
+    await _ouvrirGestionEmployeurs();
+  } catch {
+    const m = document.getElementById('emp-msg');
+    if (m) m.textContent = "Erreur lors de l'ajout.";
+  }
+}
+
+async function _supprimerEmployeur(id) {
+  const { token } = _planningAuth();
+  try {
+    await fetch(`/api/planning/employeurs/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    await _ouvrirGestionEmployeurs();
+  } catch {
+    const m = document.getElementById('emp-msg');
+    if (m) m.textContent = 'Erreur lors de la suppression.';
+  }
 }
