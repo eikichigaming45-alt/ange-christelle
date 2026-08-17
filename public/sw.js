@@ -1,21 +1,37 @@
-const CACHE_NAME = 'myvibe-cache-v2.51';
-const ASSETS = [
-  '/', '/index.html', '/css/style.css',
-  '/js/app.js', '/js/auth.js', '/js/widgets.js', '/js/modal.js',
-  '/js/meteo.js', '/js/priere.js', '/js/taches.js',
-  '/js/anniversaires.js', '/js/profil.js', '/js/admin.js',
-  '/js/cycle.js', '/js/rendezvous.js', '/js/push.js',
-  '/js/planning.js', '/manifest.json',
-  '/icon-192.png', '/icon-512.png'
+const CACHE_NAME = 'myvibe-cache-v2.53';
+
+const ASSETS_TO_CACHE = [
+  '/',
+  '/index.html',
+  '/css/style.css',
+  '/js/app.js',
+  '/js/auth.js',
+  '/js/widgets.js',
+  '/js/modal.js',
+  '/js/planning.js',
+  '/js/meteo.js',
+  '/js/rendezvous.js',
+  '/js/cycle.js',
+  '/js/taches.js',
+  '/js/anniversaires.js',
+  '/js/profil.js',
+  '/js/priere.js',
+  '/js/push.js',
+  '/js/admin.js',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE))
+  );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
+self.addEventListener('activate', event => {
+  event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
     )
@@ -23,29 +39,54 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  if (e.request.url.includes('/api/')) return;
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
-});
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
 
-self.addEventListener('push', e => {
-  const data = e.data?.json() || {};
-  e.waitUntil(
-    self.registration.showNotification(data.titre || 'MyVibe', {
-      body: data.corps || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag: data.tag || 'myvibe',
-      renotify: true,
-      data: { url: data.url || '/' }
+  // ── Ne jamais cacher les appels API ──────────────────────────────────────
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // ── Cache-first pour les assets statiques ────────────────────────────────
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      return cached || fetch(event.request).then(response => {
+        if (!response || response.status !== 200 || response.type !== 'basic') {
+          return response;
+        }
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+        return response;
+      });
     })
   );
 });
 
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  e.waitUntil(clients.openWindow(e.notification.data.url || '/'));
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data.json(); } catch {}
+  event.waitUntil(
+    self.registration.showNotification(data.titre || 'MyVibe', {
+      body: data.corps || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { url: data.url || '/' },
+      tag: data.tag || 'myvibe'
+    })
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if (client.url === event.notification.data.url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(event.notification.data.url);
+    })
+  );
 });
