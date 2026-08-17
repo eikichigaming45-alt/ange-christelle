@@ -26,13 +26,26 @@ const Rendezvous = (() => {
   }
 
   function joursRestants(dt) {
-    const diff  = new Date(dt) - new Date();
-    const jours = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    if (jours < 0)   return { label: 'Passé',             cls: 'rdv-passe' };
-    if (jours === 0) return { label: 'Aujourd\'hui !',    cls: 'rdv-today' };
-    if (jours === 1) return { label: 'Demain',             cls: 'rdv-soon'  };
-    if (jours <= 7)  return { label: `Dans ${jours}j`,    cls: 'rdv-soon'  };
-    return               { label: `Dans ${jours} jours`,  cls: 'rdv-futur' };
+    const aujourdhui = new Date();
+    aujourdhui.setHours(0, 0, 0, 0);
+
+    const rdvDate = new Date(dt);
+    rdvDate.setHours(0, 0, 0, 0);
+
+    const diff  = rdvDate - aujourdhui;
+    const jours = Math.round(diff / (1000 * 60 * 60 * 24));
+
+    if (jours < 0)   return { label: 'Passé',           cls: 'rdv-passe' };
+    if (jours === 0) return { label: "Aujourd'hui !",   cls: 'rdv-today' };
+    if (jours === 1) return { label: 'Demain',           cls: 'rdv-soon'  };
+    if (jours <= 7)  return { label: `Dans ${jours}j`,  cls: 'rdv-soon'  };
+    return                  { label: `Dans ${jours}j`,  cls: 'rdv-futur' };
+  }
+
+  function formatRappel(minutes) {
+    if (minutes === 1440) return 'La veille';
+    if (minutes >= 60)    return `${minutes / 60}h avant`;
+    return `${minutes} min avant`;
   }
 
   const TYPE_ICONS = {
@@ -59,9 +72,7 @@ const Rendezvous = (() => {
       return `
         <div class="widget-rdv">
           <p class="rdv-empty">Aucun rendez-vous enregistré.</p>
-          <button class="btn-rdv-primary" onclick="Rendezvous.ouvrirModal()">
-            + Ajouter un rendez-vous
-          </button>
+          <button class="btn-rdv-primary" onclick="Rendezvous.ouvrirModal()">+ Ajouter un rendez-vous</button>
         </div>
       `;
     }
@@ -71,16 +82,14 @@ const Rendezvous = (() => {
       const icon = TYPE_ICONS[r.type_rdv] || '📋';
       return `
         <div class="rdv-card ${cls}" onclick="Rendezvous.ouvrirModal(${r.id})">
-          <div class="rdv-card-icon">${icon}</div>
-          <div class="rdv-card-body">
-            <div class="rdv-card-titre">${r.titre}</div>
-            <div class="rdv-card-date">${formatDateHeure(r.date_rdv)}</div>
-            ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>` : ''}
-            ${r.lieu      ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>`       : ''}
-            ${r.notes     ? `<div class="rdv-card-sub rdv-card-notes">📝 ${r.notes}</div>` : ''}
-            ${r.rappel_avant > 0 ? `<div class="rdv-card-sub">⏰ Rappel ${r.rappel_avant >= 60 ? '1h' : r.rappel_avant+'min'} avant</div>` : ''}
+          <div class="rdv-card-top">
+            <span class="rdv-card-titre">${r.titre}</span>
+            <span class="rdv-badge ${cls}">${label}</span>
           </div>
-          <div class="rdv-badge ${cls}">${label}</div>
+          <div class="rdv-card-date">${formatDateHeure(r.date_rdv)}</div>
+          ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>` : ''}
+          ${r.lieu      ? `<div class="rdv-card-sub rdv-card-lieu">📍 ${r.lieu}</div>` : ''}
+          ${r.rappel_avant > 0 ? `<div class="rdv-card-sub">⏰ Rappel ${formatRappel(r.rappel_avant)}</div>` : ''}
         </div>
       `;
     }).join('');
@@ -89,12 +98,9 @@ const Rendezvous = (() => {
       <div class="widget-rdv">
         ${cartes}
         <div class="rdv-actions">
-          <button class="btn-rdv-primary" onclick="Rendezvous.ouvrirModal()">
-            + Ajouter
-          </button>
+          <button class="btn-rdv-primary" onclick="Rendezvous.ouvrirModal()">+ Ajouter</button>
           <button class="btn-rdv-secondary" onclick="Rendezvous.ouvrirListe()">
-            Tous les RDV (${rdvs.length})
-            ${passeCount > 0 ? `<span class="rdv-passe-badge">${passeCount} passé${passeCount > 1 ? 's' : ''}</span>` : ''}
+            Tous les RDV (${rdvs.length})${passeCount > 0 ? ` <span class="rdv-passe-badge">${passeCount} passé${passeCount > 1 ? 's' : ''}</span>` : ''}
           </button>
         </div>
       </div>
@@ -167,12 +173,12 @@ const Rendezvous = (() => {
 
         <label>Rappel avant le rendez-vous</label>
         <select id="rdv-rappel">
-          <option value="0"    ${rappelVal===0  ?'selected':''}>Pas de rappel anticipé</option>
-          <option value="15"   ${rappelVal===15 ?'selected':''}>15 min avant</option>
-          <option value="30"   ${rappelVal===30 ?'selected':''}>30 min avant</option>
-          <option value="60"   ${rappelVal===60 ?'selected':''}>1h avant</option>
-          <option value="120"  ${rappelVal===120?'selected':''}>2h avant</option>
-          <option value="1440" ${rappelVal===1440?'selected':''}>La veille</option>
+          <option value="0"    ${rappelVal===0    ? 'selected' : ''}>Pas de rappel anticipé</option>
+          <option value="15"   ${rappelVal===15   ? 'selected' : ''}>15 min avant</option>
+          <option value="30"   ${rappelVal===30   ? 'selected' : ''}>30 min avant</option>
+          <option value="60"   ${rappelVal===60   ? 'selected' : ''}>1h avant</option>
+          <option value="120"  ${rappelVal===120  ? 'selected' : ''}>2h avant</option>
+          <option value="1440" ${rappelVal===1440 ? 'selected' : ''}>La veille</option>
         </select>
 
         <div class="modal-actions">
@@ -190,12 +196,12 @@ const Rendezvous = (() => {
   // ── Sauvegarder ──────────────────────────────────────────
 
   async function sauvegarder(id = null) {
-    const titre      = document.getElementById('rdv-titre').value.trim();
-    const date_rdv   = document.getElementById('rdv-date').value;
-    const type_rdv   = document.getElementById('rdv-type').value;
-    const praticien  = document.getElementById('rdv-praticien').value.trim();
-    const lieu       = document.getElementById('rdv-lieu').value.trim();
-    const notes      = document.getElementById('rdv-notes').value.trim();
+    const titre        = document.getElementById('rdv-titre').value.trim();
+    const date_rdv     = document.getElementById('rdv-date').value;
+    const type_rdv     = document.getElementById('rdv-type').value;
+    const praticien    = document.getElementById('rdv-praticien').value.trim();
+    const lieu         = document.getElementById('rdv-lieu').value.trim();
+    const notes        = document.getElementById('rdv-notes').value.trim();
     const rappel_avant = parseInt(document.getElementById('rdv-rappel').value) || 0;
 
     if (!titre)    return alert('Le motif est obligatoire.');
@@ -260,8 +266,9 @@ const Rendezvous = (() => {
               <strong>${r.titre}</strong>
               <span>${formatDateHeure(r.date_rdv)}</span>
               ${r.praticien ? `<span>Dr. ${r.praticien}</span>` : ''}
+              ${r.lieu      ? `<span>📍 ${r.lieu}</span>` : ''}
               ${r.notes     ? `<span style="color:#888;font-style:italic">📝 ${r.notes}</span>` : ''}
-              ${r.rappel_avant > 0 ? `<span>⏰ Rappel ${r.rappel_avant >= 60 ? (r.rappel_avant === 1440 ? 'la veille' : r.rappel_avant/60+'h') : r.rappel_avant+'min'} avant</span>` : ''}
+              ${r.rappel_avant > 0 ? `<span>⏰ Rappel ${formatRappel(r.rappel_avant)}</span>` : ''}
             </div>
             <div class="rdv-liste-right">
               <span class="rdv-badge ${cls}">${label}</span>
@@ -275,13 +282,11 @@ const Rendezvous = (() => {
       document.getElementById('modal-body').innerHTML = `
         <div class="rdv-liste">
           ${prochains.length > 0
-            ? `<div class="rdv-section-title">À venir (${prochains.length})</div>
-               ${prochains.map(renderLigne).join('')}`
+            ? `<div class="rdv-section-title">À venir (${prochains.length})</div>${prochains.map(renderLigne).join('')}`
             : '<p class="rdv-empty">Aucun rendez-vous à venir.</p>'
           }
           ${passes.length > 0
-            ? `<div class="rdv-section-title rdv-passe-title">Passés (${passes.length})</div>
-               ${passes.map(renderLigne).join('')}`
+            ? `<div class="rdv-section-title rdv-passe-title">Passés (${passes.length})</div>${passes.map(renderLigne).join('')}`
             : ''
           }
           <button class="btn-rdv-primary" style="margin-top:14px"
