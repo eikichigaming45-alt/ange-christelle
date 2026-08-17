@@ -6,19 +6,47 @@ async function chargerProfilHeader() {
     try {
         const r = await fetch(`/api/profil?userId=${user.userId}`);
         const d = await r.json();
-        if (d.success && d.profil) {
-            profilCache = d.profil;
-            const p = d.profil;
-            const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase()||'';
-            const btnHeader = document.getElementById('btn-profil-header');
-            if (p.photo) { btnHeader.innerHTML = `<img src="${p.photo}" alt="profil">`; }
-            else if (initiales) { btnHeader.innerHTML = initiales; btnHeader.style.fontSize='13px'; btnHeader.style.fontWeight='700'; }
-            else { btnHeader.innerHTML = '👤'; }
-            const wi = document.getElementById('wi-profil');
-            if (wi) wi.innerHTML = p.photo ? `<img src="${p.photo}" alt="profil">` : '👤';
-            const wc = document.getElementById('wc-profil');
-            if (wc) wc.textContent = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Cliquez pour modifier votre profil';
-        }
+        if (!d.success || !d.profil) return;
+        profilCache = d.profil;
+        const p = d.profil;
+
+        // Topbar
+        const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '';
+        const btnHeader = document.getElementById('btn-profil-header');
+        if (p.photo) { btnHeader.innerHTML = `<img src="${p.photo}" alt="profil">`; }
+        else if (initiales) { btnHeader.innerHTML = initiales; btnHeader.style.fontSize='13px'; btnHeader.style.fontWeight='700'; }
+        else { btnHeader.innerHTML = '👤'; }
+
+        // Icône widget
+        const wi = document.getElementById('wi-profil');
+        if (wi) wi.innerHTML = p.photo ? `<img src="${p.photo}" alt="profil">` : '👤';
+
+        // Contenu widget enrichi
+        const wc = document.getElementById('wc-profil');
+        if (!wc) return;
+        const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
+        const age = p.date_naissance ? (() => {
+            const n = new Date(p.date_naissance);
+            const today = new Date();
+            let a = today.getFullYear() - n.getFullYear();
+            if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
+            return `${a} ans`;
+        })() : '';
+
+        wc.innerHTML = `
+            <div class="profil-widget">
+                ${p.photo
+                    ? `<img src="${p.photo}" alt="profil" class="profil-widget-photo">`
+                    : `<div class="profil-widget-initiales">${initiales || '👤'}</div>`
+                }
+                <div class="profil-widget-nom">${nom}</div>
+                ${age          ? `<div class="profil-widget-info">${age}</div>` : ''}
+                ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
+                ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>` : ''}
+                ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>` : ''}
+                <button class="profil-widget-btn" onclick="openModal('profil')">✏️ Modifier</button>
+            </div>
+        `;
     } catch(e) {}
 }
 
