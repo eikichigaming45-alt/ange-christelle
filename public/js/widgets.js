@@ -38,7 +38,11 @@ async function buildGrid() {
 
     const TOUJOURS_VISIBLES = ['profil'];
     if (Array.isArray(actifs)) {
-        defs = defs.filter(w => TOUJOURS_VISIBLES.includes(w.id) || actifs.includes(w.id));
+        defs = defs.filter(w =>
+            TOUJOURS_VISIBLES.includes(w.id) ||
+            actifs.includes(w.id) ||
+            (w.id === 'admin' && user?.role === 'admin')
+        );
     }
 
     defs.forEach(def => grid.appendChild(creerWidget(def)));
@@ -205,7 +209,8 @@ async function sauvegarderOrdre() {
 // ===================== WIDGETS VISIBLES =====================
 
 function appliquerWidgetsVisibles(actifs) {
-    const TOUJOURS_VISIBLES = ['profil', 'admin'];
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const TOUJOURS_VISIBLES = user?.role === 'admin' ? ['profil', 'admin'] : ['profil'];
     const grid = document.getElementById('main-grid');
     if (!grid) return;
     [...grid.children].forEach(el => {
