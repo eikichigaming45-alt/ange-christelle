@@ -1,6 +1,6 @@
-const express  = require('express');
-const router   = express.Router();
-const bcrypt   = require('bcryptjs');
+const express = require('express');
+const router  = express.Router();
+const bcrypt  = require('bcryptjs');
 const { pool } = require('../db/pool');
 
 async function isAdmin(adminId) {
@@ -50,6 +50,51 @@ router.get('/users', async (req, res) => {
         `);
         res.json({ success: true, users: result.rows });
     } catch (err) {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// GET /api/admin/users/:id/profil
+router.get('/users/:id/profil', async (req, res) => {
+    const { adminId } = req.query;
+    const targetId = parseInt(req.params.id);
+    try {
+        if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
+        const user    = await pool.query('SELECT id, username, role FROM users WHERE id = \$1', [targetId]);
+        const profil  = await pool.query('SELECT * FROM profiles WHERE user_id = \$1', [targetId]);
+        if (user.rows.length === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
+        res.json({ success: true, user: user.rows[0], profil: profil.rows[0] || null });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// PATCH /api/admin/users/:id/profil
+router.patch('/users/:id/profil', async (req, res) => {
+    const { adminId, username, prenom, nom, date_naissance, email, telephone, profession, note } = req.body;
+    const targetId = parseInt(req.params.id);
+    try {
+        if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
+
+        // Mise à jour username si fourni
+        if (username) {
+            const exists = await pool.query('SELECT id FROM users WHERE username = \$1 AND id != \$2', [username, targetId]);
+            if (exists.rows.length > 0) return res.status(409).json({ success: false, message: "Nom d'utilisateur déjà pris" });
+            await pool.query('UPDATE users SET username = \$1 WHERE id = \$2', [username, targetId]);
+        }
+
+        // Mise à jour profil
+        await pool.query(`
+            INSERT INTO profiles (user_id, prenom, nom, date_naissance, email, telephone, profession, note, updated_at)
+            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, NOW())
+            ON CONFLICT (user_id) DO UPDATE SET
+                prenom=\$2, nom=\$3, date_naissance=\$4, email=\$5,
+                telephone=\$6, profession=\$7, note=\$8, updated_at=NOW()
+        `, [targetId, prenom||null, nom||null, date_naissance||null, email||null, telephone||null, profession||null, note||null]);
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
 });
