@@ -2,55 +2,48 @@
 
 async function chargerWidgetAdmin() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    if (!user?.token || user.role !== 'admin') return;
+    if (!user?.userId || user.role !== 'admin') return;
     const el = document.getElementById('widget-admin-content');
     if (!el) return;
     try {
-        const r = await fetch('/api/admin/stats', {
-            headers: { 'Authorization': 'Bearer ' + user.token }
-        });
+        const r = await fetch(`/api/admin/stats?adminId=${user.userId}`);
         const d = await r.json();
-        if (!d.success) {
-            el.innerHTML = '<p class="wa-error">Erreur serveur</p>';
-            return;
-        }
+        if (!d.success) { el.innerHTML = '<p style="color:#ef4444">Erreur serveur</p>'; return; }
 
         const activite = (d.lastLogins || []).map(u => `
-            <div class="wa-activity-row">
-                <div class="wa-avatar">${u.username.charAt(0).toUpperCase()}</div>
-                <span class="wa-username">${u.username}</span>
-                <span class="wa-badge ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>
-                <span class="wa-date">${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR') : '—'}</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:13px">
+                <span><strong>${u.username}</strong> <span style="font-size:11px;color:#6b7280">(${u.role})</span></span>
+                <span style="color:#9ca3af">${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR') : '—'}</span>
             </div>
         `).join('');
 
         el.innerHTML = `
-            <div class="wa-stats-row">
-                <div class="wa-stat wa-stat-blue">
-                    <div class="wa-stat-val">${d.totalUsers ?? '—'}</div>
-                    <div class="wa-stat-lbl">Utilisateurs</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+                <div style="background:#eff6ff;border-radius:8px;padding:10px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#2563eb">${d.totalUsers}</div>
+                    <div style="font-size:11px;color:#6b7280">Utilisateurs</div>
                 </div>
-                <div class="wa-stat wa-stat-purple">
-                    <div class="wa-stat-val">${d.totalAdmins ?? '—'}</div>
-                    <div class="wa-stat-lbl">Admins</div>
+                <div style="background:#f5f3ff;border-radius:8px;padding:10px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#7c3aed">${d.totalAdmins}</div>
+                    <div style="font-size:11px;color:#6b7280">Admins</div>
                 </div>
-                <div class="wa-stat wa-stat-green">
-                    <div class="wa-stat-val">${d.profilsRemplis ?? '—'}</div>
-                    <div class="wa-stat-lbl">Profils remplis</div>
+                <div style="background:#f0fdf4;border-radius:8px;padding:10px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#16a34a">${d.profilsRemplis}</div>
+                    <div style="font-size:11px;color:#6b7280">Profils remplis</div>
                 </div>
-                <div class="wa-stat wa-stat-orange">
-                    <div class="wa-stat-val">${d.sansProfile ?? '—'}</div>
-                    <div class="wa-stat-lbl">Sans profil</div>
+                <div style="background:#fff7ed;border-radius:8px;padding:10px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#ea580c">${d.sansProfile}</div>
+                    <div style="font-size:11px;color:#6b7280">Sans profil</div>
                 </div>
             </div>
-            <div class="wa-activity-title">Dernière activité</div>
+            <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px">DERNIÈRE ACTIVITÉ</div>
             ${activite}
-            <button class="wa-btn-acces" onclick="event.stopPropagation(); ouvrirAdmin()">
+            <button onclick="ouvrirAdmin()" style="margin-top:12px;width:100%;padding:10px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
                 ⚙️ Accès admin
             </button>
         `;
     } catch {
-        el.innerHTML = '<p class="wa-error">Erreur réseau</p>';
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur réseau</p>';
     }
 }
 
@@ -58,7 +51,7 @@ async function chargerWidgetAdmin() {
 
 function ouvrirAdmin() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    if (!user?.token || user.role !== 'admin') return;
+    if (!user?.userId || user.role !== 'admin') return;
 
     document.getElementById('admin-fullpanel')?.remove();
 
@@ -98,16 +91,13 @@ function apSwitch(section, btn) {
     if (section === 'create')   apAfficherCreer();
 }
 
-// ---- OVERVIEW ----
 async function apChargerOverview() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const el = document.getElementById('ap-section-overview');
     if (!el) return;
     el.innerHTML = '<p class="ap-loading">Chargement...</p>';
     try {
-        const r = await fetch('/api/admin/stats', {
-            headers: { 'Authorization': 'Bearer ' + user.token }
-        });
+        const r = await fetch(`/api/admin/stats?adminId=${user.userId}`);
         const d = await r.json();
         if (!d.success) { el.innerHTML = '<p class="ap-err">Erreur serveur</p>'; return; }
 
@@ -121,10 +111,10 @@ async function apChargerOverview() {
         el.innerHTML = `
             <h2 class="ap-title">Vue d'ensemble</h2>
             <div class="ap-stats-grid">
-                <div class="ap-stat-card"><div class="ap-stat-num">${d.totalUsers ?? '—'}</div><div class="ap-stat-lbl">Utilisateurs</div></div>
-                <div class="ap-stat-card"><div class="ap-stat-num">${d.totalAdmins ?? '—'}</div><div class="ap-stat-lbl">Admins</div></div>
-                <div class="ap-stat-card"><div class="ap-stat-num">${d.profilsRemplis ?? '—'}</div><div class="ap-stat-lbl">Profils remplis</div></div>
-                <div class="ap-stat-card"><div class="ap-stat-num">${d.sansProfile ?? '—'}</div><div class="ap-stat-lbl">Sans profil</div></div>
+                <div class="ap-stat-card"><div class="ap-stat-num">${d.totalUsers}</div><div class="ap-stat-lbl">Utilisateurs</div></div>
+                <div class="ap-stat-card"><div class="ap-stat-num">${d.totalAdmins}</div><div class="ap-stat-lbl">Admins</div></div>
+                <div class="ap-stat-card"><div class="ap-stat-num">${d.profilsRemplis}</div><div class="ap-stat-lbl">Profils remplis</div></div>
+                <div class="ap-stat-card"><div class="ap-stat-num">${d.sansProfile}</div><div class="ap-stat-lbl">Sans profil</div></div>
             </div>
             <h3 class="ap-subtitle">Dernière activité</h3>
             <table class="ap-table">
@@ -137,21 +127,18 @@ async function apChargerOverview() {
     }
 }
 
-// ---- USERS ----
 async function apChargerUsers() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const el = document.getElementById('ap-section-users');
     if (!el) return;
     el.innerHTML = '<p class="ap-loading">Chargement...</p>';
     try {
-        const r = await fetch('/api/admin/users', {
-            headers: { 'Authorization': 'Bearer ' + user.token }
-        });
+        const r = await fetch(`/api/admin/users?adminId=${user.userId}`);
         const d = await r.json();
         if (!d.success) { el.innerHTML = '<p class="ap-err">Erreur serveur</p>'; return; }
 
         const rows = (d.users || []).map(u => `
-            <tr id="ap-row-${u.id}">
+            <tr>
                 <td><span class="ap-badge ap-badge-${u.role}">${u.role}</span></td>
                 <td>${u.username}</td>
                 <td>${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR') : '—'}</td>
@@ -183,8 +170,8 @@ async function apToggleRole(id, roleActuel) {
     try {
         const r = await fetch(`/api/admin/users/${id}/role`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + user.token },
-            body: JSON.stringify({ role: newRole })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: user.userId, role: newRole })
         });
         const d = await r.json();
         if (d.success) apChargerUsers();
@@ -210,8 +197,8 @@ async function apConfirmResetPwd(id) {
     try {
         const r = await fetch(`/api/admin/users/${id}/password`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + user.token },
-            body: JSON.stringify({ password: pwd })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: user.userId, password: pwd })
         });
         const d = await r.json();
         _adminModal(d.success ? 'Succès' : 'Erreur', d.success ? 'Mot de passe mis à jour.' : (d.message || 'Erreur.'));
@@ -235,7 +222,8 @@ async function apConfirmSupprimer(id) {
     try {
         const r = await fetch(`/api/admin/users/${id}`, {
             method: 'DELETE',
-            headers: { 'Authorization': 'Bearer ' + user.token }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: user.userId })
         });
         const d = await r.json();
         document.getElementById('ap-inner-modal')?.remove();
@@ -246,7 +234,6 @@ async function apConfirmSupprimer(id) {
     }
 }
 
-// ---- CREATE ----
 function apAfficherCreer() {
     const el = document.getElementById('ap-section-create');
     if (!el) return;
@@ -269,7 +256,7 @@ function apAfficherCreer() {
 }
 
 async function apCreerUser() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user     = JSON.parse(localStorage.getItem('myvibe_user'));
     const username = document.getElementById('ap-c-user')?.value?.trim();
     const password = document.getElementById('ap-c-pwd')?.value?.trim();
     const role     = document.getElementById('ap-c-role')?.value;
@@ -278,8 +265,8 @@ async function apCreerUser() {
     try {
         const r = await fetch('/api/admin/users', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + user.token },
-            body: JSON.stringify({ username, password, role })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: user.userId, username, password, role })
         });
         const d = await r.json();
         if (msg) msg.textContent = d.success ? '✅ Utilisateur créé.' : (d.message || 'Erreur.');
@@ -292,7 +279,6 @@ async function apCreerUser() {
     }
 }
 
-// ---- MODAL INTERNE ----
 function _adminModal(titre, contenu) {
     document.getElementById('ap-inner-modal')?.remove();
     const m = document.createElement('div');
