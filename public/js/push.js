@@ -123,42 +123,40 @@ async function verifierTachesLocales() {
             }
         }
     } catch(e) { console.warn('Erreur RDV push:', e); }
-	
+
     // ── Planning ──────────────────────────────────────────
     try {
         const res = await fetch(`/api/planning/jour?date=${dateAujourdhui}`, {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const data = await res.json();
-        if (data.success) {
-            for (const p of data.planning) {
-                if (!p.heure_debut || !p.rappel_avant || p.rappel_avant === 0) continue;
+        const planning = Array.isArray(data) ? data : (data.planning || []);
+        for (const p of planning) {
+            if (!p.heure_debut || !p.rappel_avant || p.rappel_avant === 0) continue;
 
-                const debutDate  = new Date(`${dateAujourdhui}T${p.heure_debut}`);
-                const notifDate  = new Date(debutDate.getTime() - p.rappel_avant * 60 * 1000);
+            const debutDate  = new Date(`${dateAujourdhui}T${p.heure_debut}`);
+            const notifDate  = new Date(debutDate.getTime() - p.rappel_avant * 60 * 1000);
 
-                const hN = String(notifDate.getHours()).padStart(2,'0');
-                const mN = String(notifDate.getMinutes()).padStart(2,'0');
-                const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
+            const hN = String(notifDate.getHours()).padStart(2,'0');
+            const mN = String(notifDate.getMinutes()).padStart(2,'0');
+            const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
 
-                if (dN !== dateAujourdhui) continue;
-                if (`${hN}:${mN}` !== heureActuelle) continue;
+            if (dN !== dateAujourdhui) continue;
+            if (`${hN}:${mN}` !== heureActuelle) continue;
 
-                const cle = `planning-${p.id}-${dN}-${hN}:${mN}`;
-                if (dejaNotifies.has(cle)) continue;
-                dejaNotifies.add(cle);
+            const cle = `planning-${p.id}-${dN}-${hN}:${mN}`;
+            if (dejaNotifies.has(cle)) continue;
+            dejaNotifies.add(cle);
 
-                const label = p.rappel_avant >= 60 ? `${p.rappel_avant/60}h` : `${p.rappel_avant}min`;
-                const reg = await navigator.serviceWorker.ready;
-                reg.showNotification('📋 Rappel Planning', {
-                    body: `🌙 ${p.type} — dans ${label} (${p.heure_debut.slice(0,5)}) — ${p.employeur || ''}`,
-                    icon: '/icon-192.png', badge: '/icon-192.png',
-                    tag: `planning-${p.id}`, renotify: true, data: { url: '/' }
-                });
-            }
+            const label = p.rappel_avant >= 60 ? `${p.rappel_avant/60}h` : `${p.rappel_avant}min`;
+            const reg = await navigator.serviceWorker.ready;
+            reg.showNotification('📋 Rappel Planning', {
+                body: `${p.type} — dans ${label} (${p.heure_debut.slice(0,5)}) — ${p.employeur || ''}`,
+                icon: '/icon-192.png', badge: '/icon-192.png',
+                tag: `planning-${p.id}`, renotify: true, data: { url: '/' }
+            });
         }
     } catch(e) { console.warn('Erreur planning push:', e); }
-
 
     // ── Anniversaires ─────────────────────────────────────
     try {
@@ -171,11 +169,9 @@ async function verifierTachesLocales() {
             const jourNow = now.getDate();
             const moisNow = now.getMonth() + 1;
 
-            // Notifie uniquement à 8h00
             if (heureActuelle !== '08:00') return;
 
             for (const a of data.anniversaires) {
-                // Jour J — c'est aujourd'hui
                 if (a.jour === jourNow && a.mois === moisNow) {
                     const cle = `anniv-jour-${a.id}-${dateAujourdhui}`;
                     if (dejaNotifies.has(cle)) continue;
@@ -189,7 +185,6 @@ async function verifierTachesLocales() {
                     });
                 }
 
-                // Veille — demain c'est son anniversaire
                 const demain = new Date(now);
                 demain.setDate(now.getDate() + 1);
                 if (a.jour === demain.getDate() && a.mois === demain.getMonth() + 1) {
