@@ -36,7 +36,7 @@ async function buildGrid() {
         defs = sorted;
     }
 
-    const TOUJOURS_VISIBLES = ['profil', 'admin'];
+    const TOUJOURS_VISIBLES = ['profil'];
     if (Array.isArray(actifs)) {
         defs = defs.filter(w => TOUJOURS_VISIBLES.includes(w.id) || actifs.includes(w.id));
     }
