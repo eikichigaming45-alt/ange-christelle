@@ -35,6 +35,7 @@ async function initDB() {
                 profession VARCHAR(150),
                 note TEXT,
                 photo TEXT,
+                widgets_visibles TEXT[],
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             );
@@ -55,6 +56,7 @@ async function initDB() {
                 date DATE,
                 heure TIME,
                 recurrence VARCHAR(20) DEFAULT 'none',
+                rappel_avant INTEGER DEFAULT 0,
                 faite BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT NOW()
             );
@@ -79,8 +81,6 @@ async function initDB() {
                 updated_at TIMESTAMP DEFAULT NOW()
             );
         `);
-
-        // Nouvelles tables : Suivi du cycle & Rendez-vous médicaux
         await pool.query(`
             CREATE TABLE IF NOT EXISTS cycles (
                 id SERIAL PRIMARY KEY,
@@ -100,7 +100,8 @@ async function initDB() {
                 humeur VARCHAR(50),
                 symptomes TEXT,
                 notes TEXT,
-                created_at TIMESTAMP DEFAULT NOW()
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(user_id, date)
             );
         `);
         await pool.query(`
@@ -113,15 +114,37 @@ async function initDB() {
                 lieu VARCHAR(255),
                 type_rdv VARCHAR(100),
                 notes TEXT,
-                rappel_active BOOLEAN DEFAULT FALSE,
+                rappel_avant INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS planning (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                date DATE NOT NULL,
+                type VARCHAR(50) NOT NULL,
+                heure_debut TIME,
+                heure_fin TIME,
+                employeur VARCHAR(255),
+                adresse VARCHAR(255),
+                telephone VARCHAR(50),
+                notes TEXT,
+                rappel_avant INTEGER DEFAULT 120,
                 created_at TIMESTAMP DEFAULT NOW()
             );
         `);
 
+        await pool.query(`ALTER TABLE taches ADD COLUMN IF NOT EXISTS rappel_avant INTEGER DEFAULT 0;`);
+        await pool.query(`ALTER TABLE rendezvous ADD COLUMN IF NOT EXISTS rappel_avant INTEGER DEFAULT 0;`);
+        await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS widgets_visibles TEXT[];`);
+        await pool.query(`ALTER TABLE cycle_journal ADD CONSTRAINT IF NOT EXISTS cycle_journal_user_date UNIQUE (user_id, date);`).catch(() => {});
+
         const adminHash = await bcrypt.hash('admin2026', 10);
-        await pool.query(`INSERT INTO users (username, password, role) VALUES ('admin', \\$1, 'admin') ON CONFLICT (username) DO NOTHING;`, [adminHash]);
+        await pool.query(`INSERT INTO users (username, password, role) VALUES ('admin', \$1, 'admin') ON CONFLICT (username) DO NOTHING;`, [adminHash]);
         const angeHash = await bcrypt.hash('ange2026', 10);
-        await pool.query(`INSERT INTO users (username, password, role) VALUES ('ange-christelle', \\$1, 'user') ON CONFLICT (username) DO NOTHING;`, [angeHash]);
+        await pool.query(`INSERT INTO users (username, password, role) VALUES ('ange-christelle', \$1, 'user') ON CONFLICT (username) DO NOTHING;`, [angeHash]);
+
         console.log('Base de données initialisée !');
     } catch (err) {
         console.error('Erreur BDD :', err.message);
