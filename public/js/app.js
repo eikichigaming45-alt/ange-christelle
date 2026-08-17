@@ -14,7 +14,7 @@ const WIDGETS_DEF = [
     { id:'taches',        label:'Tâches du jour',   icon:'✅',  cls:'w-taches',        desc:'Chargement...',               foot:'Cliquez pour gérer' },
     { id:'cycle',         label:'Suivi du cycle',   icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',               foot:'Cycle féminin & fertilité',        refresh:true },
     { id:'rendezvous',    label:'Rendez-vous',      icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',               foot:'Consultations & santé',            refresh:true },
-    { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'Pas de garde aujourd\'hui',   foot:'' },
+    { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'',                            foot:'' },
     { id:'anniversaires', label:'Anniversaires',     icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',               foot:'Cliquez pour gérer' },
     { id:'profil',        label:'Mon Profil',        icon:'👤',  cls:'w-profil',        desc:'',                            foot:'' },
     { id:'admin',         label:'Administration',    icon:'⚙️',  cls:'w-admin',         desc:'',                            foot:'', adminOnly:true },
@@ -195,10 +195,9 @@ function creerWidget(w) {
         headerExtra = `<button class="widget-refresh" onclick="event.stopPropagation();refreshWidget('${w.id}')" title="Actualiser">&#8635;</button>`;
     }
 
-    let body = '';
-
+    // ── ADMIN ──────────────────────────────────────────────────────────────────
     if (w.id === 'admin') {
-        body = `
+        div.innerHTML = `
             <div class="widget-header">
                 <span class="widget-icon">${w.icon}</span>
                 <h3>${w.label}</h3>
@@ -207,30 +206,47 @@ function creerWidget(w) {
                 <div class="wa-loading">Chargement...</div>
             </div>
         `;
-        div.innerHTML = body;
         div.addEventListener('click', e => {
             if (!e.target.closest('button') && !dragActif) ouvrirAdmin();
         });
         return div;
     }
 
+    // ── PROFIL ─────────────────────────────────────────────────────────────────
     if (w.id === 'profil') {
-        body = `
+        div.innerHTML = `
             <div class="widget-header">
                 <span class="widget-icon">${w.icon}</span>
                 <h3>${w.label}</h3>
                 ${headerExtra}
             </div>
-            <div id="widget-${w.id}-body">
-                ${w.desc ? `<p class="widget-desc">${w.desc}</p>` : ''}
-            </div>
-            ${w.foot ? `<div class="widget-foot">${w.foot}</div>` : ''}
+            <div id="widget-profil-body"></div>
         `;
-        div.innerHTML = body;
+        div.addEventListener('click', e => {
+            if (!e.target.closest('button') && !dragActif) openModal('profil');
+        });
         return div;
     }
 
-    body = `
+    // ── PLANNING ───────────────────────────────────────────────────────────────
+    if (w.id === 'planning') {
+        div.innerHTML = `
+            <div class="widget-header">
+                <span class="widget-icon">${w.icon}</span>
+                <h3>${w.label}</h3>
+            </div>
+            <div id="widget-planning-contenu">
+                <p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Chargement...</p>
+            </div>
+        `;
+        div.addEventListener('click', e => {
+            if (!e.target.closest('button') && !dragActif) openModal('planning');
+        });
+        return div;
+    }
+
+    // ── TOUS LES AUTRES ────────────────────────────────────────────────────────
+    div.innerHTML = `
         <div class="widget-header">
             <span class="widget-icon">${w.icon}</span>
             <h3>${w.label}</h3>
@@ -241,7 +257,6 @@ function creerWidget(w) {
         </div>
         ${w.foot ? `<div class="widget-foot">${w.foot}</div>` : ''}
     `;
-    div.innerHTML = body;
     return div;
 }
 
