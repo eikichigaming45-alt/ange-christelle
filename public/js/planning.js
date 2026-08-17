@@ -366,12 +366,15 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
     `<option value="${t}" ${entry.type === t ? 'selected' : ''}>${t}</option>`
   ).join('');
 
-  // ── SELECT employeur natif (fiable sur mobile) ─────────────────────────────
-  const employeurOptions = employeurs.length > 0
-    ? employeurs.map(e =>
-        `<option value="${e}" ${employeurVal === e ? 'selected' : ''}>${e}</option>`
-      ).join('')
-    : `<option value="">Aucun employeur enregistré</option>`;
+  // Vérifie si la valeur actuelle est dans la liste ou pas
+  const valDansListe = employeurs.includes(employeurVal);
+  const showInput    = !valDansListe && employeurVal !== '';
+
+  const employeurSelectOptions =
+    employeurs.map(e =>
+      `<option value="${e}" ${employeurVal === e ? 'selected' : ''}>${e}</option>`
+    ).join('') +
+    `<option value="__nouveau__" ${showInput ? 'selected' : ''}>➕ Autre (saisir manuellement)...</option>`;
 
   body.innerHTML = `
     <div>
@@ -402,14 +405,27 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
         </div>
       </div>
       <div style="margin-bottom:10px">
-        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">
-          Employeur
-        </label>
-        <select id="pl-employeur"
+        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Employeur</label>
+        <select id="pl-employeur-select"
+          onchange="
+            const inp = document.getElementById('pl-employeur-nouveau');
+            inp.style.display = this.value === '__nouveau__' ? 'block' : 'none';
+            if (this.value !== '__nouveau__') inp.value = '';
+          "
           style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
-                 font-size:14px;box-sizing:border-box;background:#fff">
-          ${employeurOptions}
+                 font-size:14px;box-sizing:border-box;background:#fff;margin-bottom:6px">
+          ${employeurs.length === 0
+            ? `<option value="__nouveau__">➕ Saisir un employeur...</option>`
+            : employeurSelectOptions
+          }
         </select>
+        <input type="text" id="pl-employeur-nouveau"
+          placeholder="Nom du nouvel employeur"
+          value="${showInput ? employeurVal : ''}"
+          style="display:${showInput || employeurs.length === 0 ? 'block' : 'none'};
+                 width:100%;padding:10px 12px;
+                 border:1.5px solid #4f46e5;border-radius:10px;
+                 font-size:14px;box-sizing:border-box;margin-top:2px">
       </div>
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Adresse</label>
@@ -447,14 +463,20 @@ async function _sauvegarderEntreePlanning(id) {
   const { token } = _planningAuth();
   const msg = document.getElementById('pl-msg');
 
+  const selectEl  = document.getElementById('pl-employeur-select');
+  const nouveauEl = document.getElementById('pl-employeur-nouveau');
+  const selectVal = selectEl ? selectEl.value : '__nouveau__';
+  const nouveauVal = nouveauEl ? nouveauEl.value.trim() : '';
+  const employeur  = selectVal === '__nouveau__' ? nouveauVal : selectVal;
+
   const body = {
     date        : document.getElementById('pl-date').value,
     type        : document.getElementById('pl-type').value,
-    heure_debut : document.getElementById('pl-debut').value            || null,
-    heure_fin   : document.getElementById('pl-fin').value              || null,
-    employeur   : document.getElementById('pl-employeur').value.trim() || null,
-    adresse     : document.getElementById('pl-adresse').value          || null,
-    notes       : document.getElementById('pl-notes').value            || null,
+    heure_debut : document.getElementById('pl-debut').value  || null,
+    heure_fin   : document.getElementById('pl-fin').value    || null,
+    employeur   : employeur || null,
+    adresse     : document.getElementById('pl-adresse').value || null,
+    notes       : document.getElementById('pl-notes').value   || null,
     rappel_avant: parseInt(document.getElementById('pl-rappel').value) || 0,
   };
 
@@ -469,6 +491,15 @@ async function _sauvegarderEntreePlanning(id) {
       body: JSON.stringify(body)
     });
     if (!res.ok) throw new Error();
+
+    // Auto-enregistrement si nouvel employeur saisi manuellement
+    if (body.employeur && selectVal === '__nouveau__') {
+      fetch('/api/planning/employeurs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ nom: body.employeur })
+      }).catch(() => {});
+    }
 
     await _afficherCalendrierPlanning();
     chargerWidgetPlanning();
@@ -502,7 +533,7 @@ async function _supprimerEntreePlanning(id, dateStr) {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store'
-            });
+      });
       await _afficherCalendrierPlanning();
       chargerWidgetPlanning();
     } catch {
@@ -609,4 +640,3 @@ async function _supprimerEmployeur(id) {
     if (m) m.textContent = 'Erreur lors de la suppression.';
   }
 }
-
