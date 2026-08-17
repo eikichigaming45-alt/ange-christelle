@@ -41,24 +41,20 @@ function _optionsRappelPlanning(selected = 120) {
     { v: 120,  l: '2h avant' },
     { v: 1440, l: 'La veille' },
   ];
-  return opts.map(o => `<option value="${o.v}" ${selected === o.v ? 'selected' : ''}>${o.l}</option>`).join('');
+  return opts.map(o =>
+    `<option value="${o.v}" ${selected === o.v ? 'selected' : ''}>${o.l}</option>`
+  ).join('');
 }
 
-// Récupère tous les employeurs uniques déjà utilisés, triés alphabétiquement
+// ── Récupère tous les employeurs distincts depuis la route dédiée ─────────────
 async function _fetchEmployeurs(token) {
   try {
-    const now = new Date();
-    const promises = [];
-    // On cherche sur 3 mois (mois précédent, courant, suivant) pour avoir un bon historique
-    for (let delta = -2; delta <= 0; delta++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + delta, 1);
-      promises.push(_fetchPlanningMois(d.getFullYear(), d.getMonth() + 1, token));
-    }
-    const results = await Promise.all(promises);
-    const all     = results.flat();
-    const set     = new Set();
-    all.forEach(e => { if (e.employeur?.trim()) set.add(e.employeur.trim()); });
-    return [...set].sort((a, b) => a.localeCompare(b, 'fr'));
+    const res = await fetch('/api/planning/employeurs', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    return Array.isArray(data) && data.length > 0 ? data : ['EPSM Georges Daumezon'];
   } catch {
     return ['EPSM Georges Daumezon'];
   }
@@ -349,23 +345,19 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
     } catch { entry = {}; }
   }
 
-  // Récupération des employeurs déjà utilisés
-  const employeurs = await _fetchEmployeurs(token);
-
-  const dateVal   = entry.date_str || entry.date?.slice(0,10) || dateDefaut || '';
-  const rappelVal = entry.rappel_avant ?? 120;
-  const employeurVal = entry.employeur || 'EPSM Georges Daumezon';
+  // ── Employeurs depuis la route dédiée BDD ────────────────────────────────
+  const employeurs   = await _fetchEmployeurs(token);
+  const dateVal      = entry.date_str || entry.date?.slice(0,10) || dateDefaut || '';
+  const rappelVal    = entry.rappel_avant ?? 120;
+  const employeurVal = entry.employeur || (employeurs[0] || 'EPSM Georges Daumezon');
 
   const typesOptions = Object.keys(SHIFT_CONFIG).map(t =>
     `<option value="${t}" ${entry.type === t ? 'selected' : ''}>${t}</option>`
   ).join('');
 
-  // Datalist des employeurs connus
-  const datalistHTML = employeurs.length > 0
-    ? `<datalist id="pl-employeurs-list">
-        ${employeurs.map(e => `<option value="${e}">`).join('')}
-       </datalist>`
-    : '';
+  const datalistHTML = `<datalist id="pl-employeurs-list">
+    ${employeurs.map(e => `<option value="${e}">`).join('')}
+  </datalist>`;
 
   body.innerHTML = `
     <div>
@@ -490,7 +482,7 @@ async function _supprimerEntreePlanning(id, dateStr) {
       await _afficherCalendrierPlanning();
       chargerWidgetPlanning();
     } catch {
-        document.getElementById('modal-body').innerHTML = '<p style="color:#ef4444">Erreur lors de la suppression.</p>';
+      document.getElementById('modal-body').innerHTML = '<p style="color:#ef4444">Erreur lors de la suppression.</p>';
     }
   };
   document.getElementById('btn-planning-non').onclick = () => _afficherCalendrierPlanning();
