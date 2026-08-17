@@ -12,7 +12,6 @@ const Rendezvous = (() => {
     };
   }
 
-  // Affichage lisible : "20 août 2026 à 20:00"
   function formatDateHeure(dt) {
     return new Date(dt).toLocaleDateString('fr-FR', {
       day: '2-digit', month: 'long', year: 'numeric',
@@ -20,19 +19,13 @@ const Rendezvous = (() => {
     });
   }
 
-  // Convertit une date DB (UTC) en valeur locale pour datetime-local
-  // sans décalage de fuseau
   function formatDateTimeInput(dt) {
     const d = new Date(dt);
     const pad = n => String(n).padStart(2, '0');
-    // On utilise les méthodes locales pour éviter le décalage UTC
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  // Convertit la valeur datetime-local (string locale) en ISO UTC correct
-  // pour l'envoi en DB sans décalage
   function localInputToISO(val) {
-    // val = "2026-08-20T20:00" — on le parse comme heure locale
     const [datePart, timePart] = val.split('T');
     const [y, m, d] = datePart.split('-').map(Number);
     const [h, min]  = timePart.split(':').map(Number);
@@ -90,7 +83,7 @@ const Rendezvous = (() => {
     const cartes = prochains.map(r => {
       const { label, cls } = joursRestants(r.date_rdv);
       return `
-        <div class="rdv-card ${cls}">
+        <div class="rdv-card ${cls}" onclick="Rendezvous.ouvrirDetail(${r.id})">
           <div class="rdv-card-top">
             <span class="rdv-card-titre">${r.titre}</span>
             <span class="rdv-badge ${cls}">${label}</span>
@@ -99,10 +92,6 @@ const Rendezvous = (() => {
           ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>` : ''}
           ${r.lieu      ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>` : ''}
           ${r.rappel_avant > 0 ? `<div class="rdv-card-sub">⏰ Rappel ${formatRappel(r.rappel_avant)}</div>` : ''}
-          <div class="rdv-card-actions">
-            <button class="rdv-btn-edit"   onclick="Rendezvous.ouvrirModal(${r.id})">✏️ Modifier</button>
-            <button class="rdv-btn-delete" onclick="Rendezvous.supprimer(${r.id})">🗑️ Supprimer</button>
-          </div>
         </div>
       `;
     }).join('');
@@ -118,6 +107,41 @@ const Rendezvous = (() => {
         </div>
       </div>
     `;
+  }
+
+  // ── Modal détail (lecture seule) ─────────────────────────
+
+  async function ouvrirDetail(id) {
+    let rdv = null;
+    try {
+      const res  = await fetch('/api/rendezvous', { headers: authHeaders() });
+      const rdvs = await res.json();
+      rdv = rdvs.find(r => r.id === id) || null;
+    } catch { /* silencieux */ }
+
+    if (!rdv) return;
+
+    const { label, cls } = joursRestants(rdv.date_rdv);
+    const icon = TYPE_ICONS[rdv.type_rdv] || '📋';
+
+    document.getElementById('modal-title').textContent = `${icon} ${rdv.titre}`;
+    document.getElementById('modal-body').innerHTML = `
+      <div class="rdv-detail">
+        <div class="rdv-detail-badge ${cls}">${label}</div>
+        <div class="rdv-detail-row">📅 <span>${formatDateHeure(rdv.date_rdv)}</span></div>
+        ${rdv.type_rdv  ? `<div class="rdv-detail-row">${icon} <span>${rdv.type_rdv}</span></div>` : ''}
+        ${rdv.praticien ? `<div class="rdv-detail-row">👨‍⚕️ <span>Dr. ${rdv.praticien}</span></div>` : ''}
+        ${rdv.lieu      ? `<div class="rdv-detail-row">📍 <span>${rdv.lieu}</span></div>` : ''}
+        ${rdv.notes     ? `<div class="rdv-detail-notes">📝 ${rdv.notes}</div>` : ''}
+        ${rdv.rappel_avant > 0 ? `<div class="rdv-detail-row">⏰ <span>Rappel ${formatRappel(rdv.rappel_avant)}</span></div>` : ''}
+        <div class="modal-actions" style="margin-top:16px">
+          <button class="btn-save" onclick="Rendezvous.ouvrirModal(${rdv.id})">✏️ Modifier</button>
+          <button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id})">Supprimer</button>
+          <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('overlay').classList.add('on');
   }
 
   // ── Chargement principal ─────────────────────────────────
@@ -213,9 +237,7 @@ const Rendezvous = (() => {
     if (!titre)        return alert('Le motif est obligatoire.');
     if (!date_rdv_raw) return alert('La date est obligatoire.');
 
-    // Conversion heure locale → ISO sans décalage fuseau
     const date_rdv = localInputToISO(date_rdv_raw);
-
     const method = id ? 'PUT' : 'POST';
     const url    = id ? `/api/rendezvous/${id}` : '/api/rendezvous';
 
@@ -269,19 +291,16 @@ const Rendezvous = (() => {
         const { label, cls } = joursRestants(r.date_rdv);
         const icon = TYPE_ICONS[r.type_rdv] || '📋';
         return `
-          <div class="rdv-liste-item ${cls}">
+          <div class="rdv-liste-item ${cls}" onclick="Rendezvous.ouvrirDetail(${r.id})" style="cursor:pointer">
             <span class="rdv-liste-icon">${icon}</span>
             <div class="rdv-liste-body">
               <strong>${r.titre}</strong>
               <span>${formatDateHeure(r.date_rdv)}</span>
               ${r.praticien ? `<span>Dr. ${r.praticien}</span>` : ''}
               ${r.lieu      ? `<span>📍 ${r.lieu}</span>` : ''}
-              ${r.notes     ? `<span style="color:#888;font-style:italic">📝 ${r.notes}</span>` : ''}
-              ${r.rappel_avant > 0 ? `<span>⏰ Rappel ${formatRappel(r.rappel_avant)}</span>` : ''}
             </div>
             <div class="rdv-liste-right">
               <span class="rdv-badge ${cls}">${label}</span>
-              <button class="btn-edit-small" onclick="Rendezvous.ouvrirModal(${r.id})">✏️</button>
             </div>
           </div>
         `;
@@ -307,6 +326,6 @@ const Rendezvous = (() => {
     }
   }
 
-  return { charger, ouvrirModal, sauvegarder, supprimer, ouvrirListe };
+  return { charger, ouvrirModal, ouvrirDetail, sauvegarder, supprimer, ouvrirListe };
 
 })();
