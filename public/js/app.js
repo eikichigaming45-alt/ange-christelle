@@ -95,13 +95,14 @@ async function showApp() {
     chargerPriere();
     chargerMeteoAuto();
     chargerProfilHeader();
-    setTimeout(() => chargerWidgetTaches(), 300);
+    setTimeout(() => {
+        if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
+    }, 300);
     chargerWidgetAnniversaires();
     chargerWidgetPlanning();
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
 
-    // Widget admin : uniquement si role admin
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     if (user?.role === 'admin') {
         chargerWidgetAdmin();
@@ -116,7 +117,7 @@ function actualiser() {
     chargerPriere();
     chargerMeteoAuto();
     chargerProfilHeader();
-    chargerWidgetTaches();
+    if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
     chargerWidgetAnniversaires();
     chargerWidgetPlanning();
     if (typeof Cycle !== 'undefined') Cycle.charger();
@@ -162,7 +163,6 @@ async function buildGrid() {
         if (d.success && Array.isArray(d.order) && d.order.length) ordre = d.order;
     } catch(e) {}
 
-    // Filtre les widgets selon le rôle
     const widgetsDispo = WIDGETS_DEF.filter(w => {
         if (w.adminOnly && user?.role !== 'admin') return false;
         return true;
@@ -170,11 +170,9 @@ async function buildGrid() {
 
     let liste;
     if (ordre) {
-        // Respecte l'ordre sauvegardé, ignore les widgets non dispo
         liste = ordre
             .map(id => widgetsDispo.find(w => w.id === id))
             .filter(Boolean);
-        // Ajoute les nouveaux widgets non encore dans l'ordre sauvegardé
         widgetsDispo.forEach(w => {
             if (!liste.find(l => l.id === w.id)) liste.push(w);
         });
@@ -187,19 +185,18 @@ async function buildGrid() {
 }
 
 function creerWidget(w) {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const div  = document.createElement('div');
+    const div = document.createElement('div');
     div.className = `widget ${w.cls}`;
     div.dataset.id = w.id;
     div.draggable  = true;
 
     let headerExtra = '';
     if (w.refresh) {
-        headerExtra = `<button class="widget-refresh" onclick="refreshWidget('${w.id}')" title="Actualiser">&#8635;</button>`;
+        headerExtra = `<button class="widget-refresh" onclick="event.stopPropagation();refreshWidget('${w.id}')" title="Actualiser">&#8635;</button>`;
     }
 
-    // Contenu spécifique selon le widget
     let body = '';
+
     if (w.id === 'admin') {
         body = `
             <div class="widget-header">
@@ -210,43 +207,51 @@ function creerWidget(w) {
                 <div class="wa-loading">Chargement...</div>
             </div>
         `;
-    } else if (w.id === 'profil') {
-        body = `
-            <div class="widget-header">
-                <span class="widget-icon">${w.icon}</span>
-                <h3>${w.label}</h3>
-                ${headerExtra}
-            </div>
-            <div id="widget-${w.id}-body">
-                ${w.desc ? `<p class="widget-desc">${w.desc}</p>` : ''}
-            </div>
-            ${w.foot ? `<div class="widget-foot">${w.foot}</div>` : ''}
-        `;
-    } else {
-        body = `
-            <div class="widget-header">
-                <span class="widget-icon">${w.icon}</span>
-                <h3>${w.label}</h3>
-                ${headerExtra}
-            </div>
-            <div id="widget-${w.id}-body">
-                ${w.desc ? `<p class="widget-desc">${w.desc}</p>` : ''}
-            </div>
-            ${w.foot ? `<div class="widget-foot">${w.foot}</div>` : ''}
-        `;
+        div.innerHTML = body;
+        div.addEventListener('click', e => {
+            if (!e.target.closest('button') && !dragActif) ouvrirAdmin();
+        });
+        return div;
     }
 
+    if (w.id === 'profil') {
+        body = `
+            <div class="widget-header">
+                <span class="widget-icon">${w.icon}</span>
+                <h3>${w.label}</h3>
+                ${headerExtra}
+            </div>
+            <div id="widget-${w.id}-body">
+                ${w.desc ? `<p class="widget-desc">${w.desc}</p>` : ''}
+            </div>
+            ${w.foot ? `<div class="widget-foot">${w.foot}</div>` : ''}
+        `;
+        div.innerHTML = body;
+        return div;
+    }
+
+    body = `
+        <div class="widget-header">
+            <span class="widget-icon">${w.icon}</span>
+            <h3>${w.label}</h3>
+            ${headerExtra}
+        </div>
+        <div id="widget-${w.id}-body">
+            ${w.desc ? `<p class="widget-desc">${w.desc}</p>` : ''}
+        </div>
+        ${w.foot ? `<div class="widget-foot">${w.foot}</div>` : ''}
+    `;
     div.innerHTML = body;
     return div;
 }
 
 function refreshWidget(id) {
     switch(id) {
-        case 'meteo':      chargerMeteoAuto();                                        break;
-        case 'priere':     chargerPriere();                                           break;
-        case 'cycle':      if (typeof Cycle !== 'undefined') Cycle.charger();         break;
+        case 'meteo':      chargerMeteoAuto();                                          break;
+        case 'priere':     chargerPriere();                                             break;
+        case 'cycle':      if (typeof Cycle !== 'undefined') Cycle.charger();           break;
         case 'rendezvous': if (typeof Rendezvous !== 'undefined') Rendezvous.charger(); break;
-        case 'planning':   chargerWidgetPlanning();                                   break;
+        case 'planning':   chargerWidgetPlanning();                                     break;
     }
 }
 
