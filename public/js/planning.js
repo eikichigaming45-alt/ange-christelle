@@ -44,6 +44,26 @@ function _optionsRappelPlanning(selected = 120) {
   return opts.map(o => `<option value="${o.v}" ${selected === o.v ? 'selected' : ''}>${o.l}</option>`).join('');
 }
 
+// Récupère tous les employeurs uniques déjà utilisés, triés alphabétiquement
+async function _fetchEmployeurs(token) {
+  try {
+    const now = new Date();
+    const promises = [];
+    // On cherche sur 3 mois (mois précédent, courant, suivant) pour avoir un bon historique
+    for (let delta = -2; delta <= 0; delta++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + delta, 1);
+      promises.push(_fetchPlanningMois(d.getFullYear(), d.getMonth() + 1, token));
+    }
+    const results = await Promise.all(promises);
+    const all     = results.flat();
+    const set     = new Set();
+    all.forEach(e => { if (e.employeur?.trim()) set.add(e.employeur.trim()); });
+    return [...set].sort((a, b) => a.localeCompare(b, 'fr'));
+  } catch {
+    return ['EPSM Georges Daumezon'];
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // WIDGET — 5 jours glissants
 // ══════════════════════════════════════════════════════════════════════════════
@@ -94,9 +114,8 @@ async function chargerWidgetPlanning() {
                             : `${nomJour} ${obj.getDate()} ${MOIS_COURT[obj.getMonth()]}`;
 
     if (entries_jour.length > 0) {
-      // Si y'a une Mission ou Nuit → on masque les entrées de repos
-      const hasPriorite  = entries_jour.some(e => TYPES_PRIORITE.includes(e.type));
-      const aAfficher    = hasPriorite
+      const hasPriorite = entries_jour.some(e => TYPES_PRIORITE.includes(e.type));
+      const aAfficher   = hasPriorite
         ? entries_jour.filter(e => TYPES_PRIORITE.includes(e.type))
         : entries_jour;
 
@@ -187,15 +206,15 @@ async function _afficherCalendrierPlanning() {
     cellules += `<div style="aspect-ratio:1;min-height:44px"></div>`;
   }
   for (let j = 1; j <= nbJours; j++) {
-    const isToday = (j === today.getDate() && _planningMoisActuel === today.getMonth() && _planningAnneeActuel === today.getFullYear());
-        const entriesJour = map[j] || [];
+    const isToday     = (j === today.getDate() && _planningMoisActuel === today.getMonth() && _planningAnneeActuel === today.getFullYear());
+    const entriesJour = map[j] || [];
     const hasPriorite = entriesJour.some(e => TYPES_PRIORITE.includes(e.type));
-    const e0 = hasPriorite
-        ? entriesJour.find(e => TYPES_PRIORITE.includes(e.type))
-        : entriesJour[0];
-    const s  = e0 ? (SHIFT_CONFIG[e0.type] || { emoji: '📋', couleur: '#eee' }) : null;
+    const e0          = hasPriorite
+      ? entriesJour.find(e => TYPES_PRIORITE.includes(e.type))
+      : entriesJour[0];
+    const s           = e0 ? (SHIFT_CONFIG[e0.type] || { emoji: '📋', couleur: '#eee' }) : null;
     const autresCount = entriesJour.length - 1;
-    const plus = autresCount > 0 ? `<div style="font-size:9px;color:#666">+${autresCount}</div>` : '';
+    const plus        = autresCount > 0 ? `<div style="font-size:9px;color:#666">+${autresCount}</div>` : '';
 
     cellules += `
       <div onclick="_ouvrirDetailJourPlanning(${j})" style="
@@ -252,9 +271,9 @@ async function _planningMoisSuiv() {
 }
 
 function _ouvrirDetailJourPlanning(jour) {
-  const body = document.getElementById('modal-body');
-  const dateStr   = `${_planningAnneeActuel}-${String(_planningMoisActuel+1).padStart(2,'0')}-${String(jour).padStart(2,'0')}`;
-  const dateObj   = new Date(_planningAnneeActuel, _planningMoisActuel, jour);
+  const body    = document.getElementById('modal-body');
+  const dateStr = `${_planningAnneeActuel}-${String(_planningMoisActuel+1).padStart(2,'0')}-${String(jour).padStart(2,'0')}`;
+  const dateObj = new Date(_planningAnneeActuel, _planningMoisActuel, jour);
   const dateLabel = dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
   const entriesJour = _planningEntries.filter(e => {
@@ -319,6 +338,8 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
   const body = document.getElementById('modal-body');
   const { token } = _planningAuth();
 
+  body.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>';
+
   let entry = {};
   if (id) {
     try {
@@ -328,11 +349,23 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
     } catch { entry = {}; }
   }
 
+  // Récupération des employeurs déjà utilisés
+  const employeurs = await _fetchEmployeurs(token);
+
   const dateVal   = entry.date_str || entry.date?.slice(0,10) || dateDefaut || '';
   const rappelVal = entry.rappel_avant ?? 120;
+  const employeurVal = entry.employeur || 'EPSM Georges Daumezon';
+
   const typesOptions = Object.keys(SHIFT_CONFIG).map(t =>
     `<option value="${t}" ${entry.type === t ? 'selected' : ''}>${t}</option>`
   ).join('');
+
+  // Datalist des employeurs connus
+  const datalistHTML = employeurs.length > 0
+    ? `<datalist id="pl-employeurs-list">
+        ${employeurs.map(e => `<option value="${e}">`).join('')}
+       </datalist>`
+    : '';
 
   body.innerHTML = `
     <div>
@@ -363,9 +396,14 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
         </div>
       </div>
       <div style="margin-bottom:10px">
-        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Employeur</label>
-        <input type="text" id="pl-employeur" value="${entry.employeur || 'EPSM Georges Daumezon'}"
+        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">
+          Employeur <span style="color:#9ca3af;font-weight:400;font-size:10px">(suggestions basées sur vos entrées)</span>
+        </label>
+        <input type="text" id="pl-employeur" value="${employeurVal}"
+          list="pl-employeurs-list"
+          placeholder="Nom de l'employeur"
           style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
+        ${datalistHTML}
       </div>
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Adresse</label>
@@ -452,26 +490,8 @@ async function _supprimerEntreePlanning(id, dateStr) {
       await _afficherCalendrierPlanning();
       chargerWidgetPlanning();
     } catch {
-      document.getElementById('modal-title').textContent = 'Erreur';
-      document.getElementById('modal-body').innerHTML = `
-        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
-        <div class="modal-actions">
-          <button class="btn-cancel" onclick="_afficherCalendrierPlanning()">Retour</button>
-        </div>`;
+        document.getElementById('modal-body').innerHTML = '<p style="color:#ef4444">Erreur lors de la suppression.</p>';
     }
   };
-  document.getElementById('btn-planning-non').onclick = () => {
-    if (dateStr) _ouvrirDetailJourPlanning(parseInt(dateStr.split('-')[2]));
-    else _afficherCalendrierPlanning();
-  };
+  document.getElementById('btn-planning-non').onclick = () => _afficherCalendrierPlanning();
 }
-
-window.ouvrirPlanningModal             = ouvrirPlanningModal;
-window.chargerWidgetPlanning           = chargerWidgetPlanning;
-window._planningMoisPrec               = _planningMoisPrec;
-window._planningMoisSuiv               = _planningMoisSuiv;
-window._ouvrirDetailJourPlanning       = _ouvrirDetailJourPlanning;
-window._ouvrirFormulaireEntreePlanning = _ouvrirFormulaireEntreePlanning;
-window._sauvegarderEntreePlanning      = _sauvegarderEntreePlanning;
-window._supprimerEntreePlanning        = _supprimerEntreePlanning;
-window._afficherCalendrierPlanning     = _afficherCalendrierPlanning;
