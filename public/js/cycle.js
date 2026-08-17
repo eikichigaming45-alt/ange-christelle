@@ -1,6 +1,5 @@
 // ============================================================
 // SUIVI DU CYCLE — cycle.js
-// Données strictement privées : jamais exposées à l'admin
 // ============================================================
 
 const Cycle = (() => {
@@ -32,6 +31,14 @@ const Cycle = (() => {
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
 
+  // Parse une date YYYY-MM-DD en heure locale sans décalage UTC
+  function parseDateLocale(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
   function memeJour(a, b) {
     return a.getFullYear() === b.getFullYear() &&
            a.getMonth()    === b.getMonth()    &&
@@ -52,6 +59,14 @@ const Cycle = (() => {
     document.getElementById('btn-confirmer-non').onclick = () => closeModal();
   }
 
+  function afficherErreur(message, retourFn) {
+    document.getElementById('modal-body').innerHTML = `
+      <p style="color:#ef4444;font-size:15px;margin-bottom:20px">${message}</p>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="(${retourFn})()">Retour</button>
+      </div>`;
+  }
+
   function calculerDureeMoyenne(cycles) {
     if (cycles.length < 2) return null;
     const durees = [];
@@ -65,13 +80,12 @@ const Cycle = (() => {
     return Math.round(durees.reduce((a, b) => a + b, 0) / durees.length);
   }
 
-  // Calcule toutes les périodes pour tous les cycles + projections futures
   function calculerToutesPeriodes(cycles, dureeMoyenne) {
     const periodes = [];
     const dureeCycleRef = dureeMoyenne || (cycles[0]?.duree_cycle) || 28;
 
     cycles.forEach(c => {
-      const debut = new Date(c.date_debut); debut.setHours(0,0,0,0);
+      const debut = parseDateLocale(c.date_debut.split('T')[0]);
       const dureeRegles = c.duree_regles || 5;
       const dureeCycle  = dureeMoyenne || c.duree_cycle || 28;
       periodes.push({
@@ -85,9 +99,8 @@ const Cycle = (() => {
       });
     });
 
-    // Projection : 3 cycles futurs à partir du dernier cycle
     if (cycles.length > 0) {
-      let dernierDebut = new Date(cycles[0].date_debut); dernierDebut.setHours(0,0,0,0);
+      let dernierDebut = parseDateLocale(cycles[0].date_debut.split('T')[0]);
       const dureeReglesRef = cycles[0].duree_regles || 5;
       for (let i = 1; i <= 3; i++) {
         const debut = addDays(dernierDebut, dureeCycleRef * i);
@@ -109,12 +122,11 @@ const Cycle = (() => {
   let _calcCourant   = null;
   let _moisAffiche   = null;
   let _journalCache  = {};
-  let _toutesLesP    = []; // toutes les périodes calculées
+  let _toutesLesP    = [];
 
   function calculerCycle(dernierCycle, dureeMoyenne) {
     if (!dernierCycle) return null;
-    const debut       = new Date(dernierCycle.date_debut);
-    debut.setHours(0, 0, 0, 0);
+    const debut       = parseDateLocale(dernierCycle.date_debut.split('T')[0]);
     const dureeRegles = dernierCycle.duree_regles || 5;
     const dureeCycle  = dureeMoyenne || dernierCycle.duree_cycle || 28;
     const finRegles     = addDays(debut, dureeRegles - 1);
@@ -123,7 +135,7 @@ const Cycle = (() => {
     const finFertile    = addDays(debut, dureeCycle - 12);
     const ovulation     = addDays(debut, dureeCycle - 14);
     const aujourd_hui   = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
-    const joursAvantRegles = Math.ceil((prochainDebut - aujourd_hui) / (1000 * 60 * 60 * 24));
+    const joursAvantRegles = Math.round((prochainDebut - aujourd_hui) / (1000 * 60 * 60 * 24));
     const enRegles         = aujourd_hui >= debut && aujourd_hui <= finRegles;
     const enFenetre        = aujourd_hui >= debutFertile && aujourd_hui <= finFertile;
     return {
@@ -172,7 +184,6 @@ const Cycle = (() => {
       date.setHours(0,0,0,0);
       const dateStr = formatDateInput(date);
 
-      // Cherche dans toutes les périodes
       let estRegles   = false;
       let estFertile  = false;
       let estOvul     = false;
@@ -235,7 +246,10 @@ const Cycle = (() => {
 
   async function ouvrirJournal(dateStr) {
     const journal = _journalCache[dateStr] || {};
-    const dateAff = new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dateAff = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+    });
     const symptomesActifs = journal.symptomes ? journal.symptomes.split(',') : [];
     const SYMPTOMES = [
       { key: 'douleur_pelvienne',    label: 'Douleur pelvienne' },
@@ -292,17 +306,30 @@ const Cycle = (() => {
       });
       await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
       ouvrirModalCalendrier();
-    } catch { alert('Erreur lors de la sauvegarde.'); }
+    } catch {
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="Cycle.ouvrirJournal('${dateStr}')">Retour</button>
+        </div>`;
+    }
   }
 
   async function _supprimerJournal(id, dateStr) {
-    const dateAff = new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
-    confirmerAction(`Supprimer l'entrée du <strong>${dateAff}</strong> ?`, async () => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dateAff = new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+    confirmerAction(`Supprimer l'entrée du ${dateAff} ? Cette action est irréversible.`, async () => {
       try {
         await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
         await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
         ouvrirModalCalendrier();
-      } catch { alert('Erreur lors de la suppression.'); }
+      } catch {
+        document.getElementById('modal-body').innerHTML = `
+          <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
+          </div>`;
+      }
     });
   }
 
@@ -381,7 +408,7 @@ const Cycle = (() => {
       const cycles = await res.json();
       const dureeMoyenne = calculerDureeMoyenne(Array.isArray(cycles) ? cycles : []);
       container.innerHTML = renderWidget(Array.isArray(cycles) ? cycles : [], dureeMoyenne);
-    } catch (e) {
+    } catch {
       container.innerHTML = `<p class="cycle-error">Erreur de chargement du cycle.</p>`;
     }
   }
@@ -428,7 +455,13 @@ const Cycle = (() => {
         </div>
       `;
       document.getElementById('overlay').classList.add('on');
-    } catch { alert('Erreur de chargement.'); }
+    } catch {
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur de chargement.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+        </div>`;
+    }
   }
 
   function ouvrirModalAjout(cycleExistant = null) {
@@ -439,7 +472,7 @@ const Cycle = (() => {
       <div class="modal-cycle-form">
         <label>Date de début des règles *</label>
         <input type="date" id="cycle-date-debut"
-          value="${isEdit ? formatDateInput(cycleExistant.date_debut) : today}"
+          value="${isEdit ? formatDateInput(new Date(cycleExistant.date_debut)) : today}"
           max="${today}" />
         <label>Durée des règles (jours)</label>
         <input type="number" id="cycle-duree-regles" min="1" max="10"
@@ -466,7 +499,11 @@ const Cycle = (() => {
     const duree_regles = parseInt(document.getElementById('cycle-duree-regles').value);
     const duree_cycle  = parseInt(document.getElementById('cycle-duree-cycle').value);
     const notes        = document.getElementById('cycle-notes').value;
-    if (!date_debut) return alert('La date de début est obligatoire.');
+    if (!date_debut) {
+      document.getElementById('modal-body').innerHTML += `
+        <p style="color:#ef4444;font-size:13px;margin-top:8px">La date de début est obligatoire.</p>`;
+      return;
+    }
     const method = id ? 'PUT' : 'POST';
     const url    = id ? `/api/cycle/${id}` : '/api/cycle';
     try {
@@ -477,7 +514,221 @@ const Cycle = (() => {
       if (!res.ok) throw new Error();
       closeModal();
       charger();
-    } catch { alert('Erreur lors de la sauvegarde.'); }
+        } catch {
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="Cycle.ouvrirJournal('${dateStr}')">Retour</button>
+        </div>`;
+    }
+  }
+
+  async function _supprimerJournal(id, dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dateAff = new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+    confirmerAction(`Supprimer l'entrée du ${dateAff} ? Cette action est irréversible.`, async () => {
+      try {
+        await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
+        await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+        ouvrirModalCalendrier();
+      } catch {
+        document.getElementById('modal-body').innerHTML = `
+          <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
+          </div>`;
+      }
+    });
+  }
+
+  function renderWidget(cycles, dureeMoyenne) {
+    const dernierCycle = cycles.length > 0 ? cycles[0] : null;
+    const calc         = calculerCycle(dernierCycle, dureeMoyenne);
+    const phase        = getPhase(calc);
+    return `
+      <div class="widget-cycle">
+        <div class="cycle-phase" style="border-left:4px solid ${phase.color}">
+          <span class="cycle-phase-emoji">${phase.emoji}</span>
+          <div>
+            <div class="cycle-phase-label">${phase.label}</div>
+            ${calc ? `<div class="cycle-phase-sub">
+              ${calc.enRegles
+                ? `Fin estimée le ${formatDate(calc.finRegles)}`
+                : calc.joursAvantRegles > 0
+                  ? `Prochaines règles dans <strong>${calc.joursAvantRegles} jour${calc.joursAvantRegles > 1 ? 's' : ''}</strong>`
+                  : `Règles attendues aujourd'hui`}
+            </div>` : ''}
+          </div>
+        </div>
+        ${calc ? `
+        <div class="cycle-infos">
+          <div class="cycle-info-item">
+            <span class="cycle-info-icon">📅</span>
+            <div>
+              <div class="cycle-info-label">Dernier début</div>
+              <div class="cycle-info-value">${formatDate(calc.debut)}</div>
+            </div>
+          </div>
+          <div class="cycle-info-item">
+            <span class="cycle-info-icon">🔄</span>
+            <div>
+              <div class="cycle-info-label">Durée cycle ${dureeMoyenne ? '(calculée)' : '(estimée)'}</div>
+              <div class="cycle-info-value">${calc.dureeCycle} jours</div>
+            </div>
+          </div>
+          <div class="cycle-info-item">
+            <span class="cycle-info-icon">🌿</span>
+            <div>
+              <div class="cycle-info-label">Fenêtre fertile</div>
+              <div class="cycle-info-value">${formatDate(calc.debutFertile)} → ${formatDate(calc.finFertile)}</div>
+            </div>
+          </div>
+          <div class="cycle-info-item">
+            <span class="cycle-info-icon">✨</span>
+            <div>
+              <div class="cycle-info-label">Ovulation estimée</div>
+              <div class="cycle-info-value">${formatDate(calc.ovulation)}</div>
+            </div>
+          </div>
+        </div>
+        <div class="cycle-progress-wrap">
+          <div class="cycle-progress-label">Progression du cycle (${calc.dureeCycle} jours)</div>
+          <div class="cycle-progress-bar">
+            <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0, Math.round(((new Date() - calc.debut) / (1000 * 60 * 60 * 24)) / calc.dureeCycle * 100)))}%;background:${phase.color}"></div>
+          </div>
+        </div>` : ''}
+        <div class="cycle-actions">
+          <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
+          ${cycles.length > 0 ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  async function charger() {
+    const container = document.getElementById('widget-cycle-content');
+    if (!container) return;
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    if (!user?.token) { setTimeout(() => charger(), 300); return; }
+    try {
+      const res    = await fetch('/api/cycle', { headers: authHeaders() });
+      if (!res.ok) throw new Error();
+      const cycles = await res.json();
+      const dureeMoyenne = calculerDureeMoyenne(Array.isArray(cycles) ? cycles : []);
+      container.innerHTML = renderWidget(Array.isArray(cycles) ? cycles : [], dureeMoyenne);
+    } catch {
+      container.innerHTML = `<p class="cycle-error">Erreur de chargement du cycle.</p>`;
+    }
+  }
+
+  async function ouvrirModalCalendrier() {
+    try {
+      const res          = await fetch('/api/cycle', { headers: authHeaders() });
+      const cycles       = await res.json();
+      const dureeMoyenne = calculerDureeMoyenne(Array.isArray(cycles) ? cycles : []);
+      const dernierCycle = Array.isArray(cycles) && cycles.length > 0 ? cycles[0] : null;
+      const calc         = calculerCycle(dernierCycle, dureeMoyenne);
+      const phase        = getPhase(calc);
+
+      _calcCourant = calc;
+      _moisAffiche = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      _toutesLesP  = calculerToutesPeriodes(Array.isArray(cycles) ? cycles : [], dureeMoyenne);
+
+      await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+
+      document.getElementById('modal-title').textContent = '🌸 Suivi du cycle';
+      document.getElementById('modal-body').innerHTML = `
+        <div class="modal-cycle-main">
+          ${calc ? `
+          <div class="cycle-phase" style="border-left:4px solid ${phase.color};margin-bottom:16px">
+            <span class="cycle-phase-emoji">${phase.emoji}</span>
+            <div>
+              <div class="cycle-phase-label">${phase.label}</div>
+              <div class="cycle-phase-sub">
+                ${calc.enRegles
+                  ? `Fin estimée le ${formatDate(calc.finRegles)}`
+                  : calc.joursAvantRegles > 0
+                    ? `Prochaines règles dans <strong>${calc.joursAvantRegles} jour${calc.joursAvantRegles > 1 ? 's' : ''}</strong>`
+                    : `Règles attendues aujourd'hui`}
+              </div>
+            </div>
+          </div>
+          ` : '<p style="color:#9ca3af;margin-bottom:16px">Aucun cycle enregistré.</p>'}
+          ${dureeMoyenne ? `<div class="cycle-duree-info">Durée moyenne calculée : <strong>${dureeMoyenne} jours</strong> (sur ${cycles.length} cycles)</div>` : ''}
+          <div id="cal-container">${renderCalendrier(calc)}</div>
+          <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+            <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
+            ${cycles.length > 0 ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>` : ''}
+          </div>
+        </div>
+      `;
+      document.getElementById('overlay').classList.add('on');
+    } catch {
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur de chargement.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+        </div>`;
+    }
+  }
+
+  function ouvrirModalAjout(cycleExistant = null) {
+    const isEdit = !!cycleExistant;
+    const today  = formatDateInput(new Date());
+    document.getElementById('modal-title').textContent = isEdit ? '✏️ Modifier le cycle' : '🌸 Enregistrer mes règles';
+    document.getElementById('modal-body').innerHTML = `
+      <div class="modal-cycle-form">
+        <label>Date de début des règles *</label>
+        <input type="date" id="cycle-date-debut"
+          value="${isEdit ? formatDateInput(parseDateLocale(cycleExistant.date_debut.split('T')[0])) : today}"
+          max="${today}" />
+        <label>Durée des règles (jours)</label>
+        <input type="number" id="cycle-duree-regles" min="1" max="10"
+          value="${isEdit ? cycleExistant.duree_regles : 5}" />
+        <label>Durée du cycle (jours) — sera recalculée automatiquement après 2 cycles</label>
+        <input type="number" id="cycle-duree-cycle" min="21" max="45"
+          value="${isEdit ? cycleExistant.duree_cycle : 28}" />
+        <label>Notes (optionnel)</label>
+        <textarea id="cycle-notes" rows="3" placeholder="Douleurs, humeur, symptômes...">${isEdit ? (cycleExistant.notes || '') : ''}</textarea>
+        <div class="modal-actions">
+          <button class="btn-save" onclick="Cycle.sauvegarder(${isEdit ? cycleExistant.id : 'null'})">
+            ${isEdit ? 'Modifier' : 'Enregistrer'}
+          </button>
+          ${isEdit ? `<button class="btn-delete" onclick="Cycle.supprimer(${cycleExistant.id})">Supprimer</button>` : ''}
+          <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('overlay').classList.add('on');
+  }
+
+  async function sauvegarder(id = null) {
+    const date_debut   = document.getElementById('cycle-date-debut').value;
+    const duree_regles = parseInt(document.getElementById('cycle-duree-regles').value);
+    const duree_cycle  = parseInt(document.getElementById('cycle-duree-cycle').value);
+    const notes        = document.getElementById('cycle-notes').value;
+    if (!date_debut) {
+      document.getElementById('modal-body').innerHTML += `
+        <p style="color:#ef4444;font-size:13px;margin-top:8px">La date de début est obligatoire.</p>`;
+      return;
+    }
+    const method = id ? 'PUT' : 'POST';
+    const url    = id ? `/api/cycle/${id}` : '/api/cycle';
+    try {
+      const res = await fetch(url, {
+        method, headers: authHeaders(),
+        body: JSON.stringify({ date_debut, duree_regles, duree_cycle, notes })
+      });
+      if (!res.ok) throw new Error();
+      closeModal();
+      charger();
+    } catch {
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="Cycle.ouvrirModalAjout(${id ? id : 'null'})">Retour</button>
+        </div>`;
+    }
   }
 
   async function supprimer(id) {
@@ -486,7 +737,13 @@ const Cycle = (() => {
         await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
         closeModal();
         charger();
-      } catch { alert('Erreur lors de la suppression.'); }
+      } catch {
+        document.getElementById('modal-body').innerHTML = `
+          <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+          </div>`;
+      }
     });
   }
 
@@ -498,7 +755,7 @@ const Cycle = (() => {
       const lignes = cycles.map(c => `
         <div class="cycle-historique-item">
           <div>
-            <strong>${formatDate(c.date_debut)}</strong>
+            <strong>${formatDate(parseDateLocale(c.date_debut.split('T')[0]))}</strong>
             <span class="cycle-histo-detail">Règles : ${c.duree_regles}j — Cycle : ${c.duree_cycle}j</span>
             ${c.notes ? `<span class="cycle-histo-notes">${c.notes}</span>` : ''}
           </div>
@@ -513,9 +770,13 @@ const Cycle = (() => {
           <button class="btn-cycle-primary" style="margin-top:12px" onclick="Cycle.ouvrirModalAjout()">+ Nouveau cycle</button>
         </div>
       `;
-            document.getElementById('overlay').classList.add('on');
+      document.getElementById('overlay').classList.add('on');
     } catch {
-      alert('Erreur de chargement de l\'historique.');
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur de chargement de l'historique.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+        </div>`;
     }
   }
 

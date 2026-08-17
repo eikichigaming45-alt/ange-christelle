@@ -11,25 +11,35 @@ const SHIFT_CONFIG = {
   'Mission' : { emoji: '💼', couleur: '#a5d6a7' },
 };
 
-const JOURS_PLANNING  = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-const MOIS_PLANNING   = ['Janvier','Février','Mars','Avril','Mai','Juin',
-                         'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-const MOIS_COURT      = ['jan','fév','mar','avr','mai','juin',
-                         'juil','août','sep','oct','nov','déc'];
+const JOURS_PLANNING = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const MOIS_PLANNING  = ['Janvier','Février','Mars','Avril','Mai','Juin',
+                        'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MOIS_COURT     = ['jan','fév','mar','avr','mai','juin',
+                        'juil','août','sep','oct','nov','déc'];
 
-// ─── Auth helper ───────────────────────────────────────────────────────────────
 function _planningAuth() {
   const user = JSON.parse(localStorage.getItem('myvibe_user'));
   return { user, token: user?.token };
 }
 
-// ─── Fetch entries for a given month ──────────────────────────────────────────
 async function _fetchPlanningMois(annee, mois, token) {
   const res  = await fetch(`/api/planning?annee=${annee}&mois=${mois}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   const data = await res.json();
   return Array.isArray(data) ? data : [];
+}
+
+function _optionsRappelPlanning(selected = 120) {
+  const opts = [
+    { v: 0,    l: 'Pas de rappel' },
+    { v: 15,   l: '15 min avant' },
+    { v: 30,   l: '30 min avant' },
+    { v: 60,   l: '1h avant' },
+    { v: 120,  l: '2h avant' },
+    { v: 1440, l: 'La veille' },
+  ];
+  return opts.map(o => `<option value="${o.v}" ${selected === o.v ? 'selected' : ''}>${o.l}</option>`).join('');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -42,7 +52,6 @@ async function chargerWidgetPlanning() {
   const { token } = _planningAuth();
   if (!token) return;
 
-  // Construire les 5 dates locales
   const dates = [];
   for (let i = 0; i < 5; i++) {
     const d = new Date();
@@ -53,7 +62,6 @@ async function chargerWidgetPlanning() {
     dates.push({ obj: d, str: `${yyyy}-${mm}-${dd}` });
   }
 
-  // Fetch mois courant + mois suivant si chevauchement
   let entries = [];
   try {
     const now = new Date();
@@ -68,7 +76,6 @@ async function chargerWidgetPlanning() {
     return;
   }
 
-  // Index par date locale YYYY-MM-DD
   const map = {};
   entries.forEach(e => {
     const raw = e.date_str || e.date?.slice(0, 10);
@@ -127,6 +134,7 @@ let _planningEntries     = [];
 async function ouvrirPlanningModal() {
   _planningMoisActuel  = new Date().getMonth();
   _planningAnneeActuel = new Date().getFullYear();
+  document.getElementById('modal-title').textContent = '📋 Planning';
   await _afficherCalendrierPlanning();
 }
 
@@ -145,7 +153,6 @@ async function _afficherCalendrierPlanning() {
     return;
   }
 
-  // Index par jour du mois
   const map = {};
   _planningEntries.forEach(e => {
     const raw = e.date_str || e.date?.slice(0, 10);
@@ -156,12 +163,10 @@ async function _afficherCalendrierPlanning() {
   });
 
   const today      = new Date();
-  const premierJour = new Date(_planningAnneeActuel, _planningMoisActuel, 1).getDay(); // 0=dim
+  const premierJour = new Date(_planningAnneeActuel, _planningMoisActuel, 1).getDay();
   const nbJours    = new Date(_planningAnneeActuel, _planningMoisActuel + 1, 0).getDate();
-  // Décalage Lun=0
   const offset     = premierJour === 0 ? 6 : premierJour - 1;
 
-  // Légende
   const legendeHTML = Object.entries(SHIFT_CONFIG).map(([type, s]) =>
     `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;
                   background:${s.couleur}33;border-radius:20px;font-size:12px;font-weight:600;
@@ -170,9 +175,7 @@ async function _afficherCalendrierPlanning() {
      </span>`
   ).join('');
 
-  // Cellules calendrier
   let cellules = '';
-  // Cases vides avant le 1er
   for (let i = 0; i < offset; i++) {
     cellules += `<div style="aspect-ratio:1;min-height:44px"></div>`;
   }
@@ -198,7 +201,6 @@ async function _afficherCalendrierPlanning() {
 
   body.innerHTML = `
     <div style="font-family:inherit">
-      <!-- Navigation mois -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <button onclick="_planningMoisPrec()" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;border-radius:8px">‹</button>
         <div style="font-weight:700;font-size:16px;color:#1f2937">
@@ -206,23 +208,15 @@ async function _afficherCalendrierPlanning() {
         </div>
         <button onclick="_planningMoisSuiv()" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;border-radius:8px">›</button>
       </div>
-
-      <!-- Légende -->
       <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:2px">${legendeHTML}</div>
-
-      <!-- Grille jours de la semaine -->
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">
         ${['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map(j =>
           `<div style="text-align:center;font-size:11px;font-weight:700;color:#9ca3af;padding:4px 0">${j}</div>`
         ).join('')}
       </div>
-
-      <!-- Grille calendrier -->
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px">
         ${cellules}
       </div>
-
-      <!-- Bouton ajouter -->
       <button onclick="_ouvrirFormulaireEntreePlanning(null)" style="
           width:100%;padding:13px;
           background:linear-gradient(135deg,#4f46e5,#7c3aed);
@@ -239,18 +233,18 @@ async function _planningMoisPrec() {
   if (_planningMoisActuel < 0) { _planningMoisActuel = 11; _planningAnneeActuel--; }
   await _afficherCalendrierPlanning();
 }
+
 async function _planningMoisSuiv() {
   _planningMoisActuel++;
   if (_planningMoisActuel > 11) { _planningMoisActuel = 0; _planningAnneeActuel++; }
   await _afficherCalendrierPlanning();
 }
 
-// ── Détail d'un jour ──────────────────────────────────────────────────────────
 function _ouvrirDetailJourPlanning(jour) {
   const body = document.getElementById('modal-body');
-  const dateObj = new Date(_planningAnneeActuel, _planningMoisActuel, jour);
   const dateStr = `${_planningAnneeActuel}-${String(_planningMoisActuel+1).padStart(2,'0')}-${String(jour).padStart(2,'0')}`;
-  const dateLabel = dateObj.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const dateObj = new Date(_planningAnneeActuel, _planningMoisActuel, jour);
+  const dateLabel = dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
   const entriesJour = _planningEntries.filter(e => {
     const raw = e.date_str || e.date?.slice(0,10);
@@ -260,7 +254,7 @@ function _ouvrirDetailJourPlanning(jour) {
   let html = `
     <div>
       <div style="font-size:16px;font-weight:700;margin-bottom:16px;color:#1f2937">
-        📋 ${dateLabel.charAt(0).toUpperCase()+dateLabel.slice(1)}
+        📋 ${dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}
       </div>`;
 
   if (entriesJour.length === 0) {
@@ -270,7 +264,7 @@ function _ouvrirDetailJourPlanning(jour) {
       const s = SHIFT_CONFIG[e.type] || { emoji: '📋', couleur: '#eee' };
       html += `
         <div style="background:${s.couleur}22;border-left:4px solid ${s.couleur};
-                    border-radius:10px;padding:12px 14px;margin-bottom:10px;position:relative">
+                    border-radius:10px;padding:12px 14px;margin-bottom:10px">
           <div style="font-size:16px;font-weight:700;color:#1f2937">${s.emoji} ${e.type}</div>
           ${e.heure_debut ? `<div style="font-size:13px;color:#666;margin-top:4px">⏰ ${e.heure_debut.slice(0,5)} → ${(e.heure_fin||'').slice(0,5)||'?'}</div>` : ''}
           ${e.employeur   ? `<div style="font-size:13px;color:#666">🏥 ${e.employeur}</div>` : ''}
@@ -282,9 +276,9 @@ function _ouvrirDetailJourPlanning(jour) {
                 border:none;border-radius:8px;cursor:pointer;font-size:13px">
               ✏️ Modifier
             </button>
-            <button onclick="_supprimerEntreePlanning(${e.id})" style="
-                flex:1;padding:8px;background:#ef4444;color:white;
-                border:none;border-radius:8px;cursor:pointer;font-size:13px">
+            <button onclick="_supprimerEntreePlanning(${e.id},'${dateStr}')" style="
+                flex:1;padding:8px;background:#fee2e2;color:#ef4444;
+                border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">
               🗑️ Supprimer
             </button>
           </div>
@@ -310,7 +304,6 @@ function _ouvrirDetailJourPlanning(jour) {
   body.innerHTML = html;
 }
 
-// ── Formulaire ajout/édition ──────────────────────────────────────────────────
 async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
   const body = document.getElementById('modal-body');
   const { token } = _planningAuth();
@@ -324,9 +317,10 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
     } catch { entry = {}; }
   }
 
-  const dateVal = entry.date_str || entry.date?.slice(0,10) || dateDefaut || '';
+  const dateVal    = entry.date_str || entry.date?.slice(0,10) || dateDefaut || '';
+  const rappelVal  = entry.rappel_avant ?? 120;
   const typesOptions = Object.keys(SHIFT_CONFIG).map(t =>
-    `<option value="${t}" ${entry.type===t?'selected':''}>${t}</option>`
+    `<option value="${t}" ${entry.type === t ? 'selected' : ''}>${t}</option>`
   ).join('');
 
   body.innerHTML = `
@@ -341,7 +335,7 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
       </div>
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Type de journée</label>
-        <select id="pl-type" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
+        <select id="pl-type" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
           ${typesOptions}
         </select>
       </div>
@@ -359,27 +353,28 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
       </div>
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Employeur</label>
-        <input type="text" id="pl-employeur" value="${entry.employeur||'EPSM Georges Daumezon'}"
+        <input type="text" id="pl-employeur" value="${entry.employeur || 'EPSM Georges Daumezon'}"
           style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
       </div>
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Adresse</label>
-        <input type="text" id="pl-adresse" value="${entry.adresse||''}"
+        <input type="text" id="pl-adresse" value="${entry.adresse || ''}"
           style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
       </div>
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Notes</label>
         <textarea id="pl-notes" rows="2"
-          style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none">${entry.notes||''}</textarea>
+          style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none">${entry.notes || ''}</textarea>
       </div>
       <div style="margin-bottom:16px">
-        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Rappel avant (minutes)</label>
-        <input type="number" id="pl-rappel" value="${entry.rappel_avant||120}" min="0"
-          style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
+        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Rappel avant le shift</label>
+        <select id="pl-rappel" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
+          ${_optionsRappelPlanning(rappelVal)}
+        </select>
       </div>
-      <div id="pl-msg" style="text-align:center;font-size:13px;min-height:18px;margin-bottom:8px;color:red"></div>
+      <div id="pl-msg" style="text-align:center;font-size:13px;min-height:18px;margin-bottom:8px;color:#ef4444"></div>
       <div style="display:flex;gap:8px">
-        <button onclick="_sauvegarderEntreePlanning(${id||'null'})" style="
+        <button onclick="_sauvegarderEntreePlanning(${id || 'null'})" style="
             flex:1;padding:13px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
             color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
           💾 Sauvegarder
@@ -393,30 +388,29 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
     </div>`;
 }
 
-// ── Sauvegarder (POST ou PUT) ─────────────────────────────────────────────────
 async function _sauvegarderEntreePlanning(id) {
   const { token } = _planningAuth();
   const msg = document.getElementById('pl-msg');
 
   const body = {
-    date      : document.getElementById('pl-date').value,
-    type      : document.getElementById('pl-type').value,
-    heure_debut: document.getElementById('pl-debut').value || null,
-    heure_fin  : document.getElementById('pl-fin').value   || null,
-    employeur  : document.getElementById('pl-employeur').value || null,
-    adresse    : document.getElementById('pl-adresse').value   || null,
-    notes      : document.getElementById('pl-notes').value     || null,
-    rappel_avant: parseInt(document.getElementById('pl-rappel').value)||120,
+    date        : document.getElementById('pl-date').value,
+    type        : document.getElementById('pl-type').value,
+    heure_debut : document.getElementById('pl-debut').value    || null,
+    heure_fin   : document.getElementById('pl-fin').value      || null,
+    employeur   : document.getElementById('pl-employeur').value || null,
+    adresse     : document.getElementById('pl-adresse').value   || null,
+    notes       : document.getElementById('pl-notes').value     || null,
+    rappel_avant: parseInt(document.getElementById('pl-rappel').value) || 0,
   };
 
-  if (!body.date) { if(msg) msg.textContent = 'La date est obligatoire.'; return; }
+  if (!body.date) { if (msg) msg.textContent = 'La date est obligatoire.'; return; }
 
   try {
     const url    = id ? `/api/planning/${id}` : '/api/planning';
     const method = id ? 'PUT' : 'POST';
     const res    = await fetch(url, {
       method,
-      headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body)
     });
     if (!res.ok) throw new Error();
@@ -427,29 +421,45 @@ async function _sauvegarderEntreePlanning(id) {
   }
 }
 
-// ── Supprimer ────────────────────────────────────────────────────────────────
-async function _supprimerEntreePlanning(id) {
-  if (!confirm('Supprimer cette entrée ?')) return;
-  const { token } = _planningAuth();
-  try {
-    await fetch(`/api/planning/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    await _afficherCalendrierPlanning();
-    chargerWidgetPlanning();
-  } catch {
-    alert('Erreur lors de la suppression.');
-  }
+async function _supprimerEntreePlanning(id, dateStr) {
+  document.getElementById('modal-title').textContent = '📋 Confirmation';
+  document.getElementById('modal-body').innerHTML = `
+    <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer cette entrée ? Cette action est irréversible.</p>
+    <div class="modal-actions">
+      <button class="btn-delete" id="btn-planning-oui">Confirmer</button>
+      <button class="btn-cancel" id="btn-planning-non">Annuler</button>
+    </div>
+  `;
+  document.getElementById('overlay').classList.add('on');
+  document.getElementById('btn-planning-oui').onclick = async () => {
+    const { token } = _planningAuth();
+    try {
+      await fetch(`/api/planning/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await _afficherCalendrierPlanning();
+      chargerWidgetPlanning();
+    } catch {
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="_afficherCalendrierPlanning()">Retour</button>
+        </div>`;
+    }
+  };
+  document.getElementById('btn-planning-non').onclick = () => {
+    if (dateStr) _ouvrirDetailJourPlanning(parseInt(dateStr.split('-')[2]));
+    else _afficherCalendrierPlanning();
+  };
 }
 
-// ── Exposition globale ────────────────────────────────────────────────────────
-window.ouvrirPlanningModal            = ouvrirPlanningModal;
-window.chargerWidgetPlanning          = chargerWidgetPlanning;
-window._planningMoisPrec              = _planningMoisPrec;
-window._planningMoisSuiv              = _planningMoisSuiv;
-window._ouvrirDetailJourPlanning      = _ouvrirDetailJourPlanning;
+window.ouvrirPlanningModal             = ouvrirPlanningModal;
+window.chargerWidgetPlanning           = chargerWidgetPlanning;
+window._planningMoisPrec               = _planningMoisPrec;
+window._planningMoisSuiv               = _planningMoisSuiv;
+window._ouvrirDetailJourPlanning       = _ouvrirDetailJourPlanning;
 window._ouvrirFormulaireEntreePlanning = _ouvrirFormulaireEntreePlanning;
-window._sauvegarderEntreePlanning     = _sauvegarderEntreePlanning;
-window._supprimerEntreePlanning       = _supprimerEntreePlanning;
-window._afficherCalendrierPlanning    = _afficherCalendrierPlanning;
+window._sauvegarderEntreePlanning      = _sauvegarderEntreePlanning;
+window._supprimerEntreePlanning        = _supprimerEntreePlanning;
+window._afficherCalendrierPlanning     = _afficherCalendrierPlanning;
