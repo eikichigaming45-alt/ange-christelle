@@ -76,32 +76,38 @@ async function chargerWidgetPlanning() {
     return;
   }
 
+  // ── CORRECTION : on stocke TOUTES les entrées par jour (tableau) ──
   const map = {};
   entries.forEach(e => {
     const raw = e.date_str || e.date?.slice(0, 10);
-    if (raw && !map[raw]) map[raw] = e;
+    if (!raw) return;
+    if (!map[raw]) map[raw] = [];
+    map[raw].push(e);
   });
 
   let html = '';
   dates.forEach(({ obj, str }, i) => {
-    const entry   = map[str];
+    const entries_jour = map[str] || [];
     const nomJour = JOURS_PLANNING[obj.getDay()];
     const label   = i === 0 ? "Aujourd'hui"
                             : `${nomJour} ${obj.getDate()} ${MOIS_COURT[obj.getMonth()]}`;
 
-    if (entry) {
-      const s = SHIFT_CONFIG[entry.type] || { emoji: '📋', couleur: '#eee' };
-      html += `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;
-                    background:${s.couleur}22;border-left:4px solid ${s.couleur};border-radius:8px;">
-          <span style="font-size:20px">${s.emoji}</span>
-          <div>
-            <div style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.5px">${label}</div>
-            <div style="font-size:14px;font-weight:700;color:#333">${entry.type}</div>
-            ${entry.heure_debut ? `<div style="font-size:12px;color:#666">⏰ ${entry.heure_debut.slice(0,5)} → ${(entry.heure_fin||'').slice(0,5)||'?'}</div>` : ''}
-            ${entry.employeur   ? `<div style="font-size:11px;color:#999">🏥 ${entry.employeur}</div>` : ''}
-          </div>
-        </div>`;
+    if (entries_jour.length > 0) {
+      entries_jour.forEach((entry, idx) => {
+        const s = SHIFT_CONFIG[entry.type] || { emoji: '📋', couleur: '#eee' };
+        html += `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;
+                      margin-bottom:${idx === entries_jour.length - 1 ? '6px' : '2px'};
+                      background:${s.couleur}22;border-left:4px solid ${s.couleur};border-radius:8px;">
+            <span style="font-size:20px">${s.emoji}</span>
+            <div>
+              ${idx === 0 ? `<div style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.5px">${label}</div>` : ''}
+              <div style="font-size:14px;font-weight:700;color:#333">${entry.type}</div>
+              ${entry.heure_debut ? `<div style="font-size:12px;color:#666">⏰ ${entry.heure_debut.slice(0,5)} → ${(entry.heure_fin||'').slice(0,5)||'?'}</div>` : ''}
+              ${entry.employeur   ? `<div style="font-size:11px;color:#999">🏥 ${entry.employeur}</div>` : ''}
+            </div>
+          </div>`;
+      });
     } else {
       html += `
         <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;
