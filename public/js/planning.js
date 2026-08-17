@@ -366,7 +366,6 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
     `<option value="${t}" ${entry.type === t ? 'selected' : ''}>${t}</option>`
   ).join('');
 
-  // Vérifie si la valeur actuelle est dans la liste ou pas
   const valDansListe = employeurs.includes(employeurVal);
   const showInput    = !valDansListe && employeurVal !== '';
 
@@ -457,15 +456,13 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
         </button>
       </div>
     </div>`;
-}
-
-async function _sauvegarderEntreePlanning(id) {
+}async function _sauvegarderEntreePlanning(id) {
   const { token } = _planningAuth();
   const msg = document.getElementById('pl-msg');
 
-  const selectEl  = document.getElementById('pl-employeur-select');
-  const nouveauEl = document.getElementById('pl-employeur-nouveau');
-  const selectVal = selectEl ? selectEl.value : '__nouveau__';
+  const selectEl   = document.getElementById('pl-employeur-select');
+  const nouveauEl  = document.getElementById('pl-employeur-nouveau');
+  const selectVal  = selectEl ? selectEl.value : '__nouveau__';
   const nouveauVal = nouveauEl ? nouveauEl.value.trim() : '';
   const employeur  = selectVal === '__nouveau__' ? nouveauVal : selectVal;
 
@@ -566,7 +563,7 @@ async function _ouvrirGestionEmployeurs() {
                     padding:10px 12px;background:#f9fafb;border-radius:10px;
                     margin-bottom:8px;border:1px solid #e5e7eb">
           <span style="font-size:14px;font-weight:600;color:#1f2937">🏥 ${e.nom}</span>
-          <button onclick="_supprimerEmployeur(${e.id})" style="
+          <button onclick="_supprimerEmployeur(${e.id}, '${e.nom.replace(/'/g, "\\'")}')" style="
               background:#fee2e2;color:#ef4444;border:none;border-radius:8px;
               padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer">
             Supprimer
@@ -626,17 +623,44 @@ async function _ajouterEmployeur() {
   }
 }
 
-async function _supprimerEmployeur(id) {
-  const { token } = _planningAuth();
-  try {
-    await fetch(`/api/planning/employeurs/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store'
-    });
-    await _ouvrirGestionEmployeurs();
-  } catch {
-    const m = document.getElementById('emp-msg');
-    if (m) m.textContent = 'Erreur lors de la suppression.';
-  }
+async function _supprimerEmployeur(id, nom) {
+  const body = document.getElementById('modal-body');
+
+  body.innerHTML = `
+    <div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:12px;color:#1f2937">
+        Supprimer un employeur
+      </div>
+      <p style="color:#374151;font-size:15px;margin-bottom:20px">
+        Supprimer <strong>${nom}</strong> ? Cette action est irréversible.
+      </p>
+      <div style="display:flex;gap:8px">
+        <button id="btn-emp-oui" style="
+            flex:1;padding:13px;background:#ef4444;color:white;
+            border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
+          Confirmer
+        </button>
+        <button id="btn-emp-non" style="
+            flex:1;padding:13px;background:#f3f4f6;color:#374151;
+            border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
+          Annuler
+        </button>
+      </div>
+    </div>`;
+
+  document.getElementById('btn-emp-non').onclick = () => _ouvrirGestionEmployeurs();
+
+  document.getElementById('btn-emp-oui').onclick = async () => {
+    const { token } = _planningAuth();
+    try {
+      await fetch(`/api/planning/employeurs/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store'
+      });
+      await _ouvrirGestionEmployeurs();
+    } catch {
+      body.innerHTML = '<p style="color:#ef4444;text-align:center;padding:20px">Erreur lors de la suppression.</p>';
+    }
+  };
 }
