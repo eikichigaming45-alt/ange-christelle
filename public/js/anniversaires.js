@@ -61,7 +61,7 @@ async function chargerModalAnniversaires() {
 
     const liste = _calculerAnnivs(d.anniversaires);
 
-    document.getElementById('modal-title').textContent = '🎂 Anniversaires';
+    document.getElementById('modal-title').textContent = 'Anniversaires';
     document.getElementById('modal-body').innerHTML = `
         <div class="anniv-form-bloc">
             <div class="form-row">
@@ -110,7 +110,16 @@ async function ajouterAnniversaire() {
     const prenom = document.getElementById('a-prenom').value.trim();
     const jour   = document.getElementById('a-jour').value;
     const mois   = document.getElementById('a-mois').value;
-    if (!prenom || !jour || !mois) { alert('Prénom, jour et mois sont obligatoires'); return; }
+    if (!prenom || !jour || !mois) {
+        document.getElementById('modal-title').textContent = 'Champs manquants';
+        document.getElementById('modal-body').innerHTML = `
+            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Prénom, jour et mois sont obligatoires.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button>
+            </div>
+        `;
+        return;
+    }
     const body = {
         userId: user.userId,
         prenom,
@@ -123,8 +132,24 @@ async function ajouterAnniversaire() {
         const r = await fetch('/api/anniversaires', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const d = await r.json();
         if (d.success) { chargerModalAnniversaires(); chargerWidgetAnniversaires(); }
-        else alert('Erreur : ' + d.message);
-    } catch { alert('Erreur réseau'); }
+        else {
+            document.getElementById('modal-title').textContent = 'Erreur';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">${d.message}</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button>
+                </div>
+            `;
+        }
+    } catch {
+        document.getElementById('modal-title').textContent = 'Erreur réseau';
+        document.getElementById('modal-body').innerHTML = `
+            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Impossible de contacter le serveur.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button>
+            </div>
+        `;
+    }
 }
 
 function editerAnniversaire(id, prenom, nom, jour, mois, annee) {
@@ -143,7 +168,16 @@ async function modifierAnniversaire(id) {
     const prenom = document.getElementById('a-prenom').value.trim();
     const jour   = document.getElementById('a-jour').value;
     const mois   = document.getElementById('a-mois').value;
-    if (!prenom || !jour || !mois) { alert('Prénom, jour et mois sont obligatoires'); return; }
+    if (!prenom || !jour || !mois) {
+        document.getElementById('modal-title').textContent = 'Champs manquants';
+        document.getElementById('modal-body').innerHTML = `
+            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Prénom, jour et mois sont obligatoires.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button>
+            </div>
+        `;
+        return;
+    }
     const body = {
         userId: user.userId,
         prenom,
@@ -156,13 +190,29 @@ async function modifierAnniversaire(id) {
         const r = await fetch(`/api/anniversaires/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const d = await r.json();
         if (d.success) { chargerModalAnniversaires(); chargerWidgetAnniversaires(); }
-        else alert('Erreur : ' + d.message);
-    } catch { alert('Erreur réseau'); }
+        else {
+            document.getElementById('modal-title').textContent = 'Erreur';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">${d.message}</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button>
+                </div>
+            `;
+        }
+    } catch {
+        document.getElementById('modal-title').textContent = 'Erreur réseau';
+        document.getElementById('modal-body').innerHTML = `
+            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Impossible de contacter le serveur.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button>
+            </div>
+        `;
+    }
 }
 
 async function supprimerAnniversaire(id) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    document.getElementById('modal-title').textContent = '🎂 Confirmation';
+    document.getElementById('modal-title').textContent = 'Confirmation de suppression';
     document.getElementById('modal-body').innerHTML = `
         <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer cet anniversaire ? Cette action est irréversible.</p>
         <div class="modal-actions">
@@ -176,7 +226,15 @@ async function supprimerAnniversaire(id) {
             await fetch(`/api/anniversaires/${id}?userId=${user.userId}`, { method: 'DELETE' });
             chargerModalAnniversaires();
             chargerWidgetAnniversaires();
-        } catch { alert('Erreur réseau'); }
+        } catch {
+            document.getElementById('modal-title').textContent = 'Erreur réseau';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Impossible de contacter le serveur.</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button>
+                </div>
+            `;
+        }
     };
     document.getElementById('btn-anniv-non').onclick = () => chargerModalAnniversaires();
 }

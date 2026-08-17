@@ -43,8 +43,8 @@ async function chargerWidgetTaches() {
         if (!d.success) return;
         const today = _todayStr();
         const taches = d.taches;
-        const duJour    = taches.filter(t => !t.faite && t.date && t.date.split('T')[0] === today);
-        const avenir    = taches.filter(t => !t.faite && t.date && t.date.split('T')[0] > today).slice(0, 3);
+        const duJour     = taches.filter(t => !t.faite && t.date && t.date.split('T')[0] === today);
+        const avenir     = taches.filter(t => !t.faite && t.date && t.date.split('T')[0] > today).slice(0, 3);
         const flottantes = taches.filter(t => !t.faite && !t.date).slice(0, 2);
 
         if (duJour.length === 0 && avenir.length === 0 && flottantes.length === 0) {
@@ -98,7 +98,7 @@ async function chargerModalTaches() {
     const flott    = taches.filter(t => !t.date && !t.faite);
     const termines = taches.filter(t => t.faite).slice(0, 5);
 
-    document.getElementById('modal-title').textContent = '✅ Tâches du jour';
+    document.getElementById('modal-title').textContent = 'Tâches du jour';
     document.getElementById('modal-body').innerHTML = `
         <div style="margin-bottom:16px">
             <div class="form-row">
@@ -162,7 +162,7 @@ async function ajouterTache() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const titre = document.getElementById('t-titre').value.trim();
     if (!titre) {
-        document.getElementById('modal-title').textContent = '✅ Tâches du jour';
+        document.getElementById('modal-title').textContent = 'Champ manquant';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Le titre est obligatoire.</p>
             <div class="modal-actions">
@@ -186,6 +186,7 @@ async function ajouterTache() {
         const d = await r.json();
         if (d.success) { chargerModalTaches(); chargerWidgetTaches(); }
         else {
+            document.getElementById('modal-title').textContent = 'Erreur';
             document.getElementById('modal-body').innerHTML = `
                 <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur : ${d.message}</p>
                 <div class="modal-actions">
@@ -193,6 +194,7 @@ async function ajouterTache() {
                 </div>`;
         }
     } catch {
+        document.getElementById('modal-title').textContent = 'Erreur réseau';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur réseau.</p>
             <div class="modal-actions">
@@ -213,7 +215,7 @@ async function modifierTache(id) {
     const heureVal  = t.heure ? t.heure.slice(0, 5)  : '';
     const rappelVal = t.rappel_avant || 0;
 
-    document.getElementById('modal-title').textContent = '✏️ Modifier la tâche';
+    document.getElementById('modal-title').textContent = 'Modifier la tâche';
     document.getElementById('modal-body').innerHTML = `
         <div style="margin-bottom:16px">
             <div class="form-row">
@@ -244,6 +246,7 @@ async function sauvegarderModifTache(id) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const titre = document.getElementById('t-titre-edit').value.trim();
     if (!titre) {
+        document.getElementById('modal-title').textContent = 'Champ manquant';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Le titre est obligatoire.</p>
             <div class="modal-actions">
@@ -267,6 +270,7 @@ async function sauvegarderModifTache(id) {
         const d = await r.json();
         if (d.success) { chargerModalTaches(); chargerWidgetTaches(); }
         else {
+            document.getElementById('modal-title').textContent = 'Erreur';
             document.getElementById('modal-body').innerHTML = `
                 <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur : ${d.message}</p>
                 <div class="modal-actions">
@@ -274,6 +278,7 @@ async function sauvegarderModifTache(id) {
                 </div>`;
         }
     } catch {
+        document.getElementById('modal-title').textContent = 'Erreur réseau';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur réseau.</p>
             <div class="modal-actions">
@@ -292,6 +297,7 @@ async function cocherTache(id) {
         chargerModalTaches();
         chargerWidgetTaches();
     } catch {
+        document.getElementById('modal-title').textContent = 'Erreur réseau';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur réseau.</p>
             <div class="modal-actions">
@@ -302,7 +308,7 @@ async function cocherTache(id) {
 
 async function supprimerTache(id) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    document.getElementById('modal-title').textContent = '✅ Confirmation';
+    document.getElementById('modal-title').textContent = 'Confirmation de suppression';
     document.getElementById('modal-body').innerHTML = `
         <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer cette tâche ? Cette action est irréversible.</p>
         <div class="modal-actions">
@@ -316,6 +322,7 @@ async function supprimerTache(id) {
             chargerModalTaches();
             chargerWidgetTaches();
         } catch {
+            document.getElementById('modal-title').textContent = 'Erreur réseau';
             document.getElementById('modal-body').innerHTML = `
                 <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur réseau.</p>
                 <div class="modal-actions">

@@ -5,11 +5,11 @@ const JOURS_MODAL = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 async function openModal(type) {
     document.getElementById('overlay').classList.add('on');
     const titres = {
-        meteo:'🌤️ Météo du jour', priere:'🙏 Prière du jour',
-        taches:'✅ Tâches du jour', rdv:'📅 Rendez-vous',
-        planning:'📋 Mon Planning', anniversaires:'🎂 Anniversaires',
-        profil:'👤 Mon Profil', admin:'⚙️ Administration',
-        cycle:'🌸 Suivi du cycle', rendezvous:'🩺 Rendez-vous médicaux'
+        meteo:'Météo du jour', priere:'Prière du jour',
+        taches:'Tâches du jour', rdv:'Rendez-vous',
+        planning:'Mon Planning', anniversaires:'Anniversaires',
+        profil:'Mon Profil', admin:'Administration',
+        cycle:'Suivi du cycle', rendezvous:'Rendez-vous médicaux'
     };
     document.getElementById('modal-title').textContent = titres[type]||type;
 
@@ -115,7 +115,7 @@ async function openModal(type) {
         if (typeof ouvrirPlanningModal === 'function') {
             await ouvrirPlanningModal();
         } else {
-            document.getElementById('modal-body').innerHTML = '<p style="color:red">❌ Module planning non chargé.</p>';
+            document.getElementById('modal-body').innerHTML = '<p style="color:red">Module planning non chargé.</p>';
         }
 
     } else if (type === 'profil') {
@@ -245,7 +245,7 @@ async function openModal(type) {
             await afficherSectionWidgets();
 
         } catch {
-            document.getElementById('modal-body').innerHTML = '<p>❌ Erreur de chargement du profil.</p>';
+            document.getElementById('modal-body').innerHTML = '<p>Erreur de chargement du profil.</p>';
         }
 
     } else if (type === 'admin') {
@@ -312,7 +312,13 @@ function afficherDetailJour(i) {
 
 function lirePriereModal(e) {
     if (!('speechSynthesis' in window)) {
-        alert("La synthèse vocale n'est pas supportée par votre navigateur.");
+        document.getElementById('modal-title').textContent = 'Non supporté';
+        document.getElementById('modal-body').innerHTML = `
+            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">La synthèse vocale n'est pas supportée par votre navigateur.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="openModal('priere')">Retour</button>
+            </div>
+        `;
         return;
     }
 
@@ -361,8 +367,8 @@ function lirePriereModal(e) {
     }
 }
 
-function closeModal() { 
+function closeModal() {
     window.speechSynthesis?.cancel();
-    document.getElementById('overlay').classList.remove('on'); 
+    document.getElementById('overlay').classList.remove('on');
 }
 function closeOutside(e) { if(e.target===document.getElementById('overlay')) closeModal(); }

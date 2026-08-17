@@ -115,12 +115,6 @@ async function chargerWidgetPlanning() {
     }
   });
 
-  html += `<div style="text-align:center;margin-top:6px">
-    <span onclick="ouvrirPlanningModal()" style="font-size:12px;color:#6c63ff;cursor:pointer">
-      Cliquez pour voir le planning
-    </span>
-  </div>`;
-
   conteneur.innerHTML = html;
 }
 
@@ -134,7 +128,7 @@ let _planningEntries     = [];
 async function ouvrirPlanningModal() {
   _planningMoisActuel  = new Date().getMonth();
   _planningAnneeActuel = new Date().getFullYear();
-  document.getElementById('modal-title').textContent = '📋 Planning';
+  document.getElementById('modal-title').textContent = 'Planning';
   await _afficherCalendrierPlanning();
 }
 
@@ -149,7 +143,7 @@ async function _afficherCalendrierPlanning() {
   try {
     _planningEntries = await _fetchPlanningMois(_planningAnneeActuel, _planningMoisActuel + 1, token);
   } catch {
-    body.innerHTML = '<p style="color:red">Erreur de chargement.</p>';
+    body.innerHTML = '<p style="color:#ef4444">Erreur de chargement.</p>';
     return;
   }
 
@@ -162,10 +156,10 @@ async function _afficherCalendrierPlanning() {
     map[d].push(e);
   });
 
-  const today      = new Date();
+  const today       = new Date();
   const premierJour = new Date(_planningAnneeActuel, _planningMoisActuel, 1).getDay();
-  const nbJours    = new Date(_planningAnneeActuel, _planningMoisActuel + 1, 0).getDate();
-  const offset     = premierJour === 0 ? 6 : premierJour - 1;
+  const nbJours     = new Date(_planningAnneeActuel, _planningMoisActuel + 1, 0).getDate();
+  const offset      = premierJour === 0 ? 6 : premierJour - 1;
 
   const legendeHTML = Object.entries(SHIFT_CONFIG).map(([type, s]) =>
     `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;
@@ -242,8 +236,8 @@ async function _planningMoisSuiv() {
 
 function _ouvrirDetailJourPlanning(jour) {
   const body = document.getElementById('modal-body');
-  const dateStr = `${_planningAnneeActuel}-${String(_planningMoisActuel+1).padStart(2,'0')}-${String(jour).padStart(2,'0')}`;
-  const dateObj = new Date(_planningAnneeActuel, _planningMoisActuel, jour);
+  const dateStr   = `${_planningAnneeActuel}-${String(_planningMoisActuel+1).padStart(2,'0')}-${String(jour).padStart(2,'0')}`;
+  const dateObj   = new Date(_planningAnneeActuel, _planningMoisActuel, jour);
   const dateLabel = dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
   const entriesJour = _planningEntries.filter(e => {
@@ -254,7 +248,7 @@ function _ouvrirDetailJourPlanning(jour) {
   let html = `
     <div>
       <div style="font-size:16px;font-weight:700;margin-bottom:16px;color:#1f2937">
-        📋 ${dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}
+        ${dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}
       </div>`;
 
   if (entriesJour.length === 0) {
@@ -296,7 +290,7 @@ function _ouvrirDetailJourPlanning(jour) {
         <button onclick="_afficherCalendrierPlanning()" style="
             padding:11px 16px;background:#f3f4f6;color:#374151;
             border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600">
-          ← Retour
+          Retour
         </button>
       </div>
     </div>`;
@@ -317,8 +311,8 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
     } catch { entry = {}; }
   }
 
-  const dateVal    = entry.date_str || entry.date?.slice(0,10) || dateDefaut || '';
-  const rappelVal  = entry.rappel_avant ?? 120;
+  const dateVal   = entry.date_str || entry.date?.slice(0,10) || dateDefaut || '';
+  const rappelVal = entry.rappel_avant ?? 120;
   const typesOptions = Object.keys(SHIFT_CONFIG).map(t =>
     `<option value="${t}" ${entry.type === t ? 'selected' : ''}>${t}</option>`
   ).join('');
@@ -326,7 +320,7 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
   body.innerHTML = `
     <div>
       <div style="font-size:16px;font-weight:700;margin-bottom:16px;color:#1f2937">
-        ${id ? '✏️ Modifier une entrée' : '+ Nouvelle entrée'}
+        ${id ? 'Modifier une entrée' : 'Nouvelle entrée'}
       </div>
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Date</label>
@@ -382,7 +376,7 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
         <button onclick="_afficherCalendrierPlanning()" style="
             padding:13px 16px;background:#f3f4f6;color:#374151;
             border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">
-          ← Retour
+          Retour
         </button>
       </div>
     </div>`;
@@ -417,12 +411,12 @@ async function _sauvegarderEntreePlanning(id) {
     await _afficherCalendrierPlanning();
     chargerWidgetPlanning();
   } catch {
-    if (msg) msg.textContent = '❌ Erreur lors de la sauvegarde.';
+    if (msg) msg.textContent = 'Erreur lors de la sauvegarde.';
   }
 }
 
 async function _supprimerEntreePlanning(id, dateStr) {
-  document.getElementById('modal-title').textContent = '📋 Confirmation';
+  document.getElementById('modal-title').textContent = 'Confirmation de suppression';
   document.getElementById('modal-body').innerHTML = `
     <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer cette entrée ? Cette action est irréversible.</p>
     <div class="modal-actions">
@@ -441,6 +435,7 @@ async function _supprimerEntreePlanning(id, dateStr) {
       await _afficherCalendrierPlanning();
       chargerWidgetPlanning();
     } catch {
+      document.getElementById('modal-title').textContent = 'Erreur';
       document.getElementById('modal-body').innerHTML = `
         <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
         <div class="modal-actions">

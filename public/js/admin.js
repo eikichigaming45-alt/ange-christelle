@@ -67,11 +67,11 @@ function _adminModal(title, bodyHTML) {
     document.getElementById('overlay').classList.add('on');
 }
 
-function _adminErreur(message, retourFn) {
-    _adminModal('⚠️ Erreur', `
+function _adminErreur(message) {
+    _adminModal('Erreur', `
         <p style="color:#ef4444;font-size:15px;margin-bottom:20px">${message}</p>
         <div class="modal-actions">
-            <button class="btn-cancel" onclick="${retourFn}">Fermer</button>
+            <button class="btn-cancel" onclick="closeModal()">Fermer</button>
         </div>
     `);
 }
@@ -81,7 +81,7 @@ async function resetMdpUser(userId, btn) {
     const input = document.getElementById('reset-mdp-' + userId);
     const nouveauMdp = input.value.trim();
     if (!nouveauMdp) {
-        _adminModal('🔑 Mot de passe', `
+        _adminModal('Mot de passe requis', `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Entrez un nouveau mot de passe.</p>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal()">Fermer</button>
@@ -100,10 +100,10 @@ async function resetMdpUser(userId, btn) {
             btn.textContent = '✅';
             setTimeout(() => btn.textContent = '🔑 MDP', 2000);
         } else {
-            _adminErreur('Erreur : ' + d.message, 'closeModal()');
+            _adminErreur('Erreur : ' + d.message);
         }
     } catch {
-        _adminErreur('Erreur réseau.', 'closeModal()');
+        _adminErreur('Erreur réseau.');
     }
 }
 
@@ -111,7 +111,7 @@ async function toggleRole(userId, roleActuel, btn) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const newRole = roleActuel === 'admin' ? 'user' : 'admin';
 
-    _adminModal('⚙️ Modification du rôle', `
+    _adminModal('Modification du rôle', `
         <p style="color:#333;font-size:15px;margin-bottom:20px">Changer ce compte en rôle <strong>"${newRole}"</strong> ?</p>
         <div class="modal-actions">
             <button class="btn-save" id="btn-role-oui">Confirmer</button>
@@ -128,9 +128,9 @@ async function toggleRole(userId, roleActuel, btn) {
             const d = await r.json();
             closeModal();
             if (d.success) chargerAdminUsers();
-            else _adminErreur('Erreur : ' + d.message, 'closeModal()');
+            else _adminErreur('Erreur : ' + d.message);
         } catch {
-            _adminErreur('Erreur réseau.', 'closeModal()');
+            _adminErreur('Erreur réseau.');
         }
     };
 }
@@ -138,8 +138,8 @@ async function toggleRole(userId, roleActuel, btn) {
 async function supprimerUser(userId, username) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
 
-    _adminModal('🗑️ Confirmation de suppression', `
-        <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer définitivement <strong>"${username}"</strong> ? Cette action est irréversible.</p>
+    _adminModal('Confirmation de suppression', `
+        <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer <strong>"${username}"</strong> ? Cette action est irréversible.</p>
         <div class="modal-actions">
             <button class="btn-delete" id="btn-suppr-oui">Confirmer</button>
             <button class="btn-cancel" onclick="closeModal()">Annuler</button>
@@ -158,10 +158,10 @@ async function supprimerUser(userId, username) {
                 document.getElementById('ucard-' + userId)?.remove();
                 chargerAdminStats();
             } else {
-                _adminErreur('Erreur : ' + d.message, 'closeModal()');
+                _adminErreur('Erreur : ' + d.message);
             }
         } catch {
-            _adminErreur('Erreur réseau.', 'closeModal()');
+            _adminErreur('Erreur réseau.');
         }
     };
 }

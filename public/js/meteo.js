@@ -48,7 +48,7 @@ async function chargerMeteo(lat, lon, nomVille) {
                 </div>
                 <div class="meteo-7j">
                     ${d.daily.time.slice(0, 5).map((t, i) => {
-                        const jour = i === 0 ? 'Auj.' : JOURS_COURT[new Date(t).getDay()];
+                        const jour = i === 0 ? 'Auj.' : JOURS_COURT[new Date(t + 'T12:00:00').getDay()];
                         const iMax = Math.round(d.daily.temperature_2m_max[i]);
                         const iMin = Math.round(d.daily.temperature_2m_min[i]);
                         const iIcon = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
@@ -90,15 +90,39 @@ async function rechercherVille() {
             const res = d.results[0];
             await chargerMeteo(res.latitude, res.longitude, res.name);
             closeModal();
-        } else { alert('Ville introuvable.'); }
-    } catch { alert('Erreur de recherche.'); }
+        } else {
+            document.getElementById('modal-title').textContent = 'Ville introuvable';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Aucune ville trouvée pour cette recherche.</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+                </div>
+            `;
+        }
+    } catch {
+        document.getElementById('modal-title').textContent = 'Erreur réseau';
+        document.getElementById('modal-body').innerHTML = `
+            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Impossible de contacter le service de recherche.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+            </div>
+        `;
+    }
 }
 
 function geoLocaliser() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             pos => { chargerMeteo(pos.coords.latitude, pos.coords.longitude, 'Ma position'); closeModal(); },
-            () => alert('Géolocalisation refusée.')
+            () => {
+                document.getElementById('modal-title').textContent = 'Géolocalisation refusée';
+                document.getElementById('modal-body').innerHTML = `
+                    <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Autorisation de localisation refusée par le navigateur.</p>
+                    <div class="modal-actions">
+                        <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+                    </div>
+                `;
+            }
         );
     }
 }

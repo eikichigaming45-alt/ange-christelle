@@ -13,7 +13,8 @@ const Rendezvous = (() => {
   }
 
   function formatDateHeure(dt) {
-    return new Date(dt).toLocaleDateString('fr-FR', {
+    const d = new Date(dt);
+    return d.toLocaleDateString('fr-FR', {
       day: '2-digit', month: 'long', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
@@ -124,7 +125,7 @@ const Rendezvous = (() => {
     const { label, cls } = joursRestants(rdv.date_rdv);
     const icon = TYPE_ICONS[rdv.type_rdv] || '📋';
 
-    document.getElementById('modal-title').textContent = `${icon} ${rdv.titre}`;
+    document.getElementById('modal-title').textContent = rdv.titre;
     document.getElementById('modal-body').innerHTML = `
       <div class="rdv-detail">
         <div class="rdv-detail-badge ${cls}">${label}</div>
@@ -179,7 +180,7 @@ const Rendezvous = (() => {
     const now = formatDateTimeInput(new Date());
     const rappelVal = rdv?.rappel_avant || 0;
 
-    document.getElementById('modal-title').textContent = rdv ? '✏️ Modifier le rendez-vous' : '🩺 Nouveau rendez-vous';
+    document.getElementById('modal-title').textContent = rdv ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous';
     document.getElementById('modal-body').innerHTML = `
       <div class="modal-rdv-form">
         <label>Motif / Titre *</label>
@@ -205,7 +206,7 @@ const Rendezvous = (() => {
 
         <label>Rappel avant le rendez-vous</label>
         <select id="rdv-rappel">
-          <option value="0"    ${rappelVal===0    ? 'selected' : ''}>Pas de rappel anticipé</option>
+          <option value="0"    ${rappelVal===0    ? 'selected' : ''}>Pas de rappel</option>
           <option value="15"   ${rappelVal===15   ? 'selected' : ''}>15 min avant</option>
           <option value="30"   ${rappelVal===30   ? 'selected' : ''}>30 min avant</option>
           <option value="60"   ${rappelVal===60   ? 'selected' : ''}>1h avant</option>
@@ -234,8 +235,24 @@ const Rendezvous = (() => {
     const notes        = document.getElementById('rdv-notes').value.trim();
     const rappel_avant = parseInt(document.getElementById('rdv-rappel').value) || 0;
 
-    if (!titre)        return alert('Le motif est obligatoire.');
-    if (!date_rdv_raw) return alert('La date est obligatoire.');
+    if (!titre) {
+      document.getElementById('modal-title').textContent = 'Champ manquant';
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Le motif est obligatoire.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="Rendezvous.ouvrirModal(${id || 'null'})">Retour</button>
+        </div>`;
+      return;
+    }
+    if (!date_rdv_raw) {
+      document.getElementById('modal-title').textContent = 'Champ manquant';
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">La date est obligatoire.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="Rendezvous.ouvrirModal(${id || 'null'})">Retour</button>
+        </div>`;
+      return;
+    }
 
     const date_rdv = localInputToISO(date_rdv_raw);
     const method = id ? 'PUT' : 'POST';
@@ -250,14 +267,19 @@ const Rendezvous = (() => {
       closeModal();
       charger();
     } catch {
-      alert('Erreur lors de la sauvegarde.');
+      document.getElementById('modal-title').textContent = 'Erreur';
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="Rendezvous.ouvrirModal(${id || 'null'})">Retour</button>
+        </div>`;
     }
   }
 
   // ── Supprimer ────────────────────────────────────────────
 
   async function supprimer(id) {
-    document.getElementById('modal-title').textContent = '🩺 Confirmation';
+    document.getElementById('modal-title').textContent = 'Confirmation de suppression';
     document.getElementById('modal-body').innerHTML = `
       <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer ce rendez-vous ? Cette action est irréversible.</p>
       <div class="modal-actions">
@@ -271,7 +293,14 @@ const Rendezvous = (() => {
         await fetch(`/api/rendezvous/${id}`, { method: 'DELETE', headers: authHeaders() });
         closeModal();
         charger();
-      } catch { alert('Erreur lors de la suppression.'); }
+      } catch {
+        document.getElementById('modal-title').textContent = 'Erreur';
+        document.getElementById('modal-body').innerHTML = `
+          <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+          </div>`;
+      }
     };
     document.getElementById('btn-rdv-non').onclick = () => closeModal();
   }
@@ -306,7 +335,7 @@ const Rendezvous = (() => {
         `;
       };
 
-      document.getElementById('modal-title').textContent = '🩺 Tous mes rendez-vous';
+      document.getElementById('modal-title').textContent = 'Tous mes rendez-vous';
       document.getElementById('modal-body').innerHTML = `
         <div class="rdv-liste">
           ${prochains.length > 0
@@ -322,7 +351,12 @@ const Rendezvous = (() => {
       `;
       document.getElementById('overlay').classList.add('on');
     } catch {
-      alert('Erreur de chargement.');
+      document.getElementById('modal-title').textContent = 'Erreur';
+      document.getElementById('modal-body').innerHTML = `
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur de chargement des rendez-vous.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+        </div>`;
     }
   }
 
