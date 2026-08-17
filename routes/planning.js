@@ -37,7 +37,7 @@ router.get('/jour', authMiddleware, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT *, TO_CHAR(date, 'YYYY-MM-DD') as date_str FROM planning
-            WHERE user_id = \\$1 AND date = \\$2
+            WHERE user_id = \$1 AND TO_CHAR(date, 'YYYY-MM-DD') = \$2
             ORDER BY heure_debut ASC
         `, [req.user.id, date]);
         res.json({ success: true, planning: result.rows });
