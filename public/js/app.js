@@ -9,14 +9,14 @@ let dragActif = false;
 let cropperInstance = null;
 
 const WIDGETS_DEF = [
-    { id:'meteo',         label:'Météo du jour',    icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',                      foot:'Cliquez pour les détails',       refresh:true },
-    { id:'priere',        label:'Prière du jour',   icon:'🙏',  cls:'w-priere',        desc:'Chargement...',                      foot:'Cliquez pour la version complète',refresh:true },
+    { id:'meteo',         label:'Météo du jour',    icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',                      foot:'Cliquez pour les détails',        refresh:true },
+    { id:'priere',        label:'Prière du jour',   icon:'🙏',  cls:'w-priere',        desc:'Chargement...',                      foot:'Cliquez pour la version complète', refresh:true },
     { id:'taches',        label:'Tâches du jour',   icon:'✅',  cls:'w-taches',        desc:'Chargement...',                      foot:'Cliquez pour gérer' },
-    { id:'cycle',         label:'Suivi du cycle',   icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',                      foot:'Cycle féminin & fertilité',      refresh:true },
-    { id:'rendezvous',    label:'Rendez-vous',      icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',                      foot:'Consultations & santé',          refresh:true },
-    { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'Pas de garde aujourd\'hui',          foot:'Cliquez pour voir le planning' },
+    { id:'cycle',         label:'Suivi du cycle',   icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',                      foot:'Cycle féminin & fertilité',        refresh:true },
+    { id:'rendezvous',    label:'Rendez-vous',      icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',                      foot:'Consultations & santé',            refresh:true },
+    { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'Pas de garde aujourd\'hui',          foot:'' },
     { id:'anniversaires', label:'Anniversaires',     icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',                      foot:'Cliquez pour gérer' },
-    { id:'profil',        label:'Mon Profil',        icon:'👤',  cls:'w-profil',        desc:'Cliquez pour modifier votre profil', foot:'Modifier' },
+    { id:'profil',        label:'Mon Profil',        icon:'👤',  cls:'w-profil',        desc:'',                                   foot:'' },
 ];
 
 const codes = {
@@ -87,14 +87,14 @@ async function showApp() {
     document.body.style.alignItems = 'stretch';
     document.getElementById('app').style.display = 'flex';
     afficherDate();
-    afficherVersion(); // ✅ Version automatique
+    afficherVersion();
     await buildGrid();
     chargerPriere();
     chargerMeteoAuto();
     chargerProfilHeader();
     chargerWidgetTaches();
     chargerWidgetAnniversaires();
-	chargerWidgetPlanning();
+    chargerWidgetPlanning();
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
     enregistrerServiceWorker();
@@ -112,9 +112,9 @@ function actualiser() {
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
 }
 
-function logout() { 
-    localStorage.removeItem('myvibe_user'); 
-    window.location.reload(); 
+function logout() {
+    localStorage.removeItem('myvibe_user');
+    window.location.reload();
 }
 
 function afficherDate() {
