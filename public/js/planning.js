@@ -56,9 +56,9 @@ async function _fetchEmployeurs(token) {
     if (!res.ok) throw new Error();
     const data = await res.json();
     const noms = Array.isArray(data) ? data.map(e => e.nom).filter(Boolean) : [];
-    return noms.length > 0 ? noms : ['EPSM Georges Daumezon'];
+    return noms.length > 0 ? noms : [];
   } catch {
-    return ['EPSM Georges Daumezon'];
+    return [];
   }
 }
 
@@ -360,15 +360,18 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
   const employeurs   = await _fetchEmployeurs(token);
   const dateVal      = entry.date_str || entry.date?.slice(0,10) || dateDefaut || '';
   const rappelVal    = entry.rappel_avant ?? 120;
-  const employeurVal = entry.employeur || employeurs[0] || '';
+  const employeurVal = entry.employeur || '';
 
   const typesOptions = Object.keys(SHIFT_CONFIG).map(t =>
     `<option value="${t}" ${entry.type === t ? 'selected' : ''}>${t}</option>`
   ).join('');
 
-  const datalistHTML = `<datalist id="pl-employeurs-list">
-    ${employeurs.map(e => `<option value="${e}">`).join('')}
-  </datalist>`;
+  // ── SELECT employeur natif (fiable sur mobile) ─────────────────────────────
+  const employeurOptions = employeurs.length > 0
+    ? employeurs.map(e =>
+        `<option value="${e}" ${employeurVal === e ? 'selected' : ''}>${e}</option>`
+      ).join('')
+    : `<option value="">Aucun employeur enregistré</option>`;
 
   body.innerHTML = `
     <div>
@@ -400,13 +403,13 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
       </div>
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">
-          Employeur <span style="color:#9ca3af;font-weight:400;font-size:10px">(suggestions basées sur vos entrées)</span>
+          Employeur
         </label>
-        <input type="text" id="pl-employeur" value="${employeurVal}"
-          list="pl-employeurs-list"
-          placeholder="Nom de l'employeur"
-          style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
-        ${datalistHTML}
+        <select id="pl-employeur"
+          style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                 font-size:14px;box-sizing:border-box;background:#fff">
+          ${employeurOptions}
+        </select>
       </div>
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Adresse</label>
@@ -447,11 +450,11 @@ async function _sauvegarderEntreePlanning(id) {
   const body = {
     date        : document.getElementById('pl-date').value,
     type        : document.getElementById('pl-type').value,
-    heure_debut : document.getElementById('pl-debut').value         || null,
-    heure_fin   : document.getElementById('pl-fin').value           || null,
+    heure_debut : document.getElementById('pl-debut').value            || null,
+    heure_fin   : document.getElementById('pl-fin').value              || null,
     employeur   : document.getElementById('pl-employeur').value.trim() || null,
-    adresse     : document.getElementById('pl-adresse').value       || null,
-    notes       : document.getElementById('pl-notes').value         || null,
+    adresse     : document.getElementById('pl-adresse').value          || null,
+    notes       : document.getElementById('pl-notes').value            || null,
     rappel_avant: parseInt(document.getElementById('pl-rappel').value) || 0,
   };
 
@@ -466,14 +469,6 @@ async function _sauvegarderEntreePlanning(id) {
       body: JSON.stringify(body)
     });
     if (!res.ok) throw new Error();
-
-    if (body.employeur) {
-      fetch('/api/planning/employeurs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ nom: body.employeur })
-      }).catch(() => {});
-    }
 
     await _afficherCalendrierPlanning();
     chargerWidgetPlanning();
@@ -507,7 +502,7 @@ async function _supprimerEntreePlanning(id, dateStr) {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store'
-      });
+            });
       await _afficherCalendrierPlanning();
       chargerWidgetPlanning();
     } catch {
@@ -614,3 +609,4 @@ async function _supprimerEmployeur(id) {
     if (m) m.textContent = 'Erreur lors de la suppression.';
   }
 }
+
