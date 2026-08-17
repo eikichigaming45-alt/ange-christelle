@@ -3,7 +3,7 @@
 async function chargerWidgetAdmin() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     if (!user?.userId || user.role !== 'admin') return;
-    const el = document.getElementById('widget-admin-content');
+    const el = document.getElementById('wc-admin');
     if (!el) return;
     try {
         const r = await fetch(`/api/admin/stats?adminId=${user.userId}`);
