@@ -28,18 +28,14 @@ const Rendezvous = (() => {
   function joursRestants(dt) {
     const aujourdhui = new Date();
     aujourdhui.setHours(0, 0, 0, 0);
-
     const rdvDate = new Date(dt);
     rdvDate.setHours(0, 0, 0, 0);
-
-    const diff  = rdvDate - aujourdhui;
-    const jours = Math.round(diff / (1000 * 60 * 60 * 24));
-
-    if (jours < 0)   return { label: 'Passé',           cls: 'rdv-passe' };
-    if (jours === 0) return { label: "Aujourd'hui !",   cls: 'rdv-today' };
-    if (jours === 1) return { label: 'Demain',           cls: 'rdv-soon'  };
-    if (jours <= 7)  return { label: `Dans ${jours}j`,  cls: 'rdv-soon'  };
-    return                  { label: `Dans ${jours}j`,  cls: 'rdv-futur' };
+    const jours = Math.round((rdvDate - aujourdhui) / (1000 * 60 * 60 * 24));
+    if (jours < 0)   return { label: 'Passé',          cls: 'rdv-passe' };
+    if (jours === 0) return { label: "Aujourd'hui !",  cls: 'rdv-today' };
+    if (jours === 1) return { label: 'Demain',          cls: 'rdv-soon'  };
+    if (jours <= 7)  return { label: `Dans ${jours}j`, cls: 'rdv-soon'  };
+    return                  { label: `Dans ${jours}j`, cls: 'rdv-futur' };
   }
 
   function formatRappel(minutes) {
@@ -79,7 +75,6 @@ const Rendezvous = (() => {
 
     const cartes = prochains.map(r => {
       const { label, cls } = joursRestants(r.date_rdv);
-      const icon = TYPE_ICONS[r.type_rdv] || '📋';
       return `
         <div class="rdv-card ${cls}" onclick="Rendezvous.ouvrirModal(${r.id})">
           <div class="rdv-card-top">
@@ -88,7 +83,7 @@ const Rendezvous = (() => {
           </div>
           <div class="rdv-card-date">${formatDateHeure(r.date_rdv)}</div>
           ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>` : ''}
-          ${r.lieu      ? `<div class="rdv-card-sub rdv-card-lieu">📍 ${r.lieu}</div>` : ''}
+          ${r.lieu      ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>` : ''}
           ${r.rappel_avant > 0 ? `<div class="rdv-card-sub">⏰ Rappel ${formatRappel(r.rappel_avant)}</div>` : ''}
         </div>
       `;
@@ -146,12 +141,10 @@ const Rendezvous = (() => {
     document.getElementById('modal-body').innerHTML = `
       <div class="modal-rdv-form">
         <label>Motif / Titre *</label>
-        <input type="text" id="rdv-titre" placeholder="Ex: Consultation annuelle"
-          value="${rdv?.titre || ''}" />
+        <input type="text" id="rdv-titre" placeholder="Ex: Consultation annuelle" value="${rdv?.titre || ''}" />
 
         <label>Date et heure *</label>
-        <input type="datetime-local" id="rdv-date"
-          value="${rdv ? formatDateTimeInput(rdv.date_rdv) : now}" />
+        <input type="datetime-local" id="rdv-date" value="${rdv ? formatDateTimeInput(rdv.date_rdv) : now}" />
 
         <label>Type de rendez-vous</label>
         <select id="rdv-type">
@@ -160,16 +153,13 @@ const Rendezvous = (() => {
         </select>
 
         <label>Praticien / Médecin</label>
-        <input type="text" id="rdv-praticien" placeholder="Nom du praticien"
-          value="${rdv?.praticien || ''}" />
+        <input type="text" id="rdv-praticien" placeholder="Nom du praticien" value="${rdv?.praticien || ''}" />
 
         <label>Lieu / Cabinet</label>
-        <input type="text" id="rdv-lieu" placeholder="Adresse ou nom du cabinet"
-          value="${rdv?.lieu || ''}" />
+        <input type="text" id="rdv-lieu" placeholder="Adresse ou nom du cabinet" value="${rdv?.lieu || ''}" />
 
         <label>Notes</label>
-        <textarea id="rdv-notes" rows="3"
-          placeholder="Documents à apporter, questions...">${rdv?.notes || ''}</textarea>
+        <textarea id="rdv-notes" rows="3" placeholder="Documents à apporter, questions...">${rdv?.notes || ''}</textarea>
 
         <label>Rappel avant le rendez-vous</label>
         <select id="rdv-rappel">
@@ -182,9 +172,7 @@ const Rendezvous = (() => {
         </select>
 
         <div class="modal-actions">
-          <button class="btn-save" onclick="Rendezvous.sauvegarder(${rdv?.id || 'null'})">
-            ${rdv ? 'Modifier' : 'Enregistrer'}
-          </button>
+          <button class="btn-save" onclick="Rendezvous.sauvegarder(${rdv?.id || 'null'})">${rdv ? 'Modifier' : 'Enregistrer'}</button>
           ${rdv ? `<button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id})">Supprimer</button>` : ''}
           <button class="btn-cancel" onclick="closeModal()">Annuler</button>
         </div>
@@ -289,8 +277,7 @@ const Rendezvous = (() => {
             ? `<div class="rdv-section-title rdv-passe-title">Passés (${passes.length})</div>${passes.map(renderLigne).join('')}`
             : ''
           }
-          <button class="btn-rdv-primary" style="margin-top:14px"
-            onclick="Rendezvous.ouvrirModal()">+ Nouveau rendez-vous</button>
+          <button class="btn-rdv-primary" style="margin-top:14px" onclick="Rendezvous.ouvrirModal()">+ Nouveau rendez-vous</button>
         </div>
       `;
       document.getElementById('overlay').classList.add('on');
@@ -298,8 +285,6 @@ const Rendezvous = (() => {
       alert('Erreur de chargement.');
     }
   }
-
-  // ── API publique ─────────────────────────────────────────
 
   return { charger, ouvrirModal, sauvegarder, supprimer, ouvrirListe };
 
