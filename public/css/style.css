@@ -253,6 +253,11 @@ input:focus{border-color:#4f46e5}
 .modal-rdv-form input,.modal-rdv-form select,.modal-rdv-form textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;font-family:inherit;margin:0;background:#fff}
 .modal-rdv-form input:focus,.modal-rdv-form select:focus,.modal-rdv-form textarea:focus{border-color:#1c7ed6}
 .modal-rdv-form textarea{resize:vertical}
+.rdv-card-actions{display:flex;gap:6px;margin-top:6px}
+.rdv-btn-edit{flex:1;padding:5px 8px;background:#e7f5ff;color:#1c7ed6;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
+.rdv-btn-edit:hover{background:#d0ebff}
+.rdv-btn-delete{flex:1;padding:5px 8px;background:#fee2e2;color:#e03131;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
+.rdv-btn-delete:hover{background:#ffc9c9}
 
 /* ==================== WIDGET METEO AMELIORE ==================== */
 .meteo-widget{display:flex;flex-direction:column;gap:10px}

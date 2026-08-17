@@ -12,6 +12,7 @@ const Rendezvous = (() => {
     };
   }
 
+  // Affichage lisible : "20 août 2026 à 20:00"
   function formatDateHeure(dt) {
     return new Date(dt).toLocaleDateString('fr-FR', {
       day: '2-digit', month: 'long', year: 'numeric',
@@ -19,10 +20,23 @@ const Rendezvous = (() => {
     });
   }
 
+  // Convertit une date DB (UTC) en valeur locale pour datetime-local
+  // sans décalage de fuseau
   function formatDateTimeInput(dt) {
     const d = new Date(dt);
     const pad = n => String(n).padStart(2, '0');
+    // On utilise les méthodes locales pour éviter le décalage UTC
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  // Convertit la valeur datetime-local (string locale) en ISO UTC correct
+  // pour l'envoi en DB sans décalage
+  function localInputToISO(val) {
+    // val = "2026-08-20T20:00" — on le parse comme heure locale
+    const [datePart, timePart] = val.split('T');
+    const [y, m, d] = datePart.split('-').map(Number);
+    const [h, min]  = timePart.split(':').map(Number);
+    return new Date(y, m - 1, d, h, min).toISOString();
   }
 
   function joursRestants(dt) {
@@ -76,7 +90,7 @@ const Rendezvous = (() => {
     const cartes = prochains.map(r => {
       const { label, cls } = joursRestants(r.date_rdv);
       return `
-        <div class="rdv-card ${cls}" onclick="Rendezvous.ouvrirModal(${r.id})">
+        <div class="rdv-card ${cls}">
           <div class="rdv-card-top">
             <span class="rdv-card-titre">${r.titre}</span>
             <span class="rdv-badge ${cls}">${label}</span>
@@ -85,6 +99,10 @@ const Rendezvous = (() => {
           ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>` : ''}
           ${r.lieu      ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>` : ''}
           ${r.rappel_avant > 0 ? `<div class="rdv-card-sub">⏰ Rappel ${formatRappel(r.rappel_avant)}</div>` : ''}
+          <div class="rdv-card-actions">
+            <button class="rdv-btn-edit"   onclick="Rendezvous.ouvrirModal(${r.id})">✏️ Modifier</button>
+            <button class="rdv-btn-delete" onclick="Rendezvous.supprimer(${r.id})">🗑️ Supprimer</button>
+          </div>
         </div>
       `;
     }).join('');
@@ -185,15 +203,18 @@ const Rendezvous = (() => {
 
   async function sauvegarder(id = null) {
     const titre        = document.getElementById('rdv-titre').value.trim();
-    const date_rdv     = document.getElementById('rdv-date').value;
+    const date_rdv_raw = document.getElementById('rdv-date').value;
     const type_rdv     = document.getElementById('rdv-type').value;
     const praticien    = document.getElementById('rdv-praticien').value.trim();
     const lieu         = document.getElementById('rdv-lieu').value.trim();
     const notes        = document.getElementById('rdv-notes').value.trim();
     const rappel_avant = parseInt(document.getElementById('rdv-rappel').value) || 0;
 
-    if (!titre)    return alert('Le motif est obligatoire.');
-    if (!date_rdv) return alert('La date est obligatoire.');
+    if (!titre)        return alert('Le motif est obligatoire.');
+    if (!date_rdv_raw) return alert('La date est obligatoire.');
+
+    // Conversion heure locale → ISO sans décalage fuseau
+    const date_rdv = localInputToISO(date_rdv_raw);
 
     const method = id ? 'PUT' : 'POST';
     const url    = id ? `/api/rendezvous/${id}` : '/api/rendezvous';
