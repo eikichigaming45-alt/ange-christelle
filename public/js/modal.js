@@ -14,60 +14,18 @@ async function openModal(type) {
     document.getElementById('modal-title').textContent = titres[type]||type;
 
     if (type === 'meteo') {
-        const d = meteoData;
-        document.getElementById('modal-body').innerHTML = d ? `
-            <div class="meteo-modal">
-                <div class="meteo-modal-top">
-                    <div class="meteo-modal-left">
-                        <div class="meteo-modal-temp">${d.temp}°</div>
-                        <div class="meteo-modal-desc">${d.icon} ${codes[d.code] || 'Variable'}</div>
-                        <div class="meteo-modal-minmax">↑ ${d.max}°  ↓ ${d.min}°</div>
-                        <div class="meteo-ville" style="margin-top:4px">📍 ${d.ville}</div>
-                    </div>
-                    <div class="meteo-modal-icon">${d.icon}</div>
-                </div>
-                <div class="meteo-badges" style="margin:12px 0">
-                    <span class="meteo-badge">💧 ${d.hum}%</span>
-                    <span class="meteo-badge">💨 ${d.vent} km/h</span>
-                    <span class="meteo-badge">🌧️ ${d.pluie}%</span>
-                </div>
-                ${d.daily ? `
-                <div class="meteo-7j" style="margin-bottom:8px">
-                    ${d.daily.time.slice(0,7).map((t, i) => {
-                        const dateObj = new Date(t + 'T12:00:00');
-                        let jsDay = dateObj.getDay();
-                        let indexJour = jsDay === 0 ? 6 : jsDay - 1;
-                        const jour = i === 0 ? 'Auj.' : JOURS_MODAL[indexJour];
-                        const iMax = Math.round(d.daily.temperature_2m_max[i]);
-                        const iMin = Math.round(d.daily.temperature_2m_min[i]);
-                        const iIcon = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
-                        return `
-                            <div class="meteo-jour ${i === 0 ? 'meteo-jour-today' : ''}"
-                                onclick="afficherDetailJour(${i})" style="cursor:pointer">
-                                <div class="meteo-jour-nom">${jour}</div>
-                                <div class="meteo-jour-icon">${iIcon}</div>
-                                <div class="meteo-jour-max">${iMax}°</div>
-                                <div class="meteo-jour-min">${iMin}°</div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                <div id="meteo-detail-jour" style="margin-bottom:12px"></div>
-                ` : ''}
+        if (typeof _ouvrirModaleMeteo === 'function') {
+            _ouvrirModaleMeteo();
+        } else {
+            document.getElementById('modal-body').innerHTML = `
+                <p>Météo non disponible.</p>
                 <div class="ville-form">
                     <input type="text" id="ville-input" placeholder="Rechercher une ville...">
                     <button onclick="rechercherVille()">OK</button>
                 </div>
                 <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
-            </div>
-        ` : `
-            <p>Météo non disponible.</p>
-            <div class="ville-form">
-                <input type="text" id="ville-input" placeholder="Rechercher une ville...">
-                <button onclick="rechercherVille()">OK</button>
-            </div>
-            <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
-        `;
+            `;
+        }
 
     } else if (type === 'priere') {
         document.getElementById('modal-body').innerHTML = priere ? `
@@ -276,38 +234,6 @@ async function openModal(type) {
     } else {
         document.getElementById('modal-body').innerHTML = '<p>En construction — disponible prochainement.</p>';
     }
-}
-
-function afficherDetailJour(i) {
-    const d = meteoData;
-    if (!d?.daily) return;
-    const t    = d.daily.time[i];
-    const date = new Date(t + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
-    const iMax   = Math.round(d.daily.temperature_2m_max[i]);
-    const iMin   = Math.round(d.daily.temperature_2m_min[i]);
-    const iIcon  = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
-    const iPluie = d.daily.precipitation_probability_max?.[i] || 0;
-    const desc   = codes[d.daily.weather_code[i]] || 'Variable';
-
-    document.querySelectorAll('.meteo-jour').forEach((el, idx) => {
-        el.classList.toggle('meteo-jour-selected', idx === i);
-    });
-
-    document.getElementById('meteo-detail-jour').innerHTML = `
-        <div class="meteo-detail-jour">
-            <div class="meteo-detail-jour-top">
-                <div>
-                    <div class="meteo-detail-jour-date">${date}</div>
-                    <div class="meteo-detail-jour-desc">${iIcon} ${desc}</div>
-                    <div class="meteo-detail-jour-temp">↑ ${iMax}°  ↓ ${iMin}°</div>
-                </div>
-                <div style="font-size:48px;line-height:1">${iIcon}</div>
-            </div>
-            <div class="meteo-badges" style="margin-top:8px">
-                <span class="meteo-badge">🌧️ Précipitations : ${iPluie}%</span>
-            </div>
-        </div>
-    `;
 }
 
 function lirePriereModal(e) {
