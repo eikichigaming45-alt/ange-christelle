@@ -25,8 +25,9 @@ function _planningAuth() {
 }
 
 async function _fetchPlanningMois(annee, mois, token) {
-  const res  = await fetch(`/api/planning?annee=${annee}&mois=${mois}`, {
-    headers: { Authorization: `Bearer ${token}` }
+  const res  = await fetch(`/api/planning?annee=${annee}&mois=${mois}&_t=${Date.now()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store'
   });
   const data = await res.json();
   return Array.isArray(data) ? data : [];
@@ -49,7 +50,8 @@ function _optionsRappelPlanning(selected = 120) {
 async function _fetchEmployeurs(token) {
   try {
     const res = await fetch('/api/planning/employeurs', {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store'
     });
     if (!res.ok) throw new Error();
     const data = await res.json();
@@ -346,7 +348,10 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
   let entry = {};
   if (id) {
     try {
-      const res  = await fetch(`/api/planning/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res  = await fetch(`/api/planning/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store'
+      });
       const data = await res.json();
       entry = data.entry || data || {};
     } catch { entry = {}; }
@@ -462,7 +467,6 @@ async function _sauvegarderEntreePlanning(id) {
     });
     if (!res.ok) throw new Error();
 
-    // ── Auto-enregistre l'employeur dans la table dédiée ──────────────────
     if (body.employeur) {
       fetch('/api/planning/employeurs', {
         method: 'POST',
@@ -482,9 +486,17 @@ async function _supprimerEntreePlanning(id, dateStr) {
   document.getElementById('modal-title').textContent = 'Confirmation de suppression';
   document.getElementById('modal-body').innerHTML = `
     <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer cette entrée ? Cette action est irréversible.</p>
-    <div class="modal-actions">
-      <button class="btn-delete" id="btn-planning-oui">Confirmer</button>
-      <button class="btn-cancel" id="btn-planning-non">Annuler</button>
+    <div style="display:flex;gap:8px">
+      <button id="btn-planning-oui" style="
+          flex:1;padding:13px;background:#ef4444;color:white;
+          border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
+        Confirmer
+      </button>
+      <button id="btn-planning-non" style="
+          flex:1;padding:13px;background:#f3f4f6;color:#374151;
+          border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
+        Annuler
+      </button>
     </div>
   `;
   document.getElementById('overlay').classList.add('on');
@@ -493,7 +505,8 @@ async function _supprimerEntreePlanning(id, dateStr) {
     try {
       await fetch(`/api/planning/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store'
       });
       await _afficherCalendrierPlanning();
       chargerWidgetPlanning();
@@ -515,9 +528,10 @@ async function _ouvrirGestionEmployeurs() {
   let employeurs = [];
   try {
     const res = await fetch('/api/planning/employeurs', {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store'
     });
-    employeurs = await res.json(); // [{ id, nom }, ...]
+    employeurs = await res.json();
   } catch { employeurs = []; }
 
   const liste = employeurs.length > 0
@@ -575,7 +589,8 @@ async function _ajouterEmployeur() {
     const res = await fetch('/api/planning/employeurs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ nom })
+      body: JSON.stringify({ nom }),
+      cache: 'no-store'
     });
     if (!res.ok) throw new Error();
     await _ouvrirGestionEmployeurs();
@@ -590,7 +605,8 @@ async function _supprimerEmployeur(id) {
   try {
     await fetch(`/api/planning/employeurs/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store'
     });
     await _ouvrirGestionEmployeurs();
   } catch {
