@@ -188,10 +188,14 @@ async function _afficherCalendrierPlanning() {
   }
   for (let j = 1; j <= nbJours; j++) {
     const isToday = (j === today.getDate() && _planningMoisActuel === today.getMonth() && _planningAnneeActuel === today.getFullYear());
-    const entriesJour = map[j] || [];
-    const e0 = entriesJour[0];
+        const entriesJour = map[j] || [];
+    const hasPriorite = entriesJour.some(e => TYPES_PRIORITE.includes(e.type));
+    const e0 = hasPriorite
+        ? entriesJour.find(e => TYPES_PRIORITE.includes(e.type))
+        : entriesJour[0];
     const s  = e0 ? (SHIFT_CONFIG[e0.type] || { emoji: '📋', couleur: '#eee' }) : null;
-    const plus = entriesJour.length > 1 ? `<div style="font-size:9px;color:#666">+${entriesJour.length - 1}</div>` : '';
+    const autresCount = entriesJour.length - 1;
+    const plus = autresCount > 0 ? `<div style="font-size:9px;color:#666">+${autresCount}</div>` : '';
 
     cellules += `
       <div onclick="_ouvrirDetailJourPlanning(${j})" style="
