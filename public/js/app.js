@@ -92,7 +92,7 @@ async function showApp() {
     chargerPriere();
     chargerMeteoAuto();
     chargerProfilHeader();
-    chargerWidgetTaches();
+    setTimeout(() => chargerWidgetTaches(), 300);
     chargerWidgetAnniversaires();
     chargerWidgetPlanning();
     if (typeof Cycle !== 'undefined') Cycle.charger();
