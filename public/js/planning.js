@@ -17,6 +17,8 @@ const MOIS_PLANNING  = ['Janvier','Février','Mars','Avril','Mai','Juin',
 const MOIS_COURT     = ['jan','fév','mar','avr','mai','juin',
                         'juil','août','sep','oct','nov','déc'];
 
+const TYPES_PRIORITE = ['Mission', 'Nuit'];
+
 function _planningAuth() {
   const user = JSON.parse(localStorage.getItem('myvibe_user'));
   return { user, token: user?.token };
@@ -76,7 +78,6 @@ async function chargerWidgetPlanning() {
     return;
   }
 
-  // ── CORRECTION : on stocke TOUTES les entrées par jour (tableau) ──
   const map = {};
   entries.forEach(e => {
     const raw = e.date_str || e.date?.slice(0, 10);
@@ -93,11 +94,17 @@ async function chargerWidgetPlanning() {
                             : `${nomJour} ${obj.getDate()} ${MOIS_COURT[obj.getMonth()]}`;
 
     if (entries_jour.length > 0) {
-      entries_jour.forEach((entry, idx) => {
+      // Si y'a une Mission ou Nuit → on masque les entrées de repos
+      const hasPriorite  = entries_jour.some(e => TYPES_PRIORITE.includes(e.type));
+      const aAfficher    = hasPriorite
+        ? entries_jour.filter(e => TYPES_PRIORITE.includes(e.type))
+        : entries_jour;
+
+      aAfficher.forEach((entry, idx) => {
         const s = SHIFT_CONFIG[entry.type] || { emoji: '📋', couleur: '#eee' };
         html += `
           <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;
-                      margin-bottom:${idx === entries_jour.length - 1 ? '6px' : '2px'};
+                      margin-bottom:${idx === aAfficher.length - 1 ? '6px' : '2px'};
                       background:${s.couleur}22;border-left:4px solid ${s.couleur};border-radius:8px;">
             <span style="font-size:20px">${s.emoji}</span>
             <div>
