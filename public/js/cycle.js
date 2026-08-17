@@ -326,10 +326,33 @@ const Cycle = (() => {
     });
   }
 
+  // ← SEULE FONCTION MODIFIÉE
   function renderWidget(cycles, dureeMoyenne) {
     const dernierCycle = cycles.length > 0 ? cycles[0] : null;
     const calc         = calculerCycle(dernierCycle, dureeMoyenne);
     const phase        = getPhase(calc);
+
+    // Calcul ovulation/fenêtre : future ou passée ?
+    let labelOvulation, valeurOvulation, labelFenetre, valeurFenetre;
+    if (calc) {
+      const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
+      if (calc.ovulation < aujourd_hui) {
+        // Ovulation passée → projeter au cycle suivant
+        const prochaineOvulation    = addDays(calc.ovulation, calc.dureeCycle);
+        const prochaineFenetreDebut = addDays(prochaineOvulation, -5);
+        const prochaineFenetreFin   = addDays(prochaineOvulation, 1);
+        labelOvulation = 'Prochaine ovulation';
+        valeurOvulation = formatDate(prochaineOvulation);
+        labelFenetre   = 'Prochaine fenêtre fertile';
+        valeurFenetre  = `${formatDate(prochaineFenetreDebut)} → ${formatDate(prochaineFenetreFin)}`;
+      } else {
+        labelOvulation = 'Ovulation estimée';
+        valeurOvulation = formatDate(calc.ovulation);
+        labelFenetre   = 'Fenêtre fertile';
+        valeurFenetre  = `${formatDate(calc.debutFertile)} → ${formatDate(calc.finFertile)}`;
+      }
+    }
+
     return `
       <div class="widget-cycle">
         <div class="cycle-phase" style="border-left:4px solid ${phase.color}">
@@ -364,15 +387,15 @@ const Cycle = (() => {
           <div class="cycle-info-item">
             <span class="cycle-info-icon">🌿</span>
             <div>
-              <div class="cycle-info-label">Fenêtre fertile</div>
-              <div class="cycle-info-value">${formatDate(calc.debutFertile)} → ${formatDate(calc.finFertile)}</div>
+              <div class="cycle-info-label">${labelFenetre}</div>
+              <div class="cycle-info-value">${valeurFenetre}</div>
             </div>
           </div>
           <div class="cycle-info-item">
             <span class="cycle-info-icon">✨</span>
             <div>
-              <div class="cycle-info-label">Ovulation estimée</div>
-              <div class="cycle-info-value">${formatDate(calc.ovulation)}</div>
+              <div class="cycle-info-label">${labelOvulation}</div>
+              <div class="cycle-info-value">${valeurOvulation}</div>
             </div>
           </div>
         </div>
@@ -480,7 +503,7 @@ const Cycle = (() => {
           <button class="btn-save" onclick="Cycle.sauvegarder(${isEdit ? cycleExistant.id : 'null'})">
             ${isEdit ? 'Modifier' : 'Enregistrer'}
           </button>
-          ${isEdit ? `<button class="btn-delete" onclick="Cycle.supprimer(${cycleExistant.id})">Supprimer</button>` : ''}
+                    ${isEdit ? `<button class="btn-delete" onclick="Cycle.supprimer(${cycleExistant.id})">Supprimer</button>` : ''}
           <button class="btn-cancel" onclick="closeModal()">Annuler</button>
         </div>
       </div>
@@ -520,7 +543,8 @@ const Cycle = (() => {
 
   async function supprimer(id) {
     confirmerAction('Supprimer ce cycle ? Cette action est irréversible.', async () => {
-      try {        await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
+      try {
+        await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
         closeModal();
         charger();
       } catch {
@@ -583,4 +607,3 @@ const Cycle = (() => {
   };
 
 })();
-
