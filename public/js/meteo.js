@@ -22,9 +22,6 @@ const METEO_DESC = {
 
 const JOURS_COURT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 
-// ← Index du jour sélectionné dans le widget — partagé avec la modale
-let _meteoSelectedIdx = 0;
-
 async function getNomVille(lat, lon) {
     try {
         const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=fr`);
@@ -55,29 +52,16 @@ async function chargerMeteo(lat, lon, nomVille) {
             daily : d.daily
         };
 
-        _meteoSelectedIdx = 0;
-        _renderWidget(0);
+        _renderWidget();
         localStorage.setItem('myvibe_ville', JSON.stringify({ lat, lon, ville: nomVille }));
     } catch { if (el) el.textContent = 'Météo non disponible'; }
 }
 
 // ── WIDGET ────────────────────────────────────────────────────────────────────
-function _renderWidget(selectedIdx) {
+function _renderWidget() {
     const el = document.getElementById('wc-meteo');
     if (!el || !meteoData) return;
     const d = meteoData;
-
-    const t         = d.daily.time[selectedIdx];
-    const dateObj   = new Date(t + 'T12:00:00');
-    const dateLabel = selectedIdx === 0
-        ? "Aujourd'hui"
-        : dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-    const iMax   = Math.round(d.daily.temperature_2m_max[selectedIdx]);
-    const iMin   = Math.round(d.daily.temperature_2m_min[selectedIdx]);
-    const iIcon  = METEO_ICONS[d.daily.weather_code[selectedIdx]] || '🌡️';
-    const iPluie = d.daily.precipitation_probability_max?.[selectedIdx] || 0;
-    const desc   = METEO_DESC[d.daily.weather_code[selectedIdx]] || 'Variable';
-    const isToday = selectedIdx === 0;
 
     const joursHTML = d.daily.time.slice(0, 5).map((tj, i) => {
         const jObj  = new Date(tj + 'T12:00:00');
@@ -85,15 +69,10 @@ function _renderWidget(selectedIdx) {
         const jMax  = Math.round(d.daily.temperature_2m_max[i]);
         const jMin  = Math.round(d.daily.temperature_2m_min[i]);
         const jIcon = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
-        const sel   = i === selectedIdx;
         return `
-            <div onclick="event.stopPropagation();_selectJourWidget(${i})" style="
-                display:flex;flex-direction:column;align-items:center;gap:1px;
-                padding:5px 0;border-radius:8px;cursor:pointer;flex:1;min-width:0;
-                background:${sel ? '#4f46e511' : 'transparent'};
-                border:2px solid ${sel ? '#4f46e5' : 'transparent'};
-                transition:all .15s">
-                <div style="font-size:9px;font-weight:700;color:${sel ? '#4f46e5' : '#888'}">${jour}</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:1px;
+                        padding:5px 0;border-radius:8px;flex:1;min-width:0">
+                <div style="font-size:9px;font-weight:700;color:#888">${jour}</div>
                 <div style="font-size:16px;line-height:1.2">${jIcon}</div>
                 <div style="font-size:11px;font-weight:700;color:#333">${jMax}°</div>
                 <div style="font-size:10px;color:#aaa">${jMin}°</div>
@@ -104,33 +83,22 @@ function _renderWidget(selectedIdx) {
         <div style="display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;align-items:center;justify-content:space-between">
                 <div>
-                    <div style="font-size:38px;font-weight:800;color:#1e3a5f;line-height:1">
-                        ${isToday ? d.temp : iMax}°
-                    </div>
-                    <div style="font-size:12px;color:#555;margin-top:2px">${iIcon} ${desc}</div>
-                    <div style="font-size:11px;color:#888">↑${iMax}° ↓${iMin}°</div>
+                    <div style="font-size:38px;font-weight:800;color:#1e3a5f;line-height:1">${d.temp}°</div>
+                    <div style="font-size:12px;color:#555;margin-top:2px">${d.icon} ${METEO_DESC[d.code] || 'Variable'}</div>
+                    <div style="font-size:11px;color:#888">↑${d.max}° ↓${d.min}°</div>
                     <div style="font-size:11px;color:#e879a0;margin-top:2px;font-weight:600">📍 ${d.ville}</div>
                 </div>
-                <div style="font-size:44px;line-height:1">${iIcon}</div>
+                <div style="font-size:44px;line-height:1">${d.icon}</div>
             </div>
-            ${!isToday ? `
-            <div style="font-size:11px;font-weight:700;color:#4f46e5;text-transform:capitalize">${dateLabel}</div>
-            ` : `
             <div style="display:flex;gap:5px;flex-wrap:wrap">
                 <span class="meteo-badge">💧 ${d.hum}%</span>
                 <span class="meteo-badge">💨 ${d.vent} km/h</span>
                 <span class="meteo-badge">🌧️ ${d.pluie}%</span>
-            </div>`}
+            </div>
             <div style="display:flex;gap:4px;width:100%">${joursHTML}</div>
         </div>
     `;
 }
-
-window._selectJourWidget = function(idx) {
-    if (!meteoData) return;
-    _meteoSelectedIdx = idx; // ← mémorisation de l'index
-    _renderWidget(idx);
-};
 
 // ── MODALE ────────────────────────────────────────────────────────────────────
 function _renderModaleMeteo(selectedIdx) {
@@ -233,9 +201,8 @@ window._selectJourModale = function(idx) {
     _renderModaleMeteo(idx);
 };
 
-// ← Ouvre la modale sur le jour déjà sélectionné dans le widget
 window._ouvrirModaleMeteo = function() {
-    _renderModaleMeteo(_meteoSelectedIdx);
+    _renderModaleMeteo(0);
 };
 
 function afficherDetailJourModale(i) {
