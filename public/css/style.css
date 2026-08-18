@@ -463,3 +463,36 @@ input:focus{border-color:#4f46e5}
   .ap-mdp-input{width:100%}
   .wa-stats-row{grid-template-columns:repeat(2,1fr)}
 }
+
+/* ===================== WIDGET ISLAM ===================== */
+.w-islam .wi{background:#d1fae5}
+.widget.w-islam{background:linear-gradient(135deg,#f0fdf4 0%,#ffffff 100%)}
+.islam-widget{display:flex;flex-direction:column;gap:10px}
+.islam-prochaine{display:flex;flex-direction:column;align-items:center;background:linear-gradient(135deg,#059669,#10b981);border-radius:12px;padding:12px 16px;color:#fff;text-align:center}
+.islam-prochaine-label{font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.islam-prochaine-nom{font-size:18px;font-weight:800;margin:2px 0}
+.islam-prochaine-heure{font-size:28px;font-weight:900;line-height:1}
+.islam-prieres-row{display:flex;gap:4px;justify-content:space-between}
+.islam-mini-priere{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:8px;background:#f0fdf4;flex:1;transition:background .2s}
+.islam-mini-actif{background:#d1fae5;outline:2px solid #10b981}
+.islam-mini-nom{font-size:9px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.3px}
+.islam-mini-heure{font-size:11px;font-weight:700;color:#1e3a2f}
+.islam-hadith-apercu{font-size:12px;color:#6b7280;font-style:italic;border-left:3px solid #10b981;padding-left:8px;line-height:1.5}
+.islam-modal{display:flex;flex-direction:column;gap:16px}
+.islam-modal-header{text-align:center}
+.islam-modal-date{font-size:13px;color:#9ca3af;font-weight:600}
+.islam-modal-titre-section{font-size:11px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.islam-modal-prieres{background:#f0fdf4;border-radius:12px;padding:14px}
+.islam-modal-priere-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #d1fae5}
+.islam-modal-priere-row:last-child{border-bottom:none}
+.islam-modal-priere-actif{background:#d1fae5;border-radius:8px;padding:10px 8px;margin:0 -8px}
+.islam-modal-priere-nom{flex:1;font-size:14px;font-weight:600;color:#1e3a2f}
+.islam-modal-priere-heure{font-size:15px;font-weight:800;color:#059669}
+.islam-modal-priere-badge{font-size:10px;background:#059669;color:#fff;padding:2px 8px;border-radius:12px;font-weight:700;margin-left:6px}
+.islam-modal-hadith{background:#fefce8;border-radius:12px;padding:14px;border-left:4px solid #ca8a04}
+.islam-modal-hadith-arabe{font-size:16px;color:#1e3a2f;text-align:right;line-height:2;margin-bottom:8px;font-family:serif}
+.islam-modal-hadith-fr{font-size:13px;color:#555;font-style:italic;line-height:1.6}
+.islam-modal-hadith-ref{font-size:11px;color:#9ca3af;margin-top:6px;text-align:right}
+.islam-modal-doua{background:#f5f3ff;border-radius:12px;padding:14px;border-left:4px solid #7c3aed}
+.islam-modal-doua-arabe{font-size:15px;color:#1e3a2f;text-align:right;line-height:2;margin-bottom:8px;font-family:serif}
+.islam-modal-doua-fr{font-size:13px;color:#555;font-style:italic;line-height:1.6}

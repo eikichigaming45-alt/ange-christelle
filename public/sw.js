@@ -1,4 +1,4 @@
-const CACHE_NAME = 'myvibe-cache-v2.75';
+const CACHE_NAME = 'myvibe-cache-v2.76';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -16,6 +16,7 @@ const ASSETS_TO_CACHE = [
   '/js/anniversaires.js',
   '/js/profil.js',
   '/js/priere.js',
+  '/js/islam.js',
   '/js/push.js',
   '/js/admin.js',
   '/manifest.json',
@@ -42,13 +43,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // ── Ne jamais cacher les appels API ──────────────────────────────────────
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // ── Cache-first pour les assets statiques ────────────────────────────────
   event.respondWith(
     caches.match(event.request).then(cached => {
       return cached || fetch(event.request).then(response => {

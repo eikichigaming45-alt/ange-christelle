@@ -2,6 +2,7 @@
 let meteoData = null;
 let dernierIndex = -1;
 let priere = null;
+let islamData = null;
 let profilCache = null;
 let dragSrc = null;
 let longPressTimer = null;
@@ -9,15 +10,16 @@ let dragActif = false;
 let cropperInstance = null;
 
 const WIDGETS_DEF = [
-    { id:'meteo',         label:'Météo du jour',    icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',  foot:'Cliquez pour les détails',         refresh:true },
-    { id:'priere',        label:'Prière du jour',   icon:'🙏',  cls:'w-priere',        desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
-    { id:'taches',        label:'Tâches du jour',   icon:'✅',  cls:'w-taches',        desc:'Chargement...',  foot:'Cliquez pour gérer' },
-    { id:'cycle',         label:'Suivi du cycle',   icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
-    { id:'rendezvous',    label:'Rendez-vous',       icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
-    { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
-    { id:'anniversaires', label:'Anniversaires',     icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
-    { id:'profil',        label:'Mon Profil',        icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
-    { id:'admin',         label:'Administration',    icon:'⚙️',  cls:'w-admin',         desc:'',               foot:'Cliquez pour gérer', adminOnly:true },
+    { id:'meteo',         label:'Météo du jour',       icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',  foot:'Cliquez pour les détails',         refresh:true },
+    { id:'priere',        label:'Prière du jour',      icon:'🙏',  cls:'w-priere',        desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
+    { id:'islam',         label:'Prières & Hadiths',   icon:'☪️',  cls:'w-islam',         desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
+    { id:'taches',        label:'Tâches du jour',      icon:'✅',  cls:'w-taches',        desc:'Chargement...',  foot:'Cliquez pour gérer' },
+    { id:'cycle',         label:'Suivi du cycle',      icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
+    { id:'rendezvous',    label:'Rendez-vous',          icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
+    { id:'planning',      label:'Planning',             icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
+    { id:'anniversaires', label:'Anniversaires',        icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
+    { id:'profil',        label:'Mon Profil',           icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
+    { id:'admin',         label:'Administration',       icon:'⚙️',  cls:'w-admin',         desc:'',               foot:'Cliquez pour gérer', adminOnly:true },
 ];
 
 const codes = {
@@ -99,6 +101,7 @@ async function showApp() {
     await buildGrid();
 
     chargerPriere();
+    chargerIslam();
     chargerMeteoAuto();
     setTimeout(() => {
         if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
@@ -117,6 +120,7 @@ async function showApp() {
 function actualiser() {
     afficherDate();
     chargerPriere();
+    chargerIslam();
     chargerMeteoAuto();
     chargerProfilHeader();
     if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
@@ -240,6 +244,7 @@ function refreshWidget(id) {
     switch(id) {
         case 'meteo':      chargerMeteoAuto();                                          break;
         case 'priere':     chargerPriere();                                             break;
+        case 'islam':      chargerIslam();                                              break;
         case 'cycle':      if (typeof Cycle !== 'undefined') Cycle.charger();           break;
         case 'rendezvous': if (typeof Rendezvous !== 'undefined') Rendezvous.charger(); break;
         case 'planning':   chargerWidgetPlanning();                                     break;
@@ -307,4 +312,84 @@ function enregistrerServiceWorker() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
+}
+
+// ===================== WIDGETS VISIBLES =====================
+
+const TOUS_WIDGETS = [
+    { slug: 'meteo',         label: '🌤️ Météo' },
+    { slug: 'priere',        label: '🙏 Prière du jour' },
+    { slug: 'islam',         label: '☪️ Prières & Hadiths' },
+    { slug: 'planning',      label: '📋 Planning' },
+    { slug: 'rendezvous',    label: '🩺 Rendez-vous' },
+    { slug: 'cycle',         label: '🌸 Suivi du cycle' },
+    { slug: 'taches',        label: '✅ Tâches' },
+    { slug: 'anniversaires', label: '🎂 Anniversaires' },
+];
+
+async function afficherSectionWidgets() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const token = user?.token;
+    const container = document.getElementById('widgets-choix');
+    if (!container) return;
+    try {
+        const res = await fetch('/api/profil/widgets-visibles', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        const actifs = data.widgets_visibles || TOUS_WIDGETS.map(w => w.slug);
+        container.innerHTML = TOUS_WIDGETS.map(w => `
+            <label class="widget-choix-item">
+                <input type="checkbox" value="${w.slug}" ${actifs.includes(w.slug) ? 'checked' : ''}>
+                <span>${w.label}</span>
+            </label>
+        `).join('');
+    } catch {
+        container.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement.</p>';
+    }
+}
+
+async function sauvegarderWidgetsVisibles() {
+    const user  = JSON.parse(localStorage.getItem('myvibe_user'));
+    const token = user?.token;
+    const msg   = document.getElementById('widgets-msg');
+    const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
+    const widgets_visibles = [...checkboxes].filter(cb => cb.checked).map(cb => cb.value);
+
+    if (widgets_visibles.length === 0) {
+        msg.textContent = '❌ Sélectionne au moins un widget.';
+        msg.style.color = '#ef4444'; return;
+    }
+    msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
+    try {
+        const res = await fetch('/api/profil/widgets-visibles', {
+            method: 'PATCH',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ widgets_visibles })
+        });
+        if (res.ok) {
+            msg.textContent = '✅ Widgets mis à jour !'; msg.style.color = '#10b981';
+            appliquerWidgetsVisibles(widgets_visibles);
+        } else {
+            msg.textContent = '❌ Erreur serveur.'; msg.style.color = '#ef4444';
+        }
+    } catch {
+        msg.textContent = '❌ Erreur réseau.'; msg.style.color = '#ef4444';
+    }
+}
+
+function appliquerWidgetsVisibles(actifs) {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const TOUJOURS_VISIBLES = user?.role === 'admin' ? ['profil', 'admin'] : ['profil'];
+    const grid = document.getElementById('main-grid');
+    if (!grid) return;
+    [...grid.children].forEach(el => {
+        const id = el.dataset.id;
+        if (!id) return;
+        if (TOUJOURS_VISIBLES.includes(id)) return;
+        el.style.display = actifs.includes(id) ? '' : 'none';
+    });
 }
