@@ -1,7 +1,6 @@
 // ===================== PROFIL & CROPPER =====================
 
 async function chargerProfilHeader() {
-    // Délégué à app.js — fonction unique
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     if (!user?.userId) return;
     try {
@@ -208,16 +207,7 @@ async function changerMdp() {
 }
 
 // ===================== WIDGETS VISIBLES =====================
-
-const TOUS_WIDGETS = [
-    { slug: 'meteo',         label: '🌤️ Météo' },
-    { slug: 'priere',        label: '🙏 Prière du jour' },
-    { slug: 'planning',      label: '📋 Planning' },
-    { slug: 'rendezvous',    label: '🩺 Rendez-vous' },
-    { slug: 'cycle',         label: '🌸 Suivi du cycle' },
-    { slug: 'taches',        label: '✅ Tâches' },
-    { slug: 'anniversaires', label: '🎂 Anniversaires' },
-];
+// TOUS_WIDGETS est défini dans app.js — ne pas redéclarer ici
 
 async function afficherSectionWidgets() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));

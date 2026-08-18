@@ -1,7 +1,5 @@
 // ===================== WIDGET ISLAM =====================
 
-let islamData = null;
-
 async function chargerIslam() {
     const el = document.getElementById('wc-islam');
     if (el) el.textContent = 'Chargement...';
