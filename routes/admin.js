@@ -9,6 +9,15 @@ async function isAdmin(adminId) {
     return r.rows.length > 0 && r.rows[0].role === 'admin';
 }
 
+function validerMotDePasse(password) {
+    if (!password || password.length < 8)  return 'Minimum 8 caractères.';
+    if (!/[A-Z]/.test(password))           return 'Au moins une majuscule requise.';
+    if (!/[a-z]/.test(password))           return 'Au moins une minuscule requise.';
+    if (!/[0-9]/.test(password))           return 'Au moins un chiffre requis.';
+    if (!/[^A-Za-z0-9]/.test(password))    return 'Au moins un caractère spécial requis.';
+    return null;
+}
+
 // GET /api/admin/stats
 router.get('/stats', async (req, res) => {
     const { adminId } = req.query;
@@ -60,8 +69,8 @@ router.get('/users/:id/profil', async (req, res) => {
     const targetId = parseInt(req.params.id);
     try {
         if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
-        const user    = await pool.query('SELECT id, username, role FROM users WHERE id = \$1', [targetId]);
-        const profil  = await pool.query('SELECT * FROM profiles WHERE user_id = \$1', [targetId]);
+        const user   = await pool.query('SELECT id, username, role FROM users WHERE id = \$1', [targetId]);
+        const profil = await pool.query('SELECT * FROM profiles WHERE user_id = \$1', [targetId]);
         if (user.rows.length === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
         res.json({ success: true, user: user.rows[0], profil: profil.rows[0] || null });
     } catch (err) {
@@ -75,15 +84,11 @@ router.patch('/users/:id/profil', async (req, res) => {
     const targetId = parseInt(req.params.id);
     try {
         if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
-
-        // Mise à jour username si fourni
         if (username) {
             const exists = await pool.query('SELECT id FROM users WHERE username = \$1 AND id != \$2', [username, targetId]);
             if (exists.rows.length > 0) return res.status(409).json({ success: false, message: "Nom d'utilisateur déjà pris" });
             await pool.query('UPDATE users SET username = \$1 WHERE id = \$2', [username, targetId]);
         }
-
-        // Mise à jour profil
         await pool.query(`
             INSERT INTO profiles (user_id, prenom, nom, date_naissance, email, telephone, profession, note, updated_at)
             VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, NOW())
@@ -91,7 +96,6 @@ router.patch('/users/:id/profil', async (req, res) => {
                 prenom=\$2, nom=\$3, date_naissance=\$4, email=\$5,
                 telephone=\$6, profession=\$7, note=\$8, updated_at=NOW()
         `, [targetId, prenom||null, nom||null, date_naissance||null, email||null, telephone||null, profession||null, note||null]);
-
         res.json({ success: true });
     } catch (err) {
         console.error(err);
@@ -103,7 +107,8 @@ router.patch('/users/:id/profil', async (req, res) => {
 router.post('/users', async (req, res) => {
     const { adminId, username, password, role } = req.body;
     if (!username || !password) return res.status(400).json({ success: false, message: 'Champs manquants' });
-    if (password.length < 6)   return res.status(400).json({ success: false, message: 'Mot de passe trop court' });
+    const erreurMdp = validerMotDePasse(password);
+    if (erreurMdp) return res.status(400).json({ success: false, message: erreurMdp });
     if (!['admin','user'].includes(role)) return res.status(400).json({ success: false, message: 'Rôle invalide' });
     try {
         if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
@@ -138,7 +143,8 @@ router.patch('/users/:id/role', async (req, res) => {
 router.patch('/users/:id/password', async (req, res) => {
     const { adminId, password } = req.body;
     const targetId = parseInt(req.params.id);
-    if (!password || password.length < 6) return res.status(400).json({ success: false, message: 'Mot de passe trop court' });
+    const erreurMdp = validerMotDePasse(password);
+    if (erreurMdp) return res.status(400).json({ success: false, message: erreurMdp });
     try {
         if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
         const hash = await bcrypt.hash(password, 10);

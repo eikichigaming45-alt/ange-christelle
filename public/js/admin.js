@@ -43,6 +43,17 @@ async function chargerWidgetAdmin() {
     }
 }
 
+// ===================== VALIDATION MOT DE PASSE =====================
+
+function validerMotDePasse(pwd) {
+    if (pwd.length < 8)              return 'Minimum 8 caractères.';
+    if (!/[A-Z]/.test(pwd))          return 'Au moins une majuscule requise.';
+    if (!/[a-z]/.test(pwd))          return 'Au moins une minuscule requise.';
+    if (!/[0-9]/.test(pwd))          return 'Au moins un chiffre requis.';
+    if (!/[^A-Za-z0-9]/.test(pwd))   return 'Au moins un caractère spécial requis (!@#$%...).';
+    return null;
+}
+
 // ===================== MODALE ADMIN =====================
 
 async function chargerAdminStats() {
@@ -132,17 +143,12 @@ async function adminEditerProfil(id, username) {
                 <div style="font-size:15px;font-weight:700;color:#1e1b4b;margin-bottom:16px">
                     ✏️ Éditer — <span style="color:#4f46e5">${u.username}</span>
                 </div>
-
                 <div class="section-title">Compte</div>
                 <div style="margin-bottom:14px">
-                    <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">
-                        Nom d'utilisateur
-                    </label>
+                    <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">Nom d'utilisateur</label>
                     <input id="edit-username" type="text" value="${u.username}"
-                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
-                               font-size:14px;outline:none;box-sizing:border-box">
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box">
                 </div>
-
                 <div class="section-title">Profil</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
                     <div>
@@ -181,17 +187,11 @@ async function adminEditerProfil(id, username) {
                 <div style="margin-bottom:16px">
                     <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">Note</label>
                     <textarea id="edit-note" rows="3"
-                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
-                               font-size:14px;outline:none;resize:none;font-family:inherit;box-sizing:border-box">${p.note||''}</textarea>
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;resize:none;font-family:inherit;box-sizing:border-box">${p.note||''}</textarea>
                 </div>
-
                 <div style="display:flex;gap:8px">
-                    <button class="ua-btn ua-btn-blue" style="flex:1" onclick="adminSauvegarderProfil(${id})">
-                        💾 Sauvegarder
-                    </button>
-                    <button class="ua-btn" style="flex:1;background:#f3f4f6;color:#374151" onclick="chargerAdminUsers()">
-                        Annuler
-                    </button>
+                    <button class="ua-btn ua-btn-blue" style="flex:1" onclick="adminSauvegarderProfil(${id})">💾 Sauvegarder</button>
+                    <button class="ua-btn" style="flex:1;background:#f3f4f6;color:#374151" onclick="chargerAdminUsers()">Annuler</button>
                 </div>
                 <div id="edit-msg" style="margin-top:10px;font-size:13px;text-align:center"></div>
             </div>
@@ -212,16 +212,11 @@ async function adminSauvegarderProfil(id) {
     const email      = document.getElementById('edit-email')?.value?.trim();
     const naissance  = document.getElementById('edit-naissance')?.value;
     const note       = document.getElementById('edit-note')?.value?.trim();
-
     try {
         const r = await fetch(`/api/admin/users/${id}/profil`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                adminId      : adminUser.userId,
-                username, prenom, nom, telephone, profession,
-                email, date_naissance: naissance, note
-            })
+            body: JSON.stringify({ adminId: adminUser.userId, username, prenom, nom, telephone, profession, email, date_naissance: naissance, note })
         });
         const d = await r.json();
         if (msg) {
@@ -255,8 +250,9 @@ function adminResetPwd(id, username) {
     const el = document.getElementById('admin-tab-users');
     el.innerHTML = `
         <div class="user-card">
-            <div class="user-card-name" style="margin-bottom:12px">🔑 Nouveau MDP pour <strong>${username}</strong></div>
-            <input type="password" id="admin-new-pwd" placeholder="Minimum 6 caractères"
+            <div class="user-card-name" style="margin-bottom:4px">🔑 Nouveau MDP pour <strong>${username}</strong></div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">8 car. min · majuscule · minuscule · chiffre · caractère spécial</div>
+            <input type="password" id="admin-new-pwd" placeholder="Nouveau mot de passe"
                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">
             <div style="display:flex;gap:8px">
@@ -270,9 +266,10 @@ function adminResetPwd(id, username) {
 
 async function adminConfirmResetPwd(id) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const pwd  = document.getElementById('admin-new-pwd')?.value?.trim();
+    const pwd  = document.getElementById('admin-new-pwd')?.value;
     const msg  = document.getElementById('admin-pwd-msg');
-    if (!pwd || pwd.length < 6) { if (msg) msg.textContent = 'Minimum 6 caractères.'; return; }
+    const erreur = validerMotDePasse(pwd || '');
+    if (erreur) { if (msg) msg.textContent = erreur; return; }
     try {
         const r = await fetch(`/api/admin/users/${id}/password`, {
             method: 'PATCH',
@@ -321,14 +318,19 @@ async function adminConfirmSupprimer(id) {
 async function creerUser() {
     const user     = JSON.parse(localStorage.getItem('myvibe_user'));
     const username = document.getElementById('new-username')?.value?.trim();
-    const password = document.getElementById('new-password')?.value?.trim();
+    const password = document.getElementById('new-password')?.value;
     const role     = document.getElementById('new-role')?.value;
     const msg      = document.getElementById('create-msg');
     if (!username || !password) {
         if (msg) { msg.style.color = '#ef4444'; msg.textContent = 'Champs requis.'; }
         return;
     }
-     try {
+    const erreur = validerMotDePasse(password);
+    if (erreur) {
+        if (msg) { msg.style.color = '#ef4444'; msg.textContent = erreur; }
+        return;
+    }
+    try {
         const r = await fetch('/api/admin/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -358,4 +360,3 @@ function switchAdminTab(tab) {
     if (tab === 'stats') chargerAdminStats();
     if (tab === 'users') chargerAdminUsers();
 }
-   
