@@ -50,24 +50,30 @@ async function openModal(type) {
     } else if (type === 'islam') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
 
-        // Utilise window._islamData — jamais la variable globale nue islamData
+        // Si pas encore chargé, on déclenche et on attend (max 3s, toutes les 200ms)
         if (!window._islamData) {
+            if (typeof window.chargerIslam === 'function') window.chargerIslam();
             await new Promise(resolve => {
-                if (typeof window.chargerIslam === 'function') {
-                    const original = window.chargerIslam;
-                    window.chargerIslam = function() {
-                        original();
-                        window.chargerIslam = original;
-                        resolve();
-                    };
-                    window.chargerIslam();
-                } else {
-                    resolve();
-                }
+                let tries = 0;
+                const iv = setInterval(() => {
+                    tries++;
+                    if (window._islamData || tries >= 15) { clearInterval(iv); resolve(); }
+                }, 200);
             });
         }
 
         const d = window._islamData;
+        const toMin = hhmm => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+        const now = new Date().getHours() * 60 + new Date().getMinutes();
+        const listePrieres = [
+            { nom:'Fajr',    label:'Fajr (Aube)',       heure: d?.fajr    },
+            { nom:'Dhuhr',   label:'Dhuhr (Midi)',      heure: d?.dhuhr   },
+            { nom:'Asr',     label:'Asr (Après-midi)',  heure: d?.asr     },
+            { nom:'Maghrib', label:'Maghrib (Coucher)', heure: d?.maghrib },
+            { nom:'Isha',    label:'Isha (Nuit)',       heure: d?.isha    },
+        ];
+        const prochaine = (d ? (listePrieres.find(x => toMin(x.heure) > now) || listePrieres[0]) : null);
+
         document.getElementById('modal-body').innerHTML = (d && !d.erreur) ? `
             <div class="islam-modal">
                 <div class="islam-modal-header">
@@ -75,31 +81,14 @@ async function openModal(type) {
                 </div>
                 <div class="islam-modal-prieres">
                     <div class="islam-modal-titre-section">Horaires des prières</div>
-                    ${[
-                        { nom:'Fajr',    label:'Fajr (Aube)',       heure: d.fajr    },
-                        { nom:'Dhuhr',   label:'Dhuhr (Midi)',      heure: d.dhuhr   },
-                        { nom:'Asr',     label:'Asr (Après-midi)',  heure: d.asr     },
-                        { nom:'Maghrib', label:'Maghrib (Coucher)', heure: d.maghrib },
-                        { nom:'Isha',    label:'Isha (Nuit)',       heure: d.isha    },
-                    ].map(p => {
-                        const now = new Date().getHours() * 60 + new Date().getMinutes();
-                        const toMin = hhmm => { if (!hhmm) return null; const [h,m] = hhmm.split(':').map(Number); return h*60+m; };
-                        const prieres = [
-                            { nom:'Fajr',    heure: d.fajr    },
-                            { nom:'Dhuhr',   heure: d.dhuhr   },
-                            { nom:'Asr',     heure: d.asr     },
-                            { nom:'Maghrib', heure: d.maghrib },
-                            { nom:'Isha',    heure: d.isha    }
-                        ];
-                        let prochaine = prieres.find(x => toMin(x.heure) > now) || prieres[0];
-                        const actif = p.nom === prochaine.nom;
+                    ${listePrieres.map(p => {
+                        const actif = prochaine && p.nom === prochaine.nom;
                         return `
                             <div class="islam-modal-priere-row ${actif ? 'islam-modal-priere-actif' : ''}">
                                 <span class="islam-modal-priere-nom">${p.label}</span>
                                 <span class="islam-modal-priere-heure">${p.heure}</span>
                                 ${actif ? '<span class="islam-modal-priere-badge">Prochaine</span>' : ''}
-                            </div>
-                        `;
+                            </div>`;
                     }).join('')}
                 </div>
                 ${d.hadithFr ? `
