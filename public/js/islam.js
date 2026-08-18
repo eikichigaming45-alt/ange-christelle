@@ -52,11 +52,11 @@
             <div style="background:#f0faf4;border-radius:10px;padding:16px;margin-bottom:16px;">
                 <div style="color:#1a7a4a;font-weight:700;font-size:12px;text-transform:uppercase;margin-bottom:10px;">Horaires des prières</div>
                 ${[
-                    ['Fajr (Aube)',      data.fajr],
-                    ['Dhuhr (Midi)',     data.dhuhr],
-                    ['Asr (Après-midi)', data.asr],
-                    ['Maghrib (Coucher)',data.maghrib],
-                    ['Isha (Nuit)',      data.isha]
+                    ['Fajr (Aube)',       data.fajr],
+                    ['Dhuhr (Midi)',      data.dhuhr],
+                    ['Asr (Après-midi)',  data.asr],
+                    ['Maghrib (Coucher)', data.maghrib],
+                    ['Isha (Nuit)',       data.isha]
                 ].map(([nom, h]) => {
                     const estProchaine = nom.startsWith(prochaine.nom);
                     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #e0f0e8;">
