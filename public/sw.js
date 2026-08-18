@@ -1,4 +1,4 @@
-const CACHE_NAME = 'myvibe-cache-v2.93';
+const CACHE_NAME = 'myvibe-cache-v2.95';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -21,7 +21,8 @@ const ASSETS_TO_CACHE = [
   '/js/admin.js',
   '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/fond-ecran-myvibe.jpg'
 ];
 
 self.addEventListener('install', event => {
@@ -41,6 +42,8 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  if (event.request.url.startsWith('chrome-extension')) return;
+
   const url = new URL(event.request.url);
 
   if (url.pathname.startsWith('/api/')) {
