@@ -47,6 +47,9 @@ async function buildGrid() {
 
     defs.forEach(def => grid.appendChild(creerWidget(def)));
 
+    // Charger le profil APRÈS que le DOM du widget est créé
+    if (typeof chargerProfilHeader === 'function') chargerProfilHeader();
+
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
     if (typeof chargerWidgetPlanning === 'function') chargerWidgetPlanning();
@@ -73,7 +76,7 @@ function creerWidget(def) {
             </div>
             ${def.refresh ? `<button class="rbtn" id="rbtn-${def.id}" title="Actualiser">🔄</button>` : ''}
         </div>
-        <div class="wc" id="wc-${def.id === 'profil' ? 'profil-wrap' : def.id}">${contentHtml}</div>
+        <div class="wc" id="wc-${def.id}">${contentHtml}</div>
         <div class="wf">${def.foot || ''}</div>
     `;
 
