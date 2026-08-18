@@ -36,7 +36,8 @@ app.use('/api/widget-order',require('./routes/widgets'));
 app.use('/api/taches',      require('./routes/taches'));
 app.use('/api/anniversaires',require('./routes/anniversaires'));
 app.use('/api/push',        require('./routes/push'));
-app.use('/api/priere',      require('./routes/priere'));
+app.use('/api/priere', require('./routes/priere'));
+app.use('/api/islam',  require('./routes/islam'));   // ajouter cette ligne
 app.use('/api/admin',       require('./routes/admin'));
 app.use('/api/cycle',       require('./routes/cycle'));
 app.use('/api/rendezvous',  require('./routes/rendezvous'));
