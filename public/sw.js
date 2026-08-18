@@ -1,4 +1,4 @@
-const CACHE_NAME = 'myvibe-cache-v2.66';
+const CACHE_NAME = 'myvibe-cache-v2.67';
 
 const ASSETS_TO_CACHE = [
   '/',

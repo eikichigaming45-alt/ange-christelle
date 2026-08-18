@@ -9,15 +9,15 @@ let dragActif = false;
 let cropperInstance = null;
 
 const WIDGETS_DEF = [
-    { id:'meteo',         label:'Météo du jour',    icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',               foot:'Cliquez pour les détails',        refresh:true },
+    { id:'meteo',         label:'Météo du jour',    icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',               foot:'Cliquez pour les détails',         refresh:true },
     { id:'priere',        label:'Prière du jour',   icon:'🙏',  cls:'w-priere',        desc:'Chargement...',               foot:'Cliquez pour la version complète', refresh:true },
     { id:'taches',        label:'Tâches du jour',   icon:'✅',  cls:'w-taches',        desc:'Chargement...',               foot:'Cliquez pour gérer' },
-    { id:'cycle',         label:'Suivi du cycle',   icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',               foot:'Cycle féminin & fertilité',        refresh:true },
-    { id:'rendezvous',    label:'Rendez-vous',      icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',               foot:'Consultations & santé',            refresh:true },
-    { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'',                            foot:'' },
+    { id:'cycle',         label:'Suivi du cycle',   icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',               foot:'Cliquez pour gérer',               refresh:true },
+    { id:'rendezvous',    label:'Rendez-vous',       icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',               foot:'Cliquez pour gérer',               refresh:true },
+    { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'',                            foot:'Cliquez pour gérer' },
     { id:'anniversaires', label:'Anniversaires',     icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',               foot:'Cliquez pour gérer' },
-    { id:'profil',        label:'Mon Profil',        icon:'👤',  cls:'w-profil',        desc:'',                            foot:'' },
-    { id:'admin',         label:'Administration',    icon:'⚙️',  cls:'w-admin',         desc:'',                            foot:'', adminOnly:true },
+    { id:'profil',        label:'Mon Profil',        icon:'👤',  cls:'w-profil',        desc:'',                            foot:'Cliquez pour gérer' },
+    { id:'admin',         label:'Administration',    icon:'⚙️',  cls:'w-admin',         desc:'',                            foot:'Cliquez pour gérer', adminOnly:true },
 ];
 
 const codes = {
@@ -176,7 +176,6 @@ function afficherModaleChangementMdpObligatoire(userId) {
         </button>
         <div id="force-mdp-msg" style="text-align:center;margin-top:12px;font-size:13px;min-height:18px"></div>
     `;
-    // Bloquer la fermeture de la modale
     document.getElementById('overlay').onclick = null;
     document.querySelector('.mclos').style.display = 'none';
 }
@@ -292,6 +291,7 @@ function creerWidget(w) {
             <div id="widget-admin-content">
                 <div class="wa-loading">Chargement...</div>
             </div>
+            <div class="widget-foot">${w.foot}</div>
         `;
         div.addEventListener('click', e => {
             if (!e.target.closest('button') && !dragActif) ouvrirAdmin();
@@ -307,6 +307,7 @@ function creerWidget(w) {
                 ${headerExtra}
             </div>
             <div id="widget-profil-body"></div>
+            <div class="widget-foot">${w.foot}</div>
         `;
         div.addEventListener('click', e => {
             if (!e.target.closest('button') && !dragActif) openModal('profil');
@@ -323,6 +324,7 @@ function creerWidget(w) {
             <div id="widget-planning-contenu">
                 <p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Chargement...</p>
             </div>
+            <div class="widget-foot">${w.foot}</div>
         `;
         div.addEventListener('click', e => {
             if (!e.target.closest('button') && !dragActif) openModal('planning');
