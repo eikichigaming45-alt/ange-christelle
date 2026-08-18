@@ -11,16 +11,25 @@ async function chargerProfilHeader() {
         const p = d.profil;
 
         const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '';
+
+        // Topbar header bouton
         const btnHeader = document.getElementById('btn-profil-header');
-        if (p.photo) { btnHeader.innerHTML = `<img src="${p.photo}" alt="profil">`; }
-        else if (initiales) { btnHeader.innerHTML = initiales; btnHeader.style.fontSize='13px'; btnHeader.style.fontWeight='700'; }
-        else { btnHeader.innerHTML = '👤'; }
+        if (btnHeader) {
+            if (p.photo) {
+                btnHeader.innerHTML = `<img src="${p.photo}" alt="profil">`;
+            } else if (initiales) {
+                btnHeader.innerHTML = initiales;
+                btnHeader.style.fontSize = '13px';
+                btnHeader.style.fontWeight = '700';
+            } else {
+                btnHeader.innerHTML = '👤';
+            }
+        }
 
-        const wi = document.getElementById('wi-profil');
-        if (wi) wi.innerHTML = p.photo ? `<img src="${p.photo}" alt="profil">` : '👤';
-
-        const wc = document.getElementById('wc-profil');
+        // Corps du widget profil
+        const wc = document.getElementById('widget-profil-body');
         if (!wc) return;
+
         const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
         const age = p.date_naissance ? (() => {
             const n = new Date(p.date_naissance);

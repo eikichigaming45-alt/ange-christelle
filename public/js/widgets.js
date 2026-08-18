@@ -26,7 +26,7 @@ async function buildGrid() {
 
     let defs = [...WIDGETS_DEF];
     if (user?.role === 'admin') {
-        defs.push({ id:'admin', label:'Administration', icon:'⚙️', cls:'w-admin', desc:'Gérer les utilisateurs et les paramètres', foot:'Accès admin' });
+        defs.push({ id:'admin', label:'Administration', icon:'⚙️', cls:'w-admin', desc:'Gérer les utilisateurs et les paramètres', foot:'Cliquez pour gérer' });
     }
 
     if (ordre) {
@@ -58,10 +58,11 @@ function creerWidget(def) {
     div.dataset.id = def.id;
     div.draggable = true;
 
-    let contentHtml = def.desc;
+    let contentHtml = def.desc || '';
     if (def.id === 'cycle')      contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
     if (def.id === 'rendezvous') contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
     if (def.id === 'planning')   contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
+    if (def.id === 'profil')     contentHtml = '<div id="wc-profil"></div>';
 
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
@@ -72,8 +73,8 @@ function creerWidget(def) {
             </div>
             ${def.refresh ? `<button class="rbtn" id="rbtn-${def.id}" title="Actualiser">🔄</button>` : ''}
         </div>
-        <div class="wc" id="wc-${def.id}">${contentHtml}</div>
-        <div class="wf">${def.foot}</div>
+        <div class="wc" id="wc-${def.id === 'profil' ? 'profil-wrap' : def.id}">${contentHtml}</div>
+        <div class="wf">${def.foot || ''}</div>
     `;
 
     div.addEventListener('click', e => {
