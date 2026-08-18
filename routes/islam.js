@@ -3,10 +3,7 @@ const router  = express.Router();
 const https   = require('https');
 
 let cache = {};
-
-// IDs HadeethEnc confirmés avec traduction française disponible
-const IDS_HADITHS_FR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
-const IDS_DOUAS_FR   = [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40];
+let idsDisponiblesFr = [];
 
 function httpsGet(url) {
     return new Promise((resolve, reject) => {
@@ -21,8 +18,21 @@ function httpsGet(url) {
     });
 }
 
-async function fetchHadithDepuisListe(ids, jourAn) {
-    const id = ids[jourAn % ids.length];
+async function chargerIdsFr() {
+    if (idsDisponiblesFr.length > 0) return;
+    try {
+        const data = await httpsGet('https://hadeethenc.com/api/v1/hadeeths/list/?language=fr&category_id=1&page=1&per_page=100');
+        if (data?.data?.length) {
+            idsDisponiblesFr = data.data.map(h => parseInt(h.id)).filter(Boolean);
+        }
+    } catch(e) {}
+    // Fallback si l'API ne répond pas
+    if (idsDisponiblesFr.length === 0) {
+        idsDisponiblesFr = [1,2,3,4,5,6,7,8,9,10];
+    }
+}
+
+async function fetchHadith(id) {
     try {
         const [fr, ar] = await Promise.all([
             httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=fr&id=${id}`),
@@ -50,13 +60,20 @@ router.get('/', async (req, res) => {
         const mois    = String(today.getMonth()+1).padStart(2,'0');
         const annee   = today.getFullYear();
         const dateStr = `${jour}-${mois}-${annee}`;
+        const jourAn  = Math.floor((today - new Date(today.getFullYear(), 0, 1)) / 86400000) + 1;
 
-        const jourAn = Math.floor((today - new Date(today.getFullYear(), 0, 1)) / 86400000) + 1;
+        // Charger les ids disponibles en français
+        await chargerIdsFr();
+
+        const idxHadith = jourAn % idsDisponiblesFr.length;
+        const idxDoua   = (jourAn + Math.floor(idsDisponiblesFr.length / 2)) % idsDisponiblesFr.length;
+        const idHadith  = idsDisponiblesFr[idxHadith];
+        const idDoua    = idsDisponiblesFr[idxDoua];
 
         const [dataAladhan, hadith, doua] = await Promise.all([
             httpsGet(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lon}&method=12`),
-            fetchHadithDepuisListe(IDS_HADITHS_FR, jourAn),
-            fetchHadithDepuisListe(IDS_DOUAS_FR, jourAn)
+            fetchHadith(idHadith),
+            fetchHadith(idDoua)
         ]);
 
         if (!dataAladhan || dataAladhan.code !== 200) {
