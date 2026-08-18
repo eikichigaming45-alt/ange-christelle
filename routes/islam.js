@@ -4,6 +4,10 @@ const https   = require('https');
 
 let cache = {};
 
+// IDs HadeethEnc confirmés avec traduction française disponible
+const IDS_HADITHS_FR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+const IDS_DOUAS_FR   = [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40];
+
 function httpsGet(url) {
     return new Promise((resolve, reject) => {
         https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
@@ -17,19 +21,17 @@ function httpsGet(url) {
     });
 }
 
-async function fetchHadithAvecFallback(idBase, maxTentatives = 5) {
-    for (let i = 0; i < maxTentatives; i++) {
-        const id = ((idBase + i) % 100) + 1;
-        try {
-            const [fr, ar] = await Promise.all([
-                httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=fr&id=${id}`),
-                httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=ar&id=${id}`)
-            ]);
-            if (fr?.hadeeth && fr.hadeeth.length > 10) {
-                return { ar: ar?.hadeeth || '', fr: fr.hadeeth, ref: fr.attribution || '' };
-            }
-        } catch(e) { continue; }
-    }
+async function fetchHadithDepuisListe(ids, jourAn) {
+    const id = ids[jourAn % ids.length];
+    try {
+        const [fr, ar] = await Promise.all([
+            httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=fr&id=${id}`),
+            httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=ar&id=${id}`)
+        ]);
+        if (fr?.hadeeth && fr.hadeeth.length > 10) {
+            return { ar: ar?.hadeeth || '', fr: fr.hadeeth, ref: fr.attribution || '' };
+        }
+    } catch(e) {}
     return null;
 }
 
@@ -49,14 +51,12 @@ router.get('/', async (req, res) => {
         const annee   = today.getFullYear();
         const dateStr = `${jour}-${mois}-${annee}`;
 
-        const jourAn   = Math.floor((today - new Date(today.getFullYear(), 0, 1)) / 86400000) + 1;
-        const idHadith = (jourAn % 100) + 1;
-        const idDoua   = (jourAn % 50)  + 101;
+        const jourAn = Math.floor((today - new Date(today.getFullYear(), 0, 1)) / 86400000) + 1;
 
         const [dataAladhan, hadith, doua] = await Promise.all([
             httpsGet(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lon}&method=12`),
-            fetchHadithAvecFallback(idHadith),
-            fetchHadithAvecFallback(idDoua)
+            fetchHadithDepuisListe(IDS_HADITHS_FR, jourAn),
+            fetchHadithDepuisListe(IDS_DOUAS_FR, jourAn)
         ]);
 
         if (!dataAladhan || dataAladhan.code !== 200) {
