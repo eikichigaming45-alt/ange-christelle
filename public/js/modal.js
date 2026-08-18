@@ -233,7 +233,7 @@ async function openModal(type) {
                                         font-size:22px;box-shadow:0 4px 10px rgba(245,158,11,0.3)">🔑</div>
                             <div>
                                 <div style="font-weight:700;color:#111;font-size:15px">Changer le mot de passe</div>
-                                <div style="font-size:12px;color:#9ca3af;margin-top:2px">Minimum 6 caractères requis</div>
+                                <div style="font-size:12px;color:#9ca3af;margin-top:2px">8 car. min · majuscule · minuscule · chiffre · caractère spécial</div>
                             </div>
                         </div>
                         <div style="margin-bottom:10px">
@@ -317,7 +317,7 @@ async function openModal(type) {
             <div id="admin-tab-creer" class="admin-tab-content">
                 <div class="create-form">
                     <input type="text"     id="new-username" placeholder="Nom d'utilisateur">
-                    <input type="password" id="new-password" placeholder="Mot de passe (6 caractères min)">
+                    <input type="password" id="new-password" placeholder="8 car. min · majuscule · minuscule · chiffre · spécial">
                     <select id="new-role">
                         <option value="user">user</option>
                         <option value="admin">admin</option>
@@ -335,7 +335,7 @@ async function openModal(type) {
     }
 }
 
-// ── Détail jour météo UNIQUEMENT dans la modale (n'affecte pas le widget) ────
+// ── Détail jour météo UNIQUEMENT dans la modale ────
 function afficherDetailJourModale(i) {
     const d = meteoData;
     if (!d?.daily) return;
@@ -421,7 +421,7 @@ function lirePriereModal(e) {
         synth.speak(utterance);
     };
 
-    if (synth.getVoices().length === 0) {
+        if (synth.getVoices().length === 0) {
         synth.onvoiceschanged = lancerLecture;
     } else {
         lancerLecture();

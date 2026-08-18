@@ -10,18 +10,15 @@ async function chargerProfilHeader() {
         profilCache = d.profil;
         const p = d.profil;
 
-        // Topbar
         const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '';
         const btnHeader = document.getElementById('btn-profil-header');
         if (p.photo) { btnHeader.innerHTML = `<img src="${p.photo}" alt="profil">`; }
         else if (initiales) { btnHeader.innerHTML = initiales; btnHeader.style.fontSize='13px'; btnHeader.style.fontWeight='700'; }
         else { btnHeader.innerHTML = '👤'; }
 
-        // Icône widget
         const wi = document.getElementById('wi-profil');
         if (wi) wi.innerHTML = p.photo ? `<img src="${p.photo}" alt="profil">` : '👤';
 
-        // Contenu widget enrichi
         const wc = document.getElementById('wc-profil');
         if (!wc) return;
         const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
@@ -156,16 +153,35 @@ async function sauvegarderProfil() {
     }
 }
 
+// ===================== VALIDATION MOT DE PASSE =====================
+
+function validerMotDePasse(pwd) {
+    if (!pwd || pwd.length < 8)     return 'Minimum 8 caractères.';
+    if (!/[A-Z]/.test(pwd))         return 'Au moins une majuscule requise.';
+    if (!/[a-z]/.test(pwd))         return 'Au moins une minuscule requise.';
+    if (!/[0-9]/.test(pwd))         return 'Au moins un chiffre requis.';
+    if (!/[^A-Za-z0-9]/.test(pwd))  return 'Au moins un caractère spécial requis (!@#$%...).';
+    return null;
+}
+
 async function changerMdp() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user    = JSON.parse(localStorage.getItem('myvibe_user'));
     const ancien  = document.getElementById('mdp-ancien').value;
     const nouveau = document.getElementById('mdp-nouveau').value;
     const confirm = document.getElementById('mdp-confirm').value;
-    const msg = document.getElementById('mdp-msg');
+    const msg     = document.getElementById('mdp-msg');
+
     if (nouveau !== confirm) {
         msg.textContent = '❌ Les mots de passe ne correspondent pas';
         msg.style.color = '#ef4444'; return;
     }
+
+    const erreur = validerMotDePasse(nouveau);
+    if (erreur) {
+        msg.textContent = '❌ ' + erreur;
+        msg.style.color = '#ef4444'; return;
+    }
+
     msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
     try {
         const r = await fetch('/api/profil/changer-mdp', {
@@ -222,9 +238,9 @@ async function afficherSectionWidgets() {
 }
 
 async function sauvegarderWidgetsVisibles() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user  = JSON.parse(localStorage.getItem('myvibe_user'));
     const token = user?.token;
-    const msg = document.getElementById('widgets-msg');
+    const msg   = document.getElementById('widgets-msg');
     const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
     const widgets_visibles = [...checkboxes].filter(cb => cb.checked).map(cb => cb.value);
 
@@ -234,7 +250,6 @@ async function sauvegarderWidgetsVisibles() {
     }
 
     msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
-
     try {
         const res = await fetch('/api/profil/widgets-visibles', {
             method: 'PATCH',
