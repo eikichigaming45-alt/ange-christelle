@@ -2,8 +2,9 @@ const express = require('express');
 const router  = express.Router();
 const https   = require('https');
 
-let cache = {};
-let idsDisponiblesFr = [];
+let hadithCache     = null;
+let hadithCacheDate = null;
+let idsDispoFr      = [];
 
 function httpsGet(url) {
     return new Promise((resolve, reject) => {
@@ -19,17 +20,16 @@ function httpsGet(url) {
 }
 
 async function chargerIdsFr() {
-    if (idsDisponiblesFr.length > 0) return;
+    if (idsDispoFr.length > 0) return;
     try {
-        const data = await httpsGet('https://hadeethenc.com/api/v1/hadeeths/list/?language=fr&category_id=1&page=1&per_page=100');
+        const data = await httpsGet(
+            'https://hadeethenc.com/api/v1/hadeeths/list/?language=fr&category_id=1&page=1&per_page=200'
+        );
         if (data?.data?.length) {
-            idsDisponiblesFr = data.data.map(h => parseInt(h.id)).filter(Boolean);
+            idsDispoFr = data.data.map(h => parseInt(h.id)).filter(Boolean);
         }
     } catch(e) {}
-    // Fallback si l'API ne répond pas
-    if (idsDisponiblesFr.length === 0) {
-        idsDisponiblesFr = [1,2,3,4,5,6,7,8,9,10];
-    }
+    if (idsDispoFr.length === 0) idsDispoFr = [1,2,3,4,5];
 }
 
 async function fetchHadith(id) {
@@ -45,36 +45,52 @@ async function fetchHadith(id) {
     return null;
 }
 
+function getMethode(lat, lon) {
+    // Adapte la méthode de calcul selon la zone géographique
+    if (lon >= -20 && lon <= 55 && lat >= -5 && lat <= 40) return 5;  // Afrique/Moyen-Orient
+    if (lon >= 25 && lon <= 60 && lat >= 12 && lat <= 32) return 4;   // Péninsule arabique
+    if (lon >= -10 && lon <= 25 && lat >= 35 && lat <= 72) return 12; // Europe
+    if (lon >= 44 && lon <= 142 && lat >= -10 && lat <= 55) return 1; // Asie
+    return 2; // Reste du monde (ISNA)
+}
+
 router.get('/', async (req, res) => {
     try {
         const today    = new Date();
         const todayStr = today.toISOString().split('T')[0];
 
-        const lat = parseFloat(req.query.lat) || 48.8566;
-        const lon = parseFloat(req.query.lon) || 2.3522;
-        const cacheKey = `${todayStr}_${lat}_${lon}`;
+        const lat = parseFloat(req.query.lat);
+        const lon = parseFloat(req.query.lon);
 
-        if (cache[cacheKey]) return res.json(cache[cacheKey]);
+        if (isNaN(lat) || isNaN(lon)) {
+            return res.status(400).json({ error: 'lat et lon requis' });
+        }
 
         const jour    = String(today.getDate()).padStart(2,'0');
         const mois    = String(today.getMonth()+1).padStart(2,'0');
         const annee   = today.getFullYear();
         const dateStr = `${jour}-${mois}-${annee}`;
         const jourAn  = Math.floor((today - new Date(today.getFullYear(), 0, 1)) / 86400000) + 1;
+        const methode = getMethode(lat, lon);
 
-        // Charger les ids disponibles en français
-        await chargerIdsFr();
+        // Hadith + doua : cache journalier, indépendant de la ville
+        if (!hadithCache || hadithCacheDate !== todayStr) {
+            await chargerIdsFr();
+            const mi = idsDispoFr.length;
+            const idH = idsDispoFr[jourAn % mi];
+            const idD = idsDispoFr[(jourAn + Math.floor(mi / 2)) % mi];
+            const [h, d] = await Promise.all([
+                fetchHadith(idH),
+                fetchHadith(idD)
+            ]);
+            hadithCache     = { hadith: h, doua: d };
+            hadithCacheDate = todayStr;
+        }
 
-        const idxHadith = jourAn % idsDisponiblesFr.length;
-        const idxDoua   = (jourAn + Math.floor(idsDisponiblesFr.length / 2)) % idsDisponiblesFr.length;
-        const idHadith  = idsDisponiblesFr[idxHadith];
-        const idDoua    = idsDisponiblesFr[idxDoua];
-
-        const [dataAladhan, hadith, doua] = await Promise.all([
-            httpsGet(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lon}&method=12`),
-            fetchHadith(idHadith),
-            fetchHadith(idDoua)
-        ]);
+        // Horaires : recalculés selon lat/lon + méthode pays
+        const dataAladhan = await httpsGet(
+            `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lon}&method=${methode}`
+        );
 
         if (!dataAladhan || dataAladhan.code !== 200) {
             return res.json({
@@ -91,23 +107,20 @@ router.get('/', async (req, res) => {
             weekday:'long', day:'numeric', month:'long', year:'numeric'
         });
 
-        const result = {
+        res.json({
             date     : dateLabel,
             fajr     : t.Fajr,
             dhuhr    : t.Dhuhr,
             asr      : t.Asr,
             maghrib  : t.Maghrib,
             isha     : t.Isha,
-            hadithAr : hadith?.ar  || '',
-            hadithFr : hadith?.fr  || '',
-            hadithRef: hadith?.ref || '',
-            douaAr   : doua?.ar   || '',
-            douaFr   : doua?.fr   || '',
-            douaRef  : doua?.ref  || ''
-        };
-
-        cache[cacheKey] = result;
-        res.json(result);
+            hadithAr : hadithCache.hadith?.ar  || '',
+            hadithFr : hadithCache.hadith?.fr  || '',
+            hadithRef: hadithCache.hadith?.ref || '',
+            douaAr   : hadithCache.doua?.ar   || '',
+            douaFr   : hadithCache.doua?.fr   || '',
+            douaRef  : hadithCache.doua?.ref  || ''
+        });
 
     } catch(e) {
         res.status(500).json({ error: e.message });
