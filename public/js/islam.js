@@ -1,5 +1,4 @@
 (function () {
-    const FALLBACK = { lat: 48.8566, lon: 2.3522 }; // Paris
 
     function getHeure(hhmm) {
         if (!hhmm) return null;
@@ -8,8 +7,7 @@
     }
 
     function prochaineP(data) {
-        const maintenant = new Date();
-        const now = maintenant.getHours() * 60 + maintenant.getMinutes();
+        const now = new Date().getHours() * 60 + new Date().getMinutes();
         const prieres = [
             { nom: 'Fajr',    heure: data.fajr },
             { nom: 'Dhuhr',   heure: data.dhuhr },
@@ -20,13 +18,13 @@
         for (const p of prieres) {
             if (getHeure(p.heure) > now) return p;
         }
-        return prieres[0]; // Fajr du lendemain
+        return prieres[0];
     }
 
     function afficherWidget(data) {
-        const prochaine = prochaineP(data);
         const widget = document.getElementById('widget-islam');
         if (!widget) return;
+        const prochaine = prochaineP(data);
         widget.innerHTML = `
             <div style="background:#1a7a4a;color:#fff;border-radius:10px;padding:12px;text-align:center;margin-bottom:12px;">
                 <div style="font-size:11px;text-transform:uppercase;opacity:.8;letter-spacing:1px;">Prochaine prière</div>
@@ -37,7 +35,7 @@
                 ${['Fajr','Dhuhr','Asr','Maghrib','Isha'].map(n => {
                     const h = data[n.toLowerCase()];
                     const actif = n === prochaine.nom;
-                    return `<div style="text-align:center;${actif?'color:#1a7a4a;font-weight:700;':''}" >
+                    return `<div style="text-align:center;${actif ? 'color:#1a7a4a;font-weight:700;' : ''}">
                         <div>${n}</div><div>${h}</div>
                     </div>`;
                 }).join('')}
@@ -54,11 +52,11 @@
             <div style="background:#f0faf4;border-radius:10px;padding:16px;margin-bottom:16px;">
                 <div style="color:#1a7a4a;font-weight:700;font-size:12px;text-transform:uppercase;margin-bottom:10px;">Horaires des prières</div>
                 ${[
-                    ['Fajr (Aube)',     data.fajr],
-                    ['Dhuhr (Midi)',    data.dhuhr],
-                    ['Asr (Après-midi)',data.asr],
+                    ['Fajr (Aube)',      data.fajr],
+                    ['Dhuhr (Midi)',     data.dhuhr],
+                    ['Asr (Après-midi)', data.asr],
                     ['Maghrib (Coucher)',data.maghrib],
-                    ['Isha (Nuit)',     data.isha]
+                    ['Isha (Nuit)',      data.isha]
                 ].map(([nom, h]) => {
                     const estProchaine = nom.startsWith(prochaine.nom);
                     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #e0f0e8;">
@@ -81,14 +79,12 @@
             </div>`;
     }
 
-    function chargerIslam(lat, lon) {
-        const url = `/api/islam?lat=${lat}&lon=${lon}`;
-        fetch(url)
+    function chargerIslam() {
+        fetch('/api/islam')
             .then(r => r.json())
             .then(data => {
-                afficherWidget(data);
-                // Stocker pour la modale
                 window._islamData = data;
+                afficherWidget(data);
             })
             .catch(() => {
                 const w = document.getElementById('widget-islam');
@@ -96,20 +92,6 @@
             });
     }
 
-    function init() {
-        if (!document.getElementById('widget-islam')) return;
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                pos => chargerIslam(pos.coords.latitude, pos.coords.longitude),
-                ()  => chargerIslam(FALLBACK.lat, FALLBACK.lon),
-                { timeout: 5000 }
-            );
-        } else {
-            chargerIslam(FALLBACK.lat, FALLBACK.lon);
-        }
-    }
-
-    // Modale
     window.ouvrirModaleIslam = function () {
         const data = window._islamData;
         if (!data) return;
@@ -120,5 +102,6 @@
     };
 
     window.chargerIslam = chargerIslam;
-    init();
+    chargerIslam();
+
 })();

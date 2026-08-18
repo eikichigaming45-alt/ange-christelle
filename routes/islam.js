@@ -2,8 +2,8 @@ const express = require('express');
 const router  = express.Router();
 const https   = require('https');
 
-// Cache par coordonnées + date
-const cacheMap = {};
+let cache = null;
+let cacheDate = null;
 
 function httpsGet(url) {
     return new Promise((resolve, reject) => {
@@ -19,10 +19,10 @@ function httpsGet(url) {
 }
 
 async function fetchHadith() {
-    const today   = new Date();
-    const debut   = new Date(today.getFullYear(), 0, 1);
-    const jourAn  = Math.floor((today - debut) / 86400000) + 1;
-    const id      = (jourAn % 100) + 1;
+    const today  = new Date();
+    const debut  = new Date(today.getFullYear(), 0, 1);
+    const jourAn = Math.floor((today - debut) / 86400000) + 1;
+    const id     = (jourAn % 100) + 1;
     try {
         const [fr, ar] = await Promise.all([
             httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=fr&id=${id}`),
@@ -37,21 +37,19 @@ router.get('/', async (req, res) => {
     try {
         const today    = new Date();
         const todayStr = today.toISOString().split('T')[0];
-
-        // Géolocalisation depuis le frontend, fallback Paris
-        const lat = parseFloat(req.query.lat) || 48.8566;
-        const lon = parseFloat(req.query.lon) || 2.3522;
-
-        const cacheKey = `${todayStr}_${lat.toFixed(4)}_${lon.toFixed(4)}`;
-        if (cacheMap[cacheKey]) return res.json(cacheMap[cacheKey]);
+        if (cache && cacheDate === todayStr) return res.json(cache);
 
         const jour    = String(today.getDate()).padStart(2,'0');
         const mois    = String(today.getMonth()+1).padStart(2,'0');
         const annee   = today.getFullYear();
         const dateStr = `${jour}-${mois}-${annee}`;
 
+        // Paris fixe — méthode 12 UOIF France
+        const LAT = 48.8566;
+        const LON = 2.3522;
+
         const [dataAladhan, hadith] = await Promise.all([
-            httpsGet(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lon}&method=12`),
+            httpsGet(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${LAT}&longitude=${LON}&method=12`),
             fetchHadith()
         ]);
 
@@ -70,7 +68,7 @@ router.get('/', async (req, res) => {
             weekday:'long', day:'numeric', month:'long', year:'numeric'
         });
 
-        const result = {
+        cache = {
             date     : dateLabel,
             fajr     : t.Fajr,
             dhuhr    : t.Dhuhr,
@@ -81,9 +79,8 @@ router.get('/', async (req, res) => {
             hadithFr : hadith?.fr  || 'Évite ce qui te fait douter au profit de ce qui ne te fait pas douter.',
             hadithRef: hadith?.ref || 'Tirmidhi'
         };
-
-        cacheMap[cacheKey] = result;
-        res.json(result);
+        cacheDate = todayStr;
+        res.json(cache);
 
     } catch(e) {
         res.status(500).json({ error: e.message });
