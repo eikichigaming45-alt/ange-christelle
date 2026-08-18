@@ -2,8 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const https   = require('https');
 
-let cache = null;
-let cacheDate = null;
+let cache = {};
 
 function httpsGet(url) {
     return new Promise((resolve, reject) => {
@@ -18,11 +17,7 @@ function httpsGet(url) {
     });
 }
 
-async function fetchHadith() {
-    const today  = new Date();
-    const debut  = new Date(today.getFullYear(), 0, 1);
-    const jourAn = Math.floor((today - debut) / 86400000) + 1;
-    const id     = (jourAn % 100) + 1;
+async function fetchHadith(id) {
     try {
         const [fr, ar] = await Promise.all([
             httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=fr&id=${id}`),
@@ -37,29 +32,35 @@ router.get('/', async (req, res) => {
     try {
         const today    = new Date();
         const todayStr = today.toISOString().split('T')[0];
-        if (cache && cacheDate === todayStr) return res.json(cache);
+
+        const lat = parseFloat(req.query.lat) || 48.8566;
+        const lon = parseFloat(req.query.lon) || 2.3522;
+        const cacheKey = `${todayStr}_${lat}_${lon}`;
+
+        if (cache[cacheKey]) return res.json(cache[cacheKey]);
 
         const jour    = String(today.getDate()).padStart(2,'0');
         const mois    = String(today.getMonth()+1).padStart(2,'0');
         const annee   = today.getFullYear();
         const dateStr = `${jour}-${mois}-${annee}`;
 
-        // Paris fixe — méthode 12 UOIF France
-        const LAT = 48.8566;
-        const LON = 2.3522;
+        const jourAn   = Math.floor((today - new Date(today.getFullYear(), 0, 1)) / 86400000) + 1;
+        const idHadith = (jourAn % 100) + 1;
+        const idDoua   = (jourAn % 50)  + 101;
 
-        const [dataAladhan, hadith] = await Promise.all([
-            httpsGet(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${LAT}&longitude=${LON}&method=12`),
-            fetchHadith()
+        const [dataAladhan, hadith, doua] = await Promise.all([
+            httpsGet(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lon}&method=12`),
+            fetchHadith(idHadith),
+            fetchHadith(idDoua)
         ]);
 
         if (!dataAladhan || dataAladhan.code !== 200) {
             return res.json({
                 date:'', fajr:'--:--', dhuhr:'--:--', asr:'--:--',
                 maghrib:'--:--', isha:'--:--',
-                hadithAr:'دَعْ مَا يَرِيبُكَ إِلَى مَا لَا يَرِيبُكَ',
-                hadithFr:'Évite ce qui te fait douter au profit de ce qui ne te fait pas douter.',
-                hadithRef:'Tirmidhi', erreur: true
+                hadithAr:'', hadithFr:'Données indisponibles.', hadithRef:'',
+                douaAr:'', douaFr:'', douaRef:'',
+                erreur: true
             });
         }
 
@@ -68,19 +69,23 @@ router.get('/', async (req, res) => {
             weekday:'long', day:'numeric', month:'long', year:'numeric'
         });
 
-        cache = {
+        const result = {
             date     : dateLabel,
             fajr     : t.Fajr,
             dhuhr    : t.Dhuhr,
             asr      : t.Asr,
             maghrib  : t.Maghrib,
             isha     : t.Isha,
-            hadithAr : hadith?.ar  || 'دَعْ مَا يَرِيبُكَ إِلَى مَا لَا يَرِيبُكَ',
-            hadithFr : hadith?.fr  || 'Évite ce qui te fait douter au profit de ce qui ne te fait pas douter.',
-            hadithRef: hadith?.ref || 'Tirmidhi'
+            hadithAr : hadith?.ar  || '',
+            hadithFr : hadith?.fr  || '',
+            hadithRef: hadith?.ref || '',
+            douaAr   : doua?.ar   || '',
+            douaFr   : doua?.fr   || '',
+            douaRef  : doua?.ref  || ''
         };
-        cacheDate = todayStr;
-        res.json(cache);
+
+        cache[cacheKey] = result;
+        res.json(result);
 
     } catch(e) {
         res.status(500).json({ error: e.message });
