@@ -71,7 +71,11 @@ document.getElementById('login-form').addEventListener('submit', async e => {
             userId: d.userId,
             token : d.token
         }));
-        showApp();
+        if (d.mustChangePassword) {
+            afficherModaleChangementMdpObligatoire(d.userId);
+        } else {
+            showApp();
+        }
     } else {
         document.getElementById('error-msg').textContent = d.message;
     }
@@ -130,6 +134,90 @@ function logout() {
     localStorage.removeItem('myvibe_user');
     window.location.reload();
 }
+
+// ===================== CHANGEMENT MDP OBLIGATOIRE =====================
+
+function afficherModaleChangementMdpObligatoire(userId) {
+    document.getElementById('login-page').style.display = 'none';
+    document.body.style.background = '#f3f4f6';
+    document.body.style.alignItems = 'stretch';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('overlay').classList.add('on');
+    document.getElementById('modal-title').textContent = '🔑 Changement de mot de passe requis';
+    document.getElementById('modal-body').innerHTML = `
+        <div style="background:#fff7ed;border-radius:12px;padding:16px;margin-bottom:20px;
+                    border-left:4px solid #f59e0b;font-size:13px;color:#92400e">
+            Votre mot de passe actuel ne respecte pas les règles de sécurité.
+            Vous devez le changer avant de continuer.
+        </div>
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:16px;text-align:center">
+            8 car. min · majuscule · minuscule · chiffre · caractère spécial
+        </div>
+        <div style="margin-bottom:10px">
+            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Ancien mot de passe</label>
+            <input type="password" id="force-mdp-ancien" placeholder="••••••••"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+        </div>
+        <div style="margin-bottom:10px">
+            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Nouveau mot de passe</label>
+            <input type="password" id="force-mdp-nouveau" placeholder="••••••••"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+        </div>
+        <div style="margin-bottom:20px">
+            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Confirmer le mot de passe</label>
+            <input type="password" id="force-mdp-confirm" placeholder="••••••••"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+        </div>
+        <button onclick="validerChangementMdpObligatoire(${userId})"
+            style="width:100%;padding:13px;background:linear-gradient(135deg,#f59e0b,#d97706);
+                   color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;
+                   cursor:pointer;box-shadow:0 4px 10px rgba(245,158,11,0.3)">
+            🔑 Changer le mot de passe
+        </button>
+        <div id="force-mdp-msg" style="text-align:center;margin-top:12px;font-size:13px;min-height:18px"></div>
+    `;
+    // Bloquer la fermeture de la modale
+    document.getElementById('overlay').onclick = null;
+    document.querySelector('.mclos').style.display = 'none';
+}
+
+async function validerChangementMdpObligatoire(userId) {
+    const ancien  = document.getElementById('force-mdp-ancien').value;
+    const nouveau = document.getElementById('force-mdp-nouveau').value;
+    const confirm = document.getElementById('force-mdp-confirm').value;
+    const msg     = document.getElementById('force-mdp-msg');
+    if (nouveau !== confirm) {
+        msg.style.color = '#ef4444';
+        msg.textContent = '❌ Les mots de passe ne correspondent pas';
+        return;
+    }
+    try {
+        const r = await fetch('/api/profil/changer-mdp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, ancienMdp: ancien, nouveauMdp: nouveau })
+        });
+        const d = await r.json();
+        if (d.success) {
+            msg.style.color = '#10b981';
+            msg.textContent = '✅ Mot de passe changé !';
+            document.querySelector('.mclos').style.display = '';
+            document.getElementById('overlay').onclick = closeOutside;
+            setTimeout(() => {
+                document.getElementById('overlay').classList.remove('on');
+                showApp();
+            }, 1000);
+        } else {
+            msg.style.color = '#ef4444';
+            msg.textContent = '❌ ' + (d.message || 'Erreur.');
+        }
+    } catch {
+        msg.style.color = '#ef4444';
+        msg.textContent = '❌ Erreur réseau.';
+    }
+}
+
+// ===================== DATES & VERSION =====================
 
 function afficherDate() {
     const now = new Date();
@@ -195,7 +283,6 @@ function creerWidget(w) {
         headerExtra = `<button class="widget-refresh" onclick="event.stopPropagation();refreshWidget('${w.id}')" title="Actualiser">&#8635;</button>`;
     }
 
-    // ── ADMIN ──────────────────────────────────────────────────────────────────
     if (w.id === 'admin') {
         div.innerHTML = `
             <div class="widget-header">
@@ -212,7 +299,6 @@ function creerWidget(w) {
         return div;
     }
 
-    // ── PROFIL ─────────────────────────────────────────────────────────────────
     if (w.id === 'profil') {
         div.innerHTML = `
             <div class="widget-header">
@@ -228,7 +314,6 @@ function creerWidget(w) {
         return div;
     }
 
-    // ── PLANNING ───────────────────────────────────────────────────────────────
     if (w.id === 'planning') {
         div.innerHTML = `
             <div class="widget-header">
@@ -245,7 +330,6 @@ function creerWidget(w) {
         return div;
     }
 
-    // ── TOUS LES AUTRES ────────────────────────────────────────────────────────
     div.innerHTML = `
         <div class="widget-header">
             <span class="widget-icon">${w.icon}</span>
@@ -316,7 +400,6 @@ function onDragEnd() {
     dragSrc = null;
 }
 
-// Touch drag
 let touchWidget = null;
 let touchClone  = null;
 let touchOffX   = 0;

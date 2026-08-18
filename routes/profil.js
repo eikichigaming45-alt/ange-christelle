@@ -4,6 +4,15 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../db/pool');
 const { authenticateToken } = require('./auth');
 
+function validerMotDePasse(password) {
+    if (!password || password.length < 8)  return 'Minimum 8 caractères.';
+    if (!/[A-Z]/.test(password))           return 'Au moins une majuscule requise.';
+    if (!/[a-z]/.test(password))           return 'Au moins une minuscule requise.';
+    if (!/[0-9]/.test(password))           return 'Au moins un chiffre requis.';
+    if (!/[^A-Za-z0-9]/.test(password))    return 'Au moins un caractère spécial requis.';
+    return null;
+}
+
 // GET profil
 router.get('/', async (req, res) => {
     const userId = req.query.userId;
@@ -39,14 +48,18 @@ router.post('/', async (req, res) => {
 router.post('/changer-mdp', async (req, res) => {
     const { userId, ancienMdp, nouveauMdp } = req.body;
     if (!userId || !ancienMdp || !nouveauMdp) return res.status(400).json({ success: false, message: 'Champs manquants' });
-    if (nouveauMdp.length < 6) return res.status(400).json({ success: false, message: 'Mot de passe trop court' });
+    const erreurMdp = validerMotDePasse(nouveauMdp);
+    if (erreurMdp) return res.status(400).json({ success: false, message: erreurMdp });
     try {
         const result = await pool.query('SELECT * FROM users WHERE id = \$1', [userId]);
         if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
         const match = await bcrypt.compare(ancienMdp, result.rows[0].password);
         if (!match) return res.status(401).json({ success: false, message: 'Ancien mot de passe incorrect' });
         const hash = await bcrypt.hash(nouveauMdp, 10);
-        await pool.query('UPDATE users SET password = \$1 WHERE id = \$2', [hash, userId]);
+        await pool.query(
+            'UPDATE users SET password = \$1, must_change_password = FALSE WHERE id = \$2',
+            [hash, userId]
+        );
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
