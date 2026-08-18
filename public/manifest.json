@@ -4,7 +4,7 @@
   "description": "Mon espace personnel",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f0fa",
+  "background_color": "#c8b8e8",
   "theme_color": "#4f46e5",
   "orientation": "portrait",
   "icons": [
