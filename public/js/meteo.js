@@ -22,6 +22,9 @@ const METEO_DESC = {
 
 const JOURS_COURT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 
+// ← Index du jour sélectionné dans le widget — partagé avec la modale
+let _meteoSelectedIdx = 0;
+
 async function getNomVille(lat, lon) {
     try {
         const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=fr`);
@@ -52,6 +55,7 @@ async function chargerMeteo(lat, lon, nomVille) {
             daily : d.daily
         };
 
+        _meteoSelectedIdx = 0;
         _renderWidget(0);
         localStorage.setItem('myvibe_ville', JSON.stringify({ lat, lon, ville: nomVille }));
     } catch { if (el) el.textContent = 'Météo non disponible'; }
@@ -124,6 +128,7 @@ function _renderWidget(selectedIdx) {
 
 window._selectJourWidget = function(idx) {
     if (!meteoData) return;
+    _meteoSelectedIdx = idx; // ← mémorisation de l'index
     _renderWidget(idx);
 };
 
@@ -178,8 +183,6 @@ function _renderModaleMeteo(selectedIdx) {
 
     body.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:14px">
-
-            <!-- Ligne principale -->
             <div style="display:flex;align-items:center;justify-content:space-between;
                         background:#f0f9ff;border-radius:16px;padding:16px 20px">
                 <div>
@@ -192,23 +195,17 @@ function _renderModaleMeteo(selectedIdx) {
                 </div>
                 <div style="font-size:64px;line-height:1">${iIcon}</div>
             </div>
-
-            <!-- Badges -->
             ${isToday ? `
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <span class="meteo-badge" style="font-size:13px;padding:6px 12px">💧 ${d.hum}%</span>
                 <span class="meteo-badge" style="font-size:13px;padding:6px 12px">💨 ${d.vent} km/h</span>
                 <span class="meteo-badge" style="font-size:13px;padding:6px 12px">🌧️ ${d.pluie}%</span>
             </div>` : ''}
-
-            <!-- 6 jours -->
             <div>
                 <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
                             letter-spacing:.5px;margin-bottom:8px">Prévisions 6 jours</div>
                 <div style="display:flex;gap:6px">${joursHTML}</div>
             </div>
-
-            <!-- Détail jour sélectionné -->
             <div style="background:#f0f9ff;border:2px solid #bae6fd;border-radius:14px;padding:16px">
                 <div style="font-size:13px;font-weight:700;color:#0369a1;
                             text-transform:capitalize;margin-bottom:10px">${dateLabel}</div>
@@ -223,8 +220,6 @@ function _renderModaleMeteo(selectedIdx) {
                     <div style="font-size:52px;line-height:1">${iIcon}</div>
                 </div>
             </div>
-
-            <!-- Recherche -->
             <div class="ville-form">
                 <input type="text" id="ville-input" placeholder="Rechercher une ville...">
                 <button onclick="rechercherVille()">OK</button>
@@ -238,11 +233,11 @@ window._selectJourModale = function(idx) {
     _renderModaleMeteo(idx);
 };
 
+// ← Ouvre la modale sur le jour déjà sélectionné dans le widget
 window._ouvrirModaleMeteo = function() {
-    _renderModaleMeteo(0);
+    _renderModaleMeteo(_meteoSelectedIdx);
 };
 
-// Compatibilité modal.js
 function afficherDetailJourModale(i) {
     _renderModaleMeteo(i);
 }

@@ -14,64 +14,8 @@ async function openModal(type) {
     document.getElementById('modal-title').textContent = titres[type] || type;
 
     if (type === 'meteo') {
-        const d = meteoData;
-        document.getElementById('modal-body').innerHTML = d ? `
-            <div class="meteo-modal">
-                <div class="meteo-modal-top">
-                    <div class="meteo-modal-left">
-                        <div class="meteo-modal-temp">${d.temp}°</div>
-                        <div class="meteo-modal-desc">${d.icon} ${d.code !== undefined ? (codes?.[d.code] || 'Variable') : 'Variable'}</div>
-                        <div class="meteo-modal-minmax">↑ ${d.max}° ↓ ${d.min}°</div>
-                        <div class="meteo-ville" style="margin-top:4px">📍 ${d.ville}</div>
-                    </div>
-                    <div class="meteo-modal-icon">${d.icon}</div>
-                </div>
-                <div class="meteo-badges" style="margin:12px 0">
-                    <span class="meteo-badge">💧 ${d.hum}%</span>
-                    <span class="meteo-badge">💨 ${d.vent} km/h</span>
-                    <span class="meteo-badge">🌧️ ${d.pluie}%</span>
-                </div>
-                ${d.daily ? `
-                <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
-                            letter-spacing:.5px;margin-bottom:8px">Prévisions 6 jours</div>
-                <div class="meteo-7j" style="margin-bottom:12px;flex-wrap:nowrap;overflow-x:hidden;justify-content:space-between">
-                    ${d.daily.time.slice(0,6).map((t, i) => {
-                        const dateObj   = new Date(t + 'T12:00:00');
-                        const jsDay     = dateObj.getDay();
-                        const indexJour = jsDay === 0 ? 6 : jsDay - 1;
-                        const jour      = i === 0 ? 'Auj.' : JOURS_MODAL[indexJour];
-                        const iMax      = Math.round(d.daily.temperature_2m_max[i]);
-                        const iMin      = Math.round(d.daily.temperature_2m_min[i]);
-                        const iIcon     = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
-                        return `
-                            <div class="meteo-jour ${i === 0 ? 'meteo-jour-today' : ''}"
-                                id="meteo-modal-jour-${i}"
-                                onclick="afficherDetailJourModale(${i})"
-                                style="cursor:pointer;border:2px solid transparent;
-                                       border-radius:10px;transition:all .15s;flex:1;min-width:0">
-                                <div class="meteo-jour-nom">${jour}</div>
-                                <div class="meteo-jour-icon">${iIcon}</div>
-                                <div class="meteo-jour-max">${iMax}°</div>
-                                <div class="meteo-jour-min">${iMin}°</div>
-                            </div>`;
-                    }).join('')}
-                </div>
-                <div id="meteo-detail-jour" style="margin-bottom:12px"></div>
-                ` : ''}
-                <div class="ville-form">
-                    <input type="text" id="ville-input" placeholder="Rechercher une ville...">
-                    <button onclick="rechercherVille()">OK</button>
-                </div>
-                <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
-            </div>
-        ` : `
-            <p style="color:#555;margin-bottom:16px">Météo non disponible.</p>
-            <div class="ville-form">
-                <input type="text" id="ville-input" placeholder="Rechercher une ville...">
-                <button onclick="rechercherVille()">OK</button>
-            </div>
-            <button class="geo-btn" onclick="geoLocaliser()">📍 Utiliser ma position</button>
-        `;
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        _ouvrirModaleMeteo();
 
     } else if (type === 'priere') {
         document.getElementById('modal-body').innerHTML = priere ? `
@@ -335,47 +279,6 @@ async function openModal(type) {
     }
 }
 
-// ── Détail jour météo UNIQUEMENT dans la modale ────
-function afficherDetailJourModale(i) {
-    const d = meteoData;
-    if (!d?.daily) return;
-
-    for (let idx = 0; idx < 6; idx++) {
-        const el = document.getElementById(`meteo-modal-jour-${idx}`);
-        if (!el) continue;
-        el.style.border     = idx === i ? '2px solid #4f46e5' : '2px solid transparent';
-        el.style.background = idx === i ? '#eff6ff' : (idx === 0 ? '#e0f2fe' : 'transparent');
-    }
-
-    const t       = d.daily.time[i];
-    const dateObj = new Date(t + 'T12:00:00');
-    const date    = i === 0
-        ? "Aujourd'hui"
-        : dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-    const iMax    = Math.round(d.daily.temperature_2m_max[i]);
-    const iMin    = Math.round(d.daily.temperature_2m_min[i]);
-    const iIcon   = METEO_ICONS[d.daily.weather_code[i]] || '🌡️';
-    const iPluie  = d.daily.precipitation_probability_max?.[i] || 0;
-    const desc    = codes?.[d.daily.weather_code[i]] || 'Variable';
-
-    document.getElementById('meteo-detail-jour').innerHTML = `
-        <div style="background:#f0f9ff;border-radius:14px;padding:16px;border:2px solid #bae6fd">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-                <div>
-                    <div style="font-size:14px;font-weight:700;color:#0369a1;
-                                text-transform:capitalize;margin-bottom:6px">${date}</div>
-                    <div style="font-size:13px;color:#555;margin-bottom:6px">${iIcon} ${desc}</div>
-                    <div style="font-size:26px;font-weight:800;color:#1e3a5f">↑${iMax}° ↓${iMin}°</div>
-                    <div style="margin-top:8px">
-                        <span class="meteo-badge">🌧️ Précipitations : ${iPluie}%</span>
-                    </div>
-                </div>
-                <div style="font-size:52px;line-height:1">${iIcon}</div>
-            </div>
-        </div>
-    `;
-}
-
 function lirePriereModal(e) {
     if (!('speechSynthesis' in window)) {
         document.getElementById('modal-title').textContent = 'Non supporté';
@@ -421,7 +324,7 @@ function lirePriereModal(e) {
         synth.speak(utterance);
     };
 
-        if (synth.getVoices().length === 0) {
+    if (synth.getVoices().length === 0) {
         synth.onvoiceschanged = lancerLecture;
     } else {
         lancerLecture();
