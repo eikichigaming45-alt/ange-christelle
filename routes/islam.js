@@ -17,15 +17,20 @@ function httpsGet(url) {
     });
 }
 
-async function fetchHadith(id) {
-    try {
-        const [fr, ar] = await Promise.all([
-            httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=fr&id=${id}`),
-            httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=ar&id=${id}`)
-        ]);
-        if (!fr?.hadeeth) return null;
-        return { ar: ar?.hadeeth || '', fr: fr.hadeeth, ref: fr.attribution || '' };
-    } catch(e) { return null; }
+async function fetchHadithAvecFallback(idBase, maxTentatives = 5) {
+    for (let i = 0; i < maxTentatives; i++) {
+        const id = ((idBase + i) % 100) + 1;
+        try {
+            const [fr, ar] = await Promise.all([
+                httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=fr&id=${id}`),
+                httpsGet(`https://hadeethenc.com/api/v1/hadeeths/one/?language=ar&id=${id}`)
+            ]);
+            if (fr?.hadeeth && fr.hadeeth.length > 10) {
+                return { ar: ar?.hadeeth || '', fr: fr.hadeeth, ref: fr.attribution || '' };
+            }
+        } catch(e) { continue; }
+    }
+    return null;
 }
 
 router.get('/', async (req, res) => {
@@ -50,15 +55,15 @@ router.get('/', async (req, res) => {
 
         const [dataAladhan, hadith, doua] = await Promise.all([
             httpsGet(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lon}&method=12`),
-            fetchHadith(idHadith),
-            fetchHadith(idDoua)
+            fetchHadithAvecFallback(idHadith),
+            fetchHadithAvecFallback(idDoua)
         ]);
 
         if (!dataAladhan || dataAladhan.code !== 200) {
             return res.json({
                 date:'', fajr:'--:--', dhuhr:'--:--', asr:'--:--',
                 maghrib:'--:--', isha:'--:--',
-                hadithAr:'', hadithFr:'Données indisponibles.', hadithRef:'',
+                hadithAr:'', hadithFr:'', hadithRef:'',
                 douaAr:'', douaFr:'', douaRef:'',
                 erreur: true
             });

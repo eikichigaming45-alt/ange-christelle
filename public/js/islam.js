@@ -56,61 +56,24 @@
             </div>`;
     }
 
-    function afficherModale(data) {
-        const prochaine = prochaineP(data);
+    function chargerIslam(rafraichirModale = false) {
         const coords = getCoords();
-        return `
-            <p style="text-align:center;color:#888;font-size:13px;margin-bottom:8px;">${data.date || ''}</p>
-
-            <div style="text-align:center;margin-bottom:16px;">
-                <span style="font-size:12px;color:#059669;font-weight:600;">📍 ${coords.ville}</span>
-                <button onclick="window._islamChangerVille()" style="margin-left:10px;background:#f0fdf4;border:1px solid #10b981;color:#059669;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">Changer</button>
-            </div>
-
-            <div style="background:#f0faf4;border-radius:10px;padding:16px;margin-bottom:16px;">
-                <div style="color:#1a7a4a;font-weight:700;font-size:12px;text-transform:uppercase;margin-bottom:10px;">Horaires des prières</div>
-                ${[
-                    ['Fajr (Aube)',       data.fajr],
-                    ['Dhuhr (Midi)',      data.dhuhr],
-                    ['Asr (Après-midi)',  data.asr],
-                    ['Maghrib (Coucher)', data.maghrib],
-                    ['Isha (Nuit)',       data.isha]
-                ].map(([nom, h]) => {
-                    const estProchaine = nom.startsWith(prochaine.nom);
-                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #e0f0e8;">
-                        <span style="color:#333;">${nom}</span>
-                        <span style="color:#1a7a4a;font-weight:700;">${h}
-                            ${estProchaine ? '<span style="background:#1a7a4a;color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:6px;">Prochaine</span>' : ''}
-                        </span>
-                    </div>`;
-                }).join('')}
-            </div>
-
-            ${data.hadithFr ? `
-            <div style="background:#fffbea;border-radius:10px;padding:14px;margin-bottom:12px;">
-                <div style="color:#b8860b;font-weight:700;font-size:11px;text-transform:uppercase;margin-bottom:8px;">Hadith du jour</div>
-                ${data.hadithAr ? `<p style="font-family:serif;font-size:16px;text-align:right;direction:rtl;color:#333;margin:0 0 8px;">${data.hadithAr}</p>` : ''}
-                <p style="font-style:italic;color:#444;margin:0 0 6px;">"${data.hadithFr}"</p>
-                <p style="text-align:right;color:#888;font-size:11px;margin:0;">${data.hadithRef || ''}</p>
-            </div>` : ''}
-
-            ${data.douaFr ? `
-            <div style="background:#f5f0ff;border-radius:10px;padding:14px;">
-                <div style="color:#6a0dad;font-weight:700;font-size:11px;text-transform:uppercase;margin-bottom:8px;">Invocation (Doua)</div>
-                ${data.douaAr ? `<p style="font-family:serif;font-size:18px;text-align:right;direction:rtl;color:#333;margin:0 0 8px;">${data.douaAr}</p>` : ''}
-                <p style="font-style:italic;color:#555;font-size:12px;margin:0;">"${data.douaFr}"</p>
-                <p style="text-align:right;color:#888;font-size:11px;margin-top:6px;">${data.douaRef || ''}</p>
-            </div>` : ''}
-
-            <div id="islam-ville-form" style="display:none;margin-top:16px;background:#f8fafc;border-radius:10px;padding:14px;">
-                <div style="font-weight:700;font-size:13px;color:#333;margin-bottom:10px;">Changer la localisation</div>
-                <button onclick="window._islamGeolocate()" style="width:100%;padding:10px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px;">📍 Utiliser ma position GPS</button>
-                <div style="display:flex;gap:8px;">
-                    <input id="islam-ville-input" placeholder="Nom de la ville..." style="flex:1;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;">
-                    <button onclick="window._islamRechercherVille()" style="padding:10px 14px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">OK</button>
-                </div>
-                <div id="islam-ville-msg" style="font-size:12px;color:#ef4444;margin-top:6px;min-height:16px;"></div>
-            </div>`;
+        fetch(`/api/islam?lat=${coords.lat}&lon=${coords.lon}`)
+            .then(r => r.json())
+            .then(data => {
+                window._islamData = data;
+                afficherWidget(data);
+                if (rafraichirModale) {
+                    const overlay = document.getElementById('overlay');
+                    if (overlay && overlay.classList.contains('on')) {
+                        if (typeof openModal === 'function') openModal('islam');
+                    }
+                }
+            })
+            .catch(() => {
+                const w = document.getElementById('wc-islam');
+                if (w) w.innerHTML = '<p style="color:#888;text-align:center;">Données indisponibles</p>';
+            });
     }
 
     window._islamChangerVille = function() {
@@ -133,9 +96,9 @@
                 const d = await r.json();
                 const ville = d.address?.city || d.address?.town || d.address?.village || 'Ma position';
                 localStorage.setItem('islam_coords', JSON.stringify({ lat, lon, ville }));
-                if (msg) msg.style.color = '#059669';
-                if (msg) msg.textContent = `Position enregistrée : ${ville}`;
-                window.chargerIslam();
+                if (msg) { msg.style.color = '#059669'; msg.textContent = `Position enregistrée : ${ville}`; }
+                window._islamData = null;
+                chargerIslam(true);
             } catch(e) {
                 if (msg) msg.textContent = 'Erreur de géolocalisation.';
             }
@@ -153,36 +116,22 @@
             const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input.value)}&format=json&limit=1`);
             const d = await r.json();
             if (!d.length) { if (msg) msg.textContent = 'Ville introuvable.'; return; }
-            const lat  = parseFloat(d[0].lat);
-            const lon  = parseFloat(d[0].lon);
+            const lat   = parseFloat(d[0].lat);
+            const lon   = parseFloat(d[0].lon);
             const ville = d[0].display_name.split(',')[0];
             localStorage.setItem('islam_coords', JSON.stringify({ lat, lon, ville }));
-            if (msg) msg.style.color = '#059669';
-            if (msg) msg.textContent = `Enregistré : ${ville}`;
-            window.chargerIslam();
+            if (msg) { msg.style.color = '#059669'; msg.textContent = `Enregistré : ${ville}`; }
+            window._islamData = null;
+            chargerIslam(true);
         } catch(e) {
             if (msg) msg.textContent = 'Erreur de recherche.';
         }
     };
 
-    function chargerIslam() {
-        const coords = getCoords();
-        fetch(`/api/islam?lat=${coords.lat}&lon=${coords.lon}`)
-            .then(r => r.json())
-            .then(data => {
-                window._islamData = data;
-                afficherWidget(data);
-            })
-            .catch(() => {
-                const w = document.getElementById('wc-islam');
-                if (w) w.innerHTML = '<p style="color:#888;text-align:center;">Données indisponibles</p>';
-            });
-    }
-
     window.chargerIslam = chargerIslam;
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', chargerIslam);
+        document.addEventListener('DOMContentLoaded', () => chargerIslam());
     } else {
         chargerIslam();
     }
