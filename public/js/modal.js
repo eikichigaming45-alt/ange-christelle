@@ -49,25 +49,50 @@ async function openModal(type) {
 
     } else if (type === 'islam') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
-        if (!islamData) {
-            await chargerIslam();
+
+        // Utilise window._islamData — jamais la variable globale nue islamData
+        if (!window._islamData) {
+            await new Promise(resolve => {
+                if (typeof window.chargerIslam === 'function') {
+                    const original = window.chargerIslam;
+                    window.chargerIslam = function() {
+                        original();
+                        window.chargerIslam = original;
+                        resolve();
+                    };
+                    window.chargerIslam();
+                } else {
+                    resolve();
+                }
+            });
         }
-        document.getElementById('modal-body').innerHTML = islamData ? `
+
+        const d = window._islamData;
+        document.getElementById('modal-body').innerHTML = (d && !d.erreur) ? `
             <div class="islam-modal">
                 <div class="islam-modal-header">
-                    <div class="islam-modal-date">${islamData.date}</div>
+                    <div class="islam-modal-date">${d.date || ''}</div>
                 </div>
                 <div class="islam-modal-prieres">
                     <div class="islam-modal-titre-section">Horaires des prières</div>
                     ${[
-                        { nom:'Fajr',    label:'Fajr (Aube)',       heure: islamData.fajr    },
-                        { nom:'Dhuhr',   label:'Dhuhr (Midi)',      heure: islamData.dhuhr   },
-                        { nom:'Asr',     label:'Asr (Après-midi)',  heure: islamData.asr     },
-                        { nom:'Maghrib', label:'Maghrib (Coucher)', heure: islamData.maghrib },
-                        { nom:'Isha',    label:'Isha (Nuit)',       heure: islamData.isha    },
+                        { nom:'Fajr',    label:'Fajr (Aube)',       heure: d.fajr    },
+                        { nom:'Dhuhr',   label:'Dhuhr (Midi)',      heure: d.dhuhr   },
+                        { nom:'Asr',     label:'Asr (Après-midi)',  heure: d.asr     },
+                        { nom:'Maghrib', label:'Maghrib (Coucher)', heure: d.maghrib },
+                        { nom:'Isha',    label:'Isha (Nuit)',       heure: d.isha    },
                     ].map(p => {
-                        const prochaineNom = getProchainePreiere(islamData).nom;
-                        const actif = p.nom === prochaineNom;
+                        const now = new Date().getHours() * 60 + new Date().getMinutes();
+                        const toMin = hhmm => { if (!hhmm) return null; const [h,m] = hhmm.split(':').map(Number); return h*60+m; };
+                        const prieres = [
+                            { nom:'Fajr',    heure: d.fajr    },
+                            { nom:'Dhuhr',   heure: d.dhuhr   },
+                            { nom:'Asr',     heure: d.asr     },
+                            { nom:'Maghrib', heure: d.maghrib },
+                            { nom:'Isha',    heure: d.isha    }
+                        ];
+                        let prochaine = prieres.find(x => toMin(x.heure) > now) || prieres[0];
+                        const actif = p.nom === prochaine.nom;
                         return `
                             <div class="islam-modal-priere-row ${actif ? 'islam-modal-priere-actif' : ''}">
                                 <span class="islam-modal-priere-nom">${p.label}</span>
@@ -77,15 +102,15 @@ async function openModal(type) {
                         `;
                     }).join('')}
                 </div>
-                ${islamData.hadithFr ? `
+                ${d.hadithFr ? `
                 <div class="islam-modal-hadith">
                     <div class="islam-modal-titre-section">Hadith du jour</div>
-                    <div class="islam-modal-hadith-fr">"${islamData.hadithFr}"</div>
-                    <div class="islam-modal-hadith-ref">${islamData.hadithRef || ''}</div>
+                    <div class="islam-modal-hadith-fr">"${d.hadithFr}"</div>
+                    <div class="islam-modal-hadith-ref">${d.hadithRef || ''}</div>
                 </div>` : ''}
                 <div class="islam-modal-doua">
                     <div class="islam-modal-titre-section">Invocation (Doua)</div>
-                    <div class="islam-modal-doua-arabe">اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى</div>
+                    <div class="islam-modal-doua-arabe">${d.hadithAr || 'اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى'}</div>
                     <div class="islam-modal-doua-fr">"Ô Allah, je Te demande la guidance, la piété, la chasteté et l'aisance."</div>
                 </div>
             </div>
