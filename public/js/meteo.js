@@ -212,19 +212,24 @@ function afficherDetailJourModale(i) {
 async function chargerMeteoAuto() {
     const saved = localStorage.getItem('myvibe_ville');
     if (saved) {
-        const v = JSON.parse(saved);
-        chargerMeteo(v.lat, v.lon, v.ville);
-        return;
+        try {
+            const v = JSON.parse(saved);
+            chargerMeteo(v.lat, v.lon, v.ville);
+            return;
+        } catch { localStorage.removeItem('myvibe_ville'); }
     }
+    // Pas de ville sauvegardée → géoloc avec fallback Chécy
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             async pos => {
                 const ville = await getNomVille(pos.coords.latitude, pos.coords.longitude);
                 chargerMeteo(pos.coords.latitude, pos.coords.longitude, ville);
             },
-            () => chargerMeteo(48.8566, 2.3522, 'Paris')
+            () => chargerMeteo(47.9167, 1.9167, 'Chécy')
         );
-    } else { chargerMeteo(48.8566, 2.3522, 'Paris'); }
+    } else {
+        chargerMeteo(47.9167, 1.9167, 'Chécy');
+    }
 }
 
 async function rechercherVille() {
