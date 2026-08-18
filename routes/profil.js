@@ -73,10 +73,8 @@ router.get('/widgets-visibles', authenticateToken, async (req, res) => {
             'SELECT widgets_visibles FROM profiles WHERE user_id = \$1',
             [req.user.id]
         );
-        let widgets = result.rows[0]?.widgets_visibles ||
+        const widgets = result.rows[0]?.widgets_visibles ||
             ['meteo','priere','islam','planning','rendezvous','cycle','taches','anniversaires'];
-        // Ajouter islam si absent (utilisateurs existants)
-        if (!widgets.includes('islam')) widgets = [...widgets, 'islam'];
         res.json({ widgets_visibles: widgets });
     } catch (e) {
         res.status(500).json({ error: e.message });
