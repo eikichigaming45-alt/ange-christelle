@@ -50,7 +50,6 @@ async function openModal(type) {
     } else if (type === 'islam') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
 
-        // Si pas encore chargé, on déclenche et on attend (max 3s, toutes les 200ms)
         if (!window._islamData) {
             if (typeof window.chargerIslam === 'function') window.chargerIslam();
             await new Promise(resolve => {
@@ -74,11 +73,29 @@ async function openModal(type) {
         ];
         const prochaine = (d ? (listePrieres.find(x => toMin(x.heure) > now) || listePrieres[0]) : null);
 
+        let coords = { ville: 'Paris' };
+        try { coords = JSON.parse(localStorage.getItem('islam_coords')) || coords; } catch(e) {}
+
         document.getElementById('modal-body').innerHTML = (d && !d.erreur) ? `
             <div class="islam-modal">
                 <div class="islam-modal-header">
                     <div class="islam-modal-date">${d.date || ''}</div>
+                    <div style="text-align:center;margin-top:6px;">
+                        <span style="font-size:12px;color:#059669;font-weight:600;">📍 ${coords.ville}</span>
+                        <button onclick="window._islamChangerVille()" style="margin-left:10px;background:#f0fdf4;border:1px solid #10b981;color:#059669;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">Changer</button>
+                    </div>
                 </div>
+
+                <div id="islam-ville-form" style="display:none;background:#f8fafc;border-radius:10px;padding:14px;margin:10px 0;">
+                    <div style="font-weight:700;font-size:13px;color:#333;margin-bottom:10px;">Changer la localisation</div>
+                    <button onclick="window._islamGeolocate()" style="width:100%;padding:10px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px;">📍 Utiliser ma position GPS</button>
+                    <div style="display:flex;gap:8px;">
+                        <input id="islam-ville-input" placeholder="Nom de la ville..." style="flex:1;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;">
+                        <button onclick="window._islamRechercherVille()" style="padding:10px 14px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">OK</button>
+                    </div>
+                    <div id="islam-ville-msg" style="font-size:12px;color:#ef4444;margin-top:6px;min-height:16px;"></div>
+                </div>
+
                 <div class="islam-modal-prieres">
                     <div class="islam-modal-titre-section">Horaires des prières</div>
                     ${listePrieres.map(p => {
@@ -91,17 +108,23 @@ async function openModal(type) {
                             </div>`;
                     }).join('')}
                 </div>
+
                 ${d.hadithFr ? `
                 <div class="islam-modal-hadith">
                     <div class="islam-modal-titre-section">Hadith du jour</div>
+                    ${d.hadithAr ? `<div class="islam-modal-hadith-arabe">${d.hadithAr}</div>` : ''}
                     <div class="islam-modal-hadith-fr">"${d.hadithFr}"</div>
                     <div class="islam-modal-hadith-ref">${d.hadithRef || ''}</div>
                 </div>` : ''}
+
+                ${d.douaFr ? `
                 <div class="islam-modal-doua">
                     <div class="islam-modal-titre-section">Invocation (Doua)</div>
-                    <div class="islam-modal-doua-arabe">${d.hadithAr || 'اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى'}</div>
-                    <div class="islam-modal-doua-fr">"Ô Allah, je Te demande la guidance, la piété, la chasteté et l'aisance."</div>
-                </div>
+                    ${d.douaAr ? `<div class="islam-modal-doua-arabe">${d.douaAr}</div>` : ''}
+                    <div class="islam-modal-doua-fr">"${d.douaFr}"</div>
+                    ${d.douaRef ? `<div class="islam-modal-hadith-ref">${d.douaRef}</div>` : ''}
+                </div>` : ''}
+
             </div>
         ` : '<p style="color:#ef4444;text-align:center;padding:20px 0">Horaires indisponibles pour le moment.</p>';
 
