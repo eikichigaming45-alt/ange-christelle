@@ -1,6 +1,7 @@
 // ===================== PROFIL & CROPPER =====================
 
 async function chargerProfilHeader() {
+    // Délégué à app.js — fonction unique
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     if (!user?.userId) return;
     try {
@@ -9,10 +10,8 @@ async function chargerProfilHeader() {
         if (!d.success || !d.profil) return;
         profilCache = d.profil;
         const p = d.profil;
-
         const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '';
 
-        // Topbar header bouton
         const btnHeader = document.getElementById('btn-profil-header');
         if (btnHeader) {
             if (p.photo) {
@@ -26,10 +25,8 @@ async function chargerProfilHeader() {
             }
         }
 
-        // Corps du widget profil
-        const wc = document.getElementById('widget-profil-body');
+        const wc = document.getElementById('wc-profil');
         if (!wc) return;
-
         const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
         const age = p.date_naissance ? (() => {
             const n = new Date(p.date_naissance);
@@ -184,13 +181,11 @@ async function changerMdp() {
         msg.textContent = '❌ Les mots de passe ne correspondent pas';
         msg.style.color = '#ef4444'; return;
     }
-
     const erreur = validerMotDePasse(nouveau);
     if (erreur) {
         msg.textContent = '❌ ' + erreur;
         msg.style.color = '#ef4444'; return;
     }
-
     msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
     try {
         const r = await fetch('/api/profil/changer-mdp', {
@@ -257,7 +252,6 @@ async function sauvegarderWidgetsVisibles() {
         msg.textContent = '❌ Sélectionne au moins un widget.';
         msg.style.color = '#ef4444'; return;
     }
-
     msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
     try {
         const res = await fetch('/api/profil/widgets-visibles', {

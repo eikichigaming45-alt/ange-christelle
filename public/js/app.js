@@ -9,15 +9,15 @@ let dragActif = false;
 let cropperInstance = null;
 
 const WIDGETS_DEF = [
-    { id:'meteo',         label:'Météo du jour',    icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',               foot:'Cliquez pour les détails',         refresh:true },
-    { id:'priere',        label:'Prière du jour',   icon:'🙏',  cls:'w-priere',        desc:'Chargement...',               foot:'Cliquez pour la version complète', refresh:true },
-    { id:'taches',        label:'Tâches du jour',   icon:'✅',  cls:'w-taches',        desc:'Chargement...',               foot:'Cliquez pour gérer' },
-    { id:'cycle',         label:'Suivi du cycle',   icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',               foot:'Cliquez pour gérer',               refresh:true },
-    { id:'rendezvous',    label:'Rendez-vous',       icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',               foot:'Cliquez pour gérer',               refresh:true },
-    { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'',                            foot:'Cliquez pour gérer' },
-    { id:'anniversaires', label:'Anniversaires',     icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',               foot:'Cliquez pour gérer' },
-    { id:'profil',        label:'Mon Profil',        icon:'👤',  cls:'w-profil',        desc:'',                            foot:'Cliquez pour gérer' },
-    { id:'admin',         label:'Administration',    icon:'⚙️',  cls:'w-admin',         desc:'',                            foot:'Cliquez pour gérer', adminOnly:true },
+    { id:'meteo',         label:'Météo du jour',    icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',  foot:'Cliquez pour les détails',         refresh:true },
+    { id:'priere',        label:'Prière du jour',   icon:'🙏',  cls:'w-priere',        desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
+    { id:'taches',        label:'Tâches du jour',   icon:'✅',  cls:'w-taches',        desc:'Chargement...',  foot:'Cliquez pour gérer' },
+    { id:'cycle',         label:'Suivi du cycle',   icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
+    { id:'rendezvous',    label:'Rendez-vous',       icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
+    { id:'planning',      label:'Planning',          icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
+    { id:'anniversaires', label:'Anniversaires',     icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
+    { id:'profil',        label:'Mon Profil',        icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
+    { id:'admin',         label:'Administration',    icon:'⚙️',  cls:'w-admin',         desc:'',               foot:'Cliquez pour gérer', adminOnly:true },
 ];
 
 const codes = {
@@ -94,18 +94,16 @@ async function showApp() {
 
     afficherDate();
     afficherVersion();
+
+    // buildGrid est géré uniquement par widgets.js
     await buildGrid();
 
     chargerPriere();
     chargerMeteoAuto();
-    chargerProfilHeader();
     setTimeout(() => {
         if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
     }, 300);
     chargerWidgetAnniversaires();
-    chargerWidgetPlanning();
-    if (typeof Cycle !== 'undefined') Cycle.charger();
-    if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
 
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     if (user?.role === 'admin') {
@@ -236,115 +234,7 @@ async function afficherVersion() {
     } catch(e) {}
 }
 
-// ===================== BUILD GRID =====================
-
-async function buildGrid() {
-    const user  = JSON.parse(localStorage.getItem('myvibe_user'));
-    const grid  = document.getElementById('main-grid');
-    grid.innerHTML = '';
-
-    let ordre = null;
-    try {
-        const r = await fetch(`/api/widget-order?userId=${user.userId}`);
-        const d = await r.json();
-        if (d.success && Array.isArray(d.order) && d.order.length) ordre = d.order;
-    } catch(e) {}
-
-    const widgetsDispo = WIDGETS_DEF.filter(w => {
-        if (w.adminOnly && user?.role !== 'admin') return false;
-        return true;
-    });
-
-    let liste;
-    if (ordre) {
-        liste = ordre
-            .map(id => widgetsDispo.find(w => w.id === id))
-            .filter(Boolean);
-        widgetsDispo.forEach(w => {
-            if (!liste.find(l => l.id === w.id)) liste.push(w);
-        });
-    } else {
-        liste = widgetsDispo;
-    }
-
-    liste.forEach(w => grid.appendChild(creerWidget(w)));
-    initDragAndDrop();
-}
-
-function creerWidget(w) {
-    const div = document.createElement('div');
-    div.className = `widget ${w.cls}`;
-    div.dataset.id = w.id;
-    div.draggable  = true;
-
-    let headerExtra = '';
-    if (w.refresh) {
-        headerExtra = `<button class="widget-refresh" onclick="event.stopPropagation();refreshWidget('${w.id}')" title="Actualiser">&#8635;</button>`;
-    }
-
-    if (w.id === 'admin') {
-        div.innerHTML = `
-            <div class="widget-header">
-                <span class="widget-icon">${w.icon}</span>
-                <h3>${w.label}</h3>
-            </div>
-            <div id="widget-admin-content">
-                <div class="wa-loading">Chargement...</div>
-            </div>
-            <div class="widget-foot">${w.foot}</div>
-        `;
-        div.addEventListener('click', e => {
-            if (!e.target.closest('button') && !dragActif) ouvrirAdmin();
-        });
-        return div;
-    }
-
-    if (w.id === 'profil') {
-        div.innerHTML = `
-            <div class="widget-header">
-                <span class="widget-icon">${w.icon}</span>
-                <h3>${w.label}</h3>
-                ${headerExtra}
-            </div>
-            <div id="widget-profil-body"></div>
-            <div class="widget-foot">${w.foot}</div>
-        `;
-        div.addEventListener('click', e => {
-            if (!e.target.closest('button') && !dragActif) openModal('profil');
-        });
-        return div;
-    }
-
-    if (w.id === 'planning') {
-        div.innerHTML = `
-            <div class="widget-header">
-                <span class="widget-icon">${w.icon}</span>
-                <h3>${w.label}</h3>
-            </div>
-            <div id="widget-planning-contenu">
-                <p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Chargement...</p>
-            </div>
-            <div class="widget-foot">${w.foot}</div>
-        `;
-        div.addEventListener('click', e => {
-            if (!e.target.closest('button') && !dragActif) openModal('planning');
-        });
-        return div;
-    }
-
-    div.innerHTML = `
-        <div class="widget-header">
-            <span class="widget-icon">${w.icon}</span>
-            <h3>${w.label}</h3>
-            ${headerExtra}
-        </div>
-        <div id="widget-${w.id}-body">
-            ${w.desc ? `<p class="widget-desc">${w.desc}</p>` : ''}
-        </div>
-        ${w.foot ? `<div class="widget-foot">${w.foot}</div>` : ''}
-    `;
-    return div;
-}
+// ===================== REFRESH WIDGET =====================
 
 function refreshWidget(id) {
     switch(id) {
@@ -356,121 +246,6 @@ function refreshWidget(id) {
     }
 }
 
-// ===================== DRAG & DROP =====================
-
-function initDragAndDrop() {
-    const widgets = document.querySelectorAll('.widget');
-    widgets.forEach(w => {
-        w.addEventListener('dragstart',  onDragStart);
-        w.addEventListener('dragover',   onDragOver);
-        w.addEventListener('drop',       onDrop);
-        w.addEventListener('dragend',    onDragEnd);
-        w.addEventListener('touchstart', onTouchStart, { passive:true });
-        w.addEventListener('touchmove',  onTouchMove,  { passive:false });
-        w.addEventListener('touchend',   onTouchEnd);
-    });
-}
-
-function onDragStart(e) {
-    dragSrc = this;
-    e.dataTransfer.effectAllowed = 'move';
-    this.classList.add('dragging');
-}
-
-function onDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    return false;
-}
-
-function onDrop(e) {
-    e.stopPropagation();
-    if (dragSrc !== this) {
-        const grid    = document.getElementById('main-grid');
-        const widgets = [...grid.querySelectorAll('.widget')];
-        const fromIdx = widgets.indexOf(dragSrc);
-        const toIdx   = widgets.indexOf(this);
-        if (fromIdx < toIdx) grid.insertBefore(dragSrc, this.nextSibling);
-        else                 grid.insertBefore(dragSrc, this);
-        sauvegarderOrdre();
-    }
-    return false;
-}
-
-function onDragEnd() {
-    document.querySelectorAll('.widget').forEach(w => w.classList.remove('dragging'));
-    dragSrc = null;
-}
-
-let touchWidget = null;
-let touchClone  = null;
-let touchOffX   = 0;
-let touchOffY   = 0;
-
-function onTouchStart(e) {
-    longPressTimer = setTimeout(() => {
-        dragActif   = true;
-        touchWidget = this;
-        const rect  = this.getBoundingClientRect();
-        const touch = e.touches[0];
-        touchOffX   = touch.clientX - rect.left;
-        touchOffY   = touch.clientY - rect.top;
-        touchClone  = this.cloneNode(true);
-        touchClone.style.cssText = `
-            position:fixed;width:${rect.width}px;opacity:0.85;pointer-events:none;
-            z-index:9999;left:${rect.left}px;top:${rect.top}px;
-            box-shadow:0 8px 30px rgba(0,0,0,.2);transform:scale(1.03);transition:none;
-        `;
-        document.body.appendChild(touchClone);
-        this.style.opacity = '0.3';
-    }, 500);
-}
-
-function onTouchMove(e) {
-    clearTimeout(longPressTimer);
-    if (!dragActif || !touchClone) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    touchClone.style.left = (touch.clientX - touchOffX) + 'px';
-    touchClone.style.top  = (touch.clientY - touchOffY) + 'px';
-}
-
-function onTouchEnd(e) {
-    clearTimeout(longPressTimer);
-    if (!dragActif || !touchWidget || !touchClone) { dragActif = false; return; }
-    const touch  = e.changedTouches[0];
-    touchClone.style.display = 'none';
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    touchClone.style.display = '';
-    const target = el?.closest('.widget');
-    if (target && target !== touchWidget) {
-        const grid    = document.getElementById('main-grid');
-        const widgets = [...grid.querySelectorAll('.widget')];
-        const fromIdx = widgets.indexOf(touchWidget);
-        const toIdx   = widgets.indexOf(target);
-        if (fromIdx < toIdx) grid.insertBefore(touchWidget, target.nextSibling);
-        else                 grid.insertBefore(touchWidget, target);
-        sauvegarderOrdre();
-    }
-    touchWidget.style.opacity = '';
-    touchClone.remove();
-    touchClone  = null;
-    touchWidget = null;
-    dragActif   = false;
-}
-
-async function sauvegarderOrdre() {
-    const user    = JSON.parse(localStorage.getItem('myvibe_user'));
-    const widgets = [...document.querySelectorAll('.widget')];
-    const ordre   = widgets.map(w => w.dataset.id);
-    try {
-        await fetch('/api/widget-order', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ userId: user.userId, ordre })
-        });
-    } catch(e) {}
-}
-
 // ===================== PROFIL HEADER =====================
 
 async function chargerProfilHeader() {
@@ -480,9 +255,49 @@ async function chargerProfilHeader() {
     try {
         const r = await fetch(`/api/profil?userId=${user.userId}`);
         const d = await r.json();
-        if (d.success && d.profil?.photo_url) {
-            btn.innerHTML = `<img src="${d.profil.photo_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid #fff">`;
+        if (!d.success || !d.profil) return;
+        profilCache = d.profil;
+        const p = d.profil;
+        const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '';
+
+        // Topbar
+        if (p.photo) {
+            btn.innerHTML = `<img src="${p.photo}" alt="profil">`;
+        } else if (initiales) {
+            btn.innerHTML = initiales;
+            btn.style.fontSize = '13px';
+            btn.style.fontWeight = '700';
+        } else {
+            btn.innerHTML = '👤';
         }
+
+        // Widget profil — injecté dans wc-profil créé par widgets.js
+        const wc = document.getElementById('wc-profil');
+        if (!wc) return;
+
+        const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
+        const age = p.date_naissance ? (() => {
+            const n = new Date(p.date_naissance);
+            const today = new Date();
+            let a = today.getFullYear() - n.getFullYear();
+            if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
+            return `${a} ans`;
+        })() : '';
+
+        wc.innerHTML = `
+            <div class="profil-widget">
+                ${p.photo
+                    ? `<img src="${p.photo}" alt="profil" class="profil-widget-photo">`
+                    : `<div class="profil-widget-initiales">${initiales || '👤'}</div>`
+                }
+                <div class="profil-widget-nom">${nom}</div>
+                ${age          ? `<div class="profil-widget-info">${age}</div>` : ''}
+                ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
+                ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>` : ''}
+                ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>` : ''}
+                <button class="profil-widget-btn" onclick="openModal('profil')">✏️ Modifier</button>
+            </div>
+        `;
     } catch(e) {}
 }
 
