@@ -2,7 +2,6 @@
 let meteoData = null;
 let dernierIndex = -1;
 let priere = null;
-let islamData = null;
 let profilCache = null;
 let dragSrc = null;
 let longPressTimer = null;
@@ -97,11 +96,10 @@ async function showApp() {
     afficherDate();
     afficherVersion();
 
-    // buildGrid est géré uniquement par widgets.js
     await buildGrid();
 
     chargerPriere();
-    chargerIslam();
+    if (typeof window.chargerIslam === 'function') window.chargerIslam();
     chargerMeteoAuto();
     setTimeout(() => {
         if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
@@ -120,7 +118,7 @@ async function showApp() {
 function actualiser() {
     afficherDate();
     chargerPriere();
-    chargerIslam();
+    if (typeof window.chargerIslam === 'function') window.chargerIslam();
     chargerMeteoAuto();
     chargerProfilHeader();
     if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
@@ -244,7 +242,7 @@ function refreshWidget(id) {
     switch(id) {
         case 'meteo':      chargerMeteoAuto();                                          break;
         case 'priere':     chargerPriere();                                             break;
-        case 'islam':      chargerIslam();                                              break;
+        case 'islam':      if (typeof window.chargerIslam === 'function') window.chargerIslam(); break;
         case 'cycle':      if (typeof Cycle !== 'undefined') Cycle.charger();           break;
         case 'rendezvous': if (typeof Rendezvous !== 'undefined') Rendezvous.charger(); break;
         case 'planning':   chargerWidgetPlanning();                                     break;
@@ -265,7 +263,6 @@ async function chargerProfilHeader() {
         const p = d.profil;
         const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '';
 
-        // Topbar
         if (p.photo) {
             btn.innerHTML = `<img src="${p.photo}" alt="profil">`;
         } else if (initiales) {
@@ -276,7 +273,6 @@ async function chargerProfilHeader() {
             btn.innerHTML = '👤';
         }
 
-        // Widget profil — injecté dans wc-profil créé par widgets.js
         const wc = document.getElementById('wc-profil');
         if (!wc) return;
 

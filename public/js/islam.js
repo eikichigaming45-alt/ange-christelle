@@ -1,4 +1,5 @@
 (function () {
+    'use strict';
 
     function getHeure(hhmm) {
         if (!hhmm) return null;
@@ -41,14 +42,14 @@
                 }).join('')}
             </div>
             <div style="border-left:3px solid #1a7a4a;padding-left:8px;font-style:italic;font-size:12px;color:#555;">
-                "${data.hadithFr?.substring(0,80)}..."
+                "${(data.hadithFr || '').substring(0, 80)}..."
             </div>`;
     }
 
     function afficherModale(data) {
         const prochaine = prochaineP(data);
         return `
-            <p style="text-align:center;color:#888;font-size:13px;margin-bottom:16px;">${data.date}</p>
+            <p style="text-align:center;color:#888;font-size:13px;margin-bottom:16px;">${data.date || ''}</p>
             <div style="background:#f0faf4;border-radius:10px;padding:16px;margin-bottom:16px;">
                 <div style="color:#1a7a4a;font-weight:700;font-size:12px;text-transform:uppercase;margin-bottom:10px;">Horaires des prières</div>
                 ${[
@@ -69,12 +70,12 @@
             </div>
             <div style="background:#fffbea;border-radius:10px;padding:14px;margin-bottom:12px;">
                 <div style="color:#b8860b;font-weight:700;font-size:11px;text-transform:uppercase;margin-bottom:8px;">Hadith du jour</div>
-                <p style="font-style:italic;color:#444;margin:0 0 6px;">"${data.hadithFr}"</p>
-                <p style="text-align:right;color:#888;font-size:11px;margin:0;">${data.hadithRef}</p>
+                <p style="font-style:italic;color:#444;margin:0 0 6px;">"${data.hadithFr || ''}"</p>
+                <p style="text-align:right;color:#888;font-size:11px;margin:0;">${data.hadithRef || ''}</p>
             </div>
             <div style="background:#f5f0ff;border-radius:10px;padding:14px;">
                 <div style="color:#6a0dad;font-weight:700;font-size:11px;text-transform:uppercase;margin-bottom:8px;">Invocation (Doua)</div>
-                <p style="font-family:serif;font-size:18px;text-align:right;direction:rtl;color:#333;margin:0 0 8px;">${data.hadithAr}</p>
+                <p style="font-family:serif;font-size:18px;text-align:right;direction:rtl;color:#333;margin:0 0 8px;">${data.hadithAr || ''}</p>
                 <p style="font-style:italic;color:#555;font-size:12px;margin:0;">"Ô Allah, je Te demande la guidance, la piété, la chasteté et l'aisance."</p>
             </div>`;
     }
@@ -101,7 +102,14 @@
         if (modal) modal.style.display = 'flex';
     };
 
+    // Exposé sur window pour app.js
     window.chargerIslam = chargerIslam;
-    chargerIslam();
+
+    // Auto-démarrage uniquement si pas déjà appelé par app.js
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', chargerIslam);
+    } else {
+        chargerIslam();
+    }
 
 })();
