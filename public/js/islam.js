@@ -23,28 +23,28 @@
     }
 
     function afficherWidget(data) {
-        const widget = document.getElementById('widget-islam');
-        if (!widget) return;
-        const prochaine = prochaineP(data);
-        widget.innerHTML = `
-            <div style="background:#1a7a4a;color:#fff;border-radius:10px;padding:12px;text-align:center;margin-bottom:12px;">
-                <div style="font-size:11px;text-transform:uppercase;opacity:.8;letter-spacing:1px;">Prochaine prière</div>
-                <div style="font-size:22px;font-weight:700;">${prochaine.nom}</div>
-                <div style="font-size:32px;font-weight:800;">${prochaine.heure}</div>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:10px;">
-                ${['Fajr','Dhuhr','Asr','Maghrib','Isha'].map(n => {
-                    const h = data[n.toLowerCase()];
-                    const actif = n === prochaine.nom;
-                    return `<div style="text-align:center;${actif ? 'color:#1a7a4a;font-weight:700;' : ''}">
-                        <div>${n}</div><div>${h}</div>
-                    </div>`;
-                }).join('')}
-            </div>
-            <div style="border-left:3px solid #1a7a4a;padding-left:8px;font-style:italic;font-size:12px;color:#555;">
-                "${(data.hadithFr || '').substring(0, 80)}..."
-            </div>`;
-    }
+    const widget = document.getElementById('wc-islam'); // ← était 'widget-islam'
+    if (!widget) return;
+    const prochaine = prochaineP(data);
+    widget.innerHTML = `
+        <div style="background:#1a7a4a;color:#fff;border-radius:10px;padding:12px;text-align:center;margin-bottom:12px;">
+            <div style="font-size:11px;text-transform:uppercase;opacity:.8;letter-spacing:1px;">Prochaine prière</div>
+            <div style="font-size:22px;font-weight:700;">${prochaine.nom}</div>
+            <div style="font-size:32px;font-weight:800;">${prochaine.heure}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:10px;">
+            ${['Fajr','Dhuhr','Asr','Maghrib','Isha'].map(n => {
+                const h = data[n.toLowerCase()];
+                const actif = n === prochaine.nom;
+                return `<div style="text-align:center;${actif ? 'color:#1a7a4a;font-weight:700;' : ''}">
+                    <div>${n}</div><div>${h}</div>
+                </div>`;
+            }).join('')}
+        </div>
+        <div style="border-left:3px solid #1a7a4a;padding-left:8px;font-style:italic;font-size:12px;color:#555;">
+            "${(data.hadithFr || '').substring(0, 80)}..."
+        </div>`;
+}
 
     function afficherModale(data) {
         const prochaine = prochaineP(data);
