@@ -57,7 +57,6 @@ async function chargerMeteo(lat, lon, nomVille) {
     } catch { if (el) el.textContent = 'Météo non disponible'; }
 }
 
-// ── WIDGET ────────────────────────────────────────────────────────────────────
 function _renderWidget() {
     const el = document.getElementById('wc-meteo');
     if (!el || !meteoData) return;
@@ -100,7 +99,6 @@ function _renderWidget() {
     `;
 }
 
-// ── MODALE ────────────────────────────────────────────────────────────────────
 function _renderModaleMeteo(selectedIdx) {
     const body = document.getElementById('modal-body');
     if (!body || !meteoData) {
@@ -212,24 +210,19 @@ function afficherDetailJourModale(i) {
 async function chargerMeteoAuto() {
     const saved = localStorage.getItem('myvibe_ville');
     if (saved) {
-        try {
-            const v = JSON.parse(saved);
-            chargerMeteo(v.lat, v.lon, v.ville);
-            return;
-        } catch { localStorage.removeItem('myvibe_ville'); }
+        const v = JSON.parse(saved);
+        chargerMeteo(v.lat, v.lon, v.ville);
+        return;
     }
-    // Pas de ville sauvegardée → géoloc avec fallback Chécy
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             async pos => {
                 const ville = await getNomVille(pos.coords.latitude, pos.coords.longitude);
                 chargerMeteo(pos.coords.latitude, pos.coords.longitude, ville);
             },
-            () => chargerMeteo(47.9167, 1.9167, 'Chécy')
+            () => chargerMeteo(48.8566, 2.3522, 'Paris')
         );
-    } else {
-        chargerMeteo(47.9167, 1.9167, 'Chécy');
-    }
+    } else { chargerMeteo(48.8566, 2.3522, 'Paris'); }
 }
 
 async function rechercherVille() {
