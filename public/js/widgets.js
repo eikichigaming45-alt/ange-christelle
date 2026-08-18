@@ -87,7 +87,7 @@ function creerWidget(def) {
 
     if (def.id === 'meteo')      div.querySelector('#rbtn-meteo')?.addEventListener('click',      e => { e.stopPropagation(); chargerMeteoAuto(); });
     if (def.id === 'priere')     div.querySelector('#rbtn-priere')?.addEventListener('click',     e => { e.stopPropagation(); chargerPriere(); });
-    if (def.id === 'islam')      div.querySelector('#rbtn-islam')?.addEventListener('click',      e => { e.stopPropagation(); chargerIslam(); });
+    if (def.id === 'islam') div.querySelector('#rbtn-islam')?.addEventListener('click', e => { e.stopPropagation(); if (typeof window.chargerIslam === 'function') window.chargerIslam(); });
     if (def.id === 'cycle')      div.querySelector('#rbtn-cycle')?.addEventListener('click',      e => { e.stopPropagation(); Cycle.charger(); });
     if (def.id === 'rendezvous') div.querySelector('#rbtn-rendezvous')?.addEventListener('click', e => { e.stopPropagation(); Rendezvous.charger(); });
 
