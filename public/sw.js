@@ -4,7 +4,7 @@
 // Version incrémentée à chaque push significatif.
 // ============================================================
 
-const CACHE_NAME = 'mydaily-cache-v3.33';
+const CACHE_NAME = 'mydaily-cache-v3.34';
 
 // Assets mis en cache à l'installation
 const ASSETS_TO_CACHE = [
@@ -44,6 +44,18 @@ self.addEventListener('activate', event => {
         )
     );
     self.clients.claim();
+});
+
+// ── Messages depuis la page ───────────────────────────────────
+self.addEventListener('message', event => {
+    if (event.data?.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+        return;
+    }
+    // Répondre explicitement pour éviter "message channel closed"
+    if (event.ports && event.ports[0]) {
+        event.ports[0].postMessage({ ok: true });
+    }
 });
 
 // ── Fetch : stratégie par type de ressource ───────────────────
