@@ -184,6 +184,8 @@ async function initDB() {
         await pool.query(`ALTER TABLE taches     ADD COLUMN IF NOT EXISTS rappel_avant         INTEGER   DEFAULT 0;`);
         await pool.query(`ALTER TABLE rendezvous ADD COLUMN IF NOT EXISTS rappel_avant         INTEGER   DEFAULT 0;`);
         await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS widgets_visibles     TEXT[];`);
+        // ✅ Signe du zodiaque — saisi manuellement si pas de date_naissance
+        await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS signe_zodiaque       VARCHAR(20);`);
 
         console.log('[DB] Tables initialisées.');
     } catch (err) {

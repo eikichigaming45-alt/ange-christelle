@@ -17,8 +17,8 @@ async function buildGrid() {
     const grid  = document.getElementById('main-grid');
     grid.innerHTML = '';
 
-    let ordre        = null;
-    let widgetsCaches = []; // Opt-out : slugs décochés. Vide = tout visible.
+    let ordre         = null;
+    let widgetsCaches = [];
 
     try {
         const [rOrdre, rWidgets] = await Promise.all([
@@ -31,7 +31,7 @@ async function buildGrid() {
         ]);
         const dOrdre   = await rOrdre.json();
         const dWidgets = await rWidgets.json();
-        if (dOrdre.success && dOrdre.ordre)                        ordre         = dOrdre.ordre;
+        if (dOrdre.success && dOrdre.ordre)                             ordre         = dOrdre.ordre;
         if (dWidgets.success && Array.isArray(dWidgets.widgets_caches)) widgetsCaches = dWidgets.widgets_caches;
     } catch { /* silencieux — grille chargée avec valeurs par défaut */ }
 
@@ -56,22 +56,19 @@ async function buildGrid() {
         defs = sorted;
     }
 
-    // Filtrage opt-out :
-    // - 'admin' : exclusivement géré par le rôle, jamais par widgetsCaches
-    // - 'profil' : toujours visible
-    // - autres  : visibles sauf si dans widgetsCaches
+    // Filtrage opt-out
     const TOUJOURS_VISIBLES = ['profil'];
     defs = defs.filter(w => {
-        if (w.id === 'admin')               return user?.role === 'admin';
+        if (w.id === 'admin')                 return user?.role === 'admin';
         if (TOUJOURS_VISIBLES.includes(w.id)) return true;
         return !widgetsCaches.includes(w.id);
     });
 
     defs.forEach(def => grid.appendChild(creerWidget(def)));
 
-    if (typeof chargerProfilHeader  === 'function') chargerProfilHeader();
-    if (typeof Cycle                !== 'undefined') Cycle.charger();
-    if (typeof Rendezvous           !== 'undefined') Rendezvous.charger();
+    if (typeof chargerProfilHeader   === 'function') chargerProfilHeader();
+    if (typeof Cycle                 !== 'undefined') Cycle.charger();
+    if (typeof Rendezvous            !== 'undefined') Rendezvous.charger();
     if (typeof chargerWidgetPlanning === 'function') chargerWidgetPlanning();
 }
 
@@ -83,12 +80,12 @@ function creerWidget(def) {
     div.dataset.id = def.id;
     div.draggable  = true;
 
-    // Contenu spécifique selon le widget
     let contentHtml = def.desc || '';
-    if (def.id === 'cycle')      contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
-    if (def.id === 'rendezvous') contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
-    if (def.id === 'planning')   contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
-    if (def.id === 'profil')     contentHtml = '<div id="wc-profil"></div>';
+    if (def.id === 'cycle')       contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
+    if (def.id === 'rendezvous')  contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
+    if (def.id === 'planning')    contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
+    if (def.id === 'profil')      contentHtml = '<div id="wc-profil"></div>';
+    if (def.id === 'astrologie')  contentHtml = '<div id="wc-astrologie">Chargement...</div>';
 
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
@@ -113,11 +110,13 @@ function creerWidget(def) {
     });
 
     // Boutons de rafraîchissement
-    if (def.id === 'meteo')      div.querySelector('#rbtn-meteo')?.addEventListener('click',      e => { e.stopPropagation(); chargerMeteoAuto(); });
-    if (def.id === 'priere')     div.querySelector('#rbtn-priere')?.addEventListener('click',     e => { e.stopPropagation(); chargerPriere(); });
-    if (def.id === 'islam')      div.querySelector('#rbtn-islam')?.addEventListener('click',      e => { e.stopPropagation(); if (typeof window.chargerIslam === 'function') window.chargerIslam(); });
-    if (def.id === 'cycle')      div.querySelector('#rbtn-cycle')?.addEventListener('click',      e => { e.stopPropagation(); Cycle.charger(); });
-    if (def.id === 'rendezvous') div.querySelector('#rbtn-rendezvous')?.addEventListener('click', e => { e.stopPropagation(); Rendezvous.charger(); });
+    if (def.id === 'meteo')       div.querySelector('#rbtn-meteo')?.addEventListener('click',       e => { e.stopPropagation(); chargerMeteoAuto(); });
+    if (def.id === 'priere')      div.querySelector('#rbtn-priere')?.addEventListener('click',      e => { e.stopPropagation(); chargerPriere(); });
+    if (def.id === 'islam')       div.querySelector('#rbtn-islam')?.addEventListener('click',       e => { e.stopPropagation(); if (typeof window.chargerIslam === 'function') window.chargerIslam(); });
+    if (def.id === 'cycle')       div.querySelector('#rbtn-cycle')?.addEventListener('click',       e => { e.stopPropagation(); Cycle.charger(); });
+    if (def.id === 'rendezvous')  div.querySelector('#rbtn-rendezvous')?.addEventListener('click',  e => { e.stopPropagation(); Rendezvous.charger(); });
+    // ✅ Refresh astrologie
+    if (def.id === 'astrologie')  div.querySelector('#rbtn-astrologie')?.addEventListener('click',  e => { e.stopPropagation(); if (typeof chargerAstrologie === 'function') chargerAstrologie(); });
 
     // Drag & drop souris
     div.addEventListener('dragstart', onDragStart);
@@ -219,7 +218,6 @@ function ajouterTouchDrag(el) {
         if (clone) clone.remove();
         el.classList.remove('dragging');
         dragActif = false;
-        // Correction : utiliser le paramètre 'e' et non 'event' global
         const t      = e.changedTouches?.[0];
         const below  = t ? document.elementFromPoint(t.clientX, t.clientY) : null;
         const target = below?.closest('.widget');
@@ -262,11 +260,9 @@ async function sauvegarderOrdre() {
 }
 
 // ===================== APPLIQUER WIDGETS VISIBLES ============
-// Appelée depuis profil.js après sauvegarde des préférences.
-// Masque/affiche les widgets selon la liste opt-out.
 
 function appliquerWidgetsVisibles(widgetsCaches) {
-    const user             = getUser();
+    const user              = getUser();
     const TOUJOURS_VISIBLES = user?.role === 'admin'
         ? ['profil', 'admin']
         : ['profil'];
@@ -274,8 +270,8 @@ function appliquerWidgetsVisibles(widgetsCaches) {
     if (!grid) return;
     [...grid.children].forEach(el => {
         const id = el.dataset.id;
-        if (!id)                            return;
-        if (TOUJOURS_VISIBLES.includes(id)) return;
+        if (!id)                              return;
+        if (TOUJOURS_VISIBLES.includes(id))   return;
         el.style.display = widgetsCaches.includes(id) ? 'none' : '';
     });
 }

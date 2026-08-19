@@ -459,3 +459,37 @@ input:focus{border-color:#7C3AED}
   .as-cards-grid{grid-template-columns:repeat(2,1fr)}
   .user-card-actions{flex-wrap:nowrap;overflow-x:auto}
 }
+
+/* ===================== WIDGET ASTROLOGIE ===================== */
+.widget.w-astrologie{background:linear-gradient(135deg,#fdf4ff 0%,#ffffff 100%)}
+.w-astrologie .wi{background:#f3e8ff}
+
+/* Widget — résumé */
+.astro-widget{display:flex;flex-direction:column;gap:10px}
+.astro-signe-row{display:flex;align-items:center;gap:12px}
+.astro-emoji{font-size:32px;line-height:1;flex-shrink:0}
+.astro-signe-label{font-size:16px;font-weight:700;color:#6d28d9}
+.astro-signe-dates{font-size:11px;color:#9ca3af;margin-top:2px}
+.astro-resume{font-size:13px;color:#555;line-height:1.6;font-style:italic;border-left:3px solid #a855f7;padding-left:10px}
+.astro-no-signe{display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0}
+.astro-btn-profil{padding:8px 20px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-top:4px}
+.astro-btn-profil:hover{background:#6d28d9}
+
+/* Modale — selector signes */
+.astro-modal{display:flex;flex-direction:column;gap:16px}
+.astro-selector{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.astro-selector-btn{padding:6px 10px;border:1.5px solid #e5e7eb;border-radius:20px;background:#fff;font-size:12px;font-weight:600;color:#555;cursor:pointer;transition:all .15s}
+.astro-selector-btn:hover{border-color:#a855f7;color:#7c3aed}
+.astro-selector-btn.active{border-color:#7c3aed;background:#f3e8ff;color:#7c3aed}
+
+/* Modale — header signe */
+.astro-modal-header{display:flex;align-items:center;gap:14px;background:#faf5ff;border-radius:14px;padding:14px 16px}
+.astro-modal-emoji{font-size:40px;line-height:1;flex-shrink:0}
+.astro-modal-signe{font-size:20px;font-weight:800;color:#6d28d9}
+.astro-modal-dates{font-size:12px;color:#9ca3af;margin-top:2px}
+
+/* Modale — sections horoscope */
+.astro-sections{display:flex;flex-direction:column;gap:12px}
+.astro-section{background:#faf5ff;border-radius:10px;padding:12px 14px;border-left:4px solid #a855f7}
+.astro-section-titre{font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.astro-section-texte{font-size:13px;color:#444;line-height:1.6}

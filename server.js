@@ -56,6 +56,8 @@ app.use('/api/admin',          require('./routes/admin'));
 app.use('/api/cycle',          require('./routes/cycle'));
 app.use('/api/rendezvous',     require('./routes/rendezvous'));
 app.use('/api/planning',       require('./routes/planning'));
+// ✅ Widget Astrologie — horoscope du jour par signe (scraping horoscope.fr)
+app.use('/api/astrologie',     require('./routes/astrologie'));
 
 // ── Middleware de gestion d'erreurs global ────────────────────
 app.use((err, req, res, next) => {

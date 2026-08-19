@@ -2,6 +2,7 @@
 // routes/profil.js
 // Gestion du profil utilisateur : lecture, écriture, mot de passe,
 // et préférences widgets (opt-out).
+// signe_zodiaque : saisi manuellement si pas de date_naissance.
 // ============================================================
 
 const express    = require('express');
@@ -17,7 +18,7 @@ router.get('/', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT prenom, nom, date_naissance, email, telephone,
-                    profession, note, photo, widgets_visibles
+                    profession, note, photo, widgets_visibles, signe_zodiaque
              FROM profiles WHERE user_id = \$1`,
             [req.user.id]
         );
@@ -34,16 +35,20 @@ router.get('/', authenticateToken, async (req, res) => {
 // ── POST /api/profil ──────────────────────────────────────────
 // Crée ou met à jour le profil de l'utilisateur connecté.
 router.post('/', authenticateToken, async (req, res) => {
-    const { prenom, nom, date_naissance, email, telephone, profession, note, photo } = req.body;
+    const { prenom, nom, date_naissance, email, telephone, profession, note, photo, signe_zodiaque } = req.body;
     try {
         await pool.query(`
             INSERT INTO profiles
-                (user_id, prenom, nom, date_naissance, email, telephone, profession, note, photo, updated_at)
-            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, NOW())
+                (user_id, prenom, nom, date_naissance, email, telephone,
+                 profession, note, photo, signe_zodiaque, updated_at)
+            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10, NOW())
             ON CONFLICT (user_id) DO UPDATE SET
                 prenom=\$2, nom=\$3, date_naissance=\$4, email=\$5,
-                telephone=\$6, profession=\$7, note=\$8, photo=\$9, updated_at=NOW()
-        `, [req.user.id, prenom, nom, date_naissance || null, email, telephone, profession, note, photo]);
+                telephone=\$6, profession=\$7, note=\$8, photo=\$9,
+                signe_zodiaque=\$10, updated_at=NOW()
+        `, [req.user.id, prenom, nom, date_naissance || null,
+            email, telephone, profession, note, photo,
+            signe_zodiaque || null]);
         res.json({ success: true });
     } catch (err) {
         console.error('[PROFIL] POST /', err.message);
@@ -86,7 +91,6 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
 
 // ── GET /api/profil/widgets-visibles ─────────────────────────
 // Retourne la liste des widgets cachés (opt-out).
-// Un widget absent de la liste = visible par défaut.
 router.get('/widgets-visibles', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(

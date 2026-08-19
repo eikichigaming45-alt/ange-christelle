@@ -21,7 +21,8 @@ async function openModal(type) {
         profil       : 'Mon Profil',
         admin        : 'Administration',
         cycle        : 'Suivi du cycle',
-        rendezvous   : 'Rendez-vous médicaux'
+        rendezvous   : 'Rendez-vous médicaux',
+        astrologie   : 'Astrologie'
     };
     document.getElementById('modal-title').textContent = titres[type] || type;
 
@@ -249,6 +250,28 @@ async function openModal(type) {
                                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
                         </div>
                     </div>
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Signe du zodiaque</label>
+                        <select id="p-signe"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                            <option value="">— Laisser calculer depuis la date de naissance —</option>
+                            <option value="belier"     ${p.signe_zodiaque==='belier'     ? 'selected':''}>♈ Bélier</option>
+                            <option value="taureau"    ${p.signe_zodiaque==='taureau'    ? 'selected':''}>♉ Taureau</option>
+                            <option value="gemeaux"    ${p.signe_zodiaque==='gemeaux'    ? 'selected':''}>♊ Gémeaux</option>
+                            <option value="cancer"     ${p.signe_zodiaque==='cancer'     ? 'selected':''}>♋ Cancer</option>
+                            <option value="lion"       ${p.signe_zodiaque==='lion'       ? 'selected':''}>♌ Lion</option>
+                            <option value="vierge"     ${p.signe_zodiaque==='vierge'     ? 'selected':''}>♍ Vierge</option>
+                            <option value="balance"    ${p.signe_zodiaque==='balance'    ? 'selected':''}>♎ Balance</option>
+                            <option value="scorpion"   ${p.signe_zodiaque==='scorpion'   ? 'selected':''}>♏ Scorpion</option>
+                            <option value="sagittaire" ${p.signe_zodiaque==='sagittaire' ? 'selected':''}>♐ Sagittaire</option>
+                            <option value="capricorne" ${p.signe_zodiaque==='capricorne' ? 'selected':''}>♑ Capricorne</option>
+                            <option value="verseau"    ${p.signe_zodiaque==='verseau'    ? 'selected':''}>♒ Verseau</option>
+                            <option value="poissons"   ${p.signe_zodiaque==='poissons'   ? 'selected':''}>♓ Poissons</option>
+                        </select>
+                        <div style="font-size:11px;color:#9ca3af;margin-top:4px">
+                            Utile uniquement si vous n'avez pas renseigné de date de naissance.
+                        </div>
+                    </div>
                     <div style="margin-bottom:16px">
                         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Note personnelle</label>
                         <textarea id="p-note" placeholder="Note personnelle..." rows="3"
@@ -338,11 +361,15 @@ async function openModal(type) {
                 });
             });
 
-            await afficherSectionWidgets();
+                        await afficherSectionWidgets();
 
         } catch {
             document.getElementById('modal-body').innerHTML = '<p>Erreur de chargement du profil.</p>';
         }
+
+    // ── Astrologie ────────────────────────────────────────────
+    } else if (type === 'astrologie') {
+        await ouvrirModaleAstrologie();
 
     // ── Admin ─────────────────────────────────────────────────
     } else if (type === 'admin') {
@@ -398,7 +425,6 @@ function lirePriereModal(e) {
         ) || voix.find(v => v.lang.startsWith('fr'));
         if (voixMasc) utterance.voice = voixMasc;
 
-        // ── Capture le bouton avant le callback asynchrone ────
         const btn = e?.currentTarget || document.getElementById('btn-speaker-modal');
         if (btn) btn.textContent = '⏹️';
         utterance.onend   = () => { if (btn) btn.textContent = '🔊'; };

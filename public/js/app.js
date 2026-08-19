@@ -5,8 +5,6 @@
 // ============================================================
 
 // ===================== STATE GLOBAL ==========================
-// Variables partagées entre les modules front.
-// Chaque module qui en a besoin y accède directement.
 let meteoData      = null;
 let priere         = null;
 let profilCache    = null;
@@ -17,11 +15,6 @@ let cropperInstance = null;
 let _appInitialisee = false;
 
 // ===================== DÉFINITION DES WIDGETS ================
-// WIDGETS_DEF : configuration complète de chaque widget (grille).
-// TOUS_WIDGETS : liste des widgets configurables en opt-out (profil).
-// Les widgets 'profil' et 'admin' sont exclus de TOUS_WIDGETS
-// car ils sont toujours visibles et non décochables.
-
 const WIDGETS_DEF = [
     { id:'meteo',         label:'Météo du jour',      icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',  foot:'Cliquez pour les détails',         refresh:true },
     { id:'priere',        label:'Prière du jour',     icon:'🙏',  cls:'w-priere',        desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
@@ -31,6 +24,7 @@ const WIDGETS_DEF = [
     { id:'rendezvous',    label:'Rendez-vous',         icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
     { id:'planning',      label:'Planning',            icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
     { id:'anniversaires', label:'Anniversaires',       icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
+    { id:'astrologie',    label:'Astrologie',          icon:'✨',  cls:'w-astrologie',    desc:'Chargement...',  foot:'Cliquez pour votre horoscope',     refresh:true },
     { id:'profil',        label:'Mon Profil',          icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
 ];
 
@@ -43,6 +37,7 @@ const TOUS_WIDGETS = [
     { slug:'cycle',         label:'🌸 Suivi du cycle' },
     { slug:'taches',        label:'✅ Tâches' },
     { slug:'anniversaires', label:'🎂 Anniversaires' },
+    { slug:'astrologie',    label:'✨ Astrologie' },
 ];
 
 // ===================== CODES MÉTÉO ===========================
@@ -62,8 +57,6 @@ function getUser() {
 }
 
 // ===================== AFFICHAGE RAPIDE ======================
-// Masque la page login immédiatement si session active,
-// avant même que le DOM soit complètement chargé.
 (function() {
     const user = getUser();
     if (user?.token) {
@@ -89,7 +82,6 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ===================== LOGIN =================================
-// Seul listener de login — public/js/auth.js supprimé.
 document.getElementById('login-form').addEventListener('submit', async e => {
     e.preventDefault();
     const username = document.getElementById('username').value.trim();
@@ -140,6 +132,8 @@ async function showApp() {
     chargerPriere();
     if (typeof window.chargerIslam === 'function') window.chargerIslam();
     chargerMeteoAuto();
+    // ✅ Widget Astrologie
+    if (typeof chargerAstrologie === 'function') chargerAstrologie();
     setTimeout(() => {
         if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
     }, 300);
@@ -153,20 +147,15 @@ async function showApp() {
 }
 
 // ===================== LOGOUT ================================
-// Réinitialise l'état complet sans rechargement de page.
-// Le layout login-card est géré par style.css (flex-direction:column)
-// et non par des styles inline — pas de patch nécessaire.
 function logout() {
     localStorage.removeItem('myvibe_user');
 
-    // Réinitialisation de l'état global
     _appInitialisee = false;
     gridConstruit   = false;
     profilCache     = null;
     meteoData       = null;
     priere          = null;
 
-    // Réinitialisation de l'interface
     document.getElementById('app').style.display        = 'none';
     document.getElementById('main-grid').innerHTML      = '';
     document.body.style.background                      = '';
@@ -184,6 +173,8 @@ function actualiser() {
     chargerPriere();
     if (typeof window.chargerIslam === 'function') window.chargerIslam();
     chargerMeteoAuto();
+    // ✅ Widget Astrologie
+    if (typeof chargerAstrologie === 'function') chargerAstrologie();
     chargerProfilHeader();
     if (typeof chargerWidgetTaches    === 'function') chargerWidgetTaches();
     chargerWidgetAnniversaires();
@@ -302,12 +293,13 @@ async function afficherVersion() {
 // ===================== REFRESH WIDGET ========================
 function refreshWidget(id) {
     switch (id) {
-        case 'meteo':      chargerMeteoAuto();                                                    break;
-        case 'priere':     chargerPriere();                                                       break;
-        case 'islam':      if (typeof window.chargerIslam === 'function') window.chargerIslam();  break;
-        case 'cycle':      if (typeof Cycle      !== 'undefined') Cycle.charger();                break;
-        case 'rendezvous': if (typeof Rendezvous !== 'undefined') Rendezvous.charger();           break;
-        case 'planning':   chargerWidgetPlanning();                                               break;
+        case 'meteo'      : chargerMeteoAuto();                                                    break;
+        case 'priere'     : chargerPriere();                                                       break;
+        case 'islam'      : if (typeof window.chargerIslam === 'function') window.chargerIslam();  break;
+        case 'astrologie' : if (typeof chargerAstrologie   === 'function') chargerAstrologie();    break;
+        case 'cycle'      : if (typeof Cycle      !== 'undefined') Cycle.charger();                break;
+        case 'rendezvous' : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();           break;
+        case 'planning'   : chargerWidgetPlanning();                                               break;
     }
 }
 

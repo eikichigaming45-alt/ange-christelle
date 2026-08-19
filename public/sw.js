@@ -4,7 +4,7 @@
 // Version incrémentée à chaque push significatif.
 // ============================================================
 
-const CACHE_NAME = 'mydaily-cache-v3.40';
+const CACHE_NAME = 'mydaily-cache-v3.41';
 
 // Assets mis en cache à l'installation
 const ASSETS_TO_CACHE = [
@@ -23,6 +23,7 @@ const ASSETS_TO_CACHE = [
     '/js/islam.js',
     '/js/push.js',
     '/js/admin.js',
+    '/js/astrologie.js',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png'
@@ -60,7 +61,7 @@ self.addEventListener('message', event => {
 // ── Fetch : stratégie par type de ressource ───────────────────
 self.addEventListener('fetch', event => {
     if (event.request.url.startsWith('chrome-extension')) return;
-    // ✅ Guard global : ignore toute requête non-GET (HEAD, POST, etc.)
+    // Guard global : ignore toute requête non-GET (HEAD, POST, etc.)
     if (event.request.method !== 'GET') return;
 
     const url = new URL(event.request.url);
