@@ -153,13 +153,20 @@ function actualiser() {
 }
 
 // ===================== LOGOUT =====================
-// Pas de redirection — on remet la page login en place directement
-// pour éviter que le SW serve une page cachée avec les styles de l'app
+// Remise en place de la page login sans redirection
+// Les styles body sont réappliqués manuellement pour éviter l'étirement
 
 function logout() {
     localStorage.removeItem('myvibe_user');
     document.getElementById('app').style.display = 'none';
+    document.getElementById('main-grid').innerHTML = '';
     document.body.style.cssText = '';
+    document.body.style.fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+    document.body.style.background = 'linear-gradient(180deg,#F3E8FF 0%,#D8B4FE 100%)';
+    document.body.style.minHeight = '100vh';
+    document.body.style.display = 'flex';
+    document.body.style.justifyContent = 'center';
+    document.body.style.alignItems = 'center';
     document.getElementById('login-page').style.display = '';
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
