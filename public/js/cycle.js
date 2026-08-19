@@ -1,5 +1,5 @@
 // ============================================================
-// SUIVI DU CYCLE — cycle.js
+// public/js/cycle.js
 // ============================================================
 
 const Cycle = (() => {
@@ -146,12 +146,13 @@ const Cycle = (() => {
     return { label: 'Phase de repos', emoji: '🔵', color: '#3498db' };
   }
 
+  // ── CORRIGÉ : déballage d.journal ──
   async function chargerJournal(mois, annee) {
     try {
       const res = await fetch(`/api/cycle/journal?mois=${mois}&annee=${annee}`, { headers: authHeaders() });
-      const rows = await res.json();
+      const d   = await res.json();
       _journalCache = {};
-      rows.forEach(r => { _journalCache[r.date.split('T')[0]] = r; });
+      (d.journal || []).forEach(r => { _journalCache[r.date.split('T')[0]] = r; });
     } catch { _journalCache = {}; }
   }
 
@@ -326,18 +327,15 @@ const Cycle = (() => {
     });
   }
 
-  // ← SEULE FONCTION MODIFIÉE
   function renderWidget(cycles, dureeMoyenne) {
     const dernierCycle = cycles.length > 0 ? cycles[0] : null;
     const calc         = calculerCycle(dernierCycle, dureeMoyenne);
     const phase        = getPhase(calc);
 
-    // Calcul ovulation/fenêtre : future ou passée ?
     let labelOvulation, valeurOvulation, labelFenetre, valeurFenetre;
     if (calc) {
       const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
       if (calc.ovulation < aujourd_hui) {
-        // Ovulation passée → projeter au cycle suivant
         const prochaineOvulation    = addDays(calc.ovulation, calc.dureeCycle);
         const prochaineFenetreDebut = addDays(prochaineOvulation, -5);
         const prochaineFenetreFin   = addDays(prochaineOvulation, 1);
@@ -413,6 +411,7 @@ const Cycle = (() => {
     `;
   }
 
+  // ── CORRIGÉ : déballage d.cycles ──
   async function charger() {
     const container = document.getElementById('widget-cycle-content');
     if (!container) return;
@@ -421,26 +420,29 @@ const Cycle = (() => {
     try {
       const res    = await fetch('/api/cycle', { headers: authHeaders() });
       if (!res.ok) throw new Error();
-      const cycles = await res.json();
-      const dureeMoyenne = calculerDureeMoyenne(Array.isArray(cycles) ? cycles : []);
-      container.innerHTML = renderWidget(Array.isArray(cycles) ? cycles : [], dureeMoyenne);
+      const d      = await res.json();
+      const cycles = d.cycles || [];
+      const dureeMoyenne = calculerDureeMoyenne(cycles);
+      container.innerHTML = renderWidget(cycles, dureeMoyenne);
     } catch {
       container.innerHTML = `<p class="cycle-error">Erreur de chargement du cycle.</p>`;
     }
   }
 
+  // ── CORRIGÉ : déballage d.cycles ──
   async function ouvrirModalCalendrier() {
     try {
       const res          = await fetch('/api/cycle', { headers: authHeaders() });
-      const cycles       = await res.json();
-      const dureeMoyenne = calculerDureeMoyenne(Array.isArray(cycles) ? cycles : []);
-      const dernierCycle = Array.isArray(cycles) && cycles.length > 0 ? cycles[0] : null;
+      const d            = await res.json();
+      const cycles       = d.cycles || [];
+      const dureeMoyenne = calculerDureeMoyenne(cycles);
+      const dernierCycle = cycles.length > 0 ? cycles[0] : null;
       const calc         = calculerCycle(dernierCycle, dureeMoyenne);
       const phase        = getPhase(calc);
 
       _calcCourant = calc;
       _moisAffiche = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-      _toutesLesP  = calculerToutesPeriodes(Array.isArray(cycles) ? cycles : [], dureeMoyenne);
+      _toutesLesP  = calculerToutesPeriodes(cycles, dureeMoyenne);
 
       await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
 
@@ -503,12 +505,12 @@ const Cycle = (() => {
           <button class="btn-save" onclick="Cycle.sauvegarder(${isEdit ? cycleExistant.id : 'null'})">
             ${isEdit ? 'Modifier' : 'Enregistrer'}
           </button>
-                    ${isEdit ? `<button class="btn-delete" onclick="Cycle.supprimer(${cycleExistant.id})">Supprimer</button>` : ''}
+          ${isEdit ? `<button class="btn-delete" onclick="Cycle.supprimer(${cycleExistant.id})">Supprimer</button>` : ''}
           <button class="btn-cancel" onclick="closeModal()">Annuler</button>
         </div>
       </div>
     `;
-    document.getElementById('overlay').classList.add('on');
+          document.getElementById('overlay').classList.add('on');
   }
 
   async function sauvegarder(id = null) {
@@ -558,10 +560,12 @@ const Cycle = (() => {
     });
   }
 
+  // ── CORRIGÉ : déballage d.cycles ──
   async function ouvrirHistorique() {
     try {
       const res          = await fetch('/api/cycle', { headers: authHeaders() });
-      const cycles       = await res.json();
+      const d            = await res.json();
+      const cycles       = d.cycles || [];
       const dureeMoyenne = calculerDureeMoyenne(cycles);
       const lignes = cycles.map(c => `
         <div class="cycle-historique-item">
