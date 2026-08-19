@@ -495,3 +495,52 @@ input:focus{border-color:#4f46e5}
 .islam-modal-doua{background:#f5f3ff;border-radius:12px;padding:14px;border-left:4px solid #7c3aed}
 .islam-modal-doua-arabe{font-size:15px;color:#1e3a2f;text-align:right;line-height:2;margin-bottom:8px;font-family:serif}
 .islam-modal-doua-fr{font-size:13px;color:#555;font-style:italic;line-height:1.6}
+
+/* ===================== ADMIN STATS — NOUVELLES CLASSES ===================== */
+.as-section-title{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px}
+.as-cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.as-card{border-radius:12px;padding:14px 8px;text-align:center}
+.as-card-blue{background:#eff6ff}
+.as-card-purple{background:#f5f3ff}
+.as-card-green{background:#f0fdf4}
+.as-card-red{background:#fff1f2}
+.as-card-icon{font-size:18px;margin-bottom:4px}
+.as-card-val{font-size:24px;font-weight:800;color:#1e1b4b;line-height:1}
+.as-card-lbl{font-size:10px;color:#6b7280;margin-top:4px;font-weight:600}
+.as-progress-bloc{background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.as-progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.as-progress-label{font-size:12px;font-weight:600;color:#374151}
+.as-progress-pct{font-size:12px;color:#6b7280;font-weight:600}
+.as-progress-bar{height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden}
+.as-progress-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.as-fill-blue{background:linear-gradient(90deg,#4f46e5,#7c3aed)}
+.as-fill-green{background:linear-gradient(90deg,#10b981,#059669)}
+.as-data-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.as-data-item{display:flex;align-items:flex-start;gap:12px;background:#f8fafc;border-radius:10px;padding:12px 14px}
+.as-data-icon{font-size:20px;flex-shrink:0;margin-top:2px}
+.as-data-body{flex:1;min-width:0}
+.as-data-val{font-size:18px;font-weight:800;color:#1e1b4b;line-height:1}
+.as-data-lbl{font-size:11px;color:#6b7280;margin-top:3px}
+.as-logins-list{display:flex;flex-direction:column;gap:4px}
+.as-login-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6}
+.as-login-row:last-child{border-bottom:none}
+.as-login-avatar{width:34px;height:34px;border-radius:50%;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.as-av-admin{background:linear-gradient(135deg,#7c3aed,#6366f1)}
+.as-av-user{background:linear-gradient(135deg,#0ea5e9,#06b6d4)}
+.as-login-info{flex:1;min-width:0}
+.as-login-name{font-size:13px;font-weight:700;color:#1e1b4b}
+.as-login-date{font-size:11px;color:#9ca3af;margin-top:2px}
+.as-login-relative{font-size:11px;white-space:nowrap;flex-shrink:0}
+.as-badge{font-size:10px;padding:2px 8px;border-radius:999px;font-weight:600;margin-left:6px}
+.as-badge-admin{background:#ede9fe;color:#7c3aed}
+.as-badge-user{background:#e0f2fe;color:#0369a1}
+.wa-mini-stats{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.wa-mini-stat{display:flex;align-items:center;gap:8px;font-size:12px;color:#374151;padding:4px 0}
+.wa-mini-icon{font-size:14px;flex-shrink:0}
+.wa-mini-label{flex:1;color:#6b7280}
+.wa-mini-val{font-weight:700;color:#1e1b4b}
+.wa-avatar-admin{background:linear-gradient(135deg,#7c3aed,#6366f1)}
+.wa-avatar-user{background:linear-gradient(135deg,#0ea5e9,#06b6d4)}
+@media(max-width:640px){
+  .as-cards-grid{grid-template-columns:repeat(2,1fr)}
+}
