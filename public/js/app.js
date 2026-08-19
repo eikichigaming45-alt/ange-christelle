@@ -137,15 +137,7 @@ function actualiser() {
 
 function logout() {
     localStorage.removeItem('myvibe_user');
-    document.body.style.background = '';
-    document.body.style.alignItems = '';
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('login-page').style.display = 'flex';
-    document.getElementById('username').value = '';
-    document.getElementById('password').value = '';
-    const errEl = document.getElementById('error-msg');
-    if (errEl) errEl.textContent = '';
-    _appInitialisee = false;
+    window.location.replace('/');
 }
 
 // ===================== CHANGEMENT MDP OBLIGATOIRE =====================
