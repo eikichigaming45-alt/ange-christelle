@@ -334,24 +334,11 @@ async function openModal(type) {
     } else if (type === 'admin') {
         document.getElementById('modal-body').innerHTML = `
             <div class="admin-tabs">
-                <button class="admin-tab active" data-tab="stats"  onclick="switchAdminTab('stats')">📊 Stats</button>
-                <button class="admin-tab"        data-tab="users"  onclick="switchAdminTab('users')">👥 Utilisateurs</button>
-                <button class="admin-tab"        data-tab="creer"  onclick="switchAdminTab('creer')">➕ Créer</button>
+                <button class="admin-tab active" data-tab="stats" onclick="switchAdminTab('stats')">📊 Stats</button>
+                <button class="admin-tab" data-tab="users" onclick="switchAdminTab('users')">👥 Utilisateurs</button>
             </div>
             <div id="admin-tab-stats" class="admin-tab-content active"><p style="color:#9ca3af">Chargement...</p></div>
             <div id="admin-tab-users" class="admin-tab-content"><p style="color:#9ca3af">Chargement...</p></div>
-            <div id="admin-tab-creer" class="admin-tab-content">
-                <div class="create-form">
-                    <input type="text"     id="new-username" placeholder="Nom d'utilisateur">
-                    <input type="password" id="new-password" placeholder="8 car. min · majuscule · minuscule · chiffre · spécial">
-                    <select id="new-role">
-                        <option value="user">user</option>
-                        <option value="admin">admin</option>
-                    </select>
-                    <button class="save-btn" onclick="creerUser()">➕ Créer l'utilisateur</button>
-                    <div id="create-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
-                </div>
-            </div>
         `;
         chargerAdminStats();
         chargerAdminUsers();

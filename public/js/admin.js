@@ -9,7 +9,6 @@ async function chargerWidgetAdmin() {
         const r = await fetch(`/api/admin/stats?adminId=${user.userId}`);
         const d = await r.json();
         if (!d.success) { el.innerHTML = '<p class="wa-error">Erreur serveur</p>'; return; }
-
         el.innerHTML = `
             <div class="wa-stats-row">
                 <div class="wa-stat wa-stat-blue">
@@ -18,7 +17,7 @@ async function chargerWidgetAdmin() {
                 </div>
                 <div class="wa-stat wa-stat-purple">
                     <div class="wa-stat-val">${d.actifsRecents}</div>
-                    <div class="wa-stat-lbl">Actifs 7j</div>
+                                        <div class="wa-stat-lbl">Actifs 7j</div>
                 </div>
                 <div class="wa-stat wa-stat-green">
                     <div class="wa-stat-val">${d.profilsRemplis}</div>
@@ -144,52 +143,13 @@ async function chargerAdminStats() {
                     </div>
                 `).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune connexion.</p>'}
             </div>
-
-            <div class="as-section-title" style="margin-top:20px">Rechercher un utilisateur</div>
-            <input type="text" id="admin-search-stats" placeholder="🔍 Nom d'utilisateur..."
-                oninput="filtrerUsersStats()"
-                style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;
-                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">
-            <div id="admin-search-results"></div>
         `;
-
-        await _chargerTousUsersCache();
-
     } catch {
         el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
     }
 }
 
-async function _chargerTousUsersCache() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    try {
-        const r = await fetch(`/api/admin/users?adminId=${user.userId}`);
-        const d = await r.json();
-        if (d.success) window._adminUsersCache = d.users || [];
-    } catch {}
-}
-
-function filtrerUsersStats() {
-    const q = (document.getElementById('admin-search-stats')?.value || '').toLowerCase().trim();
-    const el = document.getElementById('admin-search-results');
-    if (!el) return;
-    if (!q) { el.innerHTML = ''; return; }
-    const users = (window._adminUsersCache || []).filter(u => u.username.toLowerCase().includes(q));
-    el.innerHTML = users.length ? users.map(u => `
-        <div class="as-login-row">
-            <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}">${u.username[0].toUpperCase()}</div>
-            <div class="as-login-info">
-                <div class="as-login-name">${u.username}
-                    <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
-                </div>
-                <div class="as-login-date">${u.lastLogin ? _formatDateComplete(u.lastLogin) : 'Jamais connecté'}</div>
-            </div>
-            <div class="as-login-relative">${_formatDateRelative(u.lastLogin)}</div>
-        </div>
-    `).join('') : '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:8px 0">Aucun résultat.</p>';
-}
-
-// ===================== MODALE ADMIN — UTILISATEURS =====================
+// ===================== MODALE ADMIN — UTILISATEURS + CRÉER (FUSIONNÉS) =====================
 
 async function chargerAdminUsers() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
@@ -200,40 +160,108 @@ async function chargerAdminUsers() {
         const r = await fetch(`/api/admin/users?adminId=${user.userId}`);
         const d = await r.json();
         if (!d.success) { el.innerHTML = `<p style="color:#ef4444">${d.message}</p>`; return; }
-        el.innerHTML = (d.users || []).map(u => `
-            <div class="user-card">
-                <div class="user-card-header">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}" style="width:36px;height:36px;font-size:15px">${u.username[0].toUpperCase()}</div>
-                        <div>
-                            <span class="user-card-name">${u.username}</span>
-                            <span class="user-card-role ${u.role === 'admin' ? 'role-admin' : 'role-user'}">${u.role}</span>
-                        </div>
-                    </div>
+
+        window._adminUsersCache = d.users || [];
+
+        el.innerHTML = `
+            <!-- Barre de recherche -->
+            <input type="text" id="admin-search" placeholder="🔍 Rechercher un utilisateur..."
+                oninput="filtrerAdminUsers()"
+                style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px">
+
+            <!-- Bouton créer -->
+            <button onclick="toggleFormulaireCreer()"
+                style="width:100%;padding:11px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+                       color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;
+                       cursor:pointer;margin-bottom:16px;display:flex;align-items:center;
+                       justify-content:center;gap:8px">
+                ➕ Créer un utilisateur
+            </button>
+
+            <!-- Formulaire de création (caché par défaut) -->
+            <div id="admin-creer-form" style="display:none;background:#f8fafc;border-radius:12px;
+                 padding:16px;margin-bottom:16px;border:1.5px solid #e5e7eb">
+                <div style="font-size:13px;font-weight:700;color:#1e1b4b;margin-bottom:12px">Nouveau compte</div>
+                <input type="text" id="new-username" placeholder="Nom d'utilisateur"
+                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                           font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
+                <input type="password" id="new-password" placeholder="8 car. min · majuscule · minuscule · chiffre · spécial"
+                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                           font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
+                <select id="new-role"
+                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                           font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;background:#fff">
+                    <option value="user">user</option>
+                    <option value="admin">admin</option>
+                </select>
+                <div style="display:flex;gap:8px">
+                    <button onclick="creerUser()" class="ua-btn ua-btn-blue" style="flex:1;padding:10px">✓ Créer</button>
+                    <button onclick="toggleFormulaireCreer()" class="ua-btn" style="flex:1;padding:10px;background:#f3f4f6;color:#374151">Annuler</button>
                 </div>
-                <div class="user-card-meta">
-                    Dernière connexion : <strong>${u.lastLogin ? _formatDateComplete(u.lastLogin) : 'Jamais'}</strong>
-                    ${u.lastLogin ? ' — ' + _formatDateRelative(u.lastLogin) : ''}
-                </div>
-                <div class="user-card-actions">
-                    <button class="ua-btn ua-btn-blue" onclick="adminToggleRole(${u.id},'${u.role}')">
-                        ${u.role === 'admin' ? '↓ Passer user' : '↑ Passer admin'}
-                    </button>
-                    <button class="ua-btn ua-btn-green" onclick="adminResetPwd(${u.id},'${u.username}')">
-                        🔑 Changer MDP
-                    </button>
-                    <button class="ua-btn" style="background:#e0f2fe;color:#0369a1" onclick="adminEditerProfil(${u.id},'${u.username}')">
-                        ✏️ Éditer profil
-                    </button>
-                    <button class="ua-btn ua-btn-red" onclick="adminSupprimerUser(${u.id},'${u.username}')">
-                        🗑 Supprimer
-                    </button>
-                </div>
+                <div id="create-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
             </div>
-        `).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center">Aucun utilisateur.</p>';
+
+            <!-- Liste des utilisateurs -->
+            <div id="admin-users-liste"></div>
+        `;
+
+        filtrerAdminUsers();
+
     } catch {
         el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
     }
+}
+
+function toggleFormulaireCreer() {
+    const f = document.getElementById('admin-creer-form');
+    if (!f) return;
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    if (f.style.display === 'block') {
+        document.getElementById('new-username')?.focus();
+    }
+}
+
+function filtrerAdminUsers() {
+    const q = (document.getElementById('admin-search')?.value || '').toLowerCase().trim();
+    const users = (window._adminUsersCache || []).filter(u =>
+        !q || u.username.toLowerCase().includes(q)
+    );
+    const el = document.getElementById('admin-users-liste');
+    if (!el) return;
+    el.innerHTML = users.length ? users.map(u => `
+        <div class="user-card">
+            <div class="user-card-header">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}"
+                         style="width:36px;height:36px;font-size:15px">${u.username[0].toUpperCase()}</div>
+                    <div>
+                        <span class="user-card-name">${u.username}</span>
+                        <span class="user-card-role ${u.role === 'admin' ? 'role-admin' : 'role-user'}">${u.role}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="user-card-meta">
+                Dernière connexion : <strong>${u.lastLogin ? _formatDateComplete(u.lastLogin) : 'Jamais'}</strong>
+                ${u.lastLogin ? ' — ' + _formatDateRelative(u.lastLogin) : ''}
+            </div>
+            <div class="user-card-actions">
+                <button class="ua-btn ua-btn-blue" onclick="adminToggleRole(${u.id},'${u.role}')">
+                    ${u.role === 'admin' ? '↓ Passer user' : '↑ Passer admin'}
+                </button>
+                <button class="ua-btn ua-btn-green" onclick="adminResetPwd(${u.id},'${u.username}')">
+                    🔑 Changer MDP
+                </button>
+                <button class="ua-btn" style="background:#e0f2fe;color:#0369a1"
+                    onclick="adminEditerProfil(${u.id},'${u.username}')">
+                    ✏️ Éditer profil
+                </button>
+                <button class="ua-btn ua-btn-red" onclick="adminSupprimerUser(${u.id},'${u.username}')">
+                    🗑 Supprimer
+                </button>
+            </div>
+        </div>
+    `).join('') : '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucun résultat.</p>';
 }
 
 // ===================== ÉDITION PROFIL PAR ADMIN =====================
@@ -458,12 +486,14 @@ async function creerUser() {
         if (msg) {
             msg.style.color = d.success ? '#16a34a' : '#ef4444';
             msg.textContent = d.success
-                ? `✅ Utilisateur "${username}" créé avec succès.`
+                ? `✅ "${username}" créé avec succès.`
                 : (d.message || 'Erreur.');
-        }
+	        }
         if (d.success) {
             document.getElementById('new-username').value = '';
             document.getElementById('new-password').value = '';
+            document.getElementById('new-role').value = 'user';
+            setTimeout(() => chargerAdminUsers(), 1200);
         }
     } catch {
         if (msg) { msg.style.color = '#ef4444'; msg.textContent = 'Erreur réseau.'; }
@@ -477,6 +507,6 @@ function switchAdminTab(tab) {
     document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
     document.querySelector(`.admin-tab[data-tab="${tab}"]`)?.classList.add('active');
     document.getElementById(`admin-tab-${tab}`)?.classList.add('active');
-        if (tab === 'stats') chargerAdminStats();
+    if (tab === 'stats') chargerAdminStats();
     if (tab === 'users') chargerAdminUsers();
 }
