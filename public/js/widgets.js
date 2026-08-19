@@ -85,7 +85,7 @@ function creerWidget(def) {
     if (def.id === 'rendezvous')  contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
     if (def.id === 'planning')    contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
     if (def.id === 'profil')      contentHtml = '<div id="wc-profil"></div>';
-    if (def.id === 'astrologie')  contentHtml = '<div id="wc-astrologie">Chargement...</div>';
+    if (def.id === 'astrologie')  contentHtml = 'Chargement...';
 
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
