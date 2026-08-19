@@ -78,33 +78,33 @@ const Cycle = (() => {
     const dureeCycleRef = dureeMoyenne || (cycles[0]?.duree_cycle) || 28;
 
     cycles.forEach(c => {
-      const debut = parseDateLocale(c.date_debut.split('T')[0]);
+      const debut       = parseDateLocale(c.date_debut.split('T')[0]);
       const dureeRegles = c.duree_regles || 5;
       const dureeCycle  = dureeMoyenne || c.duree_cycle || 28;
       periodes.push({
-        debutRegles : debut,
-        finRegles   : addDays(debut, dureeRegles - 1),
-        debutFertile: addDays(debut, dureeCycle - 16),
-        finFertile  : addDays(debut, dureeCycle - 12),
-        ovulation   : addDays(debut, dureeCycle - 14),
+        debutRegles  : debut,
+        finRegles    : addDays(debut, dureeRegles - 1),
+        debutFertile : addDays(debut, dureeCycle - 16),
+        finFertile   : addDays(debut, dureeCycle - 12),
+        ovulation    : addDays(debut, dureeCycle - 14),
         prochainDebut: addDays(debut, dureeCycle),
         dureeRegles
       });
     });
 
     if (cycles.length > 0) {
-      let dernierDebut = parseDateLocale(cycles[0].date_debut.split('T')[0]);
+      const dernierDebut   = parseDateLocale(cycles[0].date_debut.split('T')[0]);
       const dureeReglesRef = cycles[0].duree_regles || 5;
       for (let i = 1; i <= 3; i++) {
         const debut = addDays(dernierDebut, dureeCycleRef * i);
         periodes.push({
-          debutRegles : debut,
-          finRegles   : addDays(debut, dureeReglesRef - 1),
-          debutFertile: addDays(debut, dureeCycleRef - 16),
-          finFertile  : addDays(debut, dureeCycleRef - 12),
-          ovulation   : addDays(debut, dureeCycleRef - 14),
+          debutRegles  : debut,
+          finRegles    : addDays(debut, dureeReglesRef - 1),
+          debutFertile : addDays(debut, dureeCycleRef - 16),
+          finFertile   : addDays(debut, dureeCycleRef - 12),
+          ovulation    : addDays(debut, dureeCycleRef - 14),
           prochainDebut: addDays(debut, dureeCycleRef),
-          dureeRegles : dureeReglesRef
+          dureeRegles  : dureeReglesRef
         });
       }
     }
@@ -112,17 +112,17 @@ const Cycle = (() => {
     return periodes;
   }
 
-  let _calcCourant   = null;
-  let _moisAffiche   = null;
-  let _journalCache  = {};
-  let _toutesLesP    = [];
+  let _calcCourant  = null;
+  let _moisAffiche  = null;
+  let _journalCache = {};
+  let _toutesLesP   = [];
 
   function calculerCycle(dernierCycle, dureeMoyenne) {
     if (!dernierCycle) return null;
-    const debut       = parseDateLocale(dernierCycle.date_debut.split('T')[0]);
-    const dureeRegles = dernierCycle.duree_regles || 5;
-    const dureeCycle  = dureeMoyenne || dernierCycle.duree_cycle || 28;
-    const finRegles     = addDays(debut, dureeRegles - 1);
+    const debut        = parseDateLocale(dernierCycle.date_debut.split('T')[0]);
+    const dureeRegles  = dernierCycle.duree_regles || 5;
+    const dureeCycle   = dureeMoyenne || dernierCycle.duree_cycle || 28;
+    const finRegles    = addDays(debut, dureeRegles - 1);
     const prochainDebut = addDays(debut, dureeCycle);
     const debutFertile  = addDays(debut, dureeCycle - 16);
     const finFertile    = addDays(debut, dureeCycle - 12);
@@ -141,9 +141,9 @@ const Cycle = (() => {
 
   function getPhase(calc) {
     if (!calc) return { label: 'Aucun cycle enregistré', emoji: '❓', color: '#888' };
-    if (calc.enRegles)  return { label: 'Règles en cours',   emoji: '🔴', color: '#e74c3c' };
-    if (calc.enFenetre) return { label: 'Fenêtre fertile',   emoji: '🟢', color: '#2ecc71' };
-    const aujourd_hui = new Date(); aujourd_hui.setHours(0,0,0,0);
+    if (calc.enRegles)  return { label: 'Règles en cours',  emoji: '🔴', color: '#e74c3c' };
+    if (calc.enFenetre) return { label: 'Fenêtre fertile',  emoji: '🟢', color: '#2ecc71' };
+    const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
     if (memeJour(aujourd_hui, calc.ovulation)) return { label: "Jour d'ovulation", emoji: '🌟', color: '#f39c12' };
     return { label: 'Phase de repos', emoji: '🔵', color: '#3498db' };
   }
@@ -158,7 +158,7 @@ const Cycle = (() => {
   }
 
   function renderCalendrier(calc) {
-    const aujourd_hui = new Date(); aujourd_hui.setHours(0,0,0,0);
+    const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
     const moisRef     = new Date(_moisAffiche.getFullYear(), _moisAffiche.getMonth(), 1);
     const moisNom     = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     const nbJours     = new Date(moisRef.getFullYear(), moisRef.getMonth() + 1, 0).getDate();
@@ -174,15 +174,15 @@ const Cycle = (() => {
 
     for (let j = 1; j <= nbJours; j++) {
       const date = new Date(moisRef.getFullYear(), moisRef.getMonth(), j);
-      date.setHours(0,0,0,0);
+      date.setHours(0, 0, 0, 0);
       const dateStr = formatDateInput(date);
 
-      let estRegles   = false;
-      let estFertile  = false;
-      let estOvul     = false;
+      let estRegles  = false;
+      let estFertile = false;
+      let estOvul    = false;
 
       for (const p of _toutesLesP) {
-        if (date >= p.debutRegles && date <= p.finRegles) estRegles  = true;
+        if (date >= p.debutRegles  && date <= p.finRegles)  estRegles  = true;
         if (date >= p.debutFertile && date <= p.finFertile) estFertile = true;
         if (memeJour(date, p.ovulation)) estOvul = true;
       }
@@ -196,12 +196,12 @@ const Cycle = (() => {
       let badge = '';
       let icons = '';
 
-      if (estRegles)        cls += ' cal-regles';
-      else if (estFertile)  cls += ' cal-fertile';
-      if (estAujourdhui)    cls += ' cal-today';
-      if (estOvul)          badge = '<span class="cal-ovulation-star">★</span>';
-      if (aRapport)         icons += `<span class="cal-icon-rapport ${journal.humeur === 'protege' ? 'protege' : 'non-protege'}">♥</span>`;
-      if (aSymptomes)       icons += `<span class="cal-icon-symptome">●</span>`;
+      if (estRegles)       cls  += ' cal-regles';
+      else if (estFertile) cls  += ' cal-fertile';
+      if (estAujourdhui)   cls  += ' cal-today';
+      if (estOvul)         badge = '<span class="cal-ovulation-star">★</span>';
+      if (aRapport)        icons += `<span class="cal-icon-rapport ${journal.humeur === 'protege' ? 'protege' : 'non-protege'}">♥</span>`;
+      if (aSymptomes)      icons += `<span class="cal-icon-symptome">●</span>`;
 
       cases += `<div class="${cls}" onclick="Cycle.ouvrirJournal('${dateStr}')">${j}${badge}${icons ? `<div class="cal-day-icons">${icons}</div>` : ''}</div>`;
     }
@@ -245,7 +245,7 @@ const Cycle = (() => {
     });
     const symptomesActifs = journal.symptomes ? journal.symptomes.split(',') : [];
 
-    // ── Symptômes avec icône et label alignés ─────────────────
+    // ── Symptômes avec icône et label — grille 2 colonnes ────
     const SYMPTOMES = [
       { key: 'je_me_sens_bien',     label: 'Je me sens bien',     icon: '😊' },
       { key: 'crampes_abdominales', label: 'Crampes abdominales', icon: '🤰' },
@@ -270,7 +270,8 @@ const Cycle = (() => {
         <div class="journal-section-title" style="margin-top:14px">Symptômes</div>
         <div class="journal-symptomes">
           ${SYMPTOMES.map(s => `
-            <label class="symptome-chip ${symptomesActifs.includes(s.key) ? 'active' : ''}">
+            <label class="symptome-chip ${symptomesActifs.includes(s.key) ? 'active' : ''}"
+              onclick="this.classList.toggle('active');this.querySelector('input').checked=this.classList.contains('active')">
               <input type="checkbox" value="${s.key}" ${symptomesActifs.includes(s.key) ? 'checked' : ''}>
               <span class="symptome-chip-icon">${s.icon}</span>
               <span class="symptome-chip-label">${s.label}</span>
@@ -306,6 +307,9 @@ const Cycle = (() => {
         body: JSON.stringify({ date: dateStr, rapport, symptomes, notes })
       });
       await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+      // ✅ Fix : re-rendu calendrier pour afficher l'icône ♥ immédiatement
+      const container = document.getElementById('cal-container');
+      if (container) container.innerHTML = renderCalendrier(_calcCourant);
       ouvrirModalCalendrier();
     } catch {
       document.getElementById('modal-title').textContent = 'Erreur';
@@ -319,7 +323,9 @@ const Cycle = (() => {
 
   async function _supprimerJournal(id, dateStr) {
     const [y, m, d] = dateStr.split('-').map(Number);
-    const dateAff = new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+    const dateAff = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: '2-digit', month: 'long'
+    });
     confirmerAction(`Supprimer l'entrée du ${dateAff} ? Cette action est irréversible.`, async () => {
       try {
         await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
@@ -348,15 +354,15 @@ const Cycle = (() => {
         const prochaineOvulation    = addDays(calc.ovulation, calc.dureeCycle);
         const prochaineFenetreDebut = addDays(prochaineOvulation, -5);
         const prochaineFenetreFin   = addDays(prochaineOvulation, 1);
-        labelOvulation = 'Prochaine ovulation';
+        labelOvulation  = 'Prochaine ovulation';
         valeurOvulation = formatDate(prochaineOvulation);
-        labelFenetre   = 'Prochaine fenêtre fertile';
-        valeurFenetre  = `${formatDate(prochaineFenetreDebut)} → ${formatDate(prochaineFenetreFin)}`;
+        labelFenetre    = 'Prochaine fenêtre fertile';
+        valeurFenetre   = `${formatDate(prochaineFenetreDebut)} → ${formatDate(prochaineFenetreFin)}`;
       } else {
-        labelOvulation = 'Ovulation estimée';
+        labelOvulation  = 'Ovulation estimée';
         valeurOvulation = formatDate(calc.ovulation);
-        labelFenetre   = 'Fenêtre fertile';
-        valeurFenetre  = `${formatDate(calc.debutFertile)} → ${formatDate(calc.finFertile)}`;
+        labelFenetre    = 'Fenêtre fertile';
+        valeurFenetre   = `${formatDate(calc.debutFertile)} → ${formatDate(calc.finFertile)}`;
       }
     }
 
@@ -498,7 +504,7 @@ const Cycle = (() => {
       <div class="modal-cycle-form">
         <label>Date de début des règles *</label>
         <input type="date" id="cycle-date-debut"
-          value="${isEdit ? formatDateInput(parseDateLocale(cycleExistant.date_debut.split('T')[0])) : today}"
+                  value="${isEdit ? formatDateInput(parseDateLocale(cycleExistant.date_debut.split('T')[0])) : today}"
           max="${today}" />
         <label>Durée des règles (jours)</label>
         <input type="number" id="cycle-duree-regles" min="1" max="10"
@@ -507,7 +513,7 @@ const Cycle = (() => {
         <input type="number" id="cycle-duree-cycle" min="21" max="45"
           value="${isEdit ? cycleExistant.duree_cycle : 28}" />
         <label>Notes (optionnel)</label>
-                <textarea id="cycle-notes" rows="3" placeholder="Douleurs, humeur, symptômes...">${isEdit ? (cycleExistant.notes || '') : ''}</textarea>
+        <textarea id="cycle-notes" rows="3" placeholder="Douleurs, humeur, symptômes...">${isEdit ? (cycleExistant.notes || '') : ''}</textarea>
         <div class="modal-actions">
           <button class="btn-save" onclick="Cycle.sauvegarder(${isEdit ? cycleExistant.id : 'null'})">
             ${isEdit ? 'Modifier' : 'Enregistrer'}
