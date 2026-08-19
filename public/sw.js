@@ -4,7 +4,7 @@
 // Version incrémentée à chaque push significatif.
 // ============================================================
 
-const CACHE_NAME = 'mydaily-cache-v3.36';
+const CACHE_NAME = 'mydaily-cache-v3.37';
 
 // Assets mis en cache à l'installation
 const ASSETS_TO_CACHE = [
@@ -52,7 +52,6 @@ self.addEventListener('message', event => {
         self.skipWaiting();
         return;
     }
-    // Répondre explicitement pour éviter "message channel closed"
     if (event.ports && event.ports[0]) {
         event.ports[0].postMessage({ ok: true });
     }
@@ -61,6 +60,8 @@ self.addEventListener('message', event => {
 // ── Fetch : stratégie par type de ressource ───────────────────
 self.addEventListener('fetch', event => {
     if (event.request.url.startsWith('chrome-extension')) return;
+    // ✅ Guard global : ignore toute requête non-GET (HEAD, POST, etc.)
+    if (event.request.method !== 'GET') return;
 
     const url = new URL(event.request.url);
 
@@ -71,13 +72,11 @@ self.addEventListener('fetch', event => {
     }
 
     // Fichiers critiques : network-first
-    // Garantit la version la plus récente après chaque déploiement.
     const networkFirst = ['/', '/index.html', '/css/style.css'];
     if (networkFirst.includes(url.pathname)) {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
-                    // Met à jour le cache avec la version réseau
                     const clone = response.clone();
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
                     return response;
