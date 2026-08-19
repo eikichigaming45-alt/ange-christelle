@@ -17,7 +17,7 @@ async function chargerWidgetAdmin() {
                 </div>
                 <div class="wa-stat wa-stat-purple">
                     <div class="wa-stat-val">${d.actifsRecents}</div>
-                                        <div class="wa-stat-lbl">Actifs 7j</div>
+                    <div class="wa-stat-lbl">Actifs 7j</div>
                 </div>
                 <div class="wa-stat wa-stat-green">
                     <div class="wa-stat-val">${d.profilsRemplis}</div>
@@ -117,7 +117,6 @@ async function chargerAdminStats() {
                     <div class="as-card-lbl">Jamais connectés</div>
                 </div>
             </div>
-
             <div class="as-progress-bloc">
                 <div class="as-progress-header">
                     <span class="as-progress-label">Profils remplis</span>
@@ -127,7 +126,6 @@ async function chargerAdminStats() {
                     <div class="as-progress-fill as-fill-blue" style="width:${tauxProfils}%"></div>
                 </div>
             </div>
-
             <div class="as-section-title" style="margin-top:20px">Dernières connexions</div>
             <div class="as-logins-list">
                 ${(d.lastLogins || []).map(u => `
@@ -149,7 +147,7 @@ async function chargerAdminStats() {
     }
 }
 
-// ===================== MODALE ADMIN — UTILISATEURS + CRÉER (FUSIONNÉS) =====================
+// ===================== MODALE ADMIN — UTILISATEURS =====================
 
 async function chargerAdminUsers() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
@@ -160,69 +158,68 @@ async function chargerAdminUsers() {
         const r = await fetch(`/api/admin/users?adminId=${user.userId}`);
         const d = await r.json();
         if (!d.success) { el.innerHTML = `<p style="color:#ef4444">${d.message}</p>`; return; }
-
         window._adminUsersCache = d.users || [];
-
-        el.innerHTML = `
-            <!-- Barre de recherche -->
-            <input type="text" id="admin-search" placeholder="🔍 Rechercher un utilisateur..."
-                oninput="filtrerAdminUsers()"
-                style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;
-                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px">
-
-            <!-- Bouton créer -->
-            <button onclick="toggleFormulaireCreer()"
-                style="width:100%;padding:11px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
-                       color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;
-                       cursor:pointer;margin-bottom:16px;display:flex;align-items:center;
-                       justify-content:center;gap:8px">
-                ➕ Créer un utilisateur
-            </button>
-
-            <!-- Formulaire de création (caché par défaut) -->
-            <div id="admin-creer-form" style="display:none;background:#f8fafc;border-radius:12px;
-                 padding:16px;margin-bottom:16px;border:1.5px solid #e5e7eb">
-                <div style="font-size:13px;font-weight:700;color:#1e1b4b;margin-bottom:12px">Nouveau compte</div>
-                <input type="text" id="new-username" placeholder="Nom d'utilisateur"
-                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
-                           font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
-                <input type="password" id="new-password" placeholder="8 car. min · majuscule · minuscule · chiffre · spécial"
-                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
-                           font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
-                <select id="new-role"
-                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
-                           font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;background:#fff">
-                    <option value="user">user</option>
-                    <option value="admin">admin</option>
-                </select>
-                <div style="display:flex;gap:8px">
-                    <button onclick="creerUser()" class="ua-btn ua-btn-blue" style="flex:1;padding:10px">✓ Créer</button>
-                    <button onclick="toggleFormulaireCreer()" class="ua-btn" style="flex:1;padding:10px;background:#f3f4f6;color:#374151">Annuler</button>
-                </div>
-                <div id="create-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
-            </div>
-
-            <!-- Liste des utilisateurs -->
-            <div id="admin-users-liste"></div>
-        `;
-
-        filtrerAdminUsers();
-
+        _renderAdminUsers();
     } catch {
         el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
     }
 }
 
-function toggleFormulaireCreer() {
-    const f = document.getElementById('admin-creer-form');
-    if (!f) return;
-    f.style.display = f.style.display === 'none' ? 'block' : 'none';
-    if (f.style.display === 'block') {
-        document.getElementById('new-username')?.focus();
-    }
+function _renderAdminUsers() {
+    const el = document.getElementById('admin-tab-users');
+    if (!el) return;
+    el.innerHTML = `
+        <input type="text" id="admin-search" placeholder="🔍 Rechercher un utilisateur..."
+            oninput="_filtrerAdminUsers()"
+            style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;
+                   font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;background:#f8fafc">
+        <div id="admin-users-liste"></div>
+        <button onclick="_toggleCreerForm()" id="btn-creer-user"
+            style="width:100%;padding:11px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+                   color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;
+                   cursor:pointer;margin-top:12px;display:flex;align-items:center;
+                   justify-content:center;gap:6px">
+            ➕ Créer un utilisateur
+        </button>
+        <div id="admin-creer-form" style="display:none;background:#f8fafc;border-radius:12px;
+             padding:16px;margin-top:10px;border:1.5px solid #e5e7eb">
+            <div style="font-size:13px;font-weight:700;color:#1e1b4b;margin-bottom:12px">Nouveau compte</div>
+            <input type="text" id="new-username" placeholder="Nom d'utilisateur"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
+            <input type="password" id="new-password"
+                placeholder="8 car. min · majuscule · minuscule · chiffre · spécial"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
+            <select id="new-role"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;background:#fff">
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+            </select>
+            <div style="display:flex;gap:8px">
+                <button onclick="creerUser()" class="ua-btn ua-btn-blue"
+                    style="flex:1;padding:10px;font-size:13px">✓ Créer</button>
+                <button onclick="_toggleCreerForm()" class="ua-btn"
+                    style="flex:1;padding:10px;background:#f3f4f6;color:#374151;font-size:13px">Annuler</button>
+            </div>
+            <div id="create-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+        </div>
+    `;
+    _filtrerAdminUsers();
 }
 
-function filtrerAdminUsers() {
+function _toggleCreerForm() {
+    const f = document.getElementById('admin-creer-form');
+    const b = document.getElementById('btn-creer-user');
+    if (!f || !b) return;
+    const visible = f.style.display !== 'none';
+    f.style.display = visible ? 'none' : 'block';
+    b.innerHTML = visible ? '➕ Créer un utilisateur' : '✕ Fermer';
+    if (!visible) document.getElementById('new-username')?.focus();
+}
+
+function _filtrerAdminUsers() {
     const q = (document.getElementById('admin-search')?.value || '').toLowerCase().trim();
     const users = (window._adminUsersCache || []).filter(u =>
         !q || u.username.toLowerCase().includes(q)
@@ -230,35 +227,28 @@ function filtrerAdminUsers() {
     const el = document.getElementById('admin-users-liste');
     if (!el) return;
     el.innerHTML = users.length ? users.map(u => `
-        <div class="user-card">
-            <div class="user-card-header">
-                <div style="display:flex;align-items:center;gap:8px">
-                    <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}"
-                         style="width:36px;height:36px;font-size:15px">${u.username[0].toUpperCase()}</div>
-                    <div>
-                        <span class="user-card-name">${u.username}</span>
-                        <span class="user-card-role ${u.role === 'admin' ? 'role-admin' : 'role-user'}">${u.role}</span>
-                    </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;
+                    border:1px solid #e5e7eb;border-radius:10px;margin-bottom:8px">
+            <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}"
+                 style="width:36px;height:36px;font-size:15px;flex-shrink:0">${u.username[0].toUpperCase()}</div>
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;color:#1e1b4b;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    ${u.username}
+                    <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
+                </div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px">
+                    ${u.lastLogin ? _formatDateComplete(u.lastLogin) + ' — ' + _formatDateRelative(u.lastLogin) : 'Jamais connecté'}
                 </div>
             </div>
-            <div class="user-card-meta">
-                Dernière connexion : <strong>${u.lastLogin ? _formatDateComplete(u.lastLogin) : 'Jamais'}</strong>
-                ${u.lastLogin ? ' — ' + _formatDateRelative(u.lastLogin) : ''}
-            </div>
-            <div class="user-card-actions">
-                <button class="ua-btn ua-btn-blue" onclick="adminToggleRole(${u.id},'${u.role}')">
-                    ${u.role === 'admin' ? '↓ Passer user' : '↑ Passer admin'}
-                </button>
-                <button class="ua-btn ua-btn-green" onclick="adminResetPwd(${u.id},'${u.username}')">
-                    🔑 Changer MDP
-                </button>
-                <button class="ua-btn" style="background:#e0f2fe;color:#0369a1"
-                    onclick="adminEditerProfil(${u.id},'${u.username}')">
-                    ✏️ Éditer profil
-                </button>
-                <button class="ua-btn ua-btn-red" onclick="adminSupprimerUser(${u.id},'${u.username}')">
-                    🗑 Supprimer
-                </button>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+                <button class="au-btn au-btn-role" title="${u.role === 'admin' ? 'Passer user' : 'Passer admin'}"
+                    onclick="adminToggleRole(${u.id},'${u.role}')">${u.role === 'admin' ? '↓' : '↑'}</button>
+                <button class="au-btn au-btn-key" title="Changer MDP"
+                    onclick="adminResetPwd(${u.id},'${u.username}')">🔑</button>
+                <button class="au-btn au-btn-edit" title="Éditer"
+                    onclick="adminEditerProfil(${u.id},'${u.username}')">✏️</button>
+                <button class="au-btn au-btn-del" title="Supprimer"
+                    onclick="adminSupprimerUser(${u.id},'${u.username}')">🗑</button>
             </div>
         </div>
     `).join('') : '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucun résultat.</p>';
@@ -380,9 +370,9 @@ async function adminToggleRole(id, roleActuel) {
         });
         const d = await r.json();
         if (d.success) chargerAdminUsers();
-        else document.getElementById('admin-tab-users').innerHTML = `<p style="color:#ef4444">${d.message}</p>`;
+        else alert(d.message || 'Erreur.');
     } catch {
-        document.getElementById('admin-tab-users').innerHTML = '<p style="color:#ef4444">Erreur réseau.</p>';
+        alert('Erreur réseau.');
     }
 }
 
@@ -392,8 +382,8 @@ function adminResetPwd(id, username) {
     const el = document.getElementById('admin-tab-users');
     el.innerHTML = `
         <div class="user-card">
-            <div class="user-card-name" style="margin-bottom:4px">🔑 Nouveau MDP pour <strong>${username}</strong></div>
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">8 car. min · majuscule · minuscule · chiffre · caractère spécial</div>
+            <div class="user-card-name" style="margin-bottom:4px">🔑 Nouveau MDP — <strong>${username}</strong></div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">8 car. min · majuscule · minuscule · chiffre · spécial</div>
             <input type="password" id="admin-new-pwd" placeholder="Nouveau mot de passe"
                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">
@@ -453,9 +443,9 @@ async function adminConfirmSupprimer(id) {
         });
         const d = await r.json();
         if (d.success) chargerAdminUsers();
-        else document.getElementById('admin-tab-users').innerHTML = `<p style="color:#ef4444">${d.message}</p>`;
+                else alert(d.message || 'Erreur.');
     } catch {
-        document.getElementById('admin-tab-users').innerHTML = '<p style="color:#ef4444">Erreur réseau.</p>';
+        alert('Erreur réseau.');
     }
 }
 
@@ -488,7 +478,7 @@ async function creerUser() {
             msg.textContent = d.success
                 ? `✅ "${username}" créé avec succès.`
                 : (d.message || 'Erreur.');
-	        }
+        }
         if (d.success) {
             document.getElementById('new-username').value = '';
             document.getElementById('new-password').value = '';
