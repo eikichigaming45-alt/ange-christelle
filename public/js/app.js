@@ -137,7 +137,7 @@ function actualiser() {
 
 function logout() {
     localStorage.removeItem('myvibe_user');
-    window.location.reload();
+    window.location.href = '/';
 }
 
 // ===================== CHANGEMENT MDP OBLIGATOIRE =====================
