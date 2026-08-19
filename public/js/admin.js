@@ -32,7 +32,7 @@ async function chargerWidgetAdmin() {
             ${(d.lastLogins || []).map(u => `
                 <div class="wa-activity-row">
                     <div class="wa-avatar ${u.role === 'admin' ? 'wa-avatar-admin' : 'wa-avatar-user'}">${u.username[0].toUpperCase()}</div>
-                    <div class="wa-username">${u.username}</div>
+                    <div class="wa-username">${(u.prenom && u.nom) ? u.prenom + ' ' + u.nom : u.username}</div>
                     <span class="wa-badge ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>
                     <div class="wa-date">${u.lastLogin ? _formatDateRelative(u.lastLogin) : '<span style="color:#d1d5db">Jamais</span>'}</div>
                 </div>
@@ -126,6 +126,29 @@ async function chargerAdminStats() {
                     <div class="as-progress-fill as-fill-blue" style="width:${tauxProfils}%"></div>
                 </div>
             </div>
+            <div class="as-section-title" style="margin-top:20px">Activité globale</div>
+            <div class="as-activity-bloc">
+                <div class="as-activity-row">
+                    <span class="as-activity-icon">✅</span>
+                    <span class="as-activity-label">Tâches complétées</span>
+                    <span class="as-activity-val">${d.tachesFaites} / ${d.totalTaches}</span>
+                </div>
+                <div class="as-activity-row">
+                    <span class="as-activity-icon">📅</span>
+                    <span class="as-activity-label">Rendez-vous enregistrés</span>
+                    <span class="as-activity-val">${d.totalRdv}</span>
+                </div>
+                <div class="as-activity-row">
+                    <span class="as-activity-icon">🎂</span>
+                    <span class="as-activity-label">Anniversaires enregistrés</span>
+                    <span class="as-activity-val">${d.totalAnniversaires}</span>
+                </div>
+                <div class="as-activity-row">
+                    <span class="as-activity-icon">🌸</span>
+                    <span class="as-activity-label">Entrées journal cycle</span>
+                    <span class="as-activity-val">${d.totalCycles}</span>
+                </div>
+            </div>
             <div class="as-section-title" style="margin-top:20px">Dernières connexions</div>
             <div class="as-logins-list">
                 ${(d.lastLogins || []).map(u => `
@@ -169,10 +192,15 @@ function _renderAdminUsers() {
     const el = document.getElementById('admin-tab-users');
     if (!el) return;
     el.innerHTML = `
-        <input type="text" id="admin-search" placeholder="🔍 Rechercher un utilisateur..."
-            oninput="_filtrerAdminUsers()"
-            style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;
-                   font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;background:#f8fafc">
+        <form autocomplete="off" onsubmit="return false"
+            style="margin-bottom:12px">
+            <input type="text" id="admin-search"
+                placeholder="🔍 Rechercher un utilisateur..."
+                oninput="_filtrerAdminUsers()"
+                autocomplete="off"
+                style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;background:#f8fafc">
+        </form>
         <div id="admin-users-liste"></div>
         <button onclick="_toggleCreerForm()" id="btn-creer-user"
             style="width:100%;padding:11px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
@@ -185,9 +213,13 @@ function _renderAdminUsers() {
              padding:16px;margin-top:10px;border:1.5px solid #e5e7eb">
             <div style="font-size:13px;font-weight:700;color:#1e1b4b;margin-bottom:12px">Nouveau compte</div>
             <input type="text" id="new-username" placeholder="Nom d'utilisateur"
+                autocomplete="off" name="new-username-field"
                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
+            <input type="text" id="new-password-fake"
+                style="display:none;position:absolute;left:-9999px" aria-hidden="true">
             <input type="password" id="new-password"
+                autocomplete="new-password" name="new-password-field"
                 placeholder="8 car. min · majuscule · minuscule · chiffre · spécial"
                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
@@ -197,16 +229,19 @@ function _renderAdminUsers() {
                 <option value="user">user</option>
                 <option value="admin">admin</option>
             </select>
-            <div style="display:flex;gap:8px">
-                <button onclick="creerUser()" class="ua-btn ua-btn-blue"
-                    style="flex:1;padding:10px;font-size:13px">✓ Créer</button>
-                <button onclick="_toggleCreerForm()" class="ua-btn"
-                    style="flex:1;padding:10px;background:#f3f4f6;color:#374151;font-size:13px">Annuler</button>
-            </div>
+            <button onclick="creerUser()" class="ua-btn ua-btn-blue"
+                style="width:100%;padding:10px;font-size:13px;justify-content:center">
+                ✓ Créer l'utilisateur
+            </button>
             <div id="create-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
         </div>
     `;
-    _filtrerAdminUsers();
+    // Forcer la valeur vide après rendu pour contrer l'autofill navigateur
+    setTimeout(() => {
+        const s = document.getElementById('admin-search');
+        if (s) s.value = '';
+        _filtrerAdminUsers();
+    }, 50);
 }
 
 function _toggleCreerForm() {
@@ -216,7 +251,19 @@ function _toggleCreerForm() {
     const visible = f.style.display !== 'none';
     f.style.display = visible ? 'none' : 'block';
     b.innerHTML = visible ? '➕ Créer un utilisateur' : '✕ Fermer';
-    if (!visible) document.getElementById('new-username')?.focus();
+    if (!visible) {
+        setTimeout(() => {
+            const u = document.getElementById('new-username');
+            const p = document.getElementById('new-password');
+            const r = document.getElementById('new-role');
+            const m = document.getElementById('create-msg');
+            if (u) u.value = '';
+            if (p) p.value = '';
+            if (r) r.value = 'user';
+            if (m) m.textContent = '';
+            if (u) u.focus();
+        }, 50);
+    }
 }
 
 function _filtrerAdminUsers() {
@@ -385,6 +432,7 @@ function adminResetPwd(id, username) {
             <div class="user-card-name" style="margin-bottom:4px">🔑 Nouveau MDP — <strong>${username}</strong></div>
             <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">8 car. min · majuscule · minuscule · chiffre · spécial</div>
             <input type="password" id="admin-new-pwd" placeholder="Nouveau mot de passe"
+                autocomplete="new-password" name="admin-pwd-field"
                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">
             <div style="display:flex;gap:8px">
@@ -394,6 +442,11 @@ function adminResetPwd(id, username) {
             <div id="admin-pwd-msg" style="margin-top:8px;font-size:13px;color:#ef4444;text-align:center"></div>
         </div>
     `;
+    // Vider le champ après injection pour contrer l'autofill
+    setTimeout(() => {
+        const f = document.getElementById('admin-new-pwd');
+        if (f) { f.value = ''; f.focus(); }
+    }, 50);
 }
 
 async function adminConfirmResetPwd(id) {
@@ -443,7 +496,7 @@ async function adminConfirmSupprimer(id) {
         });
         const d = await r.json();
         if (d.success) chargerAdminUsers();
-                else alert(d.message || 'Erreur.');
+        else alert(d.message || 'Erreur.');
     } catch {
         alert('Erreur réseau.');
     }

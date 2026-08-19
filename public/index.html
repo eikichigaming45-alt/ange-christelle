@@ -16,12 +16,21 @@
 </head>
 <body>
 
+<!-- Honeypot : piège l'autofill navigateur avant la modale admin -->
+<div style="display:none;position:absolute;left:-9999px" aria-hidden="true">
+    <input type="text" name="fake-user" tabindex="-1" autocomplete="username">
+    <input type="password" name="fake-pwd" tabindex="-1" autocomplete="current-password">
+</div>
+
 <div class="login-card" id="login-page">
     <h1>🏡 MyVibe</h1>
     <p>Mon Sanctuaire</p>
-    <form id="login-form">
-        <input type="text" id="username" placeholder="Nom d'utilisateur" required>
-        <input type="password" id="password" placeholder="Mot de passe" required>
+    <!-- autocomplete="off" sur le form pour isoler le contexte -->
+    <form id="login-form" autocomplete="off">
+        <input type="text" id="login-username" name="login-username"
+               autocomplete="username" placeholder="Nom d'utilisateur" required>
+        <input type="password" id="login-password" name="login-password"
+               autocomplete="current-password" placeholder="Mot de passe" required>
         <button type="submit" class="btn">Se connecter</button>
     </form>
     <div id="error-msg"></div>
