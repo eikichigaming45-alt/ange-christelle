@@ -91,37 +91,37 @@ async function verifierTachesLocales() {
         const res  = await fetch('/api/rendezvous', {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
-        const rdvs = await res.json();
-        if (Array.isArray(rdvs)) {
-            for (const rdv of rdvs) {
-                if (!rdv.date_rdv) continue;
-                const rappel    = rdv.rappel_avant || 0;
-                const rdvDate   = new Date(rdv.date_rdv);
-                const notifDate = new Date(rdvDate.getTime() - rappel * 60 * 1000);
-                const hN = String(notifDate.getHours()).padStart(2, '0');
-                const mN = String(notifDate.getMinutes()).padStart(2, '0');
-                const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
-                if (dN !== dateAujourdhui) continue;
-                if (`${hN}:${mN}` !== heureActuelle) continue;
-                const cle = `rdv-${rdv.id}-${dN}-${hN}:${mN}`;
-                if (dejaNotifies.has(cle)) continue;
-                dejaNotifies.add(cle);
-                const label = rappel >= 1440 ? 'demain' : rappel >= 60 ? `dans ${rappel/60}h` : rappel > 0 ? `dans ${rappel}min` : "c'est maintenant";
-                const reg = await navigator.serviceWorker.ready;
-                reg.showNotification('🩺 Rappel rendez-vous', {
-                    body: `${rdv.titre} — ${label}`, icon: '/icon-192.png', badge: '/icon-192.png',
-                    tag: `rdv-${rdv.id}`, renotify: true, data: { url: '/' }
-                });
-            }
+        const data = await res.json();
+        // ✅ Fix : destructuration correcte { success, rendezvous }
+        const rdvs = data.rendezvous || [];
+        for (const rdv of rdvs) {
+            if (!rdv.date_rdv) continue;
+            const rappel    = rdv.rappel_avant || 0;
+            const rdvDate   = new Date(rdv.date_rdv);
+            const notifDate = new Date(rdvDate.getTime() - rappel * 60 * 1000);
+            const hN = String(notifDate.getHours()).padStart(2, '0');
+            const mN = String(notifDate.getMinutes()).padStart(2, '0');
+            const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
+            if (dN !== dateAujourdhui) continue;
+            if (`${hN}:${mN}` !== heureActuelle) continue;
+            const cle = `rdv-${rdv.id}-${dN}-${hN}:${mN}`;
+            if (dejaNotifies.has(cle)) continue;
+            dejaNotifies.add(cle);
+            const label = rappel >= 1440 ? 'demain' : rappel >= 60 ? `dans ${rappel/60}h` : rappel > 0 ? `dans ${rappel}min` : "c'est maintenant";
+            const reg = await navigator.serviceWorker.ready;
+            reg.showNotification('🩺 Rappel rendez-vous', {
+                body: `${rdv.titre} — ${label}`, icon: '/icon-192.png', badge: '/icon-192.png',
+                tag: `rdv-${rdv.id}`, renotify: true, data: { url: '/' }
+            });
         }
     } catch (e) { console.warn('Erreur RDV push:', e); }
 
     // ── Planning ──────────────────────────────────────────
     try {
-        const res     = await fetch(`/api/planning/jour?date=${dateAujourdhui}`, {
+        const res      = await fetch(`/api/planning/jour?date=${dateAujourdhui}`, {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
-        const data    = await res.json();
+        const data     = await res.json();
         const planning = Array.isArray(data) ? data : (data.planning || []);
         for (const p of planning) {
             if (!p.heure_debut || !p.rappel_avant || p.rappel_avant === 0) continue;
@@ -152,36 +152,38 @@ async function verifierTachesLocales() {
         });
         const data = await res.json();
         if (data.success) {
-            if (heureActuelle !== '08:00') return;
-            const now     = new Date();
-            const jourNow = now.getDate();
-            const moisNow = now.getMonth() + 1;
-            for (const a of data.anniversaires) {
-                if (a.jour === jourNow && a.mois === moisNow) {
-                    const cle = `anniv-jour-${a.id}-${dateAujourdhui}`;
-                    if (dejaNotifies.has(cle)) continue;
-                    dejaNotifies.add(cle);
-                    const age = a.annee ? ` — ${now.getFullYear() - a.annee} ans` : '';
-                    const reg = await navigator.serviceWorker.ready;
-                    reg.showNotification('🎂 Anniversaire aujourd\'hui !', {
-                        body: `${a.prenom}${a.nom ? ' '+a.nom : ''}${age}`,
-                        icon: '/icon-192.png', badge: '/icon-192.png',
-                        tag: `anniv-${a.id}`, renotify: true, data: { url: '/' }
-                    });
-                }
-                const demain = new Date(now);
-                demain.setDate(now.getDate() + 1);
-                if (a.jour === demain.getDate() && a.mois === demain.getMonth() + 1) {
-                    const cle = `anniv-veille-${a.id}-${dateAujourdhui}`;
-                    if (dejaNotifies.has(cle)) continue;
-                    dejaNotifies.add(cle);
-                    const age = a.annee ? ` — ${demain.getFullYear() - a.annee} ans demain` : '';
-                    const reg = await navigator.serviceWorker.ready;
-                    reg.showNotification('🎂 Anniversaire demain !', {
-                        body: `${a.prenom}${a.nom ? ' '+a.nom : ''}${age}`,
-                        icon: '/icon-192.png', badge: '/icon-192.png',
-                        tag: `anniv-veille-${a.id}`, renotify: true, data: { url: '/' }
-                    });
+            // ✅ Fix : wrap conditionnel au lieu de return
+            if (heureActuelle === '08:00') {
+                const now     = new Date();
+                const jourNow = now.getDate();
+                const moisNow = now.getMonth() + 1;
+                for (const a of data.anniversaires) {
+                    if (a.jour === jourNow && a.mois === moisNow) {
+                        const cle = `anniv-jour-${a.id}-${dateAujourdhui}`;
+                        if (dejaNotifies.has(cle)) continue;
+                        dejaNotifies.add(cle);
+                        const age = a.annee ? ` — ${now.getFullYear() - a.annee} ans` : '';
+                        const reg = await navigator.serviceWorker.ready;
+                        reg.showNotification('🎂 Anniversaire aujourd\'hui !', {
+                            body: `${a.prenom}${a.nom ? ' '+a.nom : ''}${age}`,
+                            icon: '/icon-192.png', badge: '/icon-192.png',
+                            tag: `anniv-${a.id}`, renotify: true, data: { url: '/' }
+                        });
+                    }
+                    const demain = new Date(now);
+                    demain.setDate(now.getDate() + 1);
+                    if (a.jour === demain.getDate() && a.mois === demain.getMonth() + 1) {
+                        const cle = `anniv-veille-${a.id}-${dateAujourdhui}`;
+                        if (dejaNotifies.has(cle)) continue;
+                        dejaNotifies.add(cle);
+                        const age = a.annee ? ` — ${demain.getFullYear() - a.annee} ans demain` : '';
+                        const reg = await navigator.serviceWorker.ready;
+                        reg.showNotification('🎂 Anniversaire demain !', {
+                            body: `${a.prenom}${a.nom ? ' '+a.nom : ''}${age}`,
+                            icon: '/icon-192.png', badge: '/icon-192.png',
+                            tag: `anniv-veille-${a.id}`, renotify: true, data: { url: '/' }
+                        });
+                    }
                 }
             }
         }
