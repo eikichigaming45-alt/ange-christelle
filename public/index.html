@@ -1,101 +1,77 @@
-const CACHE_NAME = 'mydaily-cache-v3.27';
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyDaily</title>
+    <link rel="icon" href="/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="MyDaily">
+    <meta name="theme-color" content="#7C3AED">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
 
-const ASSETS_TO_CACHE = [
-  '/css/style.css',
-  '/js/app.js',
-  '/js/auth.js',
-  '/js/widgets.js',
-  '/js/modal.js',
-  '/js/planning.js',
-  '/js/meteo.js',
-  '/js/rendezvous.js',
-  '/js/cycle.js',
-  '/js/taches.js',
-  '/js/anniversaires.js',
-  '/js/profil.js',
-  '/js/priere.js',
-  '/js/islam.js',
-  '/js/push.js',
-  '/js/admin.js',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
-];
+<!-- Honeypot : piège l'autofill navigateur avant la modale admin -->
+<div style="display:none;position:absolute;left:-9999px" aria-hidden="true">
+    <input type="text" name="fake-user" tabindex="-1" autocomplete="username">
+    <input type="password" name="fake-pwd" tabindex="-1" autocomplete="current-password">
+</div>
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE))
-  );
-  self.skipWaiting();
-});
+<div class="login-card" id="login-page">
+    <img src="/icon-192.png" alt="MyDaily" style="width:72px;border-radius:16px;margin-bottom:12px;">
+    <h1>MyDaily</h1>
+    <form id="login-form" autocomplete="off">
+        <input type="text" id="username" placeholder="Nom d'utilisateur" required>
+        <input type="password" id="password" placeholder="Mot de passe" required>
+        <button type="submit" class="btn">Se connecter</button>
+    </form>
+    <div id="error-msg"></div>
+</div>
 
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
+<div id="app">
+    <div class="topbar">
+        <div class="topbar-left">
+            <h2 onclick="actualiser()" title="Actualiser">MyDaily</h2>
+            <span class="date-badge" id="date-display"></span>
+        </div>
+        <div class="topbar-right">
+            <button class="icon-btn" id="btn-profil-header" onclick="openModal('profil')" title="Mon Profil">👤</button>
+            <button class="icon-btn" onclick="logout()" title="Se déconnecter">🔓</button>
+        </div>
+    </div>
+    <div class="grid" id="main-grid"></div>
+    <div class="footer"></div>
+</div>
 
-self.addEventListener('fetch', event => {
-  if (event.request.url.startsWith('chrome-extension')) return;
+<!-- Modale générique -->
+<div class="overlay" id="overlay" onclick="closeOutside(event)">
+    <div class="modal">
+        <button class="mclos" onclick="closeModal()">&#10005;</button>
+        <h3 id="modal-title"></h3>
+        <div id="modal-body"></div>
+    </div>
+</div>
 
-  const url = new URL(event.request.url);
-
-  // API : toujours réseau
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-
-  // index.html et / : network-first — toujours la version la plus récente
-  if (url.pathname === '/' || url.pathname === '/index.html') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  // Autres assets : cache-first
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      return cached || fetch(event.request).then(response => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
-        }
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
-        return response;
-      });
-    })
-  );
-});
-
-self.addEventListener('push', event => {
-  let data = {};
-  try { data = event.data.json(); } catch {}
-  event.waitUntil(
-    self.registration.showNotification(data.titre || 'MyDaily', {
-      body: data.corps || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      data: { url: data.url || '/' },
-      tag: data.tag || 'mydaily'
-    })
-  );
-});
-
-self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      for (const client of list) {
-        if (client.url === event.notification.data.url && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) return clients.openWindow(event.notification.data.url);
-    })
-  );
-});
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js" defer></script>
+<script src="/js/planning.js" defer></script>
+<script src="/js/modal.js" defer></script>
+<script src="/js/app.js" defer></script>
+<script src="/js/auth.js" defer></script>
+<script src="/js/meteo.js" defer></script>
+<script src="/js/priere.js" defer></script>
+<script src="/js/islam.js" defer></script>
+<script src="/js/taches.js" defer></script>
+<script src="/js/anniversaires.js" defer></script>
+<script src="/js/profil.js" defer></script>
+<script src="/js/admin.js" defer></script>
+<script src="/js/cycle.js" defer></script>
+<script src="/js/rendezvous.js" defer></script>
+<script src="/js/widgets.js" defer></script>
+<script src="/js/push.js" defer></script>
+</body>
+</html>
