@@ -161,13 +161,7 @@ function logout() {
     document.getElementById('app').style.display = 'none';
     document.getElementById('main-grid').innerHTML = '';
     document.body.style.cssText = '';
-    document.body.style.fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
-    document.body.style.background = 'linear-gradient(180deg,#F3E8FF 0%,#D8B4FE 100%)';
-    document.body.style.minHeight = '100vh';
-    document.body.style.display = 'flex';
-    document.body.style.justifyContent = 'center';
-    document.body.style.alignItems = 'center';
-    document.getElementById('login-page').style.display = '';
+    document.getElementById('login-page').style.display = 'flex';
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
     const errEl = document.getElementById('error-msg');

@@ -16,16 +16,16 @@
 </head>
 <body>
 
-<!-- Honeypot : piège l'autofill navigateur avant la modale admin -->
+<!-- Honeypot -->
 <div style="display:none;position:absolute;left:-9999px" aria-hidden="true">
     <input type="text" name="fake-user" tabindex="-1" autocomplete="username">
     <input type="password" name="fake-pwd" tabindex="-1" autocomplete="current-password">
 </div>
 
-<div class="login-card" id="login-page">
+<div class="login-card" id="login-page" style="display:flex;flex-direction:column;align-items:center;">
     <img src="/icon-192.png" alt="MyDaily" style="width:72px;border-radius:16px;margin-bottom:12px;">
     <h1>MyDaily</h1>
-    <form id="login-form" autocomplete="off">
+    <form id="login-form" autocomplete="off" style="width:100%">
         <input type="text" id="username" placeholder="Nom d'utilisateur" required>
         <input type="password" id="password" placeholder="Mot de passe" required>
         <button type="submit" class="btn">Se connecter</button>
