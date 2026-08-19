@@ -1,7 +1,5 @@
 // ===================== WIDGET PRIERE =====================
 
-let priere = null;
-
 async function chargerPriere() {
     const el = document.getElementById('wc-priere');
     if (el) el.innerHTML = '<p style="color:#9ca3af;font-size:13px">Chargement...</p>';
