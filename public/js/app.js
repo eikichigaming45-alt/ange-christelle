@@ -55,6 +55,38 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+document.getElementById('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const errEl = document.getElementById('error-msg');
+    if (errEl) errEl.textContent = '';
+    try {
+        const r = await fetch('/api/login', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({username, password})
+        });
+        const d = await r.json();
+        if (d.success) {
+            localStorage.setItem('myvibe_user', JSON.stringify({
+                username,
+                role  : d.role,
+                userId: d.userId,
+                token : d.token
+            }));
+            if (d.mustChangePassword) {
+                afficherModaleChangementMdpObligatoire(d.userId);
+            } else {
+                showApp();
+            }
+        } else {
+            if (errEl) errEl.textContent = d.message;
+        }
+    } catch {
+        // silencieux
+    }
+});
+
 let _appInitialisee = false;
 
 async function showApp() {
