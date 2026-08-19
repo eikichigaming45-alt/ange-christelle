@@ -1,8 +1,6 @@
-const CACHE_NAME = 'mydaily-cache-v3.26';
+const CACHE_NAME = 'mydaily-cache-v3.27';
 
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
   '/css/style.css',
   '/js/app.js',
   '/js/auth.js',
@@ -45,11 +43,21 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(event.request.url);
 
+  // API : toujours réseau
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(fetch(event.request));
     return;
   }
 
+  // index.html et / : network-first — toujours la version la plus récente
+  if (url.pathname === '/' || url.pathname === '/index.html') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Autres assets : cache-first
   event.respondWith(
     caches.match(event.request).then(cached => {
       return cached || fetch(event.request).then(response => {
