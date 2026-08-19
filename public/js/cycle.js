@@ -271,7 +271,7 @@ const Cycle = (() => {
         <div class="journal-symptomes">
           ${SYMPTOMES.map(s => `
             <label class="symptome-chip ${symptomesActifs.includes(s.key) ? 'active' : ''}"
-              onclick="this.classList.toggle('active');this.querySelector('input').checked=this.classList.contains('active')">
+              onclick="var cb=this.querySelector('input');cb.checked=!cb.checked;this.classList.toggle('active',cb.checked)">
               <input type="checkbox" value="${s.key}" ${symptomesActifs.includes(s.key) ? 'checked' : ''}>
               <span class="symptome-chip-icon">${s.icon}</span>
               <span class="symptome-chip-label">${s.label}</span>
