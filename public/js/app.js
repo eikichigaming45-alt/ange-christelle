@@ -1,3 +1,8 @@
+// ============================================================================
+// FICHIER : public/js/app.js
+// DESCRIPTION : Init, login, logout, state global, utilitaires
+// ============================================================================
+
 // ===================== STATE GLOBAL =====================
 let meteoData = null;
 let dernierIndex = -1;
@@ -18,7 +23,19 @@ const WIDGETS_DEF = [
     { id:'planning',      label:'Planning',             icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
     { id:'anniversaires', label:'Anniversaires',        icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
     { id:'profil',        label:'Mon Profil',           icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
-    { id:'admin',         label:'Administration',       icon:'⚙️',  cls:'w-admin',         desc:'',               foot:'Cliquez pour gérer', adminOnly:true },
+];
+
+// Liste des widgets configurables dans le profil (opt-out)
+// Ne pas inclure 'profil' et 'admin' — toujours visibles, non décochables
+const TOUS_WIDGETS = [
+    { slug: 'meteo',         label: '🌤️ Météo' },
+    { slug: 'priere',        label: '🙏 Prière du jour' },
+    { slug: 'islam',         label: '☪️ Prières & Hadiths' },
+    { slug: 'planning',      label: '📋 Planning' },
+    { slug: 'rendezvous',    label: '🩺 Rendez-vous' },
+    { slug: 'cycle',         label: '🌸 Suivi du cycle' },
+    { slug: 'taches',        label: '✅ Tâches' },
+    { slug: 'anniversaires', label: '🎂 Anniversaires' },
 ];
 
 const codes = {
@@ -138,7 +155,8 @@ function actualiser() {
 function logout() {
     localStorage.removeItem('myvibe_user');
     document.body.style.cssText = '';
-    window.location.replace('/');
+    // Force rechargement hors cache SW
+    window.location.href = '/?v=' + Date.now();
 }
 
 // ===================== CHANGEMENT MDP OBLIGATOIRE =====================
@@ -246,12 +264,12 @@ async function afficherVersion() {
 
 function refreshWidget(id) {
     switch(id) {
-        case 'meteo':      chargerMeteoAuto();                                          break;
-        case 'priere':     chargerPriere();                                             break;
+        case 'meteo':      chargerMeteoAuto();                                                   break;
+        case 'priere':     chargerPriere();                                                      break;
         case 'islam':      if (typeof window.chargerIslam === 'function') window.chargerIslam(); break;
-        case 'cycle':      if (typeof Cycle !== 'undefined') Cycle.charger();           break;
-        case 'rendezvous': if (typeof Rendezvous !== 'undefined') Rendezvous.charger(); break;
-        case 'planning':   chargerWidgetPlanning();                                     break;
+        case 'cycle':      if (typeof Cycle !== 'undefined') Cycle.charger();                    break;
+        case 'rendezvous': if (typeof Rendezvous !== 'undefined') Rendezvous.charger();          break;
+        case 'planning':   chargerWidgetPlanning();                                              break;
     }
 }
 
@@ -314,86 +332,4 @@ function enregistrerServiceWorker() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
-}
-
-// ===================== WIDGETS VISIBLES =====================
-
-const TOUS_WIDGETS = [
-    { slug: 'meteo',         label: '🌤️ Météo' },
-    { slug: 'priere',        label: '🙏 Prière du jour' },
-    { slug: 'islam',         label: '☪️ Prières & Hadiths' },
-    { slug: 'planning',      label: '📋 Planning' },
-    { slug: 'rendezvous',    label: '🩺 Rendez-vous' },
-    { slug: 'cycle',         label: '🌸 Suivi du cycle' },
-    { slug: 'taches',        label: '✅ Tâches' },
-    { slug: 'anniversaires', label: '🎂 Anniversaires' },
-];
-
-async function afficherSectionWidgets() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const token = user?.token;
-    const container = document.getElementById('widgets-choix');
-    if (!container) return;
-    try {
-        const res = await fetch('/api/profil/widgets-visibles', {
-            headers: { 'Authorization': 'Bearer ' + token }
-        });
-        const data = await res.json();
-        const actifs = (data.widgets_visibles && data.widgets_visibles.length > 0)
-            ? data.widgets_visibles
-            : TOUS_WIDGETS.map(w => w.slug);
-        container.innerHTML = TOUS_WIDGETS.map(w => `
-            <label class="widget-choix-item">
-                <input type="checkbox" value="${w.slug}" ${actifs.includes(w.slug) ? 'checked' : ''}>
-                <span>${w.label}</span>
-            </label>
-        `).join('');
-    } catch {
-        container.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement.</p>';
-    }
-}
-
-async function sauvegarderWidgetsVisibles() {
-    const user  = JSON.parse(localStorage.getItem('myvibe_user'));
-    const token = user?.token;
-    const msg   = document.getElementById('widgets-msg');
-    const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
-    const widgets_visibles = [...checkboxes].filter(cb => cb.checked).map(cb => cb.value);
-
-    if (widgets_visibles.length === 0) {
-        msg.textContent = '❌ Sélectionne au moins un widget.';
-        msg.style.color = '#ef4444'; return;
-    }
-    msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
-    try {
-        const res = await fetch('/api/profil/widgets-visibles', {
-            method: 'PATCH',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ widgets_visibles })
-        });
-        if (res.ok) {
-            msg.textContent = '✅ Widgets mis à jour !'; msg.style.color = '#10b981';
-            appliquerWidgetsVisibles(widgets_visibles);
-        } else {
-            msg.textContent = '❌ Erreur serveur.'; msg.style.color = '#ef4444';
-        }
-    } catch {
-        msg.textContent = '❌ Erreur réseau.'; msg.style.color = '#ef4444';
-    }
-}
-
-function appliquerWidgetsVisibles(actifs) {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const TOUJOURS_VISIBLES = user?.role === 'admin' ? ['profil', 'admin'] : ['profil'];
-    const grid = document.getElementById('main-grid');
-    if (!grid) return;
-    [...grid.children].forEach(el => {
-        const id = el.dataset.id;
-        if (!id) return;
-        if (TOUJOURS_VISIBLES.includes(id)) return;
-        el.style.display = actifs.includes(id) ? '' : 'none';
-    });
 }
