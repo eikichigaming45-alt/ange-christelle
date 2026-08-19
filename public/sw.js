@@ -1,7 +1,6 @@
-const CACHE_NAME = 'mydaily-cache-v3.28';
+const CACHE_NAME = 'mydaily-cache-v3.29';
 
 const ASSETS_TO_CACHE = [
-  '/css/style.css',
   '/js/app.js',
   '/js/auth.js',
   '/js/widgets.js',
@@ -49,10 +48,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // index.html et / : network-first — toujours la version la plus récente
-  if (url.pathname === '/' || url.pathname === '/index.html') {
+  // Fichiers critiques : network-first (toujours la version la plus récente)
+  const networkFirst = ['/', '/index.html', '/css/style.css'];
+  if (networkFirst.includes(url.pathname)) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
+      fetch(event.request).catch(() => caches.match(event.request))
     );
     return;
   }
