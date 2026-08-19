@@ -1,68 +1,89 @@
-// ============================================================================
-// FICHIER : public/js/widgets.js
-// DESCRIPTION : Grille, drag & drop, affichage widgets (opt-out)
-// ============================================================================
+// ============================================================
+// public/js/widgets.js
+// Grille principale, drag & drop souris + tactile, opt-out widgets.
+// Dépend de : app.js (WIDGETS_DEF, dragSrc, dragActif, longPressTimer)
+// ============================================================
 
 let gridConstruit = false;
 
-// ===================== GRID & DRAG DROP =====================
+// ===================== CONSTRUCTION DE LA GRILLE =============
 
 async function buildGrid() {
     if (gridConstruit) return;
     gridConstruit = true;
 
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user  = getUser();
     const token = user?.token;
-    const grid = document.getElementById('main-grid');
+    const grid  = document.getElementById('main-grid');
     grid.innerHTML = '';
-    let ordre = null;
-    let caches = []; // Opt-out : liste des widgets explicitement décochés. Vide = tout visible.
+
+    let ordre        = null;
+    let widgetsCaches = []; // Opt-out : slugs décochés. Vide = tout visible.
 
     try {
         const [rOrdre, rWidgets] = await Promise.all([
-            fetch(`/api/widget-order?userId=${user.userId}`),
-            fetch('/api/profil/widgets-visibles', { headers: { 'Authorization': 'Bearer ' + token } })
+            fetch('/api/widget-order', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }),
+            fetch('/api/profil/widgets-visibles', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
         ]);
         const dOrdre   = await rOrdre.json();
         const dWidgets = await rWidgets.json();
-        if (dOrdre.success && dOrdre.ordre) ordre = dOrdre.ordre;
-        if (dWidgets.success && Array.isArray(dWidgets.widgets_caches)) caches = dWidgets.widgets_caches;
-    } catch(e) {}
+        if (dOrdre.success && dOrdre.ordre)                        ordre         = dOrdre.ordre;
+        if (dWidgets.success && Array.isArray(dWidgets.widgets_caches)) widgetsCaches = dWidgets.widgets_caches;
+    } catch { /* silencieux — grille chargée avec valeurs par défaut */ }
 
+    // Ajout du widget admin si rôle admin
     let defs = [...WIDGETS_DEF];
     if (user?.role === 'admin') {
-        defs.push({ id:'admin', label:'Administration', icon:'⚙️', cls:'w-admin', desc:'Gérer les utilisateurs et les paramètres', foot:'Cliquez pour gérer' });
+        defs.push({
+            id   : 'admin',
+            label: 'Administration',
+            icon : '⚙️',
+            cls  : 'w-admin',
+            desc : 'Gérer les utilisateurs et les paramètres',
+            foot : 'Cliquez pour gérer'
+        });
     }
 
+    // Tri selon l'ordre sauvegardé
     if (ordre) {
         const sorted = [];
-        ordre.forEach(id => { const w = defs.find(d => d.id === id); if(w) sorted.push(w); });
-        defs.forEach(w => { if(!ordre.includes(w.id)) sorted.push(w); });
+        ordre.forEach(id => { const w = defs.find(d => d.id === id); if (w) sorted.push(w); });
+        defs.forEach(w  => { if (!ordre.includes(w.id)) sorted.push(w); });
         defs = sorted;
     }
 
-    // Opt-out : admin géré exclusivement par le rôle, jamais par la liste caches
+    // Filtrage opt-out :
+    // - 'admin' : exclusivement géré par le rôle, jamais par widgetsCaches
+    // - 'profil' : toujours visible
+    // - autres  : visibles sauf si dans widgetsCaches
     const TOUJOURS_VISIBLES = ['profil'];
     defs = defs.filter(w => {
-        if (w.id === 'admin') return user?.role === 'admin';
+        if (w.id === 'admin')               return user?.role === 'admin';
         if (TOUJOURS_VISIBLES.includes(w.id)) return true;
-        return !caches.includes(w.id);
+        return !widgetsCaches.includes(w.id);
     });
 
     defs.forEach(def => grid.appendChild(creerWidget(def)));
 
-    if (typeof chargerProfilHeader === 'function') chargerProfilHeader();
-    if (typeof Cycle !== 'undefined') Cycle.charger();
-    if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
+    if (typeof chargerProfilHeader  === 'function') chargerProfilHeader();
+    if (typeof Cycle                !== 'undefined') Cycle.charger();
+    if (typeof Rendezvous           !== 'undefined') Rendezvous.charger();
     if (typeof chargerWidgetPlanning === 'function') chargerWidgetPlanning();
 }
 
-function creerWidget(def) {
-    const div = document.createElement('div');
-    div.className = `widget ${def.cls}`;
-    div.dataset.id = def.id;
-    div.draggable = true;
+// ===================== CRÉATION D'UN WIDGET ==================
 
+function creerWidget(def) {
+    const div      = document.createElement('div');
+    div.className  = `widget ${def.cls}`;
+    div.dataset.id = def.id;
+    div.draggable  = true;
+
+    // Contenu spécifique selon le widget
     let contentHtml = def.desc || '';
     if (def.id === 'cycle')      contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
     if (def.id === 'rendezvous') contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
@@ -82,26 +103,36 @@ function creerWidget(def) {
         <div class="wf">${def.foot || ''}</div>
     `;
 
+    // Clic sur le widget → ouvre la modale
     div.addEventListener('click', e => {
-        if (e.target.classList.contains('drag-handle') || e.target.classList.contains('rbtn') || e.target.closest('button')) return;
-        if (e.target.closest('.rdv-card')) return;
+        if (e.target.classList.contains('drag-handle')) return;
+        if (e.target.classList.contains('rbtn'))        return;
+        if (e.target.closest('button'))                 return;
+        if (e.target.closest('.rdv-card'))              return;
         openModal(def.id);
     });
 
+    // Boutons de rafraîchissement
     if (def.id === 'meteo')      div.querySelector('#rbtn-meteo')?.addEventListener('click',      e => { e.stopPropagation(); chargerMeteoAuto(); });
     if (def.id === 'priere')     div.querySelector('#rbtn-priere')?.addEventListener('click',     e => { e.stopPropagation(); chargerPriere(); });
     if (def.id === 'islam')      div.querySelector('#rbtn-islam')?.addEventListener('click',      e => { e.stopPropagation(); if (typeof window.chargerIslam === 'function') window.chargerIslam(); });
     if (def.id === 'cycle')      div.querySelector('#rbtn-cycle')?.addEventListener('click',      e => { e.stopPropagation(); Cycle.charger(); });
     if (def.id === 'rendezvous') div.querySelector('#rbtn-rendezvous')?.addEventListener('click', e => { e.stopPropagation(); Rendezvous.charger(); });
 
+    // Drag & drop souris
     div.addEventListener('dragstart', onDragStart);
     div.addEventListener('dragover',  onDragOver);
     div.addEventListener('dragleave', onDragLeave);
     div.addEventListener('drop',      onDrop);
     div.addEventListener('dragend',   onDragEnd);
+
+    // Drag & drop tactile
     ajouterTouchDrag(div);
+
     return div;
 }
+
+// ===================== DRAG & DROP SOURIS ====================
 
 function onDragStart(e) {
     dragSrc = this;
@@ -124,10 +155,12 @@ function onDrop(e) {
     e.preventDefault();
     this.classList.remove('drag-over');
     if (this === dragSrc) return;
-    const grid = document.getElementById('main-grid');
+    const grid    = document.getElementById('main-grid');
     const widgets = [...grid.children];
-    const si = widgets.indexOf(dragSrc), ti = widgets.indexOf(this);
-    if (si < ti) grid.insertBefore(dragSrc, this.nextSibling); else grid.insertBefore(dragSrc, this);
+    const si      = widgets.indexOf(dragSrc);
+    const ti      = widgets.indexOf(this);
+    if (si < ti) grid.insertBefore(dragSrc, this.nextSibling);
+    else         grid.insertBefore(dragSrc, this);
     sauvegarderOrdre();
 }
 
@@ -136,61 +169,71 @@ function onDragEnd() {
     document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
 }
 
+// ===================== DRAG & DROP TACTILE ===================
+
 function ajouterTouchDrag(el) {
     let startX, startY, clone, origRect;
+
     el.addEventListener('touchstart', e => {
         dragActif = false;
-        const t = e.touches[0];
-        startX = t.clientX; startY = t.clientY;
+        const t   = e.touches[0];
+        startX    = t.clientX;
+        startY    = t.clientY;
         longPressTimer = setTimeout(() => {
             dragActif = true;
-            origRect = el.getBoundingClientRect();
-            clone = el.cloneNode(true);
-            clone.style.cssText = `position:fixed;z-index:9999;opacity:.75;pointer-events:none;width:${origRect.width}px;left:${origRect.left}px;top:${origRect.top}px;margin:0;transition:none;border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,.2);`;
+            origRect  = el.getBoundingClientRect();
+            clone     = el.cloneNode(true);
+            clone.style.cssText = `
+                position:fixed;z-index:9999;opacity:.75;pointer-events:none;
+                width:${origRect.width}px;left:${origRect.left}px;top:${origRect.top}px;
+                margin:0;transition:none;border-radius:16px;
+                box-shadow:0 12px 32px rgba(0,0,0,.2);
+            `;
             document.body.appendChild(clone);
             el.classList.add('dragging');
             dragSrc = el;
             if (navigator.vibrate) navigator.vibrate(40);
         }, 500);
-    }, {passive:true});
+    }, { passive: true });
 
     el.addEventListener('touchmove', e => {
-        const t = e.touches[0];
+        const t  = e.touches[0];
         const dx = Math.abs(t.clientX - startX);
         const dy = Math.abs(t.clientY - startY);
         if (!dragActif && (dx > 8 || dy > 8)) { clearTimeout(longPressTimer); return; }
         if (!dragActif) return;
         e.preventDefault();
-        const moveX = t.clientX - startX;
-        const moveY = t.clientY - startY;
-        clone.style.left = (origRect.left + moveX) + 'px';
-        clone.style.top  = (origRect.top  + moveY) + 'px';
+        clone.style.left = (origRect.left + t.clientX - startX) + 'px';
+        clone.style.top  = (origRect.top  + t.clientY - startY) + 'px';
         clone.style.display = 'none';
-        const below = document.elementFromPoint(t.clientX, t.clientY);
+        const below  = document.elementFromPoint(t.clientX, t.clientY);
         clone.style.display = '';
         const target = below?.closest('.widget');
         document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
         if (target && target !== el) target.classList.add('drag-over');
-    }, {passive:false});
+    }, { passive: false });
 
-    el.addEventListener('touchend', () => {
+    el.addEventListener('touchend', e => {
         clearTimeout(longPressTimer);
         if (!dragActif) return;
         if (clone) clone.remove();
         el.classList.remove('dragging');
         dragActif = false;
-        const t = event.changedTouches?.[0];
-        const below = t ? document.elementFromPoint(t.clientX, t.clientY) : null;
+        // Correction : utiliser le paramètre 'e' et non 'event' global
+        const t      = e.changedTouches?.[0];
+        const below  = t ? document.elementFromPoint(t.clientX, t.clientY) : null;
         const target = below?.closest('.widget');
         document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
         if (target && target !== el) {
-            const grid = document.getElementById('main-grid');
+            const grid    = document.getElementById('main-grid');
             const widgets = [...grid.children];
-            const si = widgets.indexOf(el), ti = widgets.indexOf(target);
-            if (si < ti) grid.insertBefore(el, target.nextSibling); else grid.insertBefore(el, target);
+            const si      = widgets.indexOf(el);
+            const ti      = widgets.indexOf(target);
+            if (si < ti) grid.insertBefore(el, target.nextSibling);
+            else         grid.insertBefore(el, target);
             sauvegarderOrdre();
         }
-    }, {passive:true});
+    }, { passive: true });
 
     el.addEventListener('touchcancel', () => {
         clearTimeout(longPressTimer);
@@ -198,34 +241,41 @@ function ajouterTouchDrag(el) {
         el.classList.remove('dragging');
         dragActif = false;
         document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
-    }, {passive:true});
+    }, { passive: true });
 }
 
+// ===================== SAUVEGARDE ORDRE ======================
+
 async function sauvegarderOrdre() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user  = getUser();
     const ordre = [...document.querySelectorAll('.widget')].map(w => w.dataset.id);
     try {
         await fetch('/api/widget-order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.userId, ordre })
+            method  : 'POST',
+            headers : {
+                'Content-Type'  : 'application/json',
+                'Authorization' : `Bearer ${user?.token}`
+            },
+            body: JSON.stringify({ ordre })
         });
-    } catch(e) {}
+    } catch { /* silencieux — non critique */ }
 }
 
-// ===================== WIDGETS VISIBLES (opt-out) =====================
-// Reçoit widgets_caches : liste des slugs décochés.
-// Masque uniquement ce qui est dedans. Absent = visible.
+// ===================== APPLIQUER WIDGETS VISIBLES ============
+// Appelée depuis profil.js après sauvegarde des préférences.
+// Masque/affiche les widgets selon la liste opt-out.
 
-function appliquerWidgetsVisibles(caches) {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const TOUJOURS_VISIBLES = user?.role === 'admin' ? ['profil', 'admin'] : ['profil'];
+function appliquerWidgetsVisibles(widgetsCaches) {
+    const user             = getUser();
+    const TOUJOURS_VISIBLES = user?.role === 'admin'
+        ? ['profil', 'admin']
+        : ['profil'];
     const grid = document.getElementById('main-grid');
     if (!grid) return;
     [...grid.children].forEach(el => {
         const id = el.dataset.id;
-        if (!id) return;
+        if (!id)                            return;
         if (TOUJOURS_VISIBLES.includes(id)) return;
-        el.style.display = caches.includes(id) ? 'none' : '';
+        el.style.display = widgetsCaches.includes(id) ? 'none' : '';
     });
 }

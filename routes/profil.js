@@ -1,111 +1,122 @@
-const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcryptjs');
-const { pool } = require('../db/pool');
-const { authenticateToken } = require('./auth');
+// ============================================================
+// routes/profil.js
+// Gestion du profil utilisateur : lecture, écriture, mot de passe,
+// et préférences widgets (opt-out).
+// ============================================================
 
-// ===================== VALIDATION MOT DE PASSE =====================
+const express    = require('express');
+const router     = express.Router();
+const bcrypt     = require('bcryptjs');
+const { pool }   = require('../db/pool');
+const { authenticateToken } = require('../middleware/auth');
+const { validerMotDePasse } = require('../utils/validations');
 
-function validerMotDePasse(password) {
-    if (!password || password.length < 8)  return 'Minimum 8 caractères.';
-    if (!/[A-Z]/.test(password))           return 'Au moins une majuscule requise.';
-    if (!/[a-z]/.test(password))           return 'Au moins une minuscule requise.';
-    if (!/[0-9]/.test(password))           return 'Au moins un chiffre requis.';
-    if (!/[^A-Za-z0-9]/.test(password))    return 'Au moins un caractère spécial requis.';
-    return null;
-}
-
-// ===================== PROFIL =====================
-
-// GET profil
-router.get('/', async (req, res) => {
-    const userId = req.query.userId;
-    if (!userId) return res.status(400).json({ success: false, message: 'userId manquant' });
+// ── GET /api/profil ───────────────────────────────────────────
+// Retourne le profil de l'utilisateur connecté.
+router.get('/', authenticateToken, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM profiles WHERE user_id = \$1', [userId]);
-        if (result.rows.length === 0) return res.json({ success: true, profil: null });
+        const result = await pool.query(
+            `SELECT prenom, nom, date_naissance, email, telephone,
+                    profession, note, photo, widgets_visibles
+             FROM profiles WHERE user_id = \$1`,
+            [req.user.id]
+        );
+        if (result.rows.length === 0) {
+            return res.json({ success: true, profil: null });
+        }
         res.json({ success: true, profil: result.rows[0] });
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        console.error('[PROFIL] GET /', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// POST profil
-router.post('/', async (req, res) => {
-    const { userId, prenom, nom, date_naissance, email, telephone, profession, note, photo } = req.body;
-    if (!userId) return res.status(400).json({ success: false, message: 'userId manquant' });
+// ── POST /api/profil ──────────────────────────────────────────
+// Crée ou met à jour le profil de l'utilisateur connecté.
+router.post('/', authenticateToken, async (req, res) => {
+    const { prenom, nom, date_naissance, email, telephone, profession, note, photo } = req.body;
     try {
         await pool.query(`
-            INSERT INTO profiles (user_id, prenom, nom, date_naissance, email, telephone, profession, note, photo, updated_at)
+            INSERT INTO profiles
+                (user_id, prenom, nom, date_naissance, email, telephone, profession, note, photo, updated_at)
             VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, NOW())
             ON CONFLICT (user_id) DO UPDATE SET
                 prenom=\$2, nom=\$3, date_naissance=\$4, email=\$5,
-                telephone=\$6, profession=\$7, note=\$8, photo=\$9, updated_at=NOW();
-        `, [userId, prenom, nom, date_naissance||null, email, telephone, profession, note, photo]);
+                telephone=\$6, profession=\$7, note=\$8, photo=\$9, updated_at=NOW()
+        `, [req.user.id, prenom, nom, date_naissance || null, email, telephone, profession, note, photo]);
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        console.error('[PROFIL] POST /', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// ===================== MOT DE PASSE =====================
-
-// POST changer mdp
-router.post('/changer-mdp', async (req, res) => {
-    const { userId, ancienMdp, nouveauMdp } = req.body;
-    if (!userId || !ancienMdp || !nouveauMdp)
-        return res.status(400).json({ success: false, message: 'Champs manquants' });
-    const erreurMdp = validerMotDePasse(nouveauMdp);
-    if (erreurMdp) return res.status(400).json({ success: false, message: erreurMdp });
+// ── POST /api/profil/changer-mdp ──────────────────────────────
+// Permet à l'utilisateur connecté de changer son mot de passe.
+router.post('/changer-mdp', authenticateToken, async (req, res) => {
+    const { ancienMdp, nouveauMdp } = req.body;
+    if (!ancienMdp || !nouveauMdp) {
+        return res.status(400).json({ success: false, message: 'Champs manquants.' });
+    }
+    const erreur = validerMotDePasse(nouveauMdp);
+    if (erreur) return res.status(400).json({ success: false, message: erreur });
     try {
-        const result = await pool.query('SELECT * FROM users WHERE id = \$1', [userId]);
-        if (result.rows.length === 0)
-            return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
+        const result = await pool.query(
+            'SELECT password FROM users WHERE id = \$1',
+            [req.user.id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+        }
         const match = await bcrypt.compare(ancienMdp, result.rows[0].password);
-        if (!match)
-            return res.status(401).json({ success: false, message: 'Ancien mot de passe incorrect' });
+        if (!match) {
+            return res.status(401).json({ success: false, message: 'Ancien mot de passe incorrect.' });
+        }
         const hash = await bcrypt.hash(nouveauMdp, 10);
         await pool.query(
             'UPDATE users SET password = \$1, must_change_password = FALSE WHERE id = \$2',
-            [hash, userId]
+            [hash, req.user.id]
         );
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
+        console.error('[PROFIL] POST /changer-mdp :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// ===================== WIDGETS (opt-out) =====================
-// La colonne SQL s'appelle toujours widgets_visibles mais contient désormais
-// la liste des widgets CACHÉS (décochés par l'utilisateur).
-// Tableau vide = tout est visible (nouveau compte ou aucune préférence enregistrée).
-
-// GET widgets cachés
+// ── GET /api/profil/widgets-visibles ─────────────────────────
+// Retourne la liste des widgets cachés (opt-out).
+// Un widget absent de la liste = visible par défaut.
 router.get('/widgets-visibles', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
             'SELECT widgets_visibles FROM profiles WHERE user_id = \$1',
             [req.user.id]
         );
-        // Opt-out : on retourne les widgets CACHÉS. Null en base = [] = tout visible.
         const widgets_caches = result.rows[0]?.widgets_visibles || [];
         res.json({ success: true, widgets_caches });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+    } catch (err) {
+        console.error('[PROFIL] GET /widgets-visibles :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// PATCH widgets cachés
+// ── PATCH /api/profil/widgets-visibles ───────────────────────
+// Sauvegarde la liste des widgets cachés (opt-out).
 router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
+    const { widgets_caches } = req.body;
+    if (!Array.isArray(widgets_caches)) {
+        return res.status(400).json({ success: false, message: 'Format invalide.' });
+    }
     try {
-        const { widgets_caches } = req.body;
         await pool.query(
             'UPDATE profiles SET widgets_visibles = \$1 WHERE user_id = \$2',
             [widgets_caches, req.user.id]
         );
-        res.json({ ok: true });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[PROFIL] PATCH /widgets-visibles :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 

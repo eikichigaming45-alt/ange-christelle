@@ -1,11 +1,28 @@
-const express = require('express');
-const router  = express.Router();
-const https   = require('https');
-const cheerio = require('cheerio');
+// ============================================================
+// routes/priere.js
+// Textes du jour scrapés depuis eglise.catholique.fr.
+// Route publique — pas d'authentification requise.
+// Cache journalier en mémoire pour limiter les requêtes externes.
+// ============================================================
 
-let cache = null;
+const express  = require('express');
+const router   = express.Router();
+const https    = require('https');
+const cheerio  = require('cheerio');
+
+// ── Cache journalier ──────────────────────────────────────────
+// Réinitialisé à chaque redémarrage du serveur (normal sur Render).
+let cache     = null;
 let cacheDate = null;
 
+// ── Texte de secours si le scraping échoue ────────────────────
+const TEXTE_SECOURS = {
+    texte  : 'Je puis tout par celui qui me fortifie.',
+    ref    : 'Philippiens 4:13',
+    source : 'local'
+};
+
+// ── Scraping des textes du jour ───────────────────────────────
 async function fetchTextesDuJour() {
     const today = new Date().toISOString().split('T')[0];
     if (cache && cacheDate === today) return cache;
@@ -18,52 +35,59 @@ async function fetchTextesDuJour() {
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try {
-                    const $ = cheerio.load(data);
+                    const $        = cheerio.load(data);
                     const sections = [];
+
                     $('h3').each((i, el) => {
                         const titre = $(el).text().trim();
-                        let texte = '';
-                        let next = $(el).next();
+                        let texte   = '';
+                        let next    = $(el).next();
                         while (next.length && next[0].tagName !== 'h3') {
                             texte += next.text().trim() + '\n';
-                            next = next.next();
+                            next   = next.next();
                         }
                         sections.push({ titre, texte: texte.trim() });
                     });
 
-                    const evangile = sections.find(s => s.titre.toLowerCase().includes('évangile') || s.titre.toLowerCase().includes('evangile'));
-                    const lecture1 = sections.find(s => s.titre.toLowerCase().includes('première lecture') || s.titre.toLowerCase().includes('premiere lecture'));
+                    const evangile = sections.find(s =>
+                        s.titre.toLowerCase().includes('évangile') ||
+                        s.titre.toLowerCase().includes('evangile')
+                    );
+                    const lecture1 = sections.find(s =>
+                        s.titre.toLowerCase().includes('première lecture') ||
+                        s.titre.toLowerCase().includes('premiere lecture')
+                    );
 
-                    cache = {
-                        evangile: evangile || null,
-                        lecture1: lecture1 || null,
-                        date: today
-                    };
+                    cache     = { evangile: evangile || null, lecture1: lecture1 || null, date: today };
                     cacheDate = today;
                     resolve(cache);
-                } catch(e) {
+                } catch (e) {
+                    console.error('[PRIERE] Erreur parsing :', e.message);
                     resolve(null);
                 }
             });
-        }).on('error', () => resolve(null));
+        }).on('error', (e) => {
+            console.error('[PRIERE] Erreur réseau :', e.message);
+            resolve(null);
+        });
     });
 }
 
+// ── GET /api/priere ───────────────────────────────────────────
+// Retourne l'évangile et la première lecture du jour.
+// Retourne un texte de secours si le scraping échoue.
 router.get('/', async (req, res) => {
     try {
         const data = await fetchTextesDuJour();
+
         if (!data || !data.evangile) {
-            return res.json({
-                texte: 'Je puis tout par celui qui me fortifie.',
-                ref: 'Philippiens 4:13',
-                source: 'local'
-            });
+            return res.json(TEXTE_SECOURS);
         }
 
-        // Extrait le titre court de l'évangile (entre guillemets)
+        // Extraction du titre court entre guillemets
         const titreMatch = data.evangile.titre.match(/«\s*(.+?)\s*»/);
-        const titreRef   = data.evangile.titre.match(/$(.+?)$/);
 
+        // Extrait les 3 premières lignes significatives de l'évangile
         const premieresLignes = data.evangile.texte
             .split('\n')
             .filter(l => l.trim().length > 20)
@@ -71,20 +95,17 @@ router.get('/', async (req, res) => {
             .join(' ');
 
         res.json({
-            texte       : premieresLignes,
-            ref         : titreRef ? titreRef[1] : 'Évangile du jour',
-            titre       : titreMatch ? titreMatch[1] : data.evangile.titre,
-            evangile    : data.evangile.texte,
-            lecture1    : data.lecture1 ? data.lecture1.texte : null,
+            texte        : premieresLignes,
+            ref          : data.evangile.titre,
+            titre        : titreMatch ? titreMatch[1] : data.evangile.titre,
+            evangile     : data.evangile.texte,
+            lecture1     : data.lecture1 ? data.lecture1.texte : null,
             lecture1titre: data.lecture1 ? data.lecture1.titre : null,
-            source      : 'catholique.fr'
+            source       : 'catholique.fr'
         });
-    } catch(e) {
-        res.json({
-            texte: 'Je puis tout par celui qui me fortifie.',
-            ref: 'Philippiens 4:13',
-            source: 'local'
-        });
+    } catch (e) {
+        console.error('[PRIERE] Erreur :', e.message);
+        res.json(TEXTE_SECOURS);
     }
 });
 

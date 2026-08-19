@@ -3,7 +3,8 @@
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(180deg,#F3E8FF 0%,#D8B4FE 100%) fixed;min-height:100vh;display:flex;justify-content:center;align-items:center}
 
 /* ===================== LOGIN ===================== */
-.login-card{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);width:100%;max-width:380px;text-align:center;align-self:center}
+/* flex-direction:column garanti ici — plus besoin de styles inline dans index.html ou JS */
+.login-card{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);width:100%;max-width:380px;text-align:center;align-self:center;display:flex;flex-direction:column;align-items:center}
 .login-card h1{color:#7C3AED;font-size:24px;margin-bottom:8px}
 .login-card p{color:#888;font-size:14px;margin-bottom:28px}
 input{width:100%;padding:14px;margin-bottom:16px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;outline:none;transition:border-color .2s}
@@ -23,7 +24,7 @@ input:focus{border-color:#7C3AED}
 .icon-btn{background:rgba(255,255,255,.2);border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s;overflow:hidden;padding:0}
 .icon-btn:hover{background:rgba(255,255,255,.35)}
 .icon-btn img{width:38px;height:38px;object-fit:cover;border-radius:50%}
-.footer{background:#f3f4f6;color:#333;text-align:center;padding:10px;font-size:13px;font-weight:600;position:fixed;bottom:0;left:0;right:0;z-index:100;}
+.footer{background:#f3f4f6;color:#333;text-align:center;padding:10px;font-size:13px;font-weight:600;position:fixed;bottom:0;left:0;right:0;z-index:100}
 
 /* ===================== GRID & WIDGETS ===================== */
 .grid{flex:1;overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-content:start}
@@ -72,22 +73,21 @@ input:focus{border-color:#7C3AED}
 .mclos{position:absolute;top:16px;right:16px;background:#f3f4f6;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px}
 .mclos:hover{background:#e5e7eb}
 .modal-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.btn-save{flex:1;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
-.btn-save:hover{background:#6D28D9}
-.btn-delete{padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
-.btn-delete:hover{background:#ef4444;color:#fff}
+
+/* ===================== BOUTONS GÉNÉRIQUES ===================== */
+/* btn-save et save-btn fusionnés — une seule classe viola */
+.btn-save,.save-btn{flex:1;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
+.btn-save:hover,.save-btn:hover{background:#6D28D9}
+.btn-delete,.danger-btn{padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
+.btn-delete:hover,.danger-btn:hover{background:#ef4444;color:#fff}
 .btn-cancel{padding:10px 14px;background:#f3f4f6;color:#666;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}
 .btn-cancel:hover{background:#e5e7eb}
 .btn-edit-small{background:none;border:none;cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;flex-shrink:0}
 .btn-edit-small:hover{background:#f3f4f6}
-
-/* ===================== FORMULAIRES GÉNÉRIQUES ===================== */
-.save-btn{width:100%;padding:12px;background:#7C3AED;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px}
-.save-btn:hover{background:#6D28D9}
-.danger-btn{width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px}
-.danger-btn:hover{background:#dc2626}
 .add-btn{width:100%;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px}
 .add-btn:hover{background:#6D28D9}
+
+/* ===================== FORMULAIRES GÉNÉRIQUES ===================== */
 .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .form-row input,.form-row select{flex:1;min-width:100px;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;margin:0;background:#fff}
 .form-row input:focus,.form-row select:focus{border-color:#7C3AED}
@@ -142,35 +142,7 @@ input:focus{border-color:#7C3AED}
 .tache-widget-date{font-size:11px;color:#9ca3af;white-space:nowrap;flex-shrink:0}
 
 /* ===================== WIDGET MÉTÉO ===================== */
-.meteo-widget{display:flex;flex-direction:column;gap:10px}
-.meteo-top{display:flex;justify-content:space-between;align-items:center}
-.meteo-left{display:flex;flex-direction:column;gap:2px}
-.meteo-temp{font-size:48px;font-weight:800;color:#1e3a5f;line-height:1}
-.meteo-minmax{font-size:13px;color:#555;font-weight:600}
-.meteo-ville{font-size:12px;color:#9ca3af;margin-top:2px}
-.meteo-icon-big{font-size:56px;line-height:1}
-.meteo-badges{display:flex;gap:6px;flex-wrap:wrap}
 .meteo-badge{background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px}
-.meteo-7j{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px}
-.meteo-jour{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px;border-radius:10px;background:#f8fafc;min-width:40px;flex-shrink:0}
-.meteo-jour-today{background:#e0f2fe}
-.meteo-jour-nom{font-size:10px;font-weight:700;color:#555}
-.meteo-jour-icon{font-size:18px}
-.meteo-jour-max{font-size:11px;font-weight:700;color:#1e3a5f}
-.meteo-jour-min{font-size:10px;color:#9ca3af}
-.meteo-modal{display:flex;flex-direction:column;gap:8px}
-.meteo-modal-top{display:flex;justify-content:space-between;align-items:center}
-.meteo-modal-left{display:flex;flex-direction:column;gap:4px}
-.meteo-modal-temp{font-size:64px;font-weight:800;color:#1e3a5f;line-height:1}
-.meteo-modal-desc{font-size:14px;color:#555;font-weight:500}
-.meteo-modal-minmax{font-size:13px;color:#9ca3af;font-weight:600}
-.meteo-modal-icon{font-size:72px;line-height:1}
-.meteo-detail-jour{background:#f0f9ff;border-radius:12px;padding:14px;border:1px solid #bae6fd}
-.meteo-detail-jour-top{display:flex;justify-content:space-between;align-items:center}
-.meteo-detail-jour-date{font-size:13px;font-weight:700;color:#0369a1;text-transform:capitalize}
-.meteo-detail-jour-desc{font-size:13px;color:#555;margin:4px 0}
-.meteo-detail-jour-temp{font-size:20px;font-weight:800;color:#1e3a5f}
-.meteo-detail{font-size:15px;color:#333;line-height:2}
 .ville-form{display:flex;gap:8px;margin-top:16px}
 .ville-form input{flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin:0}
 .ville-form button{padding:10px 16px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;width:auto}
@@ -189,7 +161,6 @@ input:focus{border-color:#7C3AED}
 .priere-source{font-size:11px;color:#9ca3af;text-align:right;margin-top:4px}
 
 /* ===================== WIDGET ISLAM ===================== */
-.islam-widget{display:flex;flex-direction:column;gap:10px}
 .islam-prochaine{display:flex;flex-direction:column;align-items:center;background:linear-gradient(135deg,#059669,#10b981);border-radius:12px;padding:12px 16px;color:#fff;text-align:center}
 .islam-prochaine-label{font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
 .islam-prochaine-nom{font-size:18px;font-weight:800;margin:2px 0}
@@ -423,6 +394,12 @@ input:focus{border-color:#7C3AED}
 .as-progress-fill{height:100%;border-radius:4px;transition:width .4s ease}
 .as-fill-blue{background:linear-gradient(90deg,#7C3AED,#8b5cf6)}
 .as-fill-green{background:linear-gradient(90deg,#10b981,#059669)}
+.as-activity-bloc{display:flex;flex-direction:column;gap:4px;margin-bottom:16px}
+.as-activity-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6}
+.as-activity-row:last-child{border-bottom:none}
+.as-activity-icon{font-size:16px;flex-shrink:0}
+.as-activity-label{font-size:13px;color:#374151;flex:1}
+.as-activity-val{font-size:13px;font-weight:700;color:#1e1b4b;white-space:nowrap}
 .as-logins-list{display:flex;flex-direction:column;gap:4px}
 .as-login-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6}
 .as-login-row:last-child{border-bottom:none}

@@ -1,75 +1,105 @@
-const express = require('express');
-const router = express.Router();
-const pool = require('../db/pool').pool;
-const jwt = require('jsonwebtoken');
+// ============================================================
+// routes/rendezvous.js
+// CRUD des rendez-vous médicaux utilisateur.
+// ============================================================
 
-function authMiddleware(req, res, next) {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Non autorisé' });
-    try {
-        req.user = jwt.verify(token, process.env.JWT_SECRET);
-        next();
-    } catch {
-        res.status(401).json({ error: 'Token invalide' });
-    }
-}
+const express  = require('express');
+const router   = express.Router();
+const { pool } = require('../db/pool');
+const { authenticateToken } = require('../middleware/auth');
 
-// GET — tous les RDV de l'utilisatrice
-router.get('/', authMiddleware, async (req, res) => {
+// ── Toutes les routes nécessitent un token JWT ────────────────
+router.use(authenticateToken);
+
+// ── GET /api/rendezvous ───────────────────────────────────────
+// Retourne tous les rendez-vous de l'utilisateur, triés par date.
+router.get('/', async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT * FROM rendezvous WHERE user_id = \$1 ORDER BY date_rdv ASC',
+            `SELECT id, titre, date_rdv, praticien, lieu, type_rdv,
+                    notes, rappel_avant, created_at
+             FROM rendezvous
+             WHERE user_id = \$1
+             ORDER BY date_rdv ASC`,
             [req.user.id]
         );
-        res.json(result.rows);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+        res.json({ success: true, rendezvous: result.rows });
+    } catch (err) {
+        console.error('[RDV] GET / :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// POST — ajouter un RDV
-router.post('/', authMiddleware, async (req, res) => {
+// ── POST /api/rendezvous ──────────────────────────────────────
+// Crée un nouveau rendez-vous.
+router.post('/', async (req, res) => {
     const { titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant } = req.body;
+    if (!titre || !date_rdv) {
+        return res.status(400).json({ success: false, message: 'Titre et date sont obligatoires.' });
+    }
     try {
         const result = await pool.query(
-            `INSERT INTO rendezvous (user_id, titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant)
-             VALUES (\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8) RETURNING *`,
-            [req.user.id, titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant || 0]
+            `INSERT INTO rendezvous
+                (user_id, titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant)
+             VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8)
+             RETURNING *`,
+            [req.user.id, titre, date_rdv,
+             praticien || null, lieu || null,
+             type_rdv  || null, notes || null,
+             rappel_avant || 0]
         );
-        res.json(result.rows[0]);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+        res.json({ success: true, rendezvous: result.rows[0] });
+    } catch (err) {
+        console.error('[RDV] POST / :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// PUT — modifier un RDV
-router.put('/:id', authMiddleware, async (req, res) => {
+// ── PUT /api/rendezvous/:id ───────────────────────────────────
+// Met à jour un rendez-vous (vérification propriétaire).
+router.put('/:id', async (req, res) => {
     const { titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant } = req.body;
+    if (!titre || !date_rdv) {
+        return res.status(400).json({ success: false, message: 'Titre et date sont obligatoires.' });
+    }
     try {
         const result = await pool.query(
-            `UPDATE rendezvous SET titre=\$1, date_rdv=\$2, praticien=\$3, lieu=\$4,
-             type_rdv=\$5, notes=\$6, rappel_avant=\$7
-             WHERE id=\$8 AND user_id=\$9 RETURNING *`,
-            [titre, date_rdv, praticien, lieu, type_rdv, notes, rappel_avant || 0, req.params.id, req.user.id]
+            `UPDATE rendezvous
+             SET titre=\$1, date_rdv=\$2, praticien=\$3, lieu=\$4,
+                 type_rdv=\$5, notes=\$6, rappel_avant=\$7
+             WHERE id=\$8 AND user_id=\$9
+             RETURNING *`,
+            [titre, date_rdv,
+             praticien || null, lieu || null,
+             type_rdv  || null, notes || null,
+             rappel_avant || 0,
+             req.params.id, req.user.id]
         );
-        if (result.rowCount === 0) return res.status(403).json({ error: 'Accès refusé' });
-        res.json(result.rows[0]);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Rendez-vous introuvable.' });
+        }
+        res.json({ success: true, rendezvous: result.rows[0] });
+    } catch (err) {
+        console.error('[RDV] PUT /:id :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// DELETE — supprimer un RDV
-router.delete('/:id', authMiddleware, async (req, res) => {
+// ── DELETE /api/rendezvous/:id ────────────────────────────────
+// Supprime un rendez-vous (vérification propriétaire).
+router.delete('/:id', async (req, res) => {
     try {
         const result = await pool.query(
             'DELETE FROM rendezvous WHERE id=\$1 AND user_id=\$2',
             [req.params.id, req.user.id]
         );
-        if (result.rowCount === 0) return res.status(403).json({ error: 'Accès refusé' });
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Rendez-vous introuvable.' });
+        }
         res.json({ success: true });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+    } catch (err) {
+        console.error('[RDV] DELETE /:id :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
