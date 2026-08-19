@@ -154,11 +154,17 @@ function actualiser() {
 
 function logout() {
     localStorage.removeItem('myvibe_user');
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('login-page').style.display = '';
     document.body.style.cssText = '';
+    document.body.style.background = 'linear-gradient(180deg,#F3E8FF 0%,#D8B4FE 100%)';
+    document.body.style.minHeight = '100vh';
+    document.body.style.display = 'flex';
+    document.body.style.justifyContent = 'center';
+    document.body.style.alignItems = 'center';
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(regs => {
-            const unregs = regs.map(r => r.unregister());
-            Promise.all(unregs).then(() => {
+            Promise.all(regs.map(r => r.unregister())).then(() => {
                 caches.keys().then(keys => {
                     Promise.all(keys.map(k => caches.delete(k))).then(() => {
                         window.location.href = '/';
