@@ -61,7 +61,6 @@ async function fetchHadith(id) {
 }
 
 // ── Sélection de la méthode de calcul selon la zone géo ───────
-// Adapte les horaires de prière selon la localisation.
 function getMethode(lat, lon) {
     if (lon >= -10 && lon <= 25 && lat >= 35 && lat <= 72) return 12; // Europe
     if (lon >= -20 && lon <= 55 && lat >= -5 && lat <= 40) return 5;  // Afrique/Moyen-Orient
@@ -71,8 +70,6 @@ function getMethode(lat, lon) {
 }
 
 // ── GET /api/islam ────────────────────────────────────────────
-// Retourne les horaires de prières + hadith + doua du jour.
-// Paramètres requis : lat, lon (coordonnées GPS).
 router.get('/', async (req, res) => {
     const lat = parseFloat(req.query.lat);
     const lon = parseFloat(req.query.lon);
@@ -109,12 +106,11 @@ router.get('/', async (req, res) => {
 
         if (!dataAladhan || dataAladhan.code !== 200) {
             return res.json({
-                success: false,
-                fajr: '--:--', dhuhr: '--:--', asr: '--:--',
-                maghrib: '--:--', isha: '--:--',
-                hadithAr: '', hadithFr: '', hadithRef: '',
-                douaAr: '', douaFr: '', douaRef: '',
-                erreur: true
+                success  : false,
+                fajr     : '--:--', dhuhr    : '--:--', asr      : '--:--',
+                maghrib  : '--:--', isha     : '--:--',
+                hadithAr : '',      hadithFr : '',      hadithRef: '',
+                douaAr   : '',      douaFr   : '',      douaRef  : ''
             });
         }
 

@@ -11,12 +11,12 @@ const https    = require('https');
 const cheerio  = require('cheerio');
 
 // ── Cache journalier ──────────────────────────────────────────
-// Réinitialisé à chaque redémarrage du serveur (normal sur Render).
 let cache     = null;
 let cacheDate = null;
 
 // ── Texte de secours si le scraping échoue ────────────────────
 const TEXTE_SECOURS = {
+    success: false,
     texte  : 'Je puis tout par celui qui me fortifie.',
     ref    : 'Philippiens 4:13',
     source : 'local'
@@ -74,8 +74,6 @@ async function fetchTextesDuJour() {
 }
 
 // ── GET /api/priere ───────────────────────────────────────────
-// Retourne l'évangile et la première lecture du jour.
-// Retourne un texte de secours si le scraping échoue.
 router.get('/', async (req, res) => {
     try {
         const data = await fetchTextesDuJour();
@@ -84,10 +82,8 @@ router.get('/', async (req, res) => {
             return res.json(TEXTE_SECOURS);
         }
 
-        // Extraction du titre court entre guillemets
         const titreMatch = data.evangile.titre.match(/«\s*(.+?)\s*»/);
 
-        // Extrait les 3 premières lignes significatives de l'évangile
         const premieresLignes = data.evangile.texte
             .split('\n')
             .filter(l => l.trim().length > 20)
@@ -95,6 +91,7 @@ router.get('/', async (req, res) => {
             .join(' ');
 
         res.json({
+            success      : true,
             texte        : premieresLignes,
             ref          : data.evangile.titre,
             titre        : titreMatch ? titreMatch[1] : data.evangile.titre,
