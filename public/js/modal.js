@@ -163,7 +163,6 @@ async function openModal(type) {
         }
 
     // ── Profil ────────────────────────────────────────────────
-    // Utilise JWT — plus de userId en query string
     } else if (type === 'profil') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         const user = getUser();
@@ -329,10 +328,10 @@ async function openModal(type) {
             document.querySelectorAll('.profil-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     document.querySelectorAll('.profil-tab').forEach(t => {
-                        t.style.color            = '#9ca3af';
+                        t.style.color             = '#9ca3af';
                         t.style.borderBottomColor = 'transparent';
                     });
-                    tab.style.color            = '#4f46e5';
+                    tab.style.color             = '#4f46e5';
                     tab.style.borderBottomColor = '#4f46e5';
                     document.querySelectorAll('.profil-tab-content').forEach(c => c.style.display = 'none');
                     document.getElementById(`profil-tab-${tab.dataset.tab}`).style.display = 'block';
@@ -398,11 +397,13 @@ function lirePriereModal(e) {
             )
         ) || voix.find(v => v.lang.startsWith('fr'));
         if (voixMasc) utterance.voice = voixMasc;
-        if (e?.currentTarget) {
-            e.currentTarget.textContent = '⏹️';
-            utterance.onend  = () => { e.currentTarget.textContent = '🔊'; };
-            utterance.onerror = () => { e.currentTarget.textContent = '🔊'; };
-        }
+
+        // ── Capture le bouton avant le callback asynchrone ────
+        const btn = e?.currentTarget || document.getElementById('btn-speaker-modal');
+        if (btn) btn.textContent = '⏹️';
+        utterance.onend   = () => { if (btn) btn.textContent = '🔊'; };
+        utterance.onerror = () => { if (btn) btn.textContent = '🔊'; };
+
         synth.speak(utterance);
     };
     if (synth.getVoices().length === 0) synth.onvoiceschanged = lancerLecture;

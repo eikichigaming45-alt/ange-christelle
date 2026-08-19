@@ -1,5 +1,6 @@
 // ============================================================
-// RENDEZ-VOUS MÉDICAUX — rendezvous.js
+// public/js/rendezvous.js
+// Rendez-vous médicaux — CRUD complet + widget + modal.
 // ============================================================
 
 const Rendezvous = (() => {
@@ -65,7 +66,16 @@ const Rendezvous = (() => {
 
   const TYPES = Object.keys(TYPE_ICONS);
 
-  // ── Rendu widget ─────────────────────────────────────────
+  // ── Fetch — extrait correctement { success, rendezvous: [...] } ──────────
+
+  async function fetchRdvs() {
+    const res = await fetch('/api/rendezvous', { headers: authHeaders() });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : (data.rendezvous || []);
+  }
+
+  // ── Rendu widget ─────────────────────────────────────────────────────────
 
   function renderWidget(rdvs) {
     const maintenant = new Date();
@@ -77,8 +87,7 @@ const Rendezvous = (() => {
         <div class="widget-rdv">
           <p class="rdv-empty">Aucun rendez-vous enregistré.</p>
           <button class="btn-rdv-primary" onclick="Rendezvous.ouvrirModal()">+ Ajouter un rendez-vous</button>
-        </div>
-      `;
+        </div>`;
     }
 
     const cartes = prochains.map(r => {
@@ -90,11 +99,10 @@ const Rendezvous = (() => {
             <span class="rdv-badge ${cls}">${label}</span>
           </div>
           <div class="rdv-card-date">${formatDateHeure(r.date_rdv)}</div>
-          ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>` : ''}
-          ${r.lieu      ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>` : ''}
+          ${r.praticien    ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>` : ''}
+          ${r.lieu         ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>` : ''}
           ${r.rappel_avant > 0 ? `<div class="rdv-card-sub">⏰ Rappel ${formatRappel(r.rappel_avant)}</div>` : ''}
-        </div>
-      `;
+        </div>`;
     }).join('');
 
     return `
@@ -103,23 +111,22 @@ const Rendezvous = (() => {
         <div class="rdv-actions">
           <button class="btn-rdv-primary" onclick="Rendezvous.ouvrirModal()">+ Ajouter</button>
           <button class="btn-rdv-secondary" onclick="Rendezvous.ouvrirListe()">
-            Tous les RDV (${rdvs.length})${passeCount > 0 ? ` <span class="rdv-passe-badge">${passeCount} passé${passeCount > 1 ? 's' : ''}</span>` : ''}
+            Tous les RDV (${rdvs.length})${passeCount > 0
+              ? ` <span class="rdv-passe-badge">${passeCount} passé${passeCount > 1 ? 's' : ''}</span>`
+              : ''}
           </button>
         </div>
-      </div>
-    `;
+      </div>`;
   }
 
-  // ── Modal détail (lecture seule) ─────────────────────────
+  // ── Détail (lecture seule) ───────────────────────────────────────────────
 
   async function ouvrirDetail(id) {
     let rdv = null;
     try {
-      const res  = await fetch('/api/rendezvous', { headers: authHeaders() });
-      const rdvs = await res.json();
+      const rdvs = await fetchRdvs();
       rdv = rdvs.find(r => r.id === id) || null;
     } catch { /* silencieux */ }
-
     if (!rdv) return;
 
     const { label, cls } = joursRestants(rdv.date_rdv);
@@ -134,18 +141,19 @@ const Rendezvous = (() => {
         ${rdv.praticien ? `<div class="rdv-detail-row">👨‍⚕️ <span>Dr. ${rdv.praticien}</span></div>` : ''}
         ${rdv.lieu      ? `<div class="rdv-detail-row">📍 <span>${rdv.lieu}</span></div>` : ''}
         ${rdv.notes     ? `<div class="rdv-detail-notes">📝 ${rdv.notes}</div>` : ''}
-        ${rdv.rappel_avant > 0 ? `<div class="rdv-detail-row">⏰ <span>Rappel ${formatRappel(rdv.rappel_avant)}</span></div>` : ''}
+        ${rdv.rappel_avant > 0
+          ? `<div class="rdv-detail-row">⏰ <span>Rappel ${formatRappel(rdv.rappel_avant)}</span></div>`
+          : ''}
         <div class="modal-actions" style="margin-top:16px">
-          <button class="btn-save" onclick="Rendezvous.ouvrirModal(${rdv.id})">✏️ Modifier</button>
+          <button class="btn-save"   onclick="Rendezvous.ouvrirModal(${rdv.id})">✏️ Modifier</button>
           <button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id})">Supprimer</button>
           <button class="btn-cancel" onclick="closeModal()">Fermer</button>
         </div>
-      </div>
-    `;
+      </div>`;
     document.getElementById('overlay').classList.add('on');
   }
 
-  // ── Chargement principal ─────────────────────────────────
+  // ── Chargement widget ────────────────────────────────────────────────────
 
   async function charger() {
     const container = document.getElementById('widget-rdv-content');
@@ -153,22 +161,20 @@ const Rendezvous = (() => {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     if (!user?.token) { setTimeout(() => charger(), 300); return; }
     try {
-      const res  = await fetch('/api/rendezvous', { headers: authHeaders() });
-      const rdvs = await res.json();
-      container.innerHTML = renderWidget(Array.isArray(rdvs) ? rdvs : []);
+      const rdvs = await fetchRdvs();
+      container.innerHTML = renderWidget(rdvs);
     } catch {
       container.innerHTML = `<p class="rdv-error">Erreur de chargement.</p>`;
     }
   }
 
-  // ── Modal ajout / édition ────────────────────────────────
+  // ── Modal ajout / édition ────────────────────────────────────────────────
 
   async function ouvrirModal(id = null) {
     let rdv = null;
     if (id) {
       try {
-        const res  = await fetch('/api/rendezvous', { headers: authHeaders() });
-        const rdvs = await res.json();
+        const rdvs = await fetchRdvs();
         rdv = rdvs.find(r => r.id === id) || null;
       } catch { /* silencieux */ }
     }
@@ -177,7 +183,7 @@ const Rendezvous = (() => {
       `<option value="${t}" ${rdv?.type_rdv === t ? 'selected' : ''}>${TYPE_ICONS[t]} ${t}</option>`
     ).join('');
 
-    const now = formatDateTimeInput(new Date());
+    const now       = formatDateTimeInput(new Date());
     const rappelVal = rdv?.rappel_avant || 0;
 
     document.getElementById('modal-title').textContent = rdv ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous';
@@ -206,25 +212,26 @@ const Rendezvous = (() => {
 
         <label>Rappel avant le rendez-vous</label>
         <select id="rdv-rappel">
-          <option value="0"    ${rappelVal===0    ? 'selected' : ''}>Pas de rappel</option>
-          <option value="15"   ${rappelVal===15   ? 'selected' : ''}>15 min avant</option>
-          <option value="30"   ${rappelVal===30   ? 'selected' : ''}>30 min avant</option>
-          <option value="60"   ${rappelVal===60   ? 'selected' : ''}>1h avant</option>
-          <option value="120"  ${rappelVal===120  ? 'selected' : ''}>2h avant</option>
-          <option value="1440" ${rappelVal===1440 ? 'selected' : ''}>La veille</option>
+          <option value="0"    ${rappelVal===0    ? 'selected':''}>Pas de rappel</option>
+          <option value="15"   ${rappelVal===15   ? 'selected':''}>15 min avant</option>
+          <option value="30"   ${rappelVal===30   ? 'selected':''}>30 min avant</option>
+          <option value="60"   ${rappelVal===60   ? 'selected':''}>1h avant</option>
+          <option value="120"  ${rappelVal===120  ? 'selected':''}>2h avant</option>
+          <option value="1440" ${rappelVal===1440 ? 'selected':''}>La veille</option>
         </select>
 
         <div class="modal-actions">
-          <button class="btn-save" onclick="Rendezvous.sauvegarder(${rdv?.id || 'null'})">${rdv ? 'Modifier' : 'Enregistrer'}</button>
+          <button class="btn-save" onclick="Rendezvous.sauvegarder(${rdv?.id || 'null'})">
+            ${rdv ? 'Modifier' : 'Enregistrer'}
+          </button>
           ${rdv ? `<button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id})">Supprimer</button>` : ''}
           <button class="btn-cancel" onclick="closeModal()">Annuler</button>
         </div>
-      </div>
-    `;
+      </div>`;
     document.getElementById('overlay').classList.add('on');
   }
 
-  // ── Sauvegarder ──────────────────────────────────────────
+  // ── Sauvegarder ─────────────────────────────────────────────────────────
 
   async function sauvegarder(id = null) {
     const titre        = document.getElementById('rdv-titre').value.trim();
@@ -255,12 +262,13 @@ const Rendezvous = (() => {
     }
 
     const date_rdv = localInputToISO(date_rdv_raw);
-    const method = id ? 'PUT' : 'POST';
-    const url    = id ? `/api/rendezvous/${id}` : '/api/rendezvous';
+    const method   = id ? 'PUT' : 'POST';
+    const url      = id ? `/api/rendezvous/${id}` : '/api/rendezvous';
 
     try {
       const res = await fetch(url, {
-        method, headers: authHeaders(),
+        method,
+        headers: authHeaders(),
         body: JSON.stringify({ titre, date_rdv, type_rdv, praticien, lieu, notes, rappel_avant })
       });
       if (!res.ok) throw new Error();
@@ -276,17 +284,18 @@ const Rendezvous = (() => {
     }
   }
 
-  // ── Supprimer ────────────────────────────────────────────
+  // ── Supprimer ────────────────────────────────────────────────────────────
 
   async function supprimer(id) {
     document.getElementById('modal-title').textContent = 'Confirmation de suppression';
     document.getElementById('modal-body').innerHTML = `
-      <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer ce rendez-vous ? Cette action est irréversible.</p>
+      <p style="color:#333;font-size:15px;margin-bottom:20px">
+        Supprimer ce rendez-vous ? Cette action est irréversible.
+      </p>
       <div class="modal-actions">
         <button class="btn-delete" id="btn-rdv-oui">Confirmer</button>
         <button class="btn-cancel" id="btn-rdv-non">Annuler</button>
-      </div>
-    `;
+      </div>`;
     document.getElementById('overlay').classList.add('on');
     document.getElementById('btn-rdv-oui').onclick = async () => {
       try {
@@ -305,13 +314,11 @@ const Rendezvous = (() => {
     document.getElementById('btn-rdv-non').onclick = () => closeModal();
   }
 
-  // ── Liste complète ───────────────────────────────────────
+  // ── Liste complète ───────────────────────────────────────────────────────
 
   async function ouvrirListe() {
     try {
-      const res  = await fetch('/api/rendezvous', { headers: authHeaders() });
-      const rdvs = await res.json();
-
+      const rdvs       = await fetchRdvs();
       const maintenant = new Date();
       const prochains  = rdvs.filter(r => new Date(r.date_rdv) >= maintenant);
       const passes     = rdvs.filter(r => new Date(r.date_rdv) <  maintenant);
@@ -331,29 +338,32 @@ const Rendezvous = (() => {
             <div class="rdv-liste-right">
               <span class="rdv-badge ${cls}">${label}</span>
             </div>
-          </div>
-        `;
+          </div>`;
       };
 
       document.getElementById('modal-title').textContent = 'Tous mes rendez-vous';
       document.getElementById('modal-body').innerHTML = `
         <div class="rdv-liste">
           ${prochains.length > 0
-            ? `<div class="rdv-section-title">À venir (${prochains.length})</div>${prochains.map(renderLigne).join('')}`
+            ? `<div class="rdv-section-title">À venir (${prochains.length})</div>
+               ${prochains.map(renderLigne).join('')}`
             : '<p class="rdv-empty">Aucun rendez-vous à venir.</p>'
           }
           ${passes.length > 0
-            ? `<div class="rdv-section-title rdv-passe-title">Passés (${passes.length})</div>${passes.map(renderLigne).join('')}`
+            ? `<div class="rdv-section-title rdv-passe-title">Passés (${passes.length})</div>
+               ${passes.map(renderLigne).join('')}`
             : ''
           }
-          <button class="btn-rdv-primary" style="margin-top:14px" onclick="Rendezvous.ouvrirModal()">+ Nouveau rendez-vous</button>
-        </div>
-      `;
+          <button class="btn-rdv-primary" style="margin-top:14px"
+            onclick="Rendezvous.ouvrirModal()">+ Nouveau rendez-vous</button>
+        </div>`;
       document.getElementById('overlay').classList.add('on');
     } catch {
       document.getElementById('modal-title').textContent = 'Erreur';
       document.getElementById('modal-body').innerHTML = `
-        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur de chargement des rendez-vous.</p>
+        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">
+          Erreur de chargement des rendez-vous.
+        </p>
         <div class="modal-actions">
           <button class="btn-cancel" onclick="closeModal()">Fermer</button>
         </div>`;

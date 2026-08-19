@@ -1,4 +1,7 @@
-// ===================== PLANNING =====================
+// ============================================================
+// public/js/planning.js
+// Planning mensuel + widget 5 jours + gestion employeurs.
+// ============================================================
 
 const SHIFT_CONFIG = {
   'Nuit'    : { emoji: '🌙', couleur: '#f4a261' },
@@ -24,13 +27,18 @@ function _planningAuth() {
   return { user, token: user?.token };
 }
 
+// ── Extrait correctement le tableau depuis { success, planning: [...] } ──────
 async function _fetchPlanningMois(annee, mois, token) {
   const res  = await fetch(`/api/planning?annee=${annee}&mois=${mois}&_t=${Date.now()}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store'
   });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
-  return Array.isArray(data) ? data : [];
+  // Backend retourne { success: true, planning: [...] }
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.planning)) return data.planning;
+  return [];
 }
 
 function _optionsRappelPlanning(selected = 120) {
@@ -47,6 +55,7 @@ function _optionsRappelPlanning(selected = 120) {
   ).join('');
 }
 
+// ── Extrait correctement le tableau depuis { success, employeurs: [...] } ────
 async function _fetchEmployeurs(token) {
   try {
     const res = await fetch('/api/planning/employeurs', {
@@ -55,8 +64,11 @@ async function _fetchEmployeurs(token) {
     });
     if (!res.ok) throw new Error();
     const data = await res.json();
-    const noms = Array.isArray(data) ? data.map(e => e.nom).filter(Boolean) : [];
-    return noms.length > 0 ? noms : [];
+    // Backend retourne { success: true, employeurs: [...] }
+    const liste = Array.isArray(data) ? data
+                : Array.isArray(data.employeurs) ? data.employeurs
+                : [];
+    return liste.map(e => (typeof e === 'string' ? e : e.nom)).filter(Boolean);
   } catch {
     return [];
   }
@@ -353,6 +365,7 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
         cache: 'no-store'
       });
       const data = await res.json();
+      // Backend retourne { success: true, entry: {...} }
       entry = data.entry || data || {};
     } catch { entry = {}; }
   }
@@ -456,7 +469,9 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
         </button>
       </div>
     </div>`;
-}async function _sauvegarderEntreePlanning(id) {
+}
+
+async function _sauvegarderEntreePlanning(id) {
   const { token } = _planningAuth();
   const msg = document.getElementById('pl-msg');
 
@@ -477,7 +492,7 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
     rappel_avant: parseInt(document.getElementById('pl-rappel').value) || 0,
   };
 
-  if (!body.date) { if (msg) msg.textContent = 'La date est obligatoire.'; return; }
+    if (!body.date) { if (msg) msg.textContent = 'La date est obligatoire.'; return; }
 
   try {
     const url    = id ? `/api/planning/${id}` : '/api/planning';
@@ -550,11 +565,15 @@ async function _ouvrirGestionEmployeurs() {
 
   let employeurs = [];
   try {
-    const res = await fetch('/api/planning/employeurs', {
+    const res  = await fetch('/api/planning/employeurs', {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store'
     });
-    employeurs = await res.json();
+    const data = await res.json();
+    // Backend retourne { success: true, employeurs: [...] }
+    employeurs = Array.isArray(data) ? data
+               : Array.isArray(data.employeurs) ? data.employeurs
+               : [];
   } catch { employeurs = []; }
 
   const liste = employeurs.length > 0
