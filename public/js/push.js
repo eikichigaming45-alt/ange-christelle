@@ -1,31 +1,37 @@
-// ===================== PUSH NOTIFICATIONS =====================
+// ============================================================
+// public/js/push.js
+// Authentification : JWT Bearer uniquement.
+// ============================================================
 
 const VAPID_PUBLIC_KEY = 'BFUh_nh-iDi2povrAcCcn9G14kaAqPI0jNesokS5H-sbHEJFA8Hdmfz2UEqPolgqs6W938Er15gz4LqI_UkRnjQ';
 
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
     const rawData = atob(base64);
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
 async function initPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    if (!user?.userId) return;
+    const user = getUser();
+    if (!user?.token) return;
     try {
         const reg = await navigator.serviceWorker.ready;
         let subscription = await reg.pushManager.getSubscription();
         if (!subscription) {
             subscription = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
+                userVisibleOnly     : true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
             });
         }
         await fetch('/api/push/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.userId, subscription })
+            method : 'POST',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ subscription })
         });
     } catch (e) {
         console.warn('Push init échoué', e);
@@ -36,48 +42,41 @@ async function initPush() {
 const dejaNotifies = new Set();
 
 async function verifierTachesLocales() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    if (!user?.userId || !user?.token) return;
+    const user = getUser();
+    if (!user?.token) return;
 
-    const maintenant = new Date();
-    const annee  = maintenant.getFullYear();
-    const mois   = String(maintenant.getMonth()+1).padStart(2,'0');
-    const jour   = String(maintenant.getDate()).padStart(2,'0');
+    const maintenant     = new Date();
+    const annee          = maintenant.getFullYear();
+    const mois           = String(maintenant.getMonth() + 1).padStart(2, '0');
+    const jour           = String(maintenant.getDate()).padStart(2, '0');
     const dateAujourdhui = `${annee}-${mois}-${jour}`;
     const heureActuelle  = `${String(maintenant.getHours()).padStart(2,'0')}:${String(maintenant.getMinutes()).padStart(2,'0')}`;
 
     // ── Tâches ────────────────────────────────────────────
     try {
-        const res  = await fetch(`/api/taches?userId=${user.userId}`, {
+        const res  = await fetch('/api/taches', {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const data = await res.json();
         if (data.success) {
             for (const tache of data.taches) {
                 if (tache.faite || !tache.heure || !tache.date) continue;
-
                 const dateTache  = tache.date.split('T')[0];
-                const heureTache = tache.heure.substring(0,5);
+                const heureTache = tache.heure.substring(0, 5);
                 const rappel     = tache.rappel_avant || 0;
-
                 const tacheDate  = new Date(`${dateTache}T${heureTache}`);
                 const notifDate  = new Date(tacheDate.getTime() - rappel * 60 * 1000);
-
-                const hN = String(notifDate.getHours()).padStart(2,'0');
-                const mN = String(notifDate.getMinutes()).padStart(2,'0');
+                const hN = String(notifDate.getHours()).padStart(2, '0');
+                const mN = String(notifDate.getMinutes()).padStart(2, '0');
                 const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
-
                 if (dN !== dateAujourdhui) continue;
                 if (`${hN}:${mN}` !== heureActuelle) continue;
-
                 const cle = `tache-${tache.id}-${dN}-${hN}:${mN}`;
                 if (dejaNotifies.has(cle)) continue;
                 dejaNotifies.add(cle);
-
                 const corps = rappel > 0
-                    ? `${tache.titre} — dans ${rappel >= 60 ? '1h' : rappel+'min'}`
+                    ? `${tache.titre} — dans ${rappel >= 60 ? rappel/60+'h' : rappel+'min'}`
                     : tache.titre;
-
                 const reg = await navigator.serviceWorker.ready;
                 reg.showNotification('✅ Rappel de tâche', {
                     body: corps, icon: '/icon-192.png', badge: '/icon-192.png',
@@ -85,7 +84,7 @@ async function verifierTachesLocales() {
                 });
             }
         }
-    } catch(e) { console.warn('Erreur tâches push:', e); }
+    } catch (e) { console.warn('Erreur tâches push:', e); }
 
     // ── Rendez-vous ───────────────────────────────────────
     try {
@@ -96,58 +95,46 @@ async function verifierTachesLocales() {
         if (Array.isArray(rdvs)) {
             for (const rdv of rdvs) {
                 if (!rdv.date_rdv) continue;
-                const rappel = rdv.rappel_avant || 0;
-
+                const rappel    = rdv.rappel_avant || 0;
                 const rdvDate   = new Date(rdv.date_rdv);
                 const notifDate = new Date(rdvDate.getTime() - rappel * 60 * 1000);
-
-                const hN = String(notifDate.getHours()).padStart(2,'0');
-                const mN = String(notifDate.getMinutes()).padStart(2,'0');
+                const hN = String(notifDate.getHours()).padStart(2, '0');
+                const mN = String(notifDate.getMinutes()).padStart(2, '0');
                 const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
-
                 if (dN !== dateAujourdhui) continue;
                 if (`${hN}:${mN}` !== heureActuelle) continue;
-
                 const cle = `rdv-${rdv.id}-${dN}-${hN}:${mN}`;
                 if (dejaNotifies.has(cle)) continue;
                 dejaNotifies.add(cle);
-
                 const label = rappel >= 1440 ? 'demain' : rappel >= 60 ? `dans ${rappel/60}h` : rappel > 0 ? `dans ${rappel}min` : "c'est maintenant";
-                const corps = `${rdv.titre} — ${label}`;
-
                 const reg = await navigator.serviceWorker.ready;
                 reg.showNotification('🩺 Rappel rendez-vous', {
-                    body: corps, icon: '/icon-192.png', badge: '/icon-192.png',
+                    body: `${rdv.titre} — ${label}`, icon: '/icon-192.png', badge: '/icon-192.png',
                     tag: `rdv-${rdv.id}`, renotify: true, data: { url: '/' }
                 });
             }
         }
-    } catch(e) { console.warn('Erreur RDV push:', e); }
+    } catch (e) { console.warn('Erreur RDV push:', e); }
 
     // ── Planning ──────────────────────────────────────────
     try {
-        const res = await fetch(`/api/planning/jour?date=${dateAujourdhui}`, {
+        const res     = await fetch(`/api/planning/jour?date=${dateAujourdhui}`, {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
-        const data = await res.json();
+        const data    = await res.json();
         const planning = Array.isArray(data) ? data : (data.planning || []);
         for (const p of planning) {
             if (!p.heure_debut || !p.rappel_avant || p.rappel_avant === 0) continue;
-
-            const debutDate  = new Date(`${dateAujourdhui}T${p.heure_debut}`);
-            const notifDate  = new Date(debutDate.getTime() - p.rappel_avant * 60 * 1000);
-
-            const hN = String(notifDate.getHours()).padStart(2,'0');
-            const mN = String(notifDate.getMinutes()).padStart(2,'0');
+            const debutDate = new Date(`${dateAujourdhui}T${p.heure_debut}`);
+            const notifDate = new Date(debutDate.getTime() - p.rappel_avant * 60 * 1000);
+            const hN = String(notifDate.getHours()).padStart(2, '0');
+            const mN = String(notifDate.getMinutes()).padStart(2, '0');
             const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
-
             if (dN !== dateAujourdhui) continue;
             if (`${hN}:${mN}` !== heureActuelle) continue;
-
             const cle = `planning-${p.id}-${dN}-${hN}:${mN}`;
             if (dejaNotifies.has(cle)) continue;
             dejaNotifies.add(cle);
-
             const label = p.rappel_avant >= 60 ? `${p.rappel_avant/60}h` : `${p.rappel_avant}min`;
             const reg = await navigator.serviceWorker.ready;
             reg.showNotification('📋 Rappel Planning', {
@@ -156,21 +143,19 @@ async function verifierTachesLocales() {
                 tag: `planning-${p.id}`, renotify: true, data: { url: '/' }
             });
         }
-    } catch(e) { console.warn('Erreur planning push:', e); }
+    } catch (e) { console.warn('Erreur planning push:', e); }
 
     // ── Anniversaires ─────────────────────────────────────
     try {
-        const res  = await fetch(`/api/anniversaires?userId=${user.userId}`, {
+        const res  = await fetch('/api/anniversaires', {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const data = await res.json();
         if (data.success) {
+            if (heureActuelle !== '08:00') return;
             const now     = new Date();
             const jourNow = now.getDate();
             const moisNow = now.getMonth() + 1;
-
-            if (heureActuelle !== '08:00') return;
-
             for (const a of data.anniversaires) {
                 if (a.jour === jourNow && a.mois === moisNow) {
                     const cle = `anniv-jour-${a.id}-${dateAujourdhui}`;
@@ -184,7 +169,6 @@ async function verifierTachesLocales() {
                         tag: `anniv-${a.id}`, renotify: true, data: { url: '/' }
                     });
                 }
-
                 const demain = new Date(now);
                 demain.setDate(now.getDate() + 1);
                 if (a.jour === demain.getDate() && a.mois === demain.getMonth() + 1) {
@@ -201,7 +185,7 @@ async function verifierTachesLocales() {
                 }
             }
         }
-    } catch(e) { console.warn('Erreur anniversaires push:', e); }
+    } catch (e) { console.warn('Erreur anniversaires push:', e); }
 }
 
 setInterval(verifierTachesLocales, 60 * 1000);
