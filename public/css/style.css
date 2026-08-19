@@ -257,12 +257,18 @@ input:focus{border-color:#7C3AED}
 .btn-rapport{flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;color:#555}
 .btn-rapport.active{border-color:#e83e8c;background:#fce7f3;color:#e83e8c}
 .btn-rapport:hover{border-color:#e83e8c}
-.journal-symptomes{display:flex;flex-direction:column;gap:8px}
-.symptome-check{display:flex;align-items:center;gap:8px;font-size:14px;color:#333;cursor:pointer;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;transition:background .15s}
-.symptome-check:hover{background:#fdf2f8}
-.symptome-check input{accent-color:#7c3aed;width:16px;height:16px;cursor:pointer}
 .journal-form textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;font-family:inherit;resize:vertical}
 .journal-form textarea:focus{border-color:#e83e8c}
+
+/* Grille symptômes — chips icon + label alignés */
+.journal-symptomes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.symptome-chip{display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid #e5e7eb;border-radius:10px;cursor:pointer;transition:all .15s;background:#fff;user-select:none}
+.symptome-chip:hover{border-color:#e83e8c;background:#fdf2f8}
+.symptome-chip.active{border-color:#e83e8c;background:#fce7f3}
+.symptome-chip input{display:none}
+.symptome-chip-icon{font-size:20px;flex-shrink:0;line-height:1}
+.symptome-chip-label{font-size:12px;font-weight:600;color:#374151;line-height:1.3}
+.symptome-chip.active .symptome-chip-label{color:#e83e8c}
 
 /* ===================== WIDGET RDV ===================== */
 .widget-rdv{display:flex;flex-direction:column;gap:8px}

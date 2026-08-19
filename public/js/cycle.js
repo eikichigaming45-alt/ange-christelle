@@ -1,5 +1,7 @@
 // ============================================================
 // public/js/cycle.js
+// Suivi du cycle menstruel — widget, calendrier, journal quotidien.
+// Auth via JWT Bearer (authHeaders). Pas d'userId client.
 // ============================================================
 
 const Cycle = (() => {
@@ -146,7 +148,6 @@ const Cycle = (() => {
     return { label: 'Phase de repos', emoji: '🔵', color: '#3498db' };
   }
 
-  // ── CORRIGÉ : déballage d.journal ──
   async function chargerJournal(mois, annee) {
     try {
       const res = await fetch(`/api/cycle/journal?mois=${mois}&annee=${annee}`, { headers: authHeaders() });
@@ -243,12 +244,19 @@ const Cycle = (() => {
       weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
     });
     const symptomesActifs = journal.symptomes ? journal.symptomes.split(',') : [];
+
+    // ── Symptômes avec icône et label alignés ─────────────────
     const SYMPTOMES = [
-      { key: 'douleur_pelvienne',    label: 'Douleur pelvienne' },
-      { key: 'pertes_claires',       label: 'Pertes claires' },
-      { key: 'glaire_cervicale',     label: 'Glaire cervicale' },
-      { key: 'sensibilite_poitrine', label: 'Sensibilité poitrine' },
+      { key: 'je_me_sens_bien',     label: 'Je me sens bien',     icon: '😊' },
+      { key: 'crampes_abdominales', label: 'Crampes abdominales', icon: '🤰' },
+      { key: 'seins_douloureux',    label: 'Seins douloureux',    icon: '🫀' },
+      { key: 'douleurs_lombaires',  label: 'Douleurs lombaires',  icon: '🔙' },
+      { key: 'pertes_claires',      label: 'Pertes claires',      icon: '💧' },
+      { key: 'fievre',              label: 'Fièvre',              icon: '🌡️' },
+      { key: 'fatigue',             label: 'Fatigue',             icon: '😴' },
+      { key: 'humeur_irritable',    label: 'Humeur irritable',    icon: '😤' },
     ];
+
     document.getElementById('modal-title').textContent = dateAff;
     document.getElementById('modal-body').innerHTML = `
       <div class="journal-form">
@@ -262,9 +270,10 @@ const Cycle = (() => {
         <div class="journal-section-title" style="margin-top:14px">Symptômes</div>
         <div class="journal-symptomes">
           ${SYMPTOMES.map(s => `
-            <label class="symptome-check">
+            <label class="symptome-chip ${symptomesActifs.includes(s.key) ? 'active' : ''}">
               <input type="checkbox" value="${s.key}" ${symptomesActifs.includes(s.key) ? 'checked' : ''}>
-              ${s.label}
+              <span class="symptome-chip-icon">${s.icon}</span>
+              <span class="symptome-chip-label">${s.label}</span>
             </label>
           `).join('')}
         </div>
@@ -411,7 +420,6 @@ const Cycle = (() => {
     `;
   }
 
-  // ── CORRIGÉ : déballage d.cycles ──
   async function charger() {
     const container = document.getElementById('widget-cycle-content');
     if (!container) return;
@@ -429,7 +437,6 @@ const Cycle = (() => {
     }
   }
 
-  // ── CORRIGÉ : déballage d.cycles ──
   async function ouvrirModalCalendrier() {
     try {
       const res          = await fetch('/api/cycle', { headers: authHeaders() });
@@ -500,7 +507,7 @@ const Cycle = (() => {
         <input type="number" id="cycle-duree-cycle" min="21" max="45"
           value="${isEdit ? cycleExistant.duree_cycle : 28}" />
         <label>Notes (optionnel)</label>
-        <textarea id="cycle-notes" rows="3" placeholder="Douleurs, humeur, symptômes...">${isEdit ? (cycleExistant.notes || '') : ''}</textarea>
+                <textarea id="cycle-notes" rows="3" placeholder="Douleurs, humeur, symptômes...">${isEdit ? (cycleExistant.notes || '') : ''}</textarea>
         <div class="modal-actions">
           <button class="btn-save" onclick="Cycle.sauvegarder(${isEdit ? cycleExistant.id : 'null'})">
             ${isEdit ? 'Modifier' : 'Enregistrer'}
@@ -510,7 +517,7 @@ const Cycle = (() => {
         </div>
       </div>
     `;
-          document.getElementById('overlay').classList.add('on');
+    document.getElementById('overlay').classList.add('on');
   }
 
   async function sauvegarder(id = null) {
@@ -560,7 +567,6 @@ const Cycle = (() => {
     });
   }
 
-  // ── CORRIGÉ : déballage d.cycles ──
   async function ouvrirHistorique() {
     try {
       const res          = await fetch('/api/cycle', { headers: authHeaders() });
