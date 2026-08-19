@@ -26,7 +26,6 @@ async function buildGrid() {
         const dOrdre   = await rOrdre.json();
         const dWidgets = await rWidgets.json();
         if (dOrdre.success && dOrdre.ordre) ordre = dOrdre.ordre;
-        // widgets_caches : [] par défaut = tout est visible
         if (dWidgets.success && Array.isArray(dWidgets.widgets_caches)) caches = dWidgets.widgets_caches;
     } catch(e) {}
 
@@ -42,13 +41,13 @@ async function buildGrid() {
         defs = sorted;
     }
 
-    // Opt-out : on affiche tout sauf ce qui est explicitement dans caches
+    // Opt-out : admin géré exclusivement par le rôle, jamais par la liste caches
     const TOUJOURS_VISIBLES = ['profil'];
-    defs = defs.filter(w =>
-        TOUJOURS_VISIBLES.includes(w.id) ||
-        (w.id === 'admin' && user?.role === 'admin') ||
-        !caches.includes(w.id)
-    );
+    defs = defs.filter(w => {
+        if (w.id === 'admin') return user?.role === 'admin';
+        if (TOUJOURS_VISIBLES.includes(w.id)) return true;
+        return !caches.includes(w.id);
+    });
 
     defs.forEach(def => grid.appendChild(creerWidget(def)));
 
