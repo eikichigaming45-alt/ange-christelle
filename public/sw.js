@@ -1,4 +1,4 @@
-const CACHE_NAME = 'myvibe-cache-v3.10';
+const CACHE_NAME = 'mydaily-cache-v3.11';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -21,8 +21,7 @@ const ASSETS_TO_CACHE = [
   '/js/admin.js',
   '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png',
-  '/fond-ecran-myvibe.jpg'
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', event => {
@@ -69,12 +68,12 @@ self.addEventListener('push', event => {
   let data = {};
   try { data = event.data.json(); } catch {}
   event.waitUntil(
-    self.registration.showNotification(data.titre || 'MyVibe', {
+    self.registration.showNotification(data.titre || 'MyDaily', {
       body: data.corps || '',
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       data: { url: data.url || '/' },
-      tag: data.tag || 'myvibe'
+      tag: data.tag || 'mydaily'
     })
   );
 });

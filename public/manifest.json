@@ -1,11 +1,11 @@
 {
-  "name": "MyVibe - Mon Sanctuaire",
-  "short_name": "MyVibe",
+  "name": "MyDaily",
+  "short_name": "MyDaily",
   "description": "Mon espace personnel",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#c8b8e8",
-  "theme_color": "#4f46e5",
+  "background_color": "#F3E8FF",
+  "theme_color": "#7C3AED",
   "orientation": "portrait",
   "icons": [
     {

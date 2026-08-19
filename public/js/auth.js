@@ -59,7 +59,7 @@ function envoyerNotif(titre, corps, tag) {
     navigator.serviceWorker.ready.then(reg => {
         reg.showNotification(titre, {
             body: corps,
-            icon: '/icon.png',
+            icon: '/icon-192.png',
             tag: tag,
             renotify: false
         });
@@ -123,7 +123,6 @@ function logout() {
     localStorage.removeItem('myvibe_user');
     document.getElementById('app').style.display = 'none';
     document.getElementById('login-page').style.display = 'flex';
-    // Vider les champs login proprement
     const u = document.getElementById('login-username');
     const p = document.getElementById('login-password');
     if (u) u.value = '';

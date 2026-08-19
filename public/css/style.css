@@ -1,20 +1,20 @@
 /* ===================== BASE ===================== */
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:url('/fond-ecran-myvibe.jpg') center center/cover no-repeat fixed;height:100vh;display:flex;justify-content:center;align-items:center}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(180deg,#F3E8FF 0%,#D8B4FE 100%) fixed;min-height:100vh;display:flex;justify-content:center;align-items:center}
 
 /* ===================== LOGIN ===================== */
 .login-card{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);width:100%;max-width:380px;text-align:center}
-.login-card h1{color:#4f46e5;font-size:24px;margin-bottom:8px}
+.login-card h1{color:#7C3AED;font-size:24px;margin-bottom:8px}
 .login-card p{color:#888;font-size:14px;margin-bottom:28px}
 input{width:100%;padding:14px;margin-bottom:16px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;outline:none;transition:border-color .2s}
-input:focus{border-color:#4f46e5}
-.btn{width:100%;padding:14px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
-.btn:hover{background:#4338ca}
+input:focus{border-color:#7C3AED}
+.btn{width:100%;padding:14px;background:#7C3AED;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
+.btn:hover{background:#6D28D9}
 #error-msg{color:#ef4444;margin-top:14px;font-size:14px;min-height:20px}
 
 /* ===================== APP LAYOUT ===================== */
 #app{display:none;flex-direction:column;width:100vw;min-height:100vh;background:#f3f4f6;overflow-x:hidden}
-.topbar{background:#4f46e5;color:#fff;padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.topbar{background:#7C3AED;color:#fff;padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
 .topbar-left{display:flex;align-items:center;gap:12px}
 .topbar-left h2{font-size:18px;font-weight:700;cursor:pointer;user-select:none}
 .topbar-left h2:hover{opacity:.85}
@@ -23,14 +23,14 @@ input:focus{border-color:#4f46e5}
 .icon-btn{background:rgba(255,255,255,.2);border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s;overflow:hidden;padding:0}
 .icon-btn:hover{background:rgba(255,255,255,.35)}
 .icon-btn img{width:38px;height:38px;object-fit:cover;border-radius:50%}
-.footer{background:#f3f4f6;color:#e879a0;text-align:center;padding:10px;font-size:13px;font-weight:600;flex-shrink:0}
+.footer{background:#f3f4f6;color:#9ca3af;text-align:center;padding:10px;font-size:13px;font-weight:600;flex-shrink:0}
 
 /* ===================== GRID & WIDGETS ===================== */
 .grid{flex:1;overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-content:start}
 .widget{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .15s;position:relative;user-select:none;display:flex;flex-direction:column}
 .widget:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
 .widget.dragging{opacity:.35;transform:scale(.96);box-shadow:0 2px 8px rgba(0,0,0,.1);cursor:grabbing}
-.widget.drag-over{outline:3px dashed #4f46e5;outline-offset:3px;background:#f5f3ff;transform:translateY(-2px)}
+.widget.drag-over{outline:3px dashed #7C3AED;outline-offset:3px;background:#f5f3ff;transform:translateY(-2px)}
 .drag-handle{position:absolute;top:12px;right:44px;color:#d1d5db;font-size:15px;cursor:grab;padding:4px 6px;border-radius:4px;line-height:1;opacity:0;transition:opacity .15s}
 .widget:hover .drag-handle{opacity:1}
 .drag-handle:hover{color:#6b7280;background:#f3f4f6}
@@ -72,8 +72,8 @@ input:focus{border-color:#4f46e5}
 .mclos{position:absolute;top:16px;right:16px;background:#f3f4f6;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px}
 .mclos:hover{background:#e5e7eb}
 .modal-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.btn-save{flex:1;padding:10px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
-.btn-save:hover{background:#4338ca}
+.btn-save{flex:1;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
+.btn-save:hover{background:#6D28D9}
 .btn-delete{padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
 .btn-delete:hover{background:#ef4444;color:#fff}
 .btn-cancel{padding:10px 14px;background:#f3f4f6;color:#666;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}
@@ -82,26 +82,26 @@ input:focus{border-color:#4f46e5}
 .btn-edit-small:hover{background:#f3f4f6}
 
 /* ===================== FORMULAIRES GÉNÉRIQUES ===================== */
-.save-btn{width:100%;padding:12px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px}
-.save-btn:hover{background:#4338ca}
+.save-btn{width:100%;padding:12px;background:#7C3AED;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px}
+.save-btn:hover{background:#6D28D9}
 .danger-btn{width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px}
 .danger-btn:hover{background:#dc2626}
-.add-btn{width:100%;padding:10px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px}
-.add-btn:hover{background:#4338ca}
+.add-btn{width:100%;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px}
+.add-btn:hover{background:#6D28D9}
 .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .form-row input,.form-row select{flex:1;min-width:100px;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;margin:0;background:#fff}
-.form-row input:focus,.form-row select:focus{border-color:#4f46e5}
+.form-row input:focus,.form-row select:focus{border-color:#7C3AED}
 .section-title{font-size:13px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
 .separateur{border:none;border-top:2px solid #f3f4f6;margin:20px 0}
-.photo-circle{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;cursor:pointer;display:block;margin:0 auto 8px}
-.initiales{width:96px;height:96px;border-radius:50%;background:#4f46e5;color:#fff;font-size:32px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer}
+.photo-circle{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #7C3AED;cursor:pointer;display:block;margin:0 auto 8px}
+.initiales{width:96px;height:96px;border-radius:50%;background:#7C3AED;color:#fff;font-size:32px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer}
 
 /* ===================== LISTE ITEMS GÉNÉRIQUES ===================== */
 .liste-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px}
 .liste-item.faite{opacity:.5}
 .liste-item.faite .item-titre{text-decoration:line-through}
-.item-check{width:20px;height:20px;border-radius:50%;border:2px solid #4f46e5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff}
-.item-check.checked{background:#4f46e5;border-color:#4f46e5;color:#fff}
+.item-check{width:20px;height:20px;border-radius:50%;border:2px solid #7C3AED;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff}
+.item-check.checked{background:#7C3AED;border-color:#7C3AED;color:#fff}
 .item-info{flex:1;min-width:0}
 .item-titre{font-weight:600;font-size:14px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item-meta{font-size:12px;color:#9ca3af;margin-top:2px}
@@ -115,20 +115,20 @@ input:focus{border-color:#4f46e5}
 .crop-container img{max-width:100%;display:block}
 .crop-actions{display:flex;gap:8px;margin-bottom:12px}
 .crop-actions button{flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}
-.btn-crop-ok{background:#4f46e5;color:#fff}
-.btn-crop-ok:hover{background:#4338ca}
+.btn-crop-ok{background:#7C3AED;color:#fff}
+.btn-crop-ok:hover{background:#6D28D9}
 .btn-crop-cancel{background:#f3f4f6;color:#666}
 .btn-crop-cancel:hover{background:#e5e7eb}
 
 /* ===================== WIDGET PROFIL ===================== */
 .profil-widget{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;width:100%}
-.profil-widget-photo{width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;flex-shrink:0}
-.profil-widget-initiales{width:64px;height:64px;border-radius:50%;background:#4f46e5;color:#fff;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.profil-widget-photo{width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid #7C3AED;flex-shrink:0}
+.profil-widget-initiales{width:64px;height:64px;border-radius:50%;background:#7C3AED;color:#fff;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .profil-widget-nom{font-size:14px;font-weight:700;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
 .profil-widget-info{font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
 .profil-widget-bio{font-size:12px;color:#9ca3af;line-height:1.4;max-width:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.profil-widget-btn{padding:7px 18px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:4px}
-.profil-widget-btn:hover{background:#4338ca}
+.profil-widget-btn{padding:7px 18px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:4px}
+.profil-widget-btn:hover{background:#6D28D9}
 
 /* ===================== WIDGET TÂCHES ===================== */
 .tache-widget-liste{display:flex;flex-direction:column;gap:4px}
@@ -173,15 +173,15 @@ input:focus{border-color:#4f46e5}
 .meteo-detail{font-size:15px;color:#333;line-height:2}
 .ville-form{display:flex;gap:8px;margin-top:16px}
 .ville-form input{flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin:0}
-.ville-form button{padding:10px 16px;background:#4f46e5;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;width:auto}
+.ville-form button{padding:10px 16px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;width:auto}
 .geo-btn{width:100%;margin-top:8px;padding:10px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px}
 
 /* ===================== WIDGET PRIÈRE ===================== */
 .priere-txt{color:#444;font-size:16px;line-height:1.8;font-style:italic}
-.priere-ref{color:#4f46e5;font-size:14px;font-weight:700;font-style:normal;margin-top:14px;display:block}
+.priere-ref{color:#7C3AED;font-size:14px;font-weight:700;font-style:normal;margin-top:14px;display:block}
 .priere-modal{display:flex;flex-direction:column;gap:12px}
 .priere-titre-jour{font-size:15px;font-weight:700;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:10px;border-left:4px solid #d97706}
-.priere-section-label{font-size:11px;font-weight:700;color:#4f46e5;text-transform:uppercase;letter-spacing:.5px}
+.priere-section-label{font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.5px}
 .priere-texte-complet{font-size:13px;color:#444;line-height:1.7;font-style:italic;max-height:220px;overflow-y:auto;padding-right:4px}
 .priere-lecture1{border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;background:#f9fafb}
 .priere-lecture1 summary{font-weight:600;color:#555;cursor:pointer;font-size:13px}
@@ -267,7 +267,7 @@ input:focus{border-color:#4f46e5}
 .cal-empty:hover{background:transparent}
 .cal-regles{background:#fca5a5;color:#7f1d1d;font-weight:600}
 .cal-fertile{background:#fde68a;color:#78350f;font-weight:600}
-.cal-today{outline:2px solid #4f46e5;outline-offset:-2px;font-weight:700;border-radius:6px}
+.cal-today{outline:2px solid #7C3AED;outline-offset:-2px;font-weight:700;border-radius:6px}
 .cal-prochain{background:#ddd6fe;color:#4c1d95;font-weight:600}
 .cal-ovulation-star{position:absolute;top:-4px;right:0;font-size:10px;color:#f59e0b}
 .cal-day-icons{display:flex;gap:2px;justify-content:center;margin-top:1px}
@@ -366,18 +366,18 @@ input:focus{border-color:#4f46e5}
 
 /* ===================== PROFIL (formulaires) ===================== */
 .profil-form input,.profil-form textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:10px;outline:none;font-family:inherit}
-.profil-form input:focus,.profil-form textarea:focus{border-color:#4f46e5}
+.profil-form input:focus,.profil-form textarea:focus{border-color:#7C3AED}
 .profil-form textarea{resize:vertical}
 .mdp-form input{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:10px;outline:none}
-.mdp-form input:focus{border-color:#4f46e5}
+.mdp-form input:focus{border-color:#7C3AED}
 
 /* ===================== WIDGETS CHOIX ===================== */
 .widgets-choix-grid{display:flex;flex-direction:column;gap:10px;margin:12px 0}
 .widget-choix-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid #e5e7eb;border-radius:10px;cursor:pointer;font-size:14px;transition:background .2s}
 .widget-choix-item:hover{background:#f5f3ff}
-.widget-choix-item input[type=checkbox]{width:18px;height:18px;accent-color:#4f46e5;cursor:pointer}
-.btn-sauver-widgets{width:100%;padding:12px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
-.btn-sauver-widgets:hover{background:#4338ca}
+.widget-choix-item input[type=checkbox]{width:18px;height:18px;accent-color:#7C3AED;cursor:pointer}
+.btn-sauver-widgets{width:100%;padding:12px;background:#7C3AED;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
+.btn-sauver-widgets:hover{background:#6D28D9}
 
 /* ===================== ADMIN — WIDGET DASHBOARD ===================== */
 .wa-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
@@ -421,7 +421,7 @@ input:focus{border-color:#4f46e5}
 .as-progress-pct{font-size:12px;color:#6b7280;font-weight:600}
 .as-progress-bar{height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden}
 .as-progress-fill{height:100%;border-radius:4px;transition:width .4s ease}
-.as-fill-blue{background:linear-gradient(90deg,#4f46e5,#7c3aed)}
+.as-fill-blue{background:linear-gradient(90deg,#7C3AED,#8b5cf6)}
 .as-fill-green{background:linear-gradient(90deg,#10b981,#059669)}
 .as-logins-list{display:flex;flex-direction:column;gap:4px}
 .as-login-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6}
@@ -440,7 +440,7 @@ input:focus{border-color:#4f46e5}
 /* ===================== ADMIN — ONGLETS MODALE ===================== */
 .admin-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f3f4f6}
 .admin-tab{padding:10px 18px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-size:14px;font-weight:600;color:#9ca3af;transition:all .15s}
-.admin-tab.active{color:#4f46e5;border-bottom-color:#4f46e5}
+.admin-tab.active{color:#7C3AED;border-bottom-color:#7C3AED}
 .admin-tab-content{display:none}
 .admin-tab-content.active{display:block}
 
@@ -448,23 +448,17 @@ input:focus{border-color:#4f46e5}
 .user-card{border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:10px}
 .user-card-name{font-weight:700;font-size:15px;color:#333}
 .user-card-meta{font-size:12px;color:#9ca3af;margin-bottom:10px}
-
-/* Boutons action admin — 1 ligne compacte, JAMAIS sur 2 lignes */
 .ua-btn{padding:7px 11px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;transition:opacity .15s}
 .ua-btn:hover{opacity:.8}
-.ua-btn-blue{background:#4f46e5;color:#fff}
-.ua-btn-blue:hover{background:#4338ca;opacity:1}
+.ua-btn-blue{background:#7C3AED;color:#fff}
+.ua-btn-blue:hover{background:#6D28D9;opacity:1}
 .ua-btn-red{background:#fee2e2;color:#ef4444}
 .ua-btn-red:hover{background:#ef4444;color:#fff;opacity:1}
 .ua-btn-green{background:#d1fae5;color:#059669}
 .ua-btn-green:hover{background:#059669;color:#fff;opacity:1}
-
-/* Wrapper actions — force 1 ligne, scroll si déborde */
 .user-card-actions{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;align-items:center}
 .user-card-actions::-webkit-scrollbar{height:3px}
 .user-card-actions::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:2px}
-
-/* Boutons icônes compacts (utilisés dans _filtrerAdminUsers) */
 .au-btn{width:32px;height:32px;border:none;border-radius:8px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:opacity .15s;flex-shrink:0}
 .au-btn:hover{opacity:.75}
 .au-btn-role{background:#eff6ff;color:#2563eb}
@@ -472,9 +466,9 @@ input:focus{border-color:#4f46e5}
 .au-btn-edit{background:#e0f2fe;color:#0369a1}
 .au-btn-del{background:#fef2f2;color:#dc2626}
 
-/* ===================== ADMIN — FORMULAIRE CRÉER (onglet dédié) ===================== */
+/* ===================== ADMIN — FORMULAIRE CRÉER ===================== */
 .create-form input,.create-form select{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:10px;outline:none;font-family:inherit;background:#fff}
-.create-form input:focus,.create-form select:focus{border-color:#4f46e5}
+.create-form input:focus,.create-form select:focus{border-color:#7C3AED}
 
 /* ===================== RESPONSIVE ===================== */
 @media(max-width:640px){
@@ -482,4 +476,3 @@ input:focus{border-color:#4f46e5}
   .as-cards-grid{grid-template-columns:repeat(2,1fr)}
   .user-card-actions{flex-wrap:nowrap;overflow-x:auto}
 }
-

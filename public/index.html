@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyVibe - Mon Sanctuaire</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234f46e5'/><text y='55' x='50' text-anchor='middle' font-size='55'>🏡</text></svg>">
+    <title>MyDaily</title>
+    <link rel="icon" href="/icon-192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="MyVibe">
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-title" content="MyDaily">
+    <meta name="theme-color" content="#7C3AED">
     <link rel="manifest" href="/manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -23,12 +23,11 @@
 </div>
 
 <div class="login-card" id="login-page">
-    <h1>🏡 MyVibe</h1>
-    <p>Mon Sanctuaire</p>
-    <!-- autocomplete="off" sur le form pour isoler le contexte -->
+    <img src="/icon-192.png" alt="MyDaily" style="width:72px;border-radius:16px;margin-bottom:12px;">
+    <h1>MyDaily</h1>
     <form id="login-form" autocomplete="off">
         <input type="text" id="username" placeholder="Nom d'utilisateur" required>
-		<input type="password" id="password" placeholder="Mot de passe" required>
+        <input type="password" id="password" placeholder="Mot de passe" required>
         <button type="submit" class="btn">Se connecter</button>
     </form>
     <div id="error-msg"></div>
@@ -37,7 +36,7 @@
 <div id="app">
     <div class="topbar">
         <div class="topbar-left">
-            <h2 onclick="actualiser()" title="Actualiser">MyVibe</h2>
+            <h2 onclick="actualiser()" title="Actualiser">MyDaily</h2>
             <span class="date-badge" id="date-display"></span>
         </div>
         <div class="topbar-right">
@@ -46,7 +45,7 @@
         </div>
     </div>
     <div class="grid" id="main-grid"></div>
-    <div class="footer">❤️ Je t'aime - Ton mari ❤️</div>
+    <div class="footer">mydaily-cache-v3.11</div>
 </div>
 
 <!-- Modale générique -->
