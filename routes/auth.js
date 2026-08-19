@@ -34,6 +34,10 @@ router.post('/login', loginLimiter, async (req, res) => {
       if (!validerMotDePasse(password) && !user.must_change_password) {
         await pool.query('UPDATE users SET must_change_password = TRUE WHERE id = \$1', [user.id]);
       }
+
+      // ✅ Mise à jour last_login à chaque connexion réussie
+      await pool.query('UPDATE users SET last_login = NOW() WHERE id = \$1', [user.id]);
+
       const token = jwt.sign(
         { userId: user.id, id: user.id, username: user.username, role: user.role },
         process.env.JWT_SECRET,

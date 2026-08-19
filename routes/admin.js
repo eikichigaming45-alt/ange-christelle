@@ -23,23 +23,58 @@ router.get('/stats', async (req, res) => {
     const { adminId } = req.query;
     try {
         if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
+
+        // Stats utilisateurs
         const totalUsers     = await pool.query('SELECT COUNT(*) FROM users');
         const totalAdmins    = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'admin'");
         const profilsRemplis = await pool.query("SELECT COUNT(*) FROM profiles WHERE prenom IS NOT NULL AND prenom != ''");
         const sansProfile    = await pool.query('SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.id IS NULL');
-        const lastLogins     = await pool.query(`
-            SELECT u.username, u.role, p.updated_at AS "lastLogin"
+
+        // Connexions actives (connectés dans les 7 derniers jours)
+        const actifsRecents  = await pool.query("SELECT COUNT(*) FROM users WHERE last_login >= NOW() - INTERVAL '7 days'");
+
+        // Jamais connectés
+        const jamaisConnectes = await pool.query("SELECT COUNT(*) FROM users WHERE last_login IS NULL");
+
+        // Stats agrégées des données (sans données personnelles)
+        const totalTaches      = await pool.query('SELECT COUNT(*) FROM taches');
+        const tachesFaites     = await pool.query("SELECT COUNT(*) FROM taches WHERE faite = TRUE");
+        const totalRdv         = await pool.query('SELECT COUNT(*) FROM rendezvous');
+        const totalAnniversaires = await pool.query('SELECT COUNT(*) FROM anniversaires');
+        const totalCycles      = await pool.query('SELECT COUNT(*) FROM cycle_journal');
+
+        // Dernières connexions réelles (via last_login)
+        const lastLogins = await pool.query(`
+            SELECT u.id, u.username, u.role, u.last_login AS "lastLogin"
             FROM users u
-            LEFT JOIN profiles p ON p.user_id = u.id
-            ORDER BY p.updated_at DESC NULLS LAST LIMIT 5
+            ORDER BY u.last_login DESC NULLS LAST
+            LIMIT 5
         `);
+
+        // Connexions par jour sur les 7 derniers jours
+        const activiteJours = await pool.query(`
+            SELECT DATE(last_login) AS jour, COUNT(*) AS nb
+            FROM users
+            WHERE last_login >= NOW() - INTERVAL '7 days'
+            GROUP BY DATE(last_login)
+            ORDER BY jour ASC
+        `);
+
         res.json({
-            success       : true,
-            totalUsers    : parseInt(totalUsers.rows[0].count),
-            totalAdmins   : parseInt(totalAdmins.rows[0].count),
-            profilsRemplis: parseInt(profilsRemplis.rows[0].count),
-            sansProfile   : parseInt(sansProfile.rows[0].count),
-            lastLogins    : lastLogins.rows
+            success          : true,
+            totalUsers       : parseInt(totalUsers.rows[0].count),
+            totalAdmins      : parseInt(totalAdmins.rows[0].count),
+            profilsRemplis   : parseInt(profilsRemplis.rows[0].count),
+            sansProfile      : parseInt(sansProfile.rows[0].count),
+            actifsRecents    : parseInt(actifsRecents.rows[0].count),
+            jamaisConnectes  : parseInt(jamaisConnectes.rows[0].count),
+            totalTaches      : parseInt(totalTaches.rows[0].count),
+            tachesFaites     : parseInt(tachesFaites.rows[0].count),
+            totalRdv         : parseInt(totalRdv.rows[0].count),
+            totalAnniversaires: parseInt(totalAnniversaires.rows[0].count),
+            totalCycles      : parseInt(totalCycles.rows[0].count),
+            lastLogins       : lastLogins.rows,
+            activiteJours    : activiteJours.rows
         });
     } catch (err) {
         console.error(err);
@@ -53,8 +88,8 @@ router.get('/users', async (req, res) => {
     try {
         if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
         const result = await pool.query(`
-            SELECT u.id, u.username, u.role, p.updated_at AS "lastLogin"
-            FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+            SELECT u.id, u.username, u.role, u.last_login AS "lastLogin"
+            FROM users u
             ORDER BY u.id
         `);
         res.json({ success: true, users: result.rows });

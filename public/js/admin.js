@@ -9,6 +9,7 @@ async function chargerWidgetAdmin() {
         const r = await fetch(`/api/admin/stats?adminId=${user.userId}`);
         const d = await r.json();
         if (!d.success) { el.innerHTML = '<p class="wa-error">Erreur serveur</p>'; return; }
+
         el.innerHTML = `
             <div class="wa-stats-row">
                 <div class="wa-stat wa-stat-blue">
@@ -16,25 +17,42 @@ async function chargerWidgetAdmin() {
                     <div class="wa-stat-lbl">Utilisateurs</div>
                 </div>
                 <div class="wa-stat wa-stat-purple">
-                    <div class="wa-stat-val">${d.totalAdmins}</div>
-                    <div class="wa-stat-lbl">Admins</div>
+                    <div class="wa-stat-val">${d.actifsRecents}</div>
+                    <div class="wa-stat-lbl">Actifs 7j</div>
                 </div>
                 <div class="wa-stat wa-stat-green">
                     <div class="wa-stat-val">${d.profilsRemplis}</div>
-                    <div class="wa-stat-lbl">Profils remplis</div>
+                    <div class="wa-stat-lbl">Profils</div>
                 </div>
                 <div class="wa-stat wa-stat-orange">
-                    <div class="wa-stat-val">${d.sansProfile}</div>
-                    <div class="wa-stat-lbl">Sans profil</div>
+                    <div class="wa-stat-val">${d.jamaisConnectes}</div>
+                    <div class="wa-stat-lbl">Inactifs</div>
                 </div>
             </div>
-            <div class="wa-activity-title">Dernière activité</div>
+            <div class="wa-mini-stats">
+                <div class="wa-mini-stat">
+                    <span class="wa-mini-icon">✅</span>
+                    <span class="wa-mini-label">Tâches</span>
+                    <span class="wa-mini-val">${d.tachesFaites}/${d.totalTaches}</span>
+                </div>
+                <div class="wa-mini-stat">
+                    <span class="wa-mini-icon">📅</span>
+                    <span class="wa-mini-label">Rendez-vous</span>
+                    <span class="wa-mini-val">${d.totalRdv}</span>
+                </div>
+                <div class="wa-mini-stat">
+                    <span class="wa-mini-icon">🎂</span>
+                    <span class="wa-mini-label">Anniversaires</span>
+                    <span class="wa-mini-val">${d.totalAnniversaires}</span>
+                </div>
+            </div>
+            <div class="wa-activity-title">Dernières connexions</div>
             ${(d.lastLogins || []).map(u => `
                 <div class="wa-activity-row">
-                    <div class="wa-avatar">${u.username[0].toUpperCase()}</div>
+                    <div class="wa-avatar ${u.role === 'admin' ? 'wa-avatar-admin' : 'wa-avatar-user'}">${u.username[0].toUpperCase()}</div>
                     <div class="wa-username">${u.username}</div>
                     <span class="wa-badge ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>
-                    <div class="wa-date">${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR') : '—'}</div>
+                    <div class="wa-date">${u.lastLogin ? _formatDateRelative(u.lastLogin) : '<span style="color:#d1d5db">Jamais</span>'}</div>
                 </div>
             `).join('')}
         `;
@@ -43,55 +61,155 @@ async function chargerWidgetAdmin() {
     }
 }
 
+// ===================== UTILITAIRES DATE =====================
+
+function _formatDateRelative(dateStr) {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs  = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffH   = Math.floor(diffMs / 3600000);
+    const diffJ   = Math.floor(diffMs / 86400000);
+    if (diffMin < 2)  return '<span style="color:#10b981;font-weight:700">À l\'instant</span>';
+    if (diffMin < 60) return `<span style="color:#10b981;font-weight:600">Il y a ${diffMin} min</span>`;
+    if (diffH < 24)   return `<span style="color:#f59e0b;font-weight:600">Il y a ${diffH}h</span>`;
+    if (diffJ === 1)  return '<span style="color:#6b7280">Hier</span>';
+    if (diffJ < 7)    return `<span style="color:#6b7280">Il y a ${diffJ} jours</span>`;
+    return `<span style="color:#9ca3af">${date.toLocaleDateString('fr-FR')}</span>`;
+}
+
+function _formatDateComplete(dateStr) {
+    if (!dateStr) return 'Jamais';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        + ' à ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
 // ===================== VALIDATION MOT DE PASSE =====================
 
 function validerMotDePasse(pwd) {
-    if (pwd.length < 8)              return 'Minimum 8 caractères.';
-    if (!/[A-Z]/.test(pwd))          return 'Au moins une majuscule requise.';
-    if (!/[a-z]/.test(pwd))          return 'Au moins une minuscule requise.';
-    if (!/[0-9]/.test(pwd))          return 'Au moins un chiffre requis.';
-    if (!/[^A-Za-z0-9]/.test(pwd))   return 'Au moins un caractère spécial requis (!@#$%...).';
+    if (pwd.length < 8)             return 'Minimum 8 caractères.';
+    if (!/[A-Z]/.test(pwd))         return 'Au moins une majuscule requise.';
+    if (!/[a-z]/.test(pwd))         return 'Au moins une minuscule requise.';
+    if (!/[0-9]/.test(pwd))         return 'Au moins un chiffre requis.';
+    if (!/[^A-Za-z0-9]/.test(pwd))  return 'Au moins un caractère spécial requis (!@#$%...).';
     return null;
 }
 
-// ===================== MODALE ADMIN =====================
+// ===================== MODALE ADMIN — STATS =====================
 
 async function chargerAdminStats() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const el = document.getElementById('admin-tab-stats');
     if (!el) return;
-    el.innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+    el.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
     try {
         const r = await fetch(`/api/admin/stats?adminId=${user.userId}`);
         const d = await r.json();
         if (!d.success) { el.innerHTML = `<p style="color:#ef4444">${d.message}</p>`; return; }
+
+        const tauxTaches  = d.totalTaches  > 0 ? Math.round((d.tachesFaites  / d.totalTaches)  * 100) : 0;
+        const tauxProfils = d.totalUsers   > 0 ? Math.round((d.profilsRemplis / d.totalUsers)  * 100) : 0;
+
         el.innerHTML = `
-            <div class="stat-grid">
-                <div class="stat-card"><div class="val" style="color:#2563eb">${d.totalUsers}</div><div class="lbl">Utilisateurs</div></div>
-                <div class="stat-card"><div class="val" style="color:#7c3aed">${d.totalAdmins}</div><div class="lbl">Admins</div></div>
-                <div class="stat-card"><div class="val" style="color:#16a34a">${d.profilsRemplis}</div><div class="lbl">Profils remplis</div></div>
-                <div class="stat-card"><div class="val" style="color:#ea580c">${d.sansProfile}</div><div class="lbl">Sans profil</div></div>
-            </div>
-            <div class="section-title">Dernière activité</div>
-            ${(d.lastLogins || []).map(u => `
-                <div class="activity-row">
-                    <div class="u">${u.username}
-                        <span class="user-card-role ${u.role === 'admin' ? 'role-admin' : 'role-user'}">${u.role}</span>
-                    </div>
-                    <div class="d">${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR') : '—'}</div>
+            <div class="as-section-title">Utilisateurs</div>
+            <div class="as-cards-grid">
+                <div class="as-card as-card-blue">
+                    <div class="as-card-icon">👥</div>
+                    <div class="as-card-val">${d.totalUsers}</div>
+                    <div class="as-card-lbl">Total</div>
                 </div>
-            `).join('') || '<p style="color:#9ca3af;font-size:13px">Aucune activité.</p>'}
+                <div class="as-card as-card-purple">
+                    <div class="as-card-icon">⚙️</div>
+                    <div class="as-card-val">${d.totalAdmins}</div>
+                    <div class="as-card-lbl">Admins</div>
+                </div>
+                <div class="as-card as-card-green">
+                    <div class="as-card-icon">🟢</div>
+                    <div class="as-card-val">${d.actifsRecents}</div>
+                    <div class="as-card-lbl">Actifs 7j</div>
+                </div>
+                <div class="as-card as-card-red">
+                    <div class="as-card-icon">💤</div>
+                    <div class="as-card-val">${d.jamaisConnectes}</div>
+                    <div class="as-card-lbl">Jamais connectés</div>
+                </div>
+            </div>
+
+            <div class="as-progress-bloc">
+                <div class="as-progress-header">
+                    <span class="as-progress-label">Profils remplis</span>
+                    <span class="as-progress-pct">${d.profilsRemplis}/${d.totalUsers} — ${tauxProfils}%</span>
+                </div>
+                <div class="as-progress-bar">
+                    <div class="as-progress-fill as-fill-blue" style="width:${tauxProfils}%"></div>
+                </div>
+            </div>
+
+            <div class="as-section-title" style="margin-top:20px">Activité globale</div>
+            <div class="as-data-grid">
+                <div class="as-data-item">
+                    <span class="as-data-icon">✅</span>
+                    <div class="as-data-body">
+                        <div class="as-data-val">${d.tachesFaites} <span style="color:#9ca3af;font-size:13px">/ ${d.totalTaches}</span></div>
+                        <div class="as-data-lbl">Tâches complétées</div>
+                        <div class="as-progress-bar" style="margin-top:6px">
+                            <div class="as-progress-fill as-fill-green" style="width:${tauxTaches}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="as-data-item">
+                    <span class="as-data-icon">📅</span>
+                    <div class="as-data-body">
+                        <div class="as-data-val">${d.totalRdv}</div>
+                        <div class="as-data-lbl">Rendez-vous enregistrés</div>
+                    </div>
+                </div>
+                <div class="as-data-item">
+                    <span class="as-data-icon">🎂</span>
+                    <div class="as-data-body">
+                        <div class="as-data-val">${d.totalAnniversaires}</div>
+                        <div class="as-data-lbl">Anniversaires enregistrés</div>
+                    </div>
+                </div>
+                <div class="as-data-item">
+                    <span class="as-data-icon">🌸</span>
+                    <div class="as-data-body">
+                        <div class="as-data-val">${d.totalCycles}</div>
+                        <div class="as-data-lbl">Entrées journal cycle</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="as-section-title" style="margin-top:20px">Dernières connexions</div>
+            <div class="as-logins-list">
+                ${(d.lastLogins || []).map(u => `
+                    <div class="as-login-row">
+                        <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}">${u.username[0].toUpperCase()}</div>
+                        <div class="as-login-info">
+                            <div class="as-login-name">${u.username}
+                                <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
+                            </div>
+                            <div class="as-login-date">${u.lastLogin ? _formatDateComplete(u.lastLogin) : 'Jamais connecté'}</div>
+                        </div>
+                        <div class="as-login-relative">${_formatDateRelative(u.lastLogin)}</div>
+                    </div>
+                `).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune connexion enregistrée.</p>'}
+            </div>
         `;
     } catch {
-        el.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur réseau.</p>';
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
     }
 }
+
+// ===================== MODALE ADMIN — UTILISATEURS =====================
 
 async function chargerAdminUsers() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const el = document.getElementById('admin-tab-users');
     if (!el) return;
-    el.innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+    el.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
     try {
         const r = await fetch(`/api/admin/users?adminId=${user.userId}`);
         const d = await r.json();
@@ -99,13 +217,17 @@ async function chargerAdminUsers() {
         el.innerHTML = (d.users || []).map(u => `
             <div class="user-card">
                 <div class="user-card-header">
-                    <div>
-                        <span class="user-card-name">${u.username}</span>
-                        <span class="user-card-role ${u.role === 'admin' ? 'role-admin' : 'role-user'}">${u.role}</span>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}" style="width:36px;height:36px;font-size:15px">${u.username[0].toUpperCase()}</div>
+                        <div>
+                            <span class="user-card-name">${u.username}</span>
+                            <span class="user-card-role ${u.role === 'admin' ? 'role-admin' : 'role-user'}">${u.role}</span>
+                        </div>
                     </div>
                 </div>
                 <div class="user-card-meta">
-                    Dernière connexion : ${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR') : 'Jamais'}
+                    Dernière connexion : <strong>${u.lastLogin ? _formatDateComplete(u.lastLogin) : 'Jamais'}</strong>
+                    ${u.lastLogin ? ' — ' + _formatDateRelative(u.lastLogin) : ''}
                 </div>
                 <div class="user-card-actions">
                     <button class="ua-btn ua-btn-blue" onclick="adminToggleRole(${u.id},'${u.role}')">
@@ -122,16 +244,18 @@ async function chargerAdminUsers() {
                     </button>
                 </div>
             </div>
-        `).join('') || '<p style="color:#9ca3af;font-size:13px">Aucun utilisateur.</p>';
+        `).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center">Aucun utilisateur.</p>';
     } catch {
-        el.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur réseau.</p>';
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
     }
 }
+
+// ===================== ÉDITION PROFIL PAR ADMIN =====================
 
 async function adminEditerProfil(id, username) {
     const adminUser = JSON.parse(localStorage.getItem('myvibe_user'));
     const el = document.getElementById('admin-tab-users');
-    el.innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+    el.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
     try {
         const r = await fetch(`/api/admin/users/${id}/profil?adminId=${adminUser.userId}`);
         const d = await r.json();
@@ -197,7 +321,7 @@ async function adminEditerProfil(id, username) {
             </div>
         `;
     } catch {
-        el.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur réseau.</p>';
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
     }
 }
 
@@ -229,6 +353,8 @@ async function adminSauvegarderProfil(id) {
     }
 }
 
+// ===================== TOGGLE ROLE =====================
+
 async function adminToggleRole(id, roleActuel) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const newRole = roleActuel === 'admin' ? 'user' : 'admin';
@@ -245,6 +371,8 @@ async function adminToggleRole(id, roleActuel) {
         document.getElementById('admin-tab-users').innerHTML = '<p style="color:#ef4444">Erreur réseau.</p>';
     }
 }
+
+// ===================== RESET MOT DE PASSE =====================
 
 function adminResetPwd(id, username) {
     const el = document.getElementById('admin-tab-users');
@@ -284,6 +412,8 @@ async function adminConfirmResetPwd(id) {
     }
 }
 
+// ===================== SUPPRIMER UTILISATEUR =====================
+
 function adminSupprimerUser(id, username) {
     const el = document.getElementById('admin-tab-users');
     el.innerHTML = `
@@ -314,6 +444,8 @@ async function adminConfirmSupprimer(id) {
         document.getElementById('admin-tab-users').innerHTML = '<p style="color:#ef4444">Erreur réseau.</p>';
     }
 }
+
+// ===================== CRÉER UTILISATEUR =====================
 
 async function creerUser() {
     const user     = JSON.parse(localStorage.getItem('myvibe_user'));
@@ -352,6 +484,8 @@ async function creerUser() {
     }
 }
 
+// ===================== SWITCH ONGLETS =====================
+
 function switchAdminTab(tab) {
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
@@ -360,3 +494,4 @@ function switchAdminTab(tab) {
     if (tab === 'stats') chargerAdminStats();
     if (tab === 'users') chargerAdminUsers();
 }
+                
