@@ -155,8 +155,20 @@ function actualiser() {
 function logout() {
     localStorage.removeItem('myvibe_user');
     document.body.style.cssText = '';
-    // Force rechargement hors cache SW
-    window.location.href = '/?v=' + Date.now();
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+            const unregs = regs.map(r => r.unregister());
+            Promise.all(unregs).then(() => {
+                caches.keys().then(keys => {
+                    Promise.all(keys.map(k => caches.delete(k))).then(() => {
+                        window.location.href = '/';
+                    });
+                });
+            });
+        });
+    } else {
+        window.location.href = '/';
+    }
 }
 
 // ===================== CHANGEMENT MDP OBLIGATOIRE =====================
