@@ -1,6 +1,11 @@
-// ===================== GRID & DRAG DROP =====================
+// ============================================================================
+// FICHIER : public/js/widgets.js
+// DESCRIPTION : Grille, drag & drop, affichage widgets (opt-out)
+// ============================================================================
 
 let gridConstruit = false;
+
+// ===================== GRID & DRAG DROP =====================
 
 async function buildGrid() {
     if (gridConstruit) return;
@@ -11,7 +16,7 @@ async function buildGrid() {
     const grid = document.getElementById('main-grid');
     grid.innerHTML = '';
     let ordre = null;
-    let actifs = null;
+    let caches = []; // Opt-out : liste des widgets explicitement décochés. Vide = tout visible.
 
     try {
         const [rOrdre, rWidgets] = await Promise.all([
@@ -21,7 +26,8 @@ async function buildGrid() {
         const dOrdre   = await rOrdre.json();
         const dWidgets = await rWidgets.json();
         if (dOrdre.success && dOrdre.ordre) ordre = dOrdre.ordre;
-        actifs = dWidgets.widgets_visibles || null;
+        // widgets_caches : [] par défaut = tout est visible
+        if (dWidgets.success && Array.isArray(dWidgets.widgets_caches)) caches = dWidgets.widgets_caches;
     } catch(e) {}
 
     let defs = [...WIDGETS_DEF];
@@ -36,19 +42,17 @@ async function buildGrid() {
         defs = sorted;
     }
 
+    // Opt-out : on affiche tout sauf ce qui est explicitement dans caches
     const TOUJOURS_VISIBLES = ['profil'];
-    if (Array.isArray(actifs)) {
-        defs = defs.filter(w =>
-            TOUJOURS_VISIBLES.includes(w.id) ||
-            actifs.includes(w.id) ||
-            (w.id === 'admin' && user?.role === 'admin')
-        );
-    }
+    defs = defs.filter(w =>
+        TOUJOURS_VISIBLES.includes(w.id) ||
+        (w.id === 'admin' && user?.role === 'admin') ||
+        !caches.includes(w.id)
+    );
 
     defs.forEach(def => grid.appendChild(creerWidget(def)));
 
     if (typeof chargerProfilHeader === 'function') chargerProfilHeader();
-
     if (typeof Cycle !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
     if (typeof chargerWidgetPlanning === 'function') chargerWidgetPlanning();
@@ -87,7 +91,7 @@ function creerWidget(def) {
 
     if (def.id === 'meteo')      div.querySelector('#rbtn-meteo')?.addEventListener('click',      e => { e.stopPropagation(); chargerMeteoAuto(); });
     if (def.id === 'priere')     div.querySelector('#rbtn-priere')?.addEventListener('click',     e => { e.stopPropagation(); chargerPriere(); });
-    if (def.id === 'islam') div.querySelector('#rbtn-islam')?.addEventListener('click', e => { e.stopPropagation(); if (typeof window.chargerIslam === 'function') window.chargerIslam(); });
+    if (def.id === 'islam')      div.querySelector('#rbtn-islam')?.addEventListener('click',      e => { e.stopPropagation(); if (typeof window.chargerIslam === 'function') window.chargerIslam(); });
     if (def.id === 'cycle')      div.querySelector('#rbtn-cycle')?.addEventListener('click',      e => { e.stopPropagation(); Cycle.charger(); });
     if (def.id === 'rendezvous') div.querySelector('#rbtn-rendezvous')?.addEventListener('click', e => { e.stopPropagation(); Rendezvous.charger(); });
 
@@ -210,9 +214,11 @@ async function sauvegarderOrdre() {
     } catch(e) {}
 }
 
-// ===================== WIDGETS VISIBLES =====================
+// ===================== WIDGETS VISIBLES (opt-out) =====================
+// Reçoit widgets_caches : liste des slugs décochés.
+// Masque uniquement ce qui est dedans. Absent = visible.
 
-function appliquerWidgetsVisibles(actifs) {
+function appliquerWidgetsVisibles(caches) {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
     const TOUJOURS_VISIBLES = user?.role === 'admin' ? ['profil', 'admin'] : ['profil'];
     const grid = document.getElementById('main-grid');
@@ -221,6 +227,6 @@ function appliquerWidgetsVisibles(actifs) {
         const id = el.dataset.id;
         if (!id) return;
         if (TOUJOURS_VISIBLES.includes(id)) return;
-        el.style.display = actifs.includes(id) ? '' : 'none';
+        el.style.display = caches.includes(id) ? 'none' : '';
     });
 }

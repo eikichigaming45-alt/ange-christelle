@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../db/pool');
 const { authenticateToken } = require('./auth');
 
+// ===================== VALIDATION MOT DE PASSE =====================
+
 function validerMotDePasse(password) {
     if (!password || password.length < 8)  return 'Minimum 8 caractères.';
     if (!/[A-Z]/.test(password))           return 'Au moins une majuscule requise.';
@@ -12,6 +14,8 @@ function validerMotDePasse(password) {
     if (!/[^A-Za-z0-9]/.test(password))    return 'Au moins un caractère spécial requis.';
     return null;
 }
+
+// ===================== PROFIL =====================
 
 // GET profil
 router.get('/', async (req, res) => {
@@ -44,17 +48,22 @@ router.post('/', async (req, res) => {
     }
 });
 
+// ===================== MOT DE PASSE =====================
+
 // POST changer mdp
 router.post('/changer-mdp', async (req, res) => {
     const { userId, ancienMdp, nouveauMdp } = req.body;
-    if (!userId || !ancienMdp || !nouveauMdp) return res.status(400).json({ success: false, message: 'Champs manquants' });
+    if (!userId || !ancienMdp || !nouveauMdp)
+        return res.status(400).json({ success: false, message: 'Champs manquants' });
     const erreurMdp = validerMotDePasse(nouveauMdp);
     if (erreurMdp) return res.status(400).json({ success: false, message: erreurMdp });
     try {
         const result = await pool.query('SELECT * FROM users WHERE id = \$1', [userId]);
-        if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
+        if (result.rows.length === 0)
+            return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
         const match = await bcrypt.compare(ancienMdp, result.rows[0].password);
-        if (!match) return res.status(401).json({ success: false, message: 'Ancien mot de passe incorrect' });
+        if (!match)
+            return res.status(401).json({ success: false, message: 'Ancien mot de passe incorrect' });
         const hash = await bcrypt.hash(nouveauMdp, 10);
         await pool.query(
             'UPDATE users SET password = \$1, must_change_password = FALSE WHERE id = \$2',
@@ -66,28 +75,33 @@ router.post('/changer-mdp', async (req, res) => {
     }
 });
 
-// GET widgets visibles
+// ===================== WIDGETS (opt-out) =====================
+// La colonne SQL s'appelle toujours widgets_visibles mais contient désormais
+// la liste des widgets CACHÉS (décochés par l'utilisateur).
+// Tableau vide = tout est visible (nouveau compte ou aucune préférence enregistrée).
+
+// GET widgets cachés
 router.get('/widgets-visibles', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
             'SELECT widgets_visibles FROM profiles WHERE user_id = \$1',
             [req.user.id]
         );
-        const widgets = result.rows[0]?.widgets_visibles ||
-            ['meteo','priere','islam','planning','rendezvous','cycle','taches','anniversaires'];
-        res.json({ widgets_visibles: widgets });
+        // Opt-out : on retourne les widgets CACHÉS. Null en base = [] = tout visible.
+        const widgets_caches = result.rows[0]?.widgets_visibles || [];
+        res.json({ success: true, widgets_caches });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// PATCH widgets visibles
+// PATCH widgets cachés
 router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
     try {
-        const { widgets_visibles } = req.body;
+        const { widgets_caches } = req.body;
         await pool.query(
-            `UPDATE profiles SET widgets_visibles = \$1 WHERE user_id = \$2`,
-            [widgets_visibles, req.user.id]
+            'UPDATE profiles SET widgets_visibles = \$1 WHERE user_id = \$2',
+            [widgets_caches, req.user.id]
         );
         res.json({ ok: true });
     } catch (e) {

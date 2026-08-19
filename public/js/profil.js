@@ -1,3 +1,8 @@
+// ============================================================================
+// FICHIER : public/js/profil.js
+// DESCRIPTION : Profil utilisateur, cropper photo, mot de passe, widgets (opt-out)
+// ============================================================================
+
 // ===================== PROFIL & CROPPER =====================
 
 async function chargerProfilHeader() {
@@ -158,7 +163,7 @@ async function sauvegarderProfil() {
     }
 }
 
-// ===================== VALIDATION MOT DE PASSE =====================
+// ===================== MOT DE PASSE =====================
 
 function validerMotDePasse(pwd) {
     if (!pwd || pwd.length < 8)     return 'Minimum 8 caractères.';
@@ -206,8 +211,10 @@ async function changerMdp() {
     }
 }
 
-// ===================== WIDGETS VISIBLES =====================
+// ===================== WIDGETS (opt-out) =====================
 // TOUS_WIDGETS est défini dans app.js — ne pas redéclarer ici
+// La liste widgets_caches contient uniquement les widgets décochés par l'utilisateur.
+// Un widget absent de cette liste = visible par défaut (nouveaux widgets inclus).
 
 async function afficherSectionWidgets() {
     const user = JSON.parse(localStorage.getItem('myvibe_user'));
@@ -219,10 +226,11 @@ async function afficherSectionWidgets() {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         const data = await res.json();
-        const actifs = data.widgets_visibles || TOUS_WIDGETS.map(w => w.slug);
+        // widgets_caches = liste des slugs décochés. Vide = tout est visible.
+        const caches = data.widgets_caches || [];
         container.innerHTML = TOUS_WIDGETS.map(w => `
             <label class="widget-choix-item">
-                <input type="checkbox" value="${w.slug}" ${actifs.includes(w.slug) ? 'checked' : ''}>
+                <input type="checkbox" value="${w.slug}" ${caches.includes(w.slug) ? '' : 'checked'}>
                 <span>${w.label}</span>
             </label>
         `).join('');
@@ -236,12 +244,10 @@ async function sauvegarderWidgetsVisibles() {
     const token = user?.token;
     const msg   = document.getElementById('widgets-msg');
     const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
-    const widgets_visibles = [...checkboxes].filter(cb => cb.checked).map(cb => cb.value);
 
-    if (widgets_visibles.length === 0) {
-        msg.textContent = '❌ Sélectionne au moins un widget.';
-        msg.style.color = '#ef4444'; return;
-    }
+    // Opt-out : on envoie uniquement les widgets décochés
+    const widgets_caches = [...checkboxes].filter(cb => !cb.checked).map(cb => cb.value);
+
     msg.textContent = 'Sauvegarde...'; msg.style.color = '#9ca3af';
     try {
         const res = await fetch('/api/profil/widgets-visibles', {
@@ -250,11 +256,11 @@ async function sauvegarderWidgetsVisibles() {
                 'Authorization': 'Bearer ' + token,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ widgets_visibles })
+            body: JSON.stringify({ widgets_caches })
         });
         if (res.ok) {
             msg.textContent = '✅ Widgets mis à jour !'; msg.style.color = '#10b981';
-            appliquerWidgetsVisibles(widgets_visibles);
+            appliquerWidgetsVisibles(widgets_caches);
         } else {
             msg.textContent = '❌ Erreur serveur.'; msg.style.color = '#ef4444';
         }
