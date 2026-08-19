@@ -1,12 +1,21 @@
-// ===================== WIDGET ADMIN (dashboard) =====================
+// ============================================================
+// public/js/admin.js
+// Dashboard admin : widget, modale stats/users, CRUD users.
+// Authentification : JWT Bearer uniquement — plus d'adminId.
+// Dépend de : app.js (getUser), profil.js (validerMotDePasse)
+// ============================================================
+
+// ===================== WIDGET ADMIN (dashboard) ==============
 
 async function chargerWidgetAdmin() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    if (!user?.userId || user.role !== 'admin') return;
+    const user = getUser();
+    if (!user?.token || user.role !== 'admin') return;
     const el = document.getElementById('wc-admin');
     if (!el) return;
     try {
-        const r = await fetch(`/api/admin/stats?adminId=${user.userId}`);
+        const r = await fetch('/api/admin/stats', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
         const d = await r.json();
         if (!d.success) { el.innerHTML = '<p class="wa-error">Erreur serveur</p>'; return; }
         el.innerHTML = `
@@ -30,8 +39,10 @@ async function chargerWidgetAdmin() {
             </div>
             <div class="wa-activity-title">Dernières connexions</div>
             ${(d.lastLogins || []).map(u => {
-                const initiale = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
-                const affichage = (u.prenom && u.nom) ? u.prenom + ' ' + u.nom.toUpperCase() : u.username;
+                const initiale  = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
+                const affichage = (u.prenom && u.nom)
+                    ? u.prenom + ' ' + u.nom.toUpperCase()
+                    : u.username;
                 return `
                 <div class="wa-activity-row">
                     <div class="wa-avatar ${u.role === 'admin' ? 'wa-avatar-admin' : 'wa-avatar-user'}">${initiale}</div>
@@ -46,12 +57,12 @@ async function chargerWidgetAdmin() {
     }
 }
 
-// ===================== UTILITAIRES DATE =====================
+// ===================== UTILITAIRES DATE ======================
 
 function _formatDateRelative(dateStr) {
     if (!dateStr) return '—';
-    const date = new Date(dateStr);
-    const now = new Date();
+    const date    = new Date(dateStr);
+    const now     = new Date();
     const diffMs  = now - date;
     const diffMin = Math.floor(diffMs / 60000);
     const diffH   = Math.floor(diffMs / 3600000);
@@ -71,30 +82,23 @@ function _formatDateComplete(dateStr) {
         + ' à ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
-// ===================== VALIDATION MOT DE PASSE =====================
-
-function validerMotDePasse(pwd) {
-    if (pwd.length < 8)             return 'Minimum 8 caractères.';
-    if (!/[A-Z]/.test(pwd))         return 'Au moins une majuscule requise.';
-    if (!/[a-z]/.test(pwd))         return 'Au moins une minuscule requise.';
-    if (!/[0-9]/.test(pwd))         return 'Au moins un chiffre requis.';
-    if (!/[^A-Za-z0-9]/.test(pwd))  return 'Au moins un caractère spécial requis (!@#$%...).';
-    return null;
-}
-
-// ===================== MODALE ADMIN — STATS =====================
+// ===================== MODALE ADMIN — STATS ==================
 
 async function chargerAdminStats() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const el = document.getElementById('admin-tab-stats');
+    const user = getUser();
+    const el   = document.getElementById('admin-tab-stats');
     if (!el) return;
     el.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
     try {
-        const r = await fetch(`/api/admin/stats?adminId=${user.userId}`);
+        const r = await fetch('/api/admin/stats', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
         const d = await r.json();
         if (!d.success) { el.innerHTML = `<p style="color:#ef4444">${d.message}</p>`; return; }
 
-        const tauxProfils = d.totalUsers > 0 ? Math.round((d.profilsRemplis / d.totalUsers) * 100) : 0;
+        const tauxProfils = d.totalUsers > 0
+            ? Math.round((d.profilsRemplis / d.totalUsers) * 100)
+            : 0;
 
         el.innerHTML = `
             <div class="as-section-title">Utilisateurs</div>
@@ -155,8 +159,10 @@ async function chargerAdminStats() {
             <div class="as-section-title" style="margin-top:20px">Dernières connexions</div>
             <div class="as-logins-list">
                 ${(d.lastLogins || []).map(u => {
-                    const initiale = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
-                    const affichage = (u.prenom && u.nom) ? u.prenom + ' ' + u.nom.toUpperCase() : u.username;
+                    const initiale  = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
+                    const affichage = (u.prenom && u.nom)
+                        ? u.prenom + ' ' + u.nom.toUpperCase()
+                        : u.username;
                     return `
                     <div class="as-login-row">
                         <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}">${initiale}</div>
@@ -176,15 +182,17 @@ async function chargerAdminStats() {
     }
 }
 
-// ===================== MODALE ADMIN — UTILISATEURS =====================
+// ===================== MODALE ADMIN — UTILISATEURS ===========
 
 async function chargerAdminUsers() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const el = document.getElementById('admin-tab-users');
+    const user = getUser();
+    const el   = document.getElementById('admin-tab-users');
     if (!el) return;
     el.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
     try {
-        const r = await fetch(`/api/admin/users?adminId=${user.userId}`);
+        const r = await fetch('/api/admin/users', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
         const d = await r.json();
         if (!d.success) { el.innerHTML = `<p style="color:#ef4444">${d.message}</p>`; return; }
         window._adminUsersCache = d.users || [];
@@ -254,7 +262,7 @@ function _toggleCreerForm() {
     if (!f || !b) return;
     const visible = f.style.display !== 'none';
     f.style.display = visible ? 'none' : 'block';
-    b.innerHTML = visible ? '➕ Créer un utilisateur' : '✕ Fermer';
+    b.innerHTML     = visible ? '➕ Créer un utilisateur' : '✕ Fermer';
     if (!visible) {
         setTimeout(() => {
             const u = document.getElementById('new-username');
@@ -271,12 +279,12 @@ function _toggleCreerForm() {
 }
 
 function _filtrerAdminUsers() {
-    const q = (document.getElementById('admin-search')?.value || '').toLowerCase().trim();
+    const q     = (document.getElementById('admin-search')?.value || '').toLowerCase().trim();
     const users = (window._adminUsersCache || []).filter(u =>
         !q
         || u.username.toLowerCase().includes(q)
         || (u.prenom && u.prenom.toLowerCase().includes(q))
-        || (u.nom && u.nom.toLowerCase().includes(q))
+        || (u.nom    && u.nom.toLowerCase().includes(q))
     );
     const el = document.getElementById('admin-users-liste');
     if (!el) return;
@@ -304,25 +312,27 @@ function _filtrerAdminUsers() {
             <div style="display:flex;gap:4px;flex-shrink:0">
                 <button class="au-btn au-btn-role" title="${u.role === 'admin' ? 'Passer user' : 'Passer admin'}"
                     onclick="adminToggleRole(${u.id},'${u.role}')">${u.role === 'admin' ? '↓' : '↑'}</button>
-                <button class="au-btn au-btn-key" title="Changer MDP"
+                <button class="au-btn au-btn-key"  title="Changer MDP"
                     onclick="adminResetPwd(${u.id},'${u.username}')">🔑</button>
                 <button class="au-btn au-btn-edit" title="Éditer"
                     onclick="adminEditerProfil(${u.id},'${u.username}')">✏️</button>
-                <button class="au-btn au-btn-del" title="Supprimer"
+                <button class="au-btn au-btn-del"  title="Supprimer"
                     onclick="adminSupprimerUser(${u.id},'${u.username}')">🗑</button>
             </div>
         </div>`;
     }).join('') : '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucun résultat.</p>';
 }
 
-// ===================== ÉDITION PROFIL PAR ADMIN =====================
+// ===================== ÉDITION PROFIL PAR ADMIN ==============
 
 async function adminEditerProfil(id, username) {
-    const adminUser = JSON.parse(localStorage.getItem('myvibe_user'));
-    const el = document.getElementById('admin-tab-users');
+    const user = getUser();
+    const el   = document.getElementById('admin-tab-users');
     el.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
     try {
-        const r = await fetch(`/api/admin/users/${id}/profil?adminId=${adminUser.userId}`);
+        const r = await fetch(`/api/admin/users/${id}/profil`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
         const d = await r.json();
         if (!d.success) { el.innerHTML = `<p style="color:#ef4444">${d.message}</p>`; return; }
         const p = d.profil || {};
@@ -391,7 +401,7 @@ async function adminEditerProfil(id, username) {
 }
 
 async function adminSauvegarderProfil(id) {
-    const adminUser  = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user       = getUser();
     const msg        = document.getElementById('edit-msg');
     const username   = document.getElementById('edit-username')?.value?.trim();
     const prenom     = document.getElementById('edit-prenom')?.value?.trim();
@@ -403,9 +413,12 @@ async function adminSauvegarderProfil(id) {
     const note       = document.getElementById('edit-note')?.value?.trim();
     try {
         const r = await fetch(`/api/admin/users/${id}/profil`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminId: adminUser.userId, username, prenom, nom, telephone, profession, email, date_naissance: naissance, note })
+            method : 'PATCH',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ username, prenom, nom, telephone, profession, email, date_naissance: naissance, note })
         });
         const d = await r.json();
         if (msg) {
@@ -418,16 +431,19 @@ async function adminSauvegarderProfil(id) {
     }
 }
 
-// ===================== TOGGLE ROLE =====================
+// ===================== TOGGLE ROLE ===========================
 
 async function adminToggleRole(id, roleActuel) {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user    = getUser();
     const newRole = roleActuel === 'admin' ? 'user' : 'admin';
     try {
         const r = await fetch(`/api/admin/users/${id}/role`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminId: user.userId, role: newRole })
+            method : 'PATCH',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ role: newRole })
         });
         const d = await r.json();
         if (d.success) chargerAdminUsers();
@@ -437,7 +453,7 @@ async function adminToggleRole(id, roleActuel) {
     }
 }
 
-// ===================== RESET MOT DE PASSE =====================
+// ===================== RESET MOT DE PASSE ===================
 
 function adminResetPwd(id, username) {
     const el = document.getElementById('admin-tab-users');
@@ -463,16 +479,19 @@ function adminResetPwd(id, username) {
 }
 
 async function adminConfirmResetPwd(id) {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
-    const pwd  = document.getElementById('admin-new-pwd')?.value;
-    const msg  = document.getElementById('admin-pwd-msg');
+    const user   = getUser();
+    const pwd    = document.getElementById('admin-new-pwd')?.value;
+    const msg    = document.getElementById('admin-pwd-msg');
     const erreur = validerMotDePasse(pwd || '');
     if (erreur) { if (msg) msg.textContent = erreur; return; }
     try {
         const r = await fetch(`/api/admin/users/${id}/password`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminId: user.userId, password: pwd })
+            method : 'PATCH',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ password: pwd })
         });
         const d = await r.json();
         if (d.success) chargerAdminUsers();
@@ -482,7 +501,7 @@ async function adminConfirmResetPwd(id) {
     }
 }
 
-// ===================== SUPPRIMER UTILISATEUR =====================
+// ===================== SUPPRIMER UTILISATEUR =================
 
 function adminSupprimerUser(id, username) {
     const el = document.getElementById('admin-tab-users');
@@ -500,12 +519,14 @@ function adminSupprimerUser(id, username) {
 }
 
 async function adminConfirmSupprimer(id) {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user = getUser();
     try {
         const r = await fetch(`/api/admin/users/${id}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminId: user.userId })
+            method : 'DELETE',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            }
         });
         const d = await r.json();
         if (d.success) chargerAdminUsers();
@@ -518,7 +539,7 @@ async function adminConfirmSupprimer(id) {
 // ===================== CRÉER UTILISATEUR =====================
 
 async function creerUser() {
-    const user     = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user     = getUser();
     const username = document.getElementById('new-username')?.value?.trim();
     const password = document.getElementById('new-password')?.value;
     const role     = document.getElementById('new-role')?.value;
@@ -534,9 +555,12 @@ async function creerUser() {
     }
     try {
         const r = await fetch('/api/admin/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminId: user.userId, username, password, role })
+            method : 'POST',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ username, password, role })
         });
         const d = await r.json();
         if (msg) {
@@ -548,7 +572,7 @@ async function creerUser() {
         if (d.success) {
             document.getElementById('new-username').value = '';
             document.getElementById('new-password').value = '';
-            document.getElementById('new-role').value = 'user';
+            document.getElementById('new-role').value     = 'user';
             setTimeout(() => chargerAdminUsers(), 1200);
         }
     } catch {
@@ -556,7 +580,7 @@ async function creerUser() {
     }
 }
 
-// ===================== SWITCH ONGLETS =====================
+// ===================== SWITCH ONGLETS ========================
 
 function switchAdminTab(tab) {
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));

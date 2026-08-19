@@ -1,23 +1,36 @@
-// ===================== GESTION DES MODALES =====================
+// ============================================================
+// public/js/modal.js
+// Gestion de la modale générique, widget admin dashboard,
+// utilitaires date, validation mot de passe front.
+// Dépend de : app.js (getUser, priere), profil.js, admin.js front
+// ============================================================
 
 const JOURS_MODAL = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+// ===================== OUVERTURE MODALE ======================
 
 async function openModal(type) {
     document.getElementById('overlay').classList.add('on');
     const titres = {
-        meteo:'Météo du jour', priere:'Prière du jour',
-        islam:'Prières & Hadiths',
-        taches:'Tâches du jour', rdv:'Rendez-vous',
-        planning:'Mon Planning', anniversaires:'Anniversaires',
-        profil:'Mon Profil', admin:'Administration',
-        cycle:'Suivi du cycle', rendezvous:'Rendez-vous médicaux'
+        meteo        : 'Météo du jour',
+        priere       : 'Prière du jour',
+        islam        : 'Prières & Hadiths',
+        taches       : 'Tâches du jour',
+        planning     : 'Mon Planning',
+        anniversaires: 'Anniversaires',
+        profil       : 'Mon Profil',
+        admin        : 'Administration',
+        cycle        : 'Suivi du cycle',
+        rendezvous   : 'Rendez-vous médicaux'
     };
     document.getElementById('modal-title').textContent = titres[type] || type;
 
+    // ── Météo ─────────────────────────────────────────────────
     if (type === 'meteo') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         _ouvrirModaleMeteo();
 
+    // ── Prière ────────────────────────────────────────────────
     } else if (type === 'priere') {
         document.getElementById('modal-body').innerHTML = priere ? `
             <div class="priere-modal">
@@ -34,8 +47,7 @@ async function openModal(type) {
                     <div class="priere-section-label">Évangile du jour</div>
                     <div class="priere-texte-complet">${priere.evangile.replace(/\n/g, '<br>')}</div>
                 </div>` : `
-                <div class="priere-texte-complet">"${priere.texte}"<br><br><em>— ${priere.ref}</em></div>
-                `}
+                <div class="priere-texte-complet">"${priere.texte}"<br><br><em>— ${priere.ref}</em></div>`}
                 ${priere.lecture1 ? `
                 <details class="priere-lecture1">
                     <summary>📜 Première lecture (cliquer pour lire)</summary>
@@ -47,9 +59,9 @@ async function openModal(type) {
             </div>
         ` : '<p>Chargement...</p>';
 
+    // ── Islam ─────────────────────────────────────────────────
     } else if (type === 'islam') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
-
         if (!window._islamData) {
             if (typeof window.chargerIslam === 'function') window.chargerIslam();
             await new Promise(resolve => {
@@ -60,10 +72,9 @@ async function openModal(type) {
                 }, 200);
             });
         }
-
-        const d = window._islamData;
-        const toMin = hhmm => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
-        const now = new Date().getHours() * 60 + new Date().getMinutes();
+        const d       = window._islamData;
+        const toMin   = hhmm => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+        const now     = new Date().getHours() * 60 + new Date().getMinutes();
         const listePrieres = [
             { nom:'Fajr',    label:'Fajr (Aube)',       heure: d?.fajr    },
             { nom:'Dhuhr',   label:'Dhuhr (Midi)',      heure: d?.dhuhr   },
@@ -71,10 +82,9 @@ async function openModal(type) {
             { nom:'Maghrib', label:'Maghrib (Coucher)', heure: d?.maghrib },
             { nom:'Isha',    label:'Isha (Nuit)',       heure: d?.isha    },
         ];
-        const prochaine = (d ? (listePrieres.find(x => toMin(x.heure) > now) || listePrieres[0]) : null);
-
+        const prochaine = d ? (listePrieres.find(x => toMin(x.heure) > now) || listePrieres[0]) : null;
         let coords = { ville: 'Paris' };
-        try { coords = JSON.parse(localStorage.getItem('islam_coords')) || coords; } catch(e) {}
+        try { coords = JSON.parse(localStorage.getItem('islam_coords')) || coords; } catch {}
 
         document.getElementById('modal-body').innerHTML = (d && !d.erreur) ? `
             <div class="islam-modal">
@@ -85,7 +95,6 @@ async function openModal(type) {
                         <button onclick="window._islamChangerVille()" style="margin-left:10px;background:#f0fdf4;border:1px solid #10b981;color:#059669;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">Changer</button>
                     </div>
                 </div>
-
                 <div id="islam-ville-form" style="display:none;background:#f8fafc;border-radius:10px;padding:14px;margin:10px 0;">
                     <div style="font-weight:700;font-size:13px;color:#333;margin-bottom:10px;">Changer la localisation</div>
                     <button onclick="window._islamGeolocate()" style="width:100%;padding:10px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px;">📍 Utiliser ma position GPS</button>
@@ -95,7 +104,6 @@ async function openModal(type) {
                     </div>
                     <div id="islam-ville-msg" style="font-size:12px;color:#ef4444;margin-top:6px;min-height:16px;"></div>
                 </div>
-
                 <div class="islam-modal-prieres">
                     <div class="islam-modal-titre-section">Horaires des prières</div>
                     ${listePrieres.map(p => {
@@ -108,7 +116,6 @@ async function openModal(type) {
                             </div>`;
                     }).join('')}
                 </div>
-
                 ${d.hadithFr ? `
                 <div class="islam-modal-hadith">
                     <div class="islam-modal-titre-section">Hadith du jour</div>
@@ -116,7 +123,6 @@ async function openModal(type) {
                     <div class="islam-modal-hadith-fr">"${d.hadithFr}"</div>
                     <div class="islam-modal-hadith-ref">${d.hadithRef || ''}</div>
                 </div>` : ''}
-
                 ${d.douaFr ? `
                 <div class="islam-modal-doua">
                     <div class="islam-modal-titre-section">Invocation (Doua)</div>
@@ -124,26 +130,30 @@ async function openModal(type) {
                     <div class="islam-modal-doua-fr">"${d.douaFr}"</div>
                     ${d.douaRef ? `<div class="islam-modal-hadith-ref">${d.douaRef}</div>` : ''}
                 </div>` : ''}
-
             </div>
         ` : '<p style="color:#ef4444;text-align:center;padding:20px 0">Horaires indisponibles pour le moment.</p>';
 
+    // ── Tâches ────────────────────────────────────────────────
     } else if (type === 'taches') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         await chargerModalTaches();
 
+    // ── Anniversaires ─────────────────────────────────────────
     } else if (type === 'anniversaires') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         await chargerModalAnniversaires();
 
+    // ── Cycle ─────────────────────────────────────────────────
     } else if (type === 'cycle') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         await Cycle.ouvrirModalCalendrier();
 
+    // ── Rendez-vous ───────────────────────────────────────────
     } else if (type === 'rendezvous') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         await Rendezvous.ouvrirListe();
 
+    // ── Planning ──────────────────────────────────────────────
     } else if (type === 'planning') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         if (typeof ouvrirPlanningModal === 'function') {
@@ -152,18 +162,22 @@ async function openModal(type) {
             document.getElementById('modal-body').innerHTML = '<p style="color:red">Module planning non chargé.</p>';
         }
 
+    // ── Profil ────────────────────────────────────────────────
+    // Utilise JWT — plus de userId en query string
     } else if (type === 'profil') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
-        const user = JSON.parse(localStorage.getItem('myvibe_user'));
-        if (!user?.userId) {
+        const user = getUser();
+        if (!user?.token) {
             document.getElementById('modal-body').innerHTML = '<p>Erreur : utilisateur non identifié.</p>';
             return;
         }
         try {
-            const r = await fetch(`/api/profil?userId=${user.userId}`);
+            const r = await fetch('/api/profil', {
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
             const d = await r.json();
             const p = d.profil || {};
-            profilCache = p;
+            profilCache     = p;
             const photoSrc  = p.photo || '';
             const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '👤';
 
@@ -315,10 +329,10 @@ async function openModal(type) {
             document.querySelectorAll('.profil-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     document.querySelectorAll('.profil-tab').forEach(t => {
-                        t.style.color = '#9ca3af';
+                        t.style.color            = '#9ca3af';
                         t.style.borderBottomColor = 'transparent';
                     });
-                    tab.style.color = '#4f46e5';
+                    tab.style.color            = '#4f46e5';
                     tab.style.borderBottomColor = '#4f46e5';
                     document.querySelectorAll('.profil-tab-content').forEach(c => c.style.display = 'none');
                     document.getElementById(`profil-tab-${tab.dataset.tab}`).style.display = 'block';
@@ -331,11 +345,12 @@ async function openModal(type) {
             document.getElementById('modal-body').innerHTML = '<p>Erreur de chargement du profil.</p>';
         }
 
+    // ── Admin ─────────────────────────────────────────────────
     } else if (type === 'admin') {
         document.getElementById('modal-body').innerHTML = `
             <div class="admin-tabs">
                 <button class="admin-tab active" data-tab="stats" onclick="switchAdminTab('stats')">📊 Stats</button>
-                <button class="admin-tab" data-tab="users" onclick="switchAdminTab('users')">👥 Utilisateurs</button>
+                <button class="admin-tab" data-tab="users"  onclick="switchAdminTab('users')">👥 Utilisateurs</button>
             </div>
             <div id="admin-tab-stats" class="admin-tab-content active"><p style="color:#9ca3af">Chargement...</p></div>
             <div id="admin-tab-users" class="admin-tab-content"><p style="color:#9ca3af">Chargement...</p></div>
@@ -348,9 +363,10 @@ async function openModal(type) {
     }
 }
 
+// ===================== LECTURE VOCALE PRIÈRE =================
+
 function lirePriereModal(e) {
     if (!('speechSynthesis' in window)) {
-        document.getElementById('modal-title').textContent = 'Non supporté';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">La synthèse vocale n'est pas supportée par votre navigateur.</p>
             <div class="modal-actions">
@@ -358,22 +374,19 @@ function lirePriereModal(e) {
             </div>`;
         return;
     }
-
     const synth = window.speechSynthesis;
     if (synth.speaking) {
         synth.cancel();
         if (e?.currentTarget) e.currentTarget.textContent = '🔊';
         return;
     }
-
     const texteALire = `${priere.titre || ''}. ${priere.evangile || priere.texte || ''} ${priere.ref || ''}`;
     const utterance  = new SpeechSynthesisUtterance(texteALire);
     utterance.lang   = 'fr-FR';
     utterance.rate   = 0.9;
     utterance.pitch  = 0.7;
-
     const lancerLecture = () => {
-        const voix = synth.getVoices();
+        const voix     = synth.getVoices();
         const voixMasc = voix.find(v =>
             v.lang.startsWith('fr') && (
                 v.name.toLowerCase().includes('thomas') ||
@@ -392,16 +405,17 @@ function lirePriereModal(e) {
         }
         synth.speak(utterance);
     };
-
-    if (synth.getVoices().length === 0) {
-        synth.onvoiceschanged = lancerLecture;
-    } else {
-        lancerLecture();
-    }
+    if (synth.getVoices().length === 0) synth.onvoiceschanged = lancerLecture;
+    else lancerLecture();
 }
+
+// ===================== FERMETURE MODALE ======================
 
 function closeModal() {
     window.speechSynthesis?.cancel();
     document.getElementById('overlay').classList.remove('on');
 }
-function closeOutside(e) { if(e.target===document.getElementById('overlay')) closeModal(); }
+
+function closeOutside(e) {
+    if (e.target === document.getElementById('overlay')) closeModal();
+}
