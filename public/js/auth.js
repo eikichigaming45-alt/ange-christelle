@@ -73,7 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // IDs mis à jour : login-username / login-password
             const username = document.getElementById('username')?.value?.trim();
             const password = document.getElementById('password')?.value;
             const errEl   = document.getElementById('error-msg');
@@ -99,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (errEl) errEl.textContent = d.message || 'Identifiants incorrects.';
                 }
             } catch {
-                if (errEl) errEl.textContent = 'Erreur réseau.';
+                // silencieux — app.js gère le login principal
             }
         });
     }
