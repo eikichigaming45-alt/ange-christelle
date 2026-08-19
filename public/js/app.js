@@ -231,7 +231,7 @@ async function afficherVersion() {
         const match = txt.match(/CACHE_NAME\s*=\s*['"]([^'"]+)['"]/);
         if (match) {
             const el = document.querySelector('.footer');
-            if (el) el.innerHTML += ` <span style="font-size:10px;opacity:0.4;margin-left:8px">${match[1]}</span>`;
+            if (el) el.innerHTML = `<span style="font-size:13px;font-weight:600;color:#333">${match[1]}</span>`;
         }
     } catch(e) {}
 }
