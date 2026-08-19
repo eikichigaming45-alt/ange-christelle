@@ -29,14 +29,17 @@ async function chargerWidgetAdmin() {
                 </div>
             </div>
             <div class="wa-activity-title">Dernières connexions</div>
-            ${(d.lastLogins || []).map(u => `
+            ${(d.lastLogins || []).map(u => {
+                const initiale = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
+                const affichage = (u.prenom && u.nom) ? u.prenom + ' ' + u.nom.toUpperCase() : u.username;
+                return `
                 <div class="wa-activity-row">
-                    <div class="wa-avatar ${u.role === 'admin' ? 'wa-avatar-admin' : 'wa-avatar-user'}">${u.username[0].toUpperCase()}</div>
-                    <div class="wa-username">${(u.prenom && u.nom) ? u.prenom + ' ' + u.nom : u.username}</div>
+                    <div class="wa-avatar ${u.role === 'admin' ? 'wa-avatar-admin' : 'wa-avatar-user'}">${initiale}</div>
+                    <div class="wa-username">${affichage}</div>
                     <span class="wa-badge ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>
                     <div class="wa-date">${u.lastLogin ? _formatDateRelative(u.lastLogin) : '<span style="color:#d1d5db">Jamais</span>'}</div>
-                </div>
-            `).join('')}
+                </div>`;
+            }).join('')}
         `;
     } catch {
         el.innerHTML = '<p class="wa-error">Erreur réseau</p>';
@@ -151,18 +154,21 @@ async function chargerAdminStats() {
             </div>
             <div class="as-section-title" style="margin-top:20px">Dernières connexions</div>
             <div class="as-logins-list">
-                ${(d.lastLogins || []).map(u => `
+                ${(d.lastLogins || []).map(u => {
+                    const initiale = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
+                    const affichage = (u.prenom && u.nom) ? u.prenom + ' ' + u.nom.toUpperCase() : u.username;
+                    return `
                     <div class="as-login-row">
-                        <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}">${u.username[0].toUpperCase()}</div>
+                        <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}">${initiale}</div>
                         <div class="as-login-info">
-                            <div class="as-login-name">${u.username}
+                            <div class="as-login-name">${affichage}
                                 <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
                             </div>
                             <div class="as-login-date">${u.lastLogin ? _formatDateComplete(u.lastLogin) : 'Jamais connecté'}</div>
                         </div>
                         <div class="as-login-relative">${_formatDateRelative(u.lastLogin)}</div>
-                    </div>
-                `).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune connexion.</p>'}
+                    </div>`;
+                }).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune connexion.</p>'}
             </div>
         `;
     } catch {
@@ -192,8 +198,7 @@ function _renderAdminUsers() {
     const el = document.getElementById('admin-tab-users');
     if (!el) return;
     el.innerHTML = `
-        <form autocomplete="off" onsubmit="return false"
-            style="margin-bottom:12px">
+        <form autocomplete="off" onsubmit="return false" style="margin-bottom:12px">
             <input type="text" id="admin-search"
                 placeholder="🔍 Rechercher un utilisateur..."
                 oninput="_filtrerAdminUsers()"
@@ -236,7 +241,6 @@ function _renderAdminUsers() {
             <div id="create-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
         </div>
     `;
-    // Forcer la valeur vide après rendu pour contrer l'autofill navigateur
     setTimeout(() => {
         const s = document.getElementById('admin-search');
         if (s) s.value = '';
@@ -269,22 +273,32 @@ function _toggleCreerForm() {
 function _filtrerAdminUsers() {
     const q = (document.getElementById('admin-search')?.value || '').toLowerCase().trim();
     const users = (window._adminUsersCache || []).filter(u =>
-        !q || u.username.toLowerCase().includes(q)
+        !q
+        || u.username.toLowerCase().includes(q)
+        || (u.prenom && u.prenom.toLowerCase().includes(q))
+        || (u.nom && u.nom.toLowerCase().includes(q))
     );
     const el = document.getElementById('admin-users-liste');
     if (!el) return;
-    el.innerHTML = users.length ? users.map(u => `
+    el.innerHTML = users.length ? users.map(u => {
+        const initiale  = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
+        const affichage = (u.prenom && u.nom)
+            ? u.prenom + ' ' + u.nom.toUpperCase()
+            : u.username;
+        return `
         <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;
                     border:1px solid #e5e7eb;border-radius:10px;margin-bottom:8px">
             <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}"
-                 style="width:36px;height:36px;font-size:15px;flex-shrink:0">${u.username[0].toUpperCase()}</div>
+                 style="width:36px;height:36px;font-size:15px;flex-shrink:0">${initiale}</div>
             <div style="flex:1;min-width:0">
                 <div style="font-size:13px;font-weight:700;color:#1e1b4b;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                    ${u.username}
+                    ${affichage}
                     <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
                 </div>
                 <div style="font-size:11px;color:#9ca3af;margin-top:2px">
-                    ${u.lastLogin ? _formatDateComplete(u.lastLogin) + ' — ' + _formatDateRelative(u.lastLogin) : 'Jamais connecté'}
+                    ${u.lastLogin
+                        ? _formatDateComplete(u.lastLogin) + ' — ' + _formatDateRelative(u.lastLogin)
+                        : 'Jamais connecté'}
                 </div>
             </div>
             <div style="display:flex;gap:4px;flex-shrink:0">
@@ -297,8 +311,8 @@ function _filtrerAdminUsers() {
                 <button class="au-btn au-btn-del" title="Supprimer"
                     onclick="adminSupprimerUser(${u.id},'${u.username}')">🗑</button>
             </div>
-        </div>
-    `).join('') : '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucun résultat.</p>';
+        </div>`;
+    }).join('') : '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucun résultat.</p>';
 }
 
 // ===================== ÉDITION PROFIL PAR ADMIN =====================
@@ -442,7 +456,6 @@ function adminResetPwd(id, username) {
             <div id="admin-pwd-msg" style="margin-top:8px;font-size:13px;color:#ef4444;text-align:center"></div>
         </div>
     `;
-    // Vider le champ après injection pour contrer l'autofill
     setTimeout(() => {
         const f = document.getElementById('admin-new-pwd');
         if (f) { f.value = ''; f.focus(); }

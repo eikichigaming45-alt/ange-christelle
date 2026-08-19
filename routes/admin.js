@@ -24,17 +24,17 @@ router.get('/stats', async (req, res) => {
     try {
         if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
 
-        const totalUsers       = await pool.query('SELECT COUNT(*) FROM users');
-        const totalAdmins      = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'admin'");
-        const profilsRemplis   = await pool.query("SELECT COUNT(*) FROM profiles WHERE prenom IS NOT NULL AND prenom != ''");
-        const sansProfile      = await pool.query('SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.id IS NULL');
-        const actifsRecents    = await pool.query("SELECT COUNT(*) FROM users WHERE last_login >= NOW() - INTERVAL '7 days'");
-        const jamaisConnectes  = await pool.query("SELECT COUNT(*) FROM users WHERE last_login IS NULL");
-        const totalTaches      = await pool.query('SELECT COUNT(*) FROM taches');
-        const tachesFaites     = await pool.query("SELECT COUNT(*) FROM taches WHERE faite = TRUE");
-        const totalRdv         = await pool.query('SELECT COUNT(*) FROM rendezvous');
+        const totalUsers         = await pool.query('SELECT COUNT(*) FROM users');
+        const totalAdmins        = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'admin'");
+        const profilsRemplis     = await pool.query("SELECT COUNT(*) FROM profiles WHERE prenom IS NOT NULL AND prenom != ''");
+        const sansProfile        = await pool.query('SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.id IS NULL');
+        const actifsRecents      = await pool.query("SELECT COUNT(*) FROM users WHERE last_login >= NOW() - INTERVAL '7 days'");
+        const jamaisConnectes    = await pool.query("SELECT COUNT(*) FROM users WHERE last_login IS NULL");
+        const totalTaches        = await pool.query('SELECT COUNT(*) FROM taches');
+        const tachesFaites       = await pool.query("SELECT COUNT(*) FROM taches WHERE faite = TRUE");
+        const totalRdv           = await pool.query('SELECT COUNT(*) FROM rendezvous');
         const totalAnniversaires = await pool.query('SELECT COUNT(*) FROM anniversaires');
-        const totalCycles      = await pool.query('SELECT COUNT(*) FROM cycle_journal');
+        const totalCycles        = await pool.query('SELECT COUNT(*) FROM cycle_journal');
 
         const lastLogins = await pool.query(`
             SELECT u.id, u.username, u.role, u.last_login AS "lastLogin",
@@ -75,14 +75,16 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// GET /api/admin/users
+// GET /api/admin/users  ← CORRIGÉ : JOIN profiles pour prenom/nom
 router.get('/users', async (req, res) => {
     const { adminId } = req.query;
     try {
         if (!await isAdmin(adminId)) return res.status(403).json({ success: false, message: 'Accès refusé' });
         const result = await pool.query(`
-            SELECT u.id, u.username, u.role, u.last_login AS "lastLogin"
+            SELECT u.id, u.username, u.role, u.last_login AS "lastLogin",
+                   p.prenom, p.nom
             FROM users u
+            LEFT JOIN profiles p ON p.user_id = u.id
             ORDER BY u.id
         `);
         res.json({ success: true, users: result.rows });
