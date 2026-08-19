@@ -137,6 +137,7 @@ function actualiser() {
 
 function logout() {
     localStorage.removeItem('myvibe_user');
+    document.body.style.cssText = '';
     window.location.replace('/');
 }
 
@@ -338,7 +339,9 @@ async function afficherSectionWidgets() {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         const data = await res.json();
-        const actifs = data.widgets_visibles || TOUS_WIDGETS.map(w => w.slug);
+        const actifs = (data.widgets_visibles && data.widgets_visibles.length > 0)
+            ? data.widgets_visibles
+            : TOUS_WIDGETS.map(w => w.slug);
         container.innerHTML = TOUS_WIDGETS.map(w => `
             <label class="widget-choix-item">
                 <input type="checkbox" value="${w.slug}" ${actifs.includes(w.slug) ? 'checked' : ''}>
