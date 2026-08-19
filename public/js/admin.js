@@ -29,23 +29,6 @@ async function chargerWidgetAdmin() {
                     <div class="wa-stat-lbl">Inactifs</div>
                 </div>
             </div>
-            <div class="wa-mini-stats">
-                <div class="wa-mini-stat">
-                    <span class="wa-mini-icon">✅</span>
-                    <span class="wa-mini-label">Tâches</span>
-                    <span class="wa-mini-val">${d.tachesFaites}/${d.totalTaches}</span>
-                </div>
-                <div class="wa-mini-stat">
-                    <span class="wa-mini-icon">📅</span>
-                    <span class="wa-mini-label">Rendez-vous</span>
-                    <span class="wa-mini-val">${d.totalRdv}</span>
-                </div>
-                <div class="wa-mini-stat">
-                    <span class="wa-mini-icon">🎂</span>
-                    <span class="wa-mini-label">Anniversaires</span>
-                    <span class="wa-mini-val">${d.totalAnniversaires}</span>
-                </div>
-            </div>
             <div class="wa-activity-title">Dernières connexions</div>
             ${(d.lastLogins || []).map(u => `
                 <div class="wa-activity-row">
@@ -109,8 +92,7 @@ async function chargerAdminStats() {
         const d = await r.json();
         if (!d.success) { el.innerHTML = `<p style="color:#ef4444">${d.message}</p>`; return; }
 
-        const tauxTaches  = d.totalTaches  > 0 ? Math.round((d.tachesFaites  / d.totalTaches)  * 100) : 0;
-        const tauxProfils = d.totalUsers   > 0 ? Math.round((d.profilsRemplis / d.totalUsers)  * 100) : 0;
+        const tauxProfils = d.totalUsers > 0 ? Math.round((d.profilsRemplis / d.totalUsers) * 100) : 0;
 
         el.innerHTML = `
             <div class="as-section-title">Utilisateurs</div>
@@ -147,41 +129,6 @@ async function chargerAdminStats() {
                 </div>
             </div>
 
-            <div class="as-section-title" style="margin-top:20px">Activité globale</div>
-            <div class="as-data-grid">
-                <div class="as-data-item">
-                    <span class="as-data-icon">✅</span>
-                    <div class="as-data-body">
-                        <div class="as-data-val">${d.tachesFaites} <span style="color:#9ca3af;font-size:13px">/ ${d.totalTaches}</span></div>
-                        <div class="as-data-lbl">Tâches complétées</div>
-                        <div class="as-progress-bar" style="margin-top:6px">
-                            <div class="as-progress-fill as-fill-green" style="width:${tauxTaches}%"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="as-data-item">
-                    <span class="as-data-icon">📅</span>
-                    <div class="as-data-body">
-                        <div class="as-data-val">${d.totalRdv}</div>
-                        <div class="as-data-lbl">Rendez-vous enregistrés</div>
-                    </div>
-                </div>
-                <div class="as-data-item">
-                    <span class="as-data-icon">🎂</span>
-                    <div class="as-data-body">
-                        <div class="as-data-val">${d.totalAnniversaires}</div>
-                        <div class="as-data-lbl">Anniversaires enregistrés</div>
-                    </div>
-                </div>
-                <div class="as-data-item">
-                    <span class="as-data-icon">🌸</span>
-                    <div class="as-data-body">
-                        <div class="as-data-val">${d.totalCycles}</div>
-                        <div class="as-data-lbl">Entrées journal cycle</div>
-                    </div>
-                </div>
-            </div>
-
             <div class="as-section-title" style="margin-top:20px">Dernières connexions</div>
             <div class="as-logins-list">
                 ${(d.lastLogins || []).map(u => `
@@ -195,12 +142,51 @@ async function chargerAdminStats() {
                         </div>
                         <div class="as-login-relative">${_formatDateRelative(u.lastLogin)}</div>
                     </div>
-                `).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune connexion enregistrée.</p>'}
+                `).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune connexion.</p>'}
             </div>
+
+            <div class="as-section-title" style="margin-top:20px">Rechercher un utilisateur</div>
+            <input type="text" id="admin-search-stats" placeholder="🔍 Nom d'utilisateur..."
+                oninput="filtrerUsersStats()"
+                style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">
+            <div id="admin-search-results"></div>
         `;
+
+        await _chargerTousUsersCache();
+
     } catch {
         el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
     }
+}
+
+async function _chargerTousUsersCache() {
+    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    try {
+        const r = await fetch(`/api/admin/users?adminId=${user.userId}`);
+        const d = await r.json();
+        if (d.success) window._adminUsersCache = d.users || [];
+    } catch {}
+}
+
+function filtrerUsersStats() {
+    const q = (document.getElementById('admin-search-stats')?.value || '').toLowerCase().trim();
+    const el = document.getElementById('admin-search-results');
+    if (!el) return;
+    if (!q) { el.innerHTML = ''; return; }
+    const users = (window._adminUsersCache || []).filter(u => u.username.toLowerCase().includes(q));
+    el.innerHTML = users.length ? users.map(u => `
+        <div class="as-login-row">
+            <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}">${u.username[0].toUpperCase()}</div>
+            <div class="as-login-info">
+                <div class="as-login-name">${u.username}
+                    <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
+                </div>
+                <div class="as-login-date">${u.lastLogin ? _formatDateComplete(u.lastLogin) : 'Jamais connecté'}</div>
+            </div>
+            <div class="as-login-relative">${_formatDateRelative(u.lastLogin)}</div>
+        </div>
+    `).join('') : '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:8px 0">Aucun résultat.</p>';
 }
 
 // ===================== MODALE ADMIN — UTILISATEURS =====================
@@ -491,7 +477,6 @@ function switchAdminTab(tab) {
     document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
     document.querySelector(`.admin-tab[data-tab="${tab}"]`)?.classList.add('active');
     document.getElementById(`admin-tab-${tab}`)?.classList.add('active');
-    if (tab === 'stats') chargerAdminStats();
+        if (tab === 'stats') chargerAdminStats();
     if (tab === 'users') chargerAdminUsers();
 }
-                
