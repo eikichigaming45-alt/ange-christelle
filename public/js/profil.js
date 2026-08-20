@@ -1,14 +1,25 @@
 // ============================================================
-// public/js/profil.js
+// public/js/profil.js — v3.45
 // Profil utilisateur : affichage, édition, photo (cropper),
-// changement de mot de passe, préférences widgets (opt-out).
+// suppression photo, trigramme 3 lettres, changement de mot
+// de passe, préférences widgets (opt-out).
 // Dépend de : app.js (getUser, profilCache, cropperInstance, TOUS_WIDGETS)
 //             widgets.js (appliquerWidgetsVisibles)
 // ============================================================
 
+// ===================== UTILITAIRE TRIGRAMME ==================
+// Construit un trigramme 3 lettres depuis prénom(s) + nom.
+// Ex : "Ange Christelle Aguillon" → "ACA"
+
+function construireTrigramme(prenom, nom) {
+    const mots = [...(prenom || '').split(/\s+/), ...(nom || '').split(/\s+/)]
+        .map(m => m.trim())
+        .filter(Boolean);
+    return mots.slice(0, 3).map(m => m[0].toUpperCase()).join('');
+}
+
 // ===================== PROFIL HEADER =========================
-// Dupliqué depuis app.js — une seule version ici.
-// app.js appelle cette fonction, ne la redéfinit plus.
+// Source unique — app.js ne redéfinit plus cette fonction.
 
 async function chargerProfilHeader() {
     const user = getUser();
@@ -21,20 +32,29 @@ async function chargerProfilHeader() {
         });
         const d = await r.json();
         if (!d.success || !d.profil) return;
-        profilCache      = d.profil;
-        const p          = d.profil;
-        const initiales  = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '';
+        profilCache     = d.profil;
+        const p         = d.profil;
+        const trigramme = construireTrigramme(p.prenom, p.nom);
 
+        // Bouton header navbar
         if (p.photo) {
-            btn.innerHTML = `<img src="${p.photo}" alt="profil">`;
-        } else if (initiales) {
-            btn.innerHTML        = initiales;
-            btn.style.fontSize   = '13px';
-            btn.style.fontWeight = '700';
+            btn.innerHTML          = `<img src="${p.photo}" alt="profil">`;
+            btn.style.fontSize     = '';
+            btn.style.fontWeight   = '';
+            btn.style.background   = '';
+        } else if (trigramme) {
+            btn.innerHTML          = trigramme;
+            btn.style.fontSize     = '11px';
+            btn.style.fontWeight   = '700';
+            btn.style.background   = '#7c3aed';
+            btn.style.color        = '#fff';
         } else {
-            btn.innerHTML = '👤';
+            btn.innerHTML          = '👤';
+            btn.style.fontSize     = '';
+            btn.style.fontWeight   = '';
         }
 
+        // Widget profil dans la grille
         const wc = document.getElementById('wc-profil');
         if (!wc) return;
         const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
@@ -50,10 +70,10 @@ async function chargerProfilHeader() {
             <div class="profil-widget">
                 ${p.photo
                     ? `<img src="${p.photo}" alt="profil" class="profil-widget-photo">`
-                    : `<div class="profil-widget-initiales">${initiales || '👤'}</div>`
+                    : `<div class="profil-widget-initiales">${trigramme || '👤'}</div>`
                 }
                 <div class="profil-widget-nom">${nom}</div>
-                ${age          ? `<div class="profil-widget-info">${age}</div>`            : ''}
+                ${age          ? `<div class="profil-widget-info">${age}</div>`             : ''}
                 ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
                 ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>`  : ''}
                 ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>`           : ''}
@@ -100,19 +120,19 @@ function previewPhoto(event) {
 
 function validerCrop() {
     if (!cropperInstance) return;
-    const canvas = cropperInstance.getCroppedCanvas({ width: 300, height: 300 });
+    const canvas  = cropperInstance.getCroppedCanvas({ width: 300, height: 300 });
     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-    let preview = document.getElementById('profil-photo-preview');
+    let preview   = document.getElementById('profil-photo-preview');
     if (preview) {
         preview.src = dataUrl;
     } else {
         const zone = document.querySelector('.initiales');
         if (zone) {
-            const newImg    = document.createElement('img');
-            newImg.id       = 'profil-photo-preview';
-            newImg.src      = dataUrl;
+            const newImg     = document.createElement('img');
+            newImg.id        = 'profil-photo-preview';
+            newImg.src       = dataUrl;
             newImg.className = 'photo-circle';
-            newImg.onclick  = () => document.getElementById('photo-input').click();
+            newImg.onclick   = () => document.getElementById('photo-input').click();
             zone.replaceWith(newImg);
         }
     }
@@ -127,13 +147,54 @@ function annulerCrop() {
     if (input) input.value = '';
 }
 
+// ===================== SUPPRESSION PHOTO =====================
+// Visible uniquement si photo existante (géré dans la modale).
+
+async function supprimerPhoto() {
+    const user = getUser();
+    const msg  = document.getElementById('profil-msg');
+    if (!confirm('Supprimer la photo de profil ?')) return;
+    try {
+        const r = await fetch('/api/profil/photo', {
+            method  : 'DELETE',
+            headers : { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (d.success) {
+            profilCache       = { ...profilCache, photo: null };
+            if (msg) {
+                msg.textContent = '✅ Photo supprimée.';
+                msg.style.color = '#10b981';
+            }
+            chargerProfilHeader();
+            // Remplace l'aperçu photo par le trigramme dans la modale
+            const preview   = document.getElementById('profil-photo-preview');
+            const trigramme = construireTrigramme(profilCache?.prenom, profilCache?.nom);
+            if (preview) {
+                const div       = document.createElement('div');
+                div.className   = 'initiales';
+                div.textContent = trigramme || '👤';
+                div.onclick     = () => document.getElementById('photo-input').click();
+                preview.replaceWith(div);
+            }
+            // Masque le bouton supprimer
+            const btnSuppr = document.getElementById('btn-supprimer-photo');
+            if (btnSuppr) btnSuppr.style.display = 'none';
+        } else {
+            if (msg) { msg.textContent = '❌ ' + (d.message || 'Erreur.'); msg.style.color = '#ef4444'; }
+        }
+    } catch {
+        if (msg) { msg.textContent = '❌ Erreur réseau.'; msg.style.color = '#ef4444'; }
+    }
+}
+
 // ===================== SAUVEGARDE PROFIL =====================
 
 async function sauvegarderProfil() {
-    const user  = getUser();
-    const msg   = document.getElementById('profil-msg');
-    msg.textContent  = 'Sauvegarde...';
-    msg.style.color  = '#9ca3af';
+    const user = getUser();
+    const msg  = document.getElementById('profil-msg');
+    msg.textContent = 'Sauvegarde...';
+    msg.style.color = '#9ca3af';
 
     const photoEl = document.getElementById('profil-photo-preview');
     const photo   = photoEl?.src?.startsWith('data:') ? photoEl.src : (profilCache?.photo || null);
@@ -174,7 +235,7 @@ async function sauvegarderProfil() {
     }
 }
 
-// ===================== MOT DE PASSE =========================
+// ===================== MOT DE PASSE ==========================
 
 function validerMotDePasse(pwd) {
     if (!pwd || pwd.length < 8)    return 'Minimum 8 caractères.';
@@ -186,7 +247,7 @@ function validerMotDePasse(pwd) {
 }
 
 async function changerMdp() {
-    const user   = getUser();
+    const user    = getUser();
     const ancien  = document.getElementById('mdp-ancien').value;
     const nouveau = document.getElementById('mdp-nouveau').value;
     const confirm = document.getElementById('mdp-confirm').value;
@@ -232,7 +293,7 @@ async function changerMdp() {
 }
 
 // ===================== WIDGETS OPT-OUT =======================
-// TOUS_WIDGETS est défini dans app.js.
+// TOUS_WIDGETS défini dans app.js.
 // widgets_caches = slugs décochés. Absent = visible par défaut.
 
 async function afficherSectionWidgets() {
@@ -243,7 +304,7 @@ async function afficherSectionWidgets() {
         const res  = await fetch('/api/profil/widgets-visibles', {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
-        const data = await res.json();
+        const data       = await res.json();
         const widgetsCaches = data.widgets_caches || [];
         container.innerHTML = TOUS_WIDGETS.map(w => `
             <label class="widget-choix-item">
@@ -257,11 +318,11 @@ async function afficherSectionWidgets() {
 }
 
 async function sauvegarderWidgetsVisibles() {
-    const user      = getUser();
-    const msg       = document.getElementById('widgets-msg');
+    const user       = getUser();
+    const msg        = document.getElementById('widgets-msg');
     const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
 
-    // Opt-out : on envoie uniquement les slugs décochés
+    // Opt-out : slugs décochés uniquement
     const widgets_caches = [...checkboxes]
         .filter(cb => !cb.checked)
         .map(cb => cb.value);

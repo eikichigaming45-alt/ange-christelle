@@ -1,16 +1,17 @@
 // ============================================================
-// public/js/app.js
+// public/js/app.js — v3.45
 // Point d'entrée front : état global, login, logout, init app,
 // utilitaires date/version, refresh widgets.
+// chargerProfilHeader() définie uniquement dans profil.js.
 // ============================================================
 
 // ===================== STATE GLOBAL ==========================
-let meteoData      = null;
-let priere         = null;
-let profilCache    = null;
-let dragSrc        = null;
-let longPressTimer = null;
-let dragActif      = false;
+let meteoData       = null;
+let priere          = null;
+let profilCache     = null;
+let dragSrc         = null;
+let longPressTimer  = null;
+let dragActif       = false;
 let cropperInstance = null;
 let _appInitialisee = false;
 
@@ -21,11 +22,11 @@ const WIDGETS_DEF = [
     { id:'islam',         label:'Prières & Hadiths',  icon:'☪️',  cls:'w-islam',         desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
     { id:'taches',        label:'Tâches du jour',     icon:'✅',  cls:'w-taches',        desc:'Chargement...',  foot:'Cliquez pour gérer' },
     { id:'cycle',         label:'Suivi du cycle',     icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
-    { id:'rendezvous',    label:'Rendez-vous',         icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
-    { id:'planning',      label:'Planning',            icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
-    { id:'anniversaires', label:'Anniversaires',       icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
-    { id:'astrologie',    label:'Astrologie',          icon:'✨',  cls:'w-astrologie',    desc:'Chargement...',  foot:'Cliquez pour votre horoscope',     refresh:true },
-    { id:'profil',        label:'Mon Profil',          icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
+    { id:'rendezvous',    label:'Rendez-vous',        icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
+    { id:'planning',      label:'Planning',           icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
+    { id:'anniversaires', label:'Anniversaires',      icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
+    { id:'astrologie',    label:'Astrologie',         icon:'✨',  cls:'w-astrologie',    desc:'Chargement...',  foot:'Cliquez pour votre horoscope',     refresh:true },
+    { id:'profil',        label:'Mon Profil',         icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
 ];
 
 const TOUS_WIDGETS = [
@@ -64,7 +65,7 @@ function getUser() {
         const app       = document.getElementById('app');
         if (loginPage) loginPage.style.display = 'none';
         if (app) {
-            app.style.display        = 'flex';
+            app.style.display               = 'flex';
             document.body.style.background  = '#f3f4f6';
             document.body.style.alignItems  = 'stretch';
         }
@@ -120,20 +121,19 @@ async function showApp() {
     if (_appInitialisee) return;
     _appInitialisee = true;
 
-    document.getElementById('login-page').style.display  = 'none';
-    document.getElementById('app').style.display         = 'flex';
-    document.body.style.background                       = '#f3f4f6';
-    document.body.style.alignItems                       = 'stretch';
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display        = 'flex';
+    document.body.style.background                      = '#f3f4f6';
+    document.body.style.alignItems                      = 'stretch';
 
     afficherDate();
     afficherVersion();
     await buildGrid();
 
     chargerPriere();
-    if (typeof window.chargerIslam === 'function') window.chargerIslam();
+    if (typeof window.chargerIslam  === 'function') window.chargerIslam();
     chargerMeteoAuto();
-    // ✅ Widget Astrologie
-    if (typeof chargerAstrologie === 'function') chargerAstrologie();
+    if (typeof chargerAstrologie    === 'function') chargerAstrologie();
     setTimeout(() => {
         if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
     }, 300);
@@ -171,12 +171,11 @@ function logout() {
 function actualiser() {
     afficherDate();
     chargerPriere();
-    if (typeof window.chargerIslam === 'function') window.chargerIslam();
+    if (typeof window.chargerIslam  === 'function') window.chargerIslam();
     chargerMeteoAuto();
-    // ✅ Widget Astrologie
-    if (typeof chargerAstrologie === 'function') chargerAstrologie();
-    chargerProfilHeader();
-    if (typeof chargerWidgetTaches    === 'function') chargerWidgetTaches();
+    if (typeof chargerAstrologie    === 'function') chargerAstrologie();
+    if (typeof chargerProfilHeader  === 'function') chargerProfilHeader();
+    if (typeof chargerWidgetTaches  === 'function') chargerWidgetTaches();
     chargerWidgetAnniversaires();
     chargerWidgetPlanning();
     if (typeof Cycle      !== 'undefined') Cycle.charger();
@@ -225,7 +224,7 @@ function afficherModaleChangementMdpObligatoire(userId) {
         </button>
         <div id="force-mdp-msg" style="text-align:center;margin-top:12px;font-size:13px;min-height:18px"></div>
     `;
-    document.getElementById('overlay').onclick    = null;
+    document.getElementById('overlay').onclick     = null;
     document.querySelector('.mclos').style.display = 'none';
 }
 
@@ -293,68 +292,14 @@ async function afficherVersion() {
 // ===================== REFRESH WIDGET ========================
 function refreshWidget(id) {
     switch (id) {
-        case 'meteo'      : chargerMeteoAuto();                                                    break;
-        case 'priere'     : chargerPriere();                                                       break;
-        case 'islam'      : if (typeof window.chargerIslam === 'function') window.chargerIslam();  break;
-        case 'astrologie' : if (typeof chargerAstrologie   === 'function') chargerAstrologie();    break;
-        case 'cycle'      : if (typeof Cycle      !== 'undefined') Cycle.charger();                break;
-        case 'rendezvous' : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();           break;
-        case 'planning'   : chargerWidgetPlanning();                                               break;
+        case 'meteo'      : chargerMeteoAuto();                                                   break;
+        case 'priere'     : chargerPriere();                                                      break;
+        case 'islam'      : if (typeof window.chargerIslam === 'function') window.chargerIslam(); break;
+        case 'astrologie' : if (typeof chargerAstrologie   === 'function') chargerAstrologie();   break;
+        case 'cycle'      : if (typeof Cycle      !== 'undefined') Cycle.charger();               break;
+        case 'rendezvous' : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();          break;
+        case 'planning'   : chargerWidgetPlanning();                                              break;
     }
-}
-
-// ===================== PROFIL HEADER =========================
-async function chargerProfilHeader() {
-    const user = getUser();
-    if (!user?.token) return;
-    const btn = document.getElementById('btn-profil-header');
-    if (!btn) return;
-    try {
-        const r = await fetch('/api/profil', {
-            headers: { 'Authorization': `Bearer ${user.token}` }
-        });
-        const d = await r.json();
-        if (!d.success || !d.profil) return;
-        profilCache = d.profil;
-        const p        = d.profil;
-        const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '';
-
-        if (p.photo) {
-            btn.innerHTML = `<img src="${p.photo}" alt="profil">`;
-        } else if (initiales) {
-            btn.innerHTML          = initiales;
-            btn.style.fontSize     = '13px';
-            btn.style.fontWeight   = '700';
-        } else {
-            btn.innerHTML = '👤';
-        }
-
-        const wc = document.getElementById('wc-profil');
-        if (!wc) return;
-        const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
-        const age = p.date_naissance ? (() => {
-            const n     = new Date(p.date_naissance);
-            const today = new Date();
-            let a       = today.getFullYear() - n.getFullYear();
-            if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
-            return `${a} ans`;
-        })() : '';
-
-        wc.innerHTML = `
-            <div class="profil-widget">
-                ${p.photo
-                    ? `<img src="${p.photo}" alt="profil" class="profil-widget-photo">`
-                    : `<div class="profil-widget-initiales">${initiales || '👤'}</div>`
-                }
-                <div class="profil-widget-nom">${nom}</div>
-                ${age          ? `<div class="profil-widget-info">${age}</div>`           : ''}
-                ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
-                ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>`  : ''}
-                ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>`           : ''}
-                <button class="profil-widget-btn" onclick="openModal('profil')">✏️ Modifier</button>
-            </div>
-        `;
-    } catch { /* silencieux — non critique */ }
 }
 
 // ===================== SERVICE WORKER ========================
