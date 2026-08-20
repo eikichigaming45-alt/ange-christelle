@@ -1,6 +1,7 @@
 // ============================================================
-// routes/rendezvous.js
+// routes/rendezvous.js — v3.46
 // CRUD des rendez-vous médicaux utilisateur.
+// Purge lazy : suppression silencieuse des RDV > 12 mois au GET.
 // ============================================================
 
 const express  = require('express');
@@ -12,9 +13,17 @@ const { authenticateToken } = require('../middleware/auth');
 router.use(authenticateToken);
 
 // ── GET /api/rendezvous ───────────────────────────────────────
-// Retourne tous les rendez-vous de l'utilisateur, triés par date.
+// Purge lazy RDV > 12 mois, puis retourne tous les RDV triés.
 router.get('/', async (req, res) => {
     try {
+        // Purge silencieuse — RDV passés de plus de 12 mois
+        await pool.query(
+            `DELETE FROM rendezvous
+             WHERE user_id = \$1
+               AND date_rdv < NOW() - INTERVAL '12 months'`,
+            [req.user.id]
+        );
+
         const result = await pool.query(
             `SELECT id, titre, date_rdv, praticien, lieu, type_rdv,
                     notes, rappel_avant, created_at
