@@ -125,7 +125,7 @@ function validerCrop() {
     if (preview) {
         preview.src = dataUrl;
     } else {
-        const zone = document.querySelector('.initiales');
+        const zone = document.querySelector('.profil-widget-initiales, .initiales');
         if (zone) {
             const newImg     = document.createElement('img');
             newImg.id        = 'profil-photo-preview';
