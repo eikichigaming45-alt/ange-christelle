@@ -1,5 +1,5 @@
 // ============================================================
-// public/js/profil.js — v3.57
+// public/js/profil.js — v3.58
 // Profil utilisateur : affichage, édition, photo (cropper),
 // suppression photo, trigramme 3 lettres, changement de mot
 // de passe, préférences widgets (opt-out).
@@ -70,7 +70,6 @@ async function chargerProfilHeader() {
                 ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
                 ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>`  : ''}
                 ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>`           : ''}
-                <button class="profil-widget-btn" onclick="openModal('profil')">✏️ Modifier</button>
             </div>
         `;
     } catch { /* silencieux */ }
@@ -163,44 +162,23 @@ function annulerCrop() {
 // ===================== SUPPRESSION PHOTO =====================
 
 function supprimerPhoto() {
-    // Confirmation inline — remplace le bouton par deux boutons Oui/Non
-    const btnSuppr = document.getElementById('btn-supprimer-photo');
-    if (!btnSuppr) return;
+    document.getElementById('modal-title').textContent = 'Confirmation de suppression';
+    document.getElementById('modal-body').innerHTML = `
+        <p style="color:#333;font-size:15px;margin-bottom:20px">
+            Supprimer la photo de profil ? Cette action est irréversible.
+        </p>
+        <div class="modal-actions">
+            <button class="btn-delete" id="btn-photo-oui">Confirmer</button>
+            <button class="btn-cancel" id="btn-photo-non">Annuler</button>
+        </div>`;
+    document.getElementById('overlay').classList.add('on');
 
-    btnSuppr.outerHTML = `
-        <div id="confirm-suppr-photo" style="display:flex;align-items:center;gap:8px;margin-top:8px;
-             background:#fff5f5;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;">
-            <span style="font-size:12px;color:#ef4444;font-weight:600">Supprimer la photo ?</span>
-            <button onclick="_confirmerSupprimerPhoto()"
-                style="background:#ef4444;color:#fff;border:none;border-radius:7px;
-                       padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">
-                Oui
-            </button>
-            <button onclick="_annulerSupprimerPhoto()"
-                style="background:#f3f4f6;color:#374151;border:none;border-radius:7px;
-                       padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">
-                Non
-            </button>
-        </div>
-    `;
-}
-
-function _annulerSupprimerPhoto() {
-    const zone = document.getElementById('confirm-suppr-photo');
-    if (!zone) return;
-    zone.outerHTML = `
-        <button id="btn-supprimer-photo" onclick="supprimerPhoto()"
-            style="margin-top:8px;background:#fee2e2;color:#ef4444;border:none;
-                   border-radius:8px;padding:6px 14px;font-size:12px;
-                   font-weight:600;cursor:pointer">
-            🗑️ Supprimer la photo
-        </button>
-    `;
+    document.getElementById('btn-photo-oui').onclick = () => _confirmerSupprimerPhoto();
+    document.getElementById('btn-photo-non').onclick = () => closeModal();
 }
 
 async function _confirmerSupprimerPhoto() {
     const user = getUser();
-    const msg  = document.getElementById('profil-msg');
     const zone = document.getElementById('confirm-suppr-photo');
     if (zone) zone.remove();
 
@@ -212,7 +190,7 @@ async function _confirmerSupprimerPhoto() {
         const d = await r.json();
         if (d.success) {
             profilCache = { ...profilCache, photo: null };
-            if (msg) { msg.textContent = '✅ Photo supprimée.'; msg.style.color = '#10b981'; }
+            closeModal();
             chargerProfilHeader();
             const preview   = document.getElementById('profil-photo-preview');
             const trigramme = construireTrigramme(profilCache?.prenom, profilCache?.nom);
@@ -227,10 +205,22 @@ async function _confirmerSupprimerPhoto() {
             const btnSuppr = document.getElementById('btn-supprimer-photo');
             if (btnSuppr) btnSuppr.style.display = 'none';
         } else {
-            if (msg) { msg.textContent = '❌ ' + (d.message || 'Erreur.'); msg.style.color = '#ef4444'; }
+            document.getElementById('modal-title').textContent = 'Erreur';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">
+                    ${d.message || 'Erreur lors de la suppression.'}
+                </p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+                </div>`;
         }
     } catch {
-        if (msg) { msg.textContent = '❌ Erreur réseau.'; msg.style.color = '#ef4444'; }
+        document.getElementById('modal-title').textContent = 'Erreur';
+        document.getElementById('modal-body').innerHTML = `
+            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur réseau.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+            </div>`;
     }
 }
 
