@@ -104,9 +104,8 @@ function previewPhoto(event) {
                     <button class="btn-crop-ok"     onclick="validerCrop()">✅ Valider le recadrage</button>
                 </div>
             `;
-            const saveBtn = document.querySelector('.save-btn');
-            if (saveBtn) saveBtn.parentNode.insertBefore(cropZone, saveBtn);
-            else document.getElementById('profil-tab-infos').appendChild(cropZone);
+            const tabInfos = document.getElementById('profil-tab-infos');
+			if (tabInfos) tabInfos.insertBefore(cropZone, tabInfos.firstChild);
         }
         document.getElementById('crop-img').src = e.target.result;
         cropperInstance = new Cropper(document.getElementById('crop-img'), {
