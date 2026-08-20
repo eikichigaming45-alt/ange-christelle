@@ -174,7 +174,7 @@ function supprimerPhoto() {
     document.getElementById('overlay').classList.add('on');
 
     document.getElementById('btn-photo-oui').onclick = () => _confirmerSupprimerPhoto();
-    document.getElementById('btn-photo-non').onclick = () => closeModal();
+    document.getElementById('btn-photo-non').onclick = () => openModal('profil');
 }
 
 async function _confirmerSupprimerPhoto() {
