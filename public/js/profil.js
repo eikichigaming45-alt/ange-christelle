@@ -1,5 +1,5 @@
 // ============================================================
-// public/js/profil.js — v3.56
+// public/js/profil.js — v3.57
 // Profil utilisateur : affichage, édition, photo (cropper),
 // suppression photo, trigramme 3 lettres, changement de mot
 // de passe, préférences widgets (opt-out).
@@ -115,40 +115,36 @@ function validerCrop() {
     const canvas  = cropperInstance.getCroppedCanvas({ width: 300, height: 300 });
     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
 
-    // Met à jour le preview dans la modale
     let preview = document.getElementById('profil-photo-preview');
     if (preview) {
         preview.src = dataUrl;
     } else {
-        // Remplace initiales par une img
         const zone = document.querySelector('#profil-tab-infos .profil-widget-initiales, #profil-tab-infos .initiales');
         if (zone) {
-            const newImg     = document.createElement('img');
-            newImg.id        = 'profil-photo-preview';
-            newImg.src       = dataUrl;
+            const newImg         = document.createElement('img');
+            newImg.id            = 'profil-photo-preview';
+            newImg.src           = dataUrl;
             newImg.style.cssText = 'width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)';
-            newImg.onclick   = () => document.getElementById('photo-input').click();
+            newImg.onclick       = () => document.getElementById('photo-input').click();
             zone.replaceWith(newImg);
             preview = newImg;
         }
     }
 
-    // Affiche le bouton "Supprimer" si pas encore présent
     let btnSuppr = document.getElementById('btn-supprimer-photo');
     if (!btnSuppr && preview) {
-        btnSuppr = document.createElement('button');
-        btnSuppr.id          = 'btn-supprimer-photo';
-        btnSuppr.onclick     = supprimerPhoto;
+        btnSuppr               = document.createElement('button');
+        btnSuppr.id            = 'btn-supprimer-photo';
+        btnSuppr.onclick       = supprimerPhoto;
         btnSuppr.style.cssText = 'margin-top:8px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer';
-        btnSuppr.innerHTML   = '🗑️ Supprimer la photo';
+        btnSuppr.innerHTML     = '🗑️ Supprimer la photo';
         preview.insertAdjacentElement('afterend', btnSuppr);
     }
 
-    // Met à jour la navbar immédiatement sans attendre la sauvegarde
     const btn = document.getElementById('btn-profil-header');
     if (btn) {
-        btn.innerHTML      = `<img src="${dataUrl}" alt="profil">`;
-        btn.style.fontSize = '';
+        btn.innerHTML        = `<img src="${dataUrl}" alt="profil">`;
+        btn.style.fontSize   = '';
         btn.style.fontWeight = '';
         btn.style.background = '';
     }
@@ -166,10 +162,48 @@ function annulerCrop() {
 
 // ===================== SUPPRESSION PHOTO =====================
 
-async function supprimerPhoto() {
+function supprimerPhoto() {
+    // Confirmation inline — remplace le bouton par deux boutons Oui/Non
+    const btnSuppr = document.getElementById('btn-supprimer-photo');
+    if (!btnSuppr) return;
+
+    btnSuppr.outerHTML = `
+        <div id="confirm-suppr-photo" style="display:flex;align-items:center;gap:8px;margin-top:8px;
+             background:#fff5f5;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;">
+            <span style="font-size:12px;color:#ef4444;font-weight:600">Supprimer la photo ?</span>
+            <button onclick="_confirmerSupprimerPhoto()"
+                style="background:#ef4444;color:#fff;border:none;border-radius:7px;
+                       padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">
+                Oui
+            </button>
+            <button onclick="_annulerSupprimerPhoto()"
+                style="background:#f3f4f6;color:#374151;border:none;border-radius:7px;
+                       padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">
+                Non
+            </button>
+        </div>
+    `;
+}
+
+function _annulerSupprimerPhoto() {
+    const zone = document.getElementById('confirm-suppr-photo');
+    if (!zone) return;
+    zone.outerHTML = `
+        <button id="btn-supprimer-photo" onclick="supprimerPhoto()"
+            style="margin-top:8px;background:#fee2e2;color:#ef4444;border:none;
+                   border-radius:8px;padding:6px 14px;font-size:12px;
+                   font-weight:600;cursor:pointer">
+            🗑️ Supprimer la photo
+        </button>
+    `;
+}
+
+async function _confirmerSupprimerPhoto() {
     const user = getUser();
     const msg  = document.getElementById('profil-msg');
-    if (!confirm('Supprimer la photo de profil ?')) return;
+    const zone = document.getElementById('confirm-suppr-photo');
+    if (zone) zone.remove();
+
     try {
         const r = await fetch('/api/profil/photo', {
             method  : 'DELETE',
@@ -177,20 +211,17 @@ async function supprimerPhoto() {
         });
         const d = await r.json();
         if (d.success) {
-            profilCache       = { ...profilCache, photo: null };
-            if (msg) {
-                msg.textContent = '✅ Photo supprimée.';
-                msg.style.color = '#10b981';
-            }
+            profilCache = { ...profilCache, photo: null };
+            if (msg) { msg.textContent = '✅ Photo supprimée.'; msg.style.color = '#10b981'; }
             chargerProfilHeader();
             const preview   = document.getElementById('profil-photo-preview');
             const trigramme = construireTrigramme(profilCache?.prenom, profilCache?.nom);
             if (preview) {
-                const div       = document.createElement('div');
-                div.className   = 'profil-widget-initiales';
+                const div         = document.createElement('div');
+                div.className     = 'profil-widget-initiales';
                 div.style.cssText = 'width:90px;height:90px;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)';
-                div.textContent = trigramme || '👤';
-                div.onclick     = () => document.getElementById('photo-input').click();
+                div.textContent   = trigramme || '👤';
+                div.onclick       = () => document.getElementById('photo-input').click();
                 preview.replaceWith(div);
             }
             const btnSuppr = document.getElementById('btn-supprimer-photo');
