@@ -4,7 +4,7 @@
 // Version incrémentée à chaque push significatif.
 // ============================================================
 
-const CACHE_NAME = 'mydaily-cache-v3.59';
+const CACHE_NAME = 'mydaily-cache-v3.60';
 
 // Assets mis en cache à l'installation
 const ASSETS_TO_CACHE = [
