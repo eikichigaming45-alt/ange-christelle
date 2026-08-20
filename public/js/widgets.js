@@ -1,10 +1,16 @@
 // ============================================================
-// public/js/widgets.js
+// public/js/widgets.js — v3.43
 // Grille principale, drag & drop souris + tactile, opt-out widgets.
 // Dépend de : app.js (WIDGETS_DEF, dragSrc, dragActif, longPressTimer)
 // ============================================================
 
 let gridConstruit = false;
+
+// ===================== RESET (rebuild propre) ================
+
+function resetGrid() {
+    gridConstruit = false;
+}
 
 // ===================== CONSTRUCTION DE LA GRILLE =============
 
@@ -48,12 +54,22 @@ async function buildGrid() {
         });
     }
 
-    // Tri selon l'ordre sauvegardé
     if (ordre) {
+        // Tri selon l'ordre sauvegardé
         const sorted = [];
         ordre.forEach(id => { const w = defs.find(d => d.id === id); if (w) sorted.push(w); });
         defs.forEach(w  => { if (!ordre.includes(w.id)) sorted.push(w); });
         defs = sorted;
+    } else {
+        // Tri alphabétique par défaut — profil et admin toujours en dernier
+        const DERNIERS = ['profil', 'admin'];
+        const normaux  = defs
+            .filter(w => !DERNIERS.includes(w.id))
+            .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+        const derniers = DERNIERS
+            .map(id => defs.find(w => w.id === id))
+            .filter(Boolean);
+        defs = [...normaux, ...derniers];
     }
 
     // Filtrage opt-out
@@ -110,13 +126,12 @@ function creerWidget(def) {
     });
 
     // Boutons de rafraîchissement
-    if (def.id === 'meteo')       div.querySelector('#rbtn-meteo')?.addEventListener('click',       e => { e.stopPropagation(); chargerMeteoAuto(); });
-    if (def.id === 'priere')      div.querySelector('#rbtn-priere')?.addEventListener('click',      e => { e.stopPropagation(); chargerPriere(); });
-    if (def.id === 'islam')       div.querySelector('#rbtn-islam')?.addEventListener('click',       e => { e.stopPropagation(); if (typeof window.chargerIslam === 'function') window.chargerIslam(); });
-    if (def.id === 'cycle')       div.querySelector('#rbtn-cycle')?.addEventListener('click',       e => { e.stopPropagation(); Cycle.charger(); });
-    if (def.id === 'rendezvous')  div.querySelector('#rbtn-rendezvous')?.addEventListener('click',  e => { e.stopPropagation(); Rendezvous.charger(); });
-    // ✅ Refresh astrologie
-    if (def.id === 'astrologie')  div.querySelector('#rbtn-astrologie')?.addEventListener('click',  e => { e.stopPropagation(); if (typeof chargerAstrologie === 'function') chargerAstrologie(); });
+    if (def.id === 'meteo')      div.querySelector('#rbtn-meteo')?.addEventListener('click',      e => { e.stopPropagation(); chargerMeteoAuto(); });
+    if (def.id === 'priere')     div.querySelector('#rbtn-priere')?.addEventListener('click',     e => { e.stopPropagation(); chargerPriere(); });
+    if (def.id === 'islam')      div.querySelector('#rbtn-islam')?.addEventListener('click',      e => { e.stopPropagation(); if (typeof window.chargerIslam === 'function') window.chargerIslam(); });
+    if (def.id === 'cycle')      div.querySelector('#rbtn-cycle')?.addEventListener('click',      e => { e.stopPropagation(); Cycle.charger(); });
+    if (def.id === 'rendezvous') div.querySelector('#rbtn-rendezvous')?.addEventListener('click', e => { e.stopPropagation(); Rendezvous.charger(); });
+    if (def.id === 'astrologie') div.querySelector('#rbtn-astrologie')?.addEventListener('click', e => { e.stopPropagation(); if (typeof chargerAstrologie === 'function') chargerAstrologie(); });
 
     // Drag & drop souris
     div.addEventListener('dragstart', onDragStart);
@@ -270,8 +285,8 @@ function appliquerWidgetsVisibles(widgetsCaches) {
     if (!grid) return;
     [...grid.children].forEach(el => {
         const id = el.dataset.id;
-        if (!id)                              return;
-        if (TOUJOURS_VISIBLES.includes(id))   return;
+        if (!id)                            return;
+        if (TOUJOURS_VISIBLES.includes(id)) return;
         el.style.display = widgetsCaches.includes(id) ? 'none' : '';
     });
 }
