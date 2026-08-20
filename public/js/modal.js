@@ -179,7 +179,7 @@ async function openModal(type) {
             const p = d.profil || {};
             profilCache     = p;
             const photoSrc  = p.photo || '';
-            const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase() || '👤';
+            const initiales = construireTrigramme(p.prenom, p.nom) || '👤';
 
             document.getElementById('modal-body').innerHTML = `
                 <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f3f4f6;">
@@ -200,21 +200,27 @@ async function openModal(type) {
                 <div id="profil-tab-infos" class="profil-tab-content">
                     <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:20px">
                         ${photoSrc
-                            ? `<img id="profil-photo-preview" src="${photoSrc}"
-                                style="width:90px;height:90px;border-radius:50%;object-fit:cover;
-                                       border:3px solid #4f46e5;cursor:pointer;
-                                       box-shadow:0 4px 12px rgba(79,70,229,0.3)"
-                                onclick="document.getElementById('photo-input').click()">`
-                            : `<div style="width:90px;height:90px;border-radius:50%;
-                                          background:linear-gradient(135deg,#4f46e5,#7c3aed);
-                                          color:white;display:flex;align-items:center;
-                                          justify-content:center;font-size:28px;font-weight:700;
-                                          cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)"
-                                onclick="document.getElementById('photo-input').click()">${initiales}</div>`
-                        }
-                        <input type="file" id="photo-input" accept="image/*" style="display:none"
-                            onchange="previewPhoto(event)">
-                        <span style="font-size:11px;color:#9ca3af;margin-top:8px">Appuyez sur la photo pour changer</span>
+    ? `<img id="profil-photo-preview" src="${photoSrc}"
+        style="width:90px;height:90px;border-radius:50%;object-fit:cover;
+               border:3px solid #4f46e5;cursor:pointer;
+               box-shadow:0 4px 12px rgba(79,70,229,0.3)"
+        onclick="document.getElementById('photo-input').click()">`
+    : `<div class="profil-widget-initiales"
+            style="width:90px;height:90px;font-size:24px;cursor:pointer;
+                   box-shadow:0 4px 12px rgba(79,70,229,0.3)"
+            onclick="document.getElementById('photo-input').click()">${initiales}</div>`
+}
+<input type="file" id="photo-input" accept="image/*" style="display:none"
+    onchange="previewPhoto(event)">
+<span style="font-size:11px;color:#9ca3af;margin-top:8px">Appuyez sur la photo pour changer</span>
+${photoSrc
+    ? `<button id="btn-supprimer-photo" onclick="supprimerPhoto()"
+        style="margin-top:8px;background:#fee2e2;color:#ef4444;border:none;
+               border-radius:8px;padding:6px 14px;font-size:12px;
+               font-weight:600;cursor:pointer">
+        🗑️ Supprimer la photo
+       </button>`
+    : ''
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
                         <div>

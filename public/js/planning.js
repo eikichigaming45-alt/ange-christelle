@@ -7,7 +7,7 @@
 // ============================================================
 
 const SHIFT_CONFIG = {
-    'Travail'    : { emoji: '💼', couleur: '#f4a261' },
+    'Travail'    : { emoji: '🏥', couleur: '#f4a261' },
     'Repos'      : { emoji: '💤', couleur: '#90caf9' },
     'Congé payé' : { emoji: '🏖️', couleur: '#80cbc4' },
     'Mission'    : { emoji: '💼', couleur: '#ce93d8' },
