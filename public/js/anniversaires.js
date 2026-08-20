@@ -1,6 +1,7 @@
 // ============================================================
-// public/js/anniversaires.js
+// public/js/anniversaires.js — v3.58
 // Authentification : JWT Bearer uniquement.
+// Suppression : message personnalisé avec prénom + nom.
 // ============================================================
 
 function _calculerAnnivs(anniversaires) {
@@ -96,7 +97,7 @@ async function chargerModalAnniversaires() {
                             <div class="anniv-modal-right">
                                 ${badge}
                                 <button class="btn-edit-small" onclick="editerAnniversaire(${a.id},'${a.prenom}','${a.nom||''}',${a.jour},${a.mois},${a.annee||'null'})">✏️</button>
-                                <button class="item-del"       onclick="supprimerAnniversaire(${a.id})">🗑️</button>
+                                <button class="item-del"       onclick="supprimerAnniversaire(${a.id},'${a.prenom}','${a.nom||''}')">🗑️</button>
                             </div>
                         </div>`;
                 }).join('')
@@ -114,7 +115,7 @@ async function ajouterAnniversaire() {
         document.getElementById('modal-title').textContent = 'Champs manquants';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Prénom, jour et mois sont obligatoires.</p>
-            <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button></div>`;
+            <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Retour</button></div>`;
         return;
     }
     const body = {
@@ -136,13 +137,13 @@ async function ajouterAnniversaire() {
             document.getElementById('modal-title').textContent = 'Erreur';
             document.getElementById('modal-body').innerHTML = `
                 <p style="color:#ef4444;font-size:15px;margin-bottom:20px">${d.message}</p>
-                <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button></div>`;
+                <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Retour</button></div>`;
         }
     } catch {
         document.getElementById('modal-title').textContent = 'Erreur réseau';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Impossible de contacter le serveur.</p>
-            <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button></div>`;
+            <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Retour</button></div>`;
     }
 }
 
@@ -166,7 +167,7 @@ async function modifierAnniversaire(id) {
         document.getElementById('modal-title').textContent = 'Champs manquants';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Prénom, jour et mois sont obligatoires.</p>
-            <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button></div>`;
+            <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Retour</button></div>`;
         return;
     }
     const body = {
@@ -188,21 +189,24 @@ async function modifierAnniversaire(id) {
             document.getElementById('modal-title').textContent = 'Erreur';
             document.getElementById('modal-body').innerHTML = `
                 <p style="color:#ef4444;font-size:15px;margin-bottom:20px">${d.message}</p>
-                <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button></div>`;
+                <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Retour</button></div>`;
         }
     } catch {
         document.getElementById('modal-title').textContent = 'Erreur réseau';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Impossible de contacter le serveur.</p>
-            <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button></div>`;
+            <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Retour</button></div>`;
     }
 }
 
-async function supprimerAnniversaire(id) {
-    const user = getUser();
+async function supprimerAnniversaire(id, prenom, nom) {
+    const user       = getUser();
+    const nomComplet = [prenom, nom].filter(Boolean).join(' ');
     document.getElementById('modal-title').textContent = 'Confirmation de suppression';
     document.getElementById('modal-body').innerHTML = `
-        <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer cet anniversaire ? Cette action est irréversible.</p>
+        <p style="color:#333;font-size:15px;margin-bottom:20px">
+            Supprimer l'anniversaire de <strong>${nomComplet}</strong> ? Cette action est irréversible.
+        </p>
         <div class="modal-actions">
             <button class="btn-delete" id="btn-anniv-oui">Confirmer</button>
             <button class="btn-cancel" id="btn-anniv-non">Annuler</button>
@@ -220,7 +224,7 @@ async function supprimerAnniversaire(id) {
             document.getElementById('modal-title').textContent = 'Erreur réseau';
             document.getElementById('modal-body').innerHTML = `
                 <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Impossible de contacter le serveur.</p>
-                <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Fermer</button></div>`;
+                <div class="modal-actions"><button class="btn-cancel" onclick="chargerModalAnniversaires()">Retour</button></div>`;
         }
     };
     document.getElementById('btn-anniv-non').onclick = () => chargerModalAnniversaires();

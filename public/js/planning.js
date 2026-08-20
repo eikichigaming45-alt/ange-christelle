@@ -1,9 +1,10 @@
 // ============================================================
-// public/js/planning.js — v3.49
+// public/js/planning.js — v3.50
 // Planning mensuel + widget 5 jours + gestion employeurs.
 // Nouveau modèle métier : Travail, Repos, Congé payé, Mission, Autre.
 // Congé payé : plage date_debut → date_fin.
 // Autre      : libelle_personnalise affiché à la place de "Autre".
+// Suppression : message personnalisé catégorie + date.
 // ============================================================
 
 const SHIFT_CONFIG = {
@@ -20,7 +21,6 @@ const MOIS_PLANNING  = ['Janvier','Février','Mars','Avril','Mai','Juin',
 const MOIS_COURT     = ['jan','fév','mar','avr','mai','juin',
                         'juil','août','sep','oct','nov','déc'];
 
-// Catégories prioritaires pour l'affichage multi-entrées
 const CATS_PRIORITE = ['Mission', 'Travail'];
 
 function _planningAuth() {
@@ -28,13 +28,11 @@ function _planningAuth() {
     return { user, token: user?.token };
 }
 
-// ── Label affiché — jamais "Autre", toujours libelle_personnalise ─────────
 function _labelEntree(e) {
     if (e.categorie === 'Autre' && e.libelle_personnalise) return e.libelle_personnalise;
     return e.categorie || e.type || '?';
 }
 
-// ── Config visuelle d'une entrée ──────────────────────────────────────────
 function _configEntree(e) {
     return SHIFT_CONFIG[e.categorie] || SHIFT_CONFIG[e.type] || { emoji: '📋', couleur: '#eee' };
 }
@@ -80,7 +78,6 @@ async function _fetchEmployeurs(token) {
     } catch { return []; }
 }
 
-// ── Résout les entrées actives pour une date (gère les plages congé) ──────
 function _entriesForDate(entries, dateStr) {
     return entries.filter(e => {
         const debut = e.date_debut_str || e.date_str || e.date?.slice(0, 10);
@@ -135,13 +132,13 @@ async function chargerWidgetPlanning() {
                                     : `${nomJour} ${obj.getDate()} ${MOIS_COURT[obj.getMonth()]}`;
 
         if (entriesJour.length > 0) {
-            const hasPriorite  = entriesJour.some(e => CATS_PRIORITE.includes(e.categorie));
-            const aAfficher    = hasPriorite
+            const hasPriorite = entriesJour.some(e => CATS_PRIORITE.includes(e.categorie));
+            const aAfficher   = hasPriorite
                 ? entriesJour.filter(e => CATS_PRIORITE.includes(e.categorie))
                 : entriesJour;
 
             aAfficher.forEach((entry, idx) => {
-                const s     = _configEntree(entry);
+                const s           = _configEntree(entry);
                 const label_entry = _labelEntree(entry);
                 html += `
                     <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;
@@ -298,9 +295,9 @@ async function _planningMoisSuiv() {
 }
 
 function _ouvrirDetailJourPlanning(jour) {
-    const body     = document.getElementById('modal-body');
-    const dateStr  = `${_planningAnneeActuel}-${String(_planningMoisActuel + 1).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
-    const dateObj  = new Date(_planningAnneeActuel, _planningMoisActuel, jour);
+    const body      = document.getElementById('modal-body');
+    const dateStr   = `${_planningAnneeActuel}-${String(_planningMoisActuel + 1).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
+    const dateObj   = new Date(_planningAnneeActuel, _planningMoisActuel, jour);
     const dateLabel = dateObj.toLocaleDateString('fr-FR', {
         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
@@ -330,8 +327,8 @@ function _ouvrirDetailJourPlanning(jour) {
                         : e.heure_debut
                             ? `<div style="font-size:13px;color:#666;margin-top:4px">⏰ ${e.heure_debut.slice(0,5)} → ${(e.heure_fin||'').slice(0,5)||'?'}</div>`
                             : ''}
-                    ${e.employeur ? `<div style="font-size:13px;color:#666">🏥 ${e.employeur}</div>`        : ''}
-                    ${e.adresse   ? `<div style="font-size:12px;color:#999">📍 ${e.adresse}</div>`          : ''}
+                    ${e.employeur ? `<div style="font-size:13px;color:#666">🏥 ${e.employeur}</div>`            : ''}
+                    ${e.adresse   ? `<div style="font-size:12px;color:#999">📍 ${e.adresse}</div>`              : ''}
                     ${e.notes     ? `<div style="font-size:12px;color:#999;margin-top:4px">📝 ${e.notes}</div>` : ''}
                     <div style="display:flex;gap:8px;margin-top:10px">
                         <button onclick="_ouvrirFormulaireEntreePlanning(${e.id})" style="
@@ -339,7 +336,7 @@ function _ouvrirDetailJourPlanning(jour) {
                             border:none;border-radius:8px;cursor:pointer;font-size:13px">
                             ✏️ Modifier
                         </button>
-                        <button onclick="_supprimerEntreePlanning(${e.id},'${dateStr}')" style="
+                        <button onclick="_supprimerEntreePlanning(${e.id},'${dateStr}','${label_entry}')" style="
                             flex:1;padding:8px;background:#fee2e2;color:#ef4444;
                             border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">
                             🗑️ Supprimer
@@ -388,13 +385,13 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
         } catch { entry = {}; }
     }
 
-    const employeurs    = await _fetchEmployeurs(token);
-    const catVal        = entry.categorie || 'Travail';
-    const libelleVal    = entry.libelle_personnalise || '';
-    const dateDebutVal  = entry.date_debut_str || entry.date_str || entry.date?.slice(0, 10) || dateDefaut || '';
-    const dateFinVal    = entry.date_fin_str   || '';
-    const rappelVal     = entry.rappel_avant_shift ?? 0;
-    const employeurVal  = entry.employeur || '';
+    const employeurs   = await _fetchEmployeurs(token);
+    const catVal       = entry.categorie || 'Travail';
+    const libelleVal   = entry.libelle_personnalise || '';
+    const dateDebutVal = entry.date_debut_str || entry.date_str || entry.date?.slice(0, 10) || dateDefaut || '';
+    const dateFinVal   = entry.date_fin_str   || '';
+    const rappelVal    = entry.rappel_avant_shift ?? 0;
+    const employeurVal = entry.employeur || '';
 
     const catsOptions = Object.keys(SHIFT_CONFIG).map(c =>
         `<option value="${c}" ${catVal === c ? 'selected' : ''}>${SHIFT_CONFIG[c].emoji} ${c}</option>`
@@ -416,14 +413,12 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
 
             <div style="margin-bottom:10px">
                 <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Catégorie</label>
-                <select id="pl-categorie"
-                    onchange="_planningToggleChamps()"
+                <select id="pl-categorie" onchange="_planningToggleChamps()"
                     style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
                     ${catsOptions}
                 </select>
             </div>
 
-            <!-- Libellé personnalisé — visible uniquement si Autre -->
             <div id="pl-libelle-wrap" style="margin-bottom:10px;display:${catVal === 'Autre' ? 'block' : 'none'}">
                 <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Libellé *</label>
                 <input type="text" id="pl-libelle" value="${libelleVal}"
@@ -437,14 +432,12 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
                     style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
             </div>
 
-            <!-- Date de fin — visible uniquement si Congé payé -->
             <div id="pl-datefin-wrap" style="margin-bottom:10px;display:${catVal === 'Congé payé' ? 'block' : 'none'}">
                 <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Date de fin *</label>
                 <input type="date" id="pl-date-fin" value="${dateFinVal}"
                     style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
             </div>
 
-            <!-- Heures — masquées pour Congé payé et Repos -->
             <div id="pl-heures-wrap" style="display:${['Congé payé','Repos'].includes(catVal) ? 'none' : 'grid'};grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
                 <div>
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Heure début</label>
@@ -492,7 +485,8 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
                 <textarea id="pl-notes" rows="2"
                     style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none">${entry.notes || ''}</textarea>
             </div>
-			            <div style="margin-bottom:16px">
+
+                        <div style="margin-bottom:16px">
                 <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Rappel avant le shift</label>
                 <select id="pl-rappel" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
                     ${_optionsRappel(rappelVal)}
@@ -520,10 +514,10 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
 
 // ── Affichage dynamique des champs selon la catégorie ─────────────────────
 function _planningToggleChamps() {
-    const cat        = document.getElementById('pl-categorie')?.value;
-    const libelleW   = document.getElementById('pl-libelle-wrap');
-    const datefinW   = document.getElementById('pl-datefin-wrap');
-    const heuresW    = document.getElementById('pl-heures-wrap');
+    const cat      = document.getElementById('pl-categorie')?.value;
+    const libelleW = document.getElementById('pl-libelle-wrap');
+    const datefinW = document.getElementById('pl-datefin-wrap');
+    const heuresW  = document.getElementById('pl-heures-wrap');
 
     if (libelleW) libelleW.style.display = cat === 'Autre'      ? 'block' : 'none';
     if (datefinW) datefinW.style.display = cat === 'Congé payé' ? 'block' : 'none';
@@ -535,23 +529,22 @@ async function _sauvegarderEntreePlanning(id) {
     const { token } = _planningAuth();
     const msg       = document.getElementById('pl-msg');
 
-    const categorie           = document.getElementById('pl-categorie').value;
+    const categorie            = document.getElementById('pl-categorie').value;
     const libelle_personnalise = document.getElementById('pl-libelle')?.value?.trim() || null;
-    const date_debut          = document.getElementById('pl-date-debut').value;
-    const date_fin            = document.getElementById('pl-date-fin')?.value   || null;
-    const heure_debut         = document.getElementById('pl-debut')?.value      || null;
-    const heure_fin           = document.getElementById('pl-fin')?.value        || null;
-    const adresse             = document.getElementById('pl-adresse').value     || null;
-    const notes               = document.getElementById('pl-notes').value       || null;
-    const rappel_avant_shift  = parseInt(document.getElementById('pl-rappel').value) || 0;
+    const date_debut           = document.getElementById('pl-date-debut').value;
+    const date_fin             = document.getElementById('pl-date-fin')?.value   || null;
+    const heure_debut          = document.getElementById('pl-debut')?.value      || null;
+    const heure_fin            = document.getElementById('pl-fin')?.value        || null;
+    const adresse              = document.getElementById('pl-adresse').value     || null;
+    const notes                = document.getElementById('pl-notes').value       || null;
+    const rappel_avant_shift   = parseInt(document.getElementById('pl-rappel').value) || 0;
 
     const selectEl  = document.getElementById('pl-employeur-select');
     const nouveauEl = document.getElementById('pl-employeur-nouveau');
-    const selectVal = selectEl  ? selectEl.value          : '__nouveau__';
-    const nouveauVal= nouveauEl ? nouveauEl.value.trim()  : '';
+    const selectVal = selectEl  ? selectEl.value         : '__nouveau__';
+    const nouveauVal= nouveauEl ? nouveauEl.value.trim() : '';
     const employeur = selectVal === '__nouveau__' ? nouveauVal : selectVal;
 
-    // Validations
     if (!date_debut) {
         if (msg) msg.textContent = 'La date de début est obligatoire.'; return;
     }
@@ -589,7 +582,6 @@ async function _sauvegarderEntreePlanning(id) {
             return;
         }
 
-        // Auto-enregistrement si nouvel employeur
         if (body.employeur && selectVal === '__nouveau__') {
             fetch('/api/planning/employeurs', {
                 method : 'POST',
@@ -605,12 +597,12 @@ async function _sauvegarderEntreePlanning(id) {
     }
 }
 
-// ── Suppression ───────────────────────────────────────────────────────────
-async function _supprimerEntreePlanning(id, dateStr) {
+// ── Suppression entrée — message personnalisé label + date ────────────────
+async function _supprimerEntreePlanning(id, dateStr, labelEntree) {
     document.getElementById('modal-title').textContent = 'Confirmation de suppression';
     document.getElementById('modal-body').innerHTML = `
         <p style="color:#333;font-size:15px;margin-bottom:20px">
-            Supprimer cette entrée ? Cette action est irréversible.
+            Supprimer <strong>${labelEntree}</strong> du <strong>${dateStr}</strong> ? Cette action est irréversible.
         </p>
         <div style="display:flex;gap:8px">
             <button id="btn-planning-oui" style="
@@ -624,7 +616,6 @@ async function _supprimerEntreePlanning(id, dateStr) {
                 Annuler
             </button>
         </div>`;
-    document.getElementById('overlay').classList.add('on');
 
     document.getElementById('btn-planning-oui').onclick = async () => {
         const { token } = _planningAuth();
@@ -637,7 +628,7 @@ async function _supprimerEntreePlanning(id, dateStr) {
             chargerWidgetPlanning();
         } catch {
             document.getElementById('modal-body').innerHTML =
-                '<p style="color:#ef4444">Erreur lors de la suppression.</p>';
+                '<p style="color:#ef4444;text-align:center;padding:20px">Erreur lors de la suppression.</p>';
         }
     };
     document.getElementById('btn-planning-non').onclick = () => _afficherCalendrierPlanning();
@@ -670,7 +661,7 @@ async function _ouvrirGestionEmployeurs() {
                         padding:10px 12px;background:#f9fafb;border-radius:10px;
                         margin-bottom:8px;border:1px solid #e5e7eb">
                 <span style="font-size:14px;font-weight:600;color:#1f2937">🏥 ${e.nom}</span>
-                <button onclick="_supprimerEmployeur(${e.id}, '${e.nom.replace(/'/g, "\\'")}')" style="
+                <button onclick="_supprimerEmployeur(${e.id},'${e.nom.replace(/'/g, "\\'")}')" style="
                     background:#fee2e2;color:#ef4444;border:none;border-radius:8px;
                     padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer">
                     Supprimer

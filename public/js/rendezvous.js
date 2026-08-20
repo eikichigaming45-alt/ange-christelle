@@ -1,8 +1,9 @@
 // ============================================================
-// public/js/rendezvous.js — v3.46
+// public/js/rendezvous.js — v3.58
 // Rendez-vous médicaux — CRUD complet + widget + modal.
 // Corrections : badge "Passé" fiable sur heure réelle,
 //               liste complète paginée 10/page.
+//               Suppression : message personnalisé titre + date.
 // ============================================================
 
 const Rendezvous = (() => {
@@ -38,14 +39,6 @@ const Rendezvous = (() => {
         return new Date(y, m - 1, d, h, min).toISOString();
     }
 
-    // ── Badge statut — comparaison sur heure réelle ───────────────────────
-    // jours < 0          → Passé
-    // jours === 0 ET heure dépassée → Passé
-    // jours === 0 ET heure à venir  → Aujourd'hui !
-    // jours === 1        → Demain
-    // jours <= 7         → Dans Xj
-    // jours > 7          → Dans Xj (classe futur)
-
     function joursRestants(dt) {
         const maintenant  = new Date();
         const rdvDate     = new Date(dt);
@@ -57,7 +50,7 @@ const Rendezvous = (() => {
 
         const jours = Math.round((rdvMinuit - aujourdhuiMinuit) / (1000 * 60 * 60 * 24));
 
-        if (jours < 0)                          return { label: 'Passé',         cls: 'rdv-passe' };
+        if (jours < 0)                           return { label: 'Passé',         cls: 'rdv-passe' };
         if (jours === 0 && rdvDate < maintenant) return { label: 'Passé',         cls: 'rdv-passe' };
         if (jours === 0)                         return { label: "Aujourd'hui !",  cls: 'rdv-today' };
         if (jours === 1)                         return { label: 'Demain',         cls: 'rdv-soon'  };
@@ -117,8 +110,8 @@ const Rendezvous = (() => {
                         <span class="rdv-badge ${cls}">${label}</span>
                     </div>
                     <div class="rdv-card-date">${formatDateHeure(r.date_rdv)}</div>
-                    ${r.praticien    ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>`              : ''}
-                    ${r.lieu         ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>`                   : ''}
+                    ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>`                  : ''}
+                    ${r.lieu      ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>`                        : ''}
                     ${r.rappel_avant > 0
                         ? `<div class="rdv-card-sub">⏰ Rappel ${formatRappel(r.rappel_avant)}</div>`
                         : ''}
@@ -157,16 +150,16 @@ const Rendezvous = (() => {
             <div class="rdv-detail">
                 <div class="rdv-detail-badge ${cls}">${label}</div>
                 <div class="rdv-detail-row">📅 <span>${formatDateHeure(rdv.date_rdv)}</span></div>
-                ${rdv.type_rdv  ? `<div class="rdv-detail-row">${icon} <span>${rdv.type_rdv}</span></div>`      : ''}
-                ${rdv.praticien ? `<div class="rdv-detail-row">👨‍⚕️ <span>Dr. ${rdv.praticien}</span></div>`    : ''}
-                ${rdv.lieu      ? `<div class="rdv-detail-row">📍 <span>${rdv.lieu}</span></div>`               : ''}
-                ${rdv.notes     ? `<div class="rdv-detail-notes">📝 ${rdv.notes}</div>`                         : ''}
+                ${rdv.type_rdv  ? `<div class="rdv-detail-row">${icon} <span>${rdv.type_rdv}</span></div>`   : ''}
+                ${rdv.praticien ? `<div class="rdv-detail-row">👨‍⚕️ <span>Dr. ${rdv.praticien}</span></div>` : ''}
+                ${rdv.lieu      ? `<div class="rdv-detail-row">📍 <span>${rdv.lieu}</span></div>`            : ''}
+                ${rdv.notes     ? `<div class="rdv-detail-notes">📝 ${rdv.notes}</div>`                      : ''}
                 ${rdv.rappel_avant > 0
                     ? `<div class="rdv-detail-row">⏰ <span>Rappel ${formatRappel(rdv.rappel_avant)}</span></div>`
                     : ''}
                 <div class="modal-actions" style="margin-top:16px">
                     <button class="btn-save"   onclick="Rendezvous.ouvrirModal(${rdv.id})">✏️ Modifier</button>
-                    <button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id})">Supprimer</button>
+                    <button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id},'${rdv.titre.replace(/'/g,"\\'")}','${formatDateHeure(rdv.date_rdv).replace(/'/g,"\\'")}')">Supprimer</button>
                     <button class="btn-cancel" onclick="closeModal()">Fermer</button>
                 </div>
             </div>`;
@@ -181,7 +174,7 @@ const Rendezvous = (() => {
         const user = JSON.parse(localStorage.getItem('myvibe_user'));
         if (!user?.token) { setTimeout(() => charger(), 300); return; }
         try {
-            const rdvs      = await fetchRdvs();
+            const rdvs = await fetchRdvs();
             container.innerHTML = renderWidget(rdvs);
         } catch {
             container.innerHTML = `<p class="rdv-error">Erreur de chargement.</p>`;
@@ -244,7 +237,7 @@ const Rendezvous = (() => {
                     <button class="btn-save" onclick="Rendezvous.sauvegarder(${rdv?.id || 'null'})">
                         ${rdv ? 'Modifier' : 'Enregistrer'}
                     </button>
-                    ${rdv ? `<button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id})">Supprimer</button>` : ''}
+                    ${rdv ? `<button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id},'${rdv.titre.replace(/'/g,"\\'")}','${formatDateHeure(rdv.date_rdv).replace(/'/g,"\\'")}')">Supprimer</button>` : ''}
                     <button class="btn-cancel" onclick="closeModal()">Annuler</button>
                 </div>
             </div>`;
@@ -304,13 +297,13 @@ const Rendezvous = (() => {
         }
     }
 
-    // ── Supprimer ─────────────────────────────────────────────────────────
+    // ── Supprimer — message personnalisé titre + date ─────────────────────
 
-    async function supprimer(id) {
+    async function supprimer(id, titre, dateFormatee) {
         document.getElementById('modal-title').textContent = 'Confirmation de suppression';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#333;font-size:15px;margin-bottom:20px">
-                Supprimer ce rendez-vous ? Cette action est irréversible.
+                Supprimer le rendez-vous <strong>${titre}</strong> du <strong>${dateFormatee}</strong> ? Cette action est irréversible.
             </p>
             <div class="modal-actions">
                 <button class="btn-delete" id="btn-rdv-oui">Confirmer</button>
@@ -344,7 +337,6 @@ const Rendezvous = (() => {
             const passes     = rdvs.filter(r => new Date(r.date_rdv) <  maintenant)
                                    .sort((a, b) => new Date(b.date_rdv) - new Date(a.date_rdv));
 
-            // Pagination sur les passés uniquement (les prochains sont peu nombreux)
             const totalPages  = Math.ceil(passes.length / PAGE_SIZE);
             const passesPaged = passes.slice(pagePasses * PAGE_SIZE, (pagePasses + 1) * PAGE_SIZE);
 

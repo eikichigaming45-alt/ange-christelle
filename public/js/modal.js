@@ -1,5 +1,5 @@
 // ============================================================
-// public/js/modal.js — v3.53
+// public/js/modal.js
 // Gestion de la modale générique, widget admin dashboard,
 // utilitaires date, validation mot de passe front.
 // Dépend de : app.js (getUser, priere), profil.js, admin.js front
@@ -34,31 +34,53 @@ async function openModal(type) {
     // ── Prière ────────────────────────────────────────────────
     } else if (type === 'priere') {
         document.getElementById('modal-body').innerHTML = priere ? `
-            <div class="priere-modal">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    ${priere.titre ? `<div class="priere-titre-jour" style="margin-bottom:0;">📖 ${priere.titre}</div>` : '<div></div>'}
-                    <button onclick="lirePriereModal(event)" title="Écouter la prière"
-                        style="background:#f3f4f6;border:none;border-radius:50%;width:36px;height:36px;
-                               cursor:pointer;font-size:18px;display:flex;align-items:center;
-                               justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.1);"
-                        id="btn-speaker-modal">🔊</button>
+            <div class="islam-modal">
+                <div style="display:flex;justify-content:space-between;align-items:center;
+                            background:linear-gradient(135deg,#fef3c7,#fde68a);
+                            border-radius:12px;padding:12px 16px;margin-bottom:16px;
+                            border-left:4px solid #d97706;">
+                    ${priere.titre
+                        ? `<div style="font-size:13px;font-weight:700;color:#78350f;line-height:1.4">📖 ${priere.titre}</div>`
+                        : '<div></div>'}
+                    <button onclick="lirePriereModal(event)" id="btn-speaker-modal"
+                        style="background:#fff8e1;border:none;border-radius:50%;
+                               width:36px;height:36px;cursor:pointer;font-size:18px;
+                               display:flex;align-items:center;justify-content:center;
+                               box-shadow:0 2px 4px rgba(0,0,0,0.1);flex-shrink:0;margin-left:10px">
+                        🔊
+                    </button>
                 </div>
+
                 ${priere.evangile ? `
-                <div class="priere-section">
-                    <div class="priere-section-label">Évangile du jour</div>
-                    <div class="priere-texte-complet">${priere.evangile.replace(/\n/g, '<br>')}</div>
+                <div style="margin-bottom:14px">
+                    <div class="islam-modal-titre-section">Évangile du jour</div>
+                    <div style="background:#fffbeb;border-radius:10px;padding:14px 16px;
+                                border-left:4px solid #d97706;
+                                font-size:13px;color:#444;line-height:1.8;
+                                max-height:260px;overflow-y:auto">
+                        ${priere.evangile.replace(/\n/g, '<br>')}
+                    </div>
                 </div>` : `
-                <div class="priere-texte-complet">"${priere.texte}"<br><br><em>— ${priere.ref}</em></div>`}
+                <div style="margin-bottom:14px">
+                    <div style="background:#fffbeb;border-radius:10px;padding:14px 16px;
+                                border-left:4px solid #d97706;
+                                font-size:13px;color:#444;line-height:1.8;font-style:italic">
+                        "${priere.texte}"<br><br><em>— ${priere.ref}</em>
+                    </div>
+                </div>`}
+
                 ${priere.lecture1 ? `
-                <details class="priere-lecture1">
-                    <summary>📜 Première lecture (cliquer pour lire)</summary>
-                    <div class="priere-texte-complet" style="margin-top:10px;max-height:200px">
+                <div style="margin-bottom:14px">
+                    <div class="islam-modal-titre-section">Première lecture</div>
+                    <div style="background:#f0f9ff;border-radius:10px;padding:14px 16px;
+                                border-left:4px solid #0369a1;
+                                font-size:13px;color:#444;line-height:1.8;
+                                max-height:200px;overflow-y:auto">
                         ${priere.lecture1.replace(/\n/g, '<br>')}
                     </div>
-                </details>` : ''}
-                ${priere.source === 'catholique.fr' ? `<div class="priere-source">Source : eglise.catholique.fr</div>` : ''}
+                </div>` : ''}
             </div>
-        ` : '<p>Chargement...</p>';
+        ` : '<p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>';
 
     // ── Islam ─────────────────────────────────────────────────
     } else if (type === 'islam') {
@@ -369,7 +391,6 @@ async function openModal(type) {
             });
 
             await afficherSectionWidgets();
-
         } catch {
             document.getElementById('modal-body').innerHTML = '<p>Erreur de chargement du profil.</p>';
         }
@@ -378,7 +399,7 @@ async function openModal(type) {
     } else if (type === 'astrologie') {
         await ouvrirModaleAstrologie();
 
-        // ── Admin ─────────────────────────────────────────────────
+    // ── Admin ─────────────────────────────────────────────────
     } else if (type === 'admin') {
         document.getElementById('modal-body').innerHTML = `
             <div class="admin-tabs">
@@ -453,3 +474,5 @@ function closeModal() {
 function closeOutside(e) {
     if (e.target === document.getElementById('overlay')) closeModal();
 }
+
+        
