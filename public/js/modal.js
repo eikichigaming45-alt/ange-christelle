@@ -1,5 +1,5 @@
 // ============================================================
-// public/js/modal.js
+// public/js/modal.js — v3.53
 // Gestion de la modale générique, widget admin dashboard,
 // utilitaires date, validation mot de passe front.
 // Dépend de : app.js (getUser, priere), profil.js, admin.js front
@@ -73,9 +73,9 @@ async function openModal(type) {
                 }, 200);
             });
         }
-        const d       = window._islamData;
-        const toMin   = hhmm => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
-        const now     = new Date().getHours() * 60 + new Date().getMinutes();
+        const d    = window._islamData;
+        const toMin = hhmm => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+        const now  = new Date().getHours() * 60 + new Date().getMinutes();
         const listePrieres = [
             { nom:'Fajr',    label:'Fajr (Aube)',       heure: d?.fajr    },
             { nom:'Dhuhr',   label:'Dhuhr (Midi)',      heure: d?.dhuhr   },
@@ -177,8 +177,8 @@ async function openModal(type) {
             });
             const d = await r.json();
             const p = d.profil || {};
-            profilCache     = p;
-            const photoSrc  = p.photo || '';
+            profilCache    = p;
+            const photoSrc = p.photo || '';
             const initiales = construireTrigramme(p.prenom, p.nom) || '👤';
 
             document.getElementById('modal-body').innerHTML = `
@@ -200,24 +200,24 @@ async function openModal(type) {
                 <div id="profil-tab-infos" class="profil-tab-content">
                     <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:20px">
                         ${photoSrc
-    ? `<img id="profil-photo-preview" src="${photoSrc}"
-        style="width:90px;height:90px;border-radius:50%;object-fit:cover;
-               border:3px solid #4f46e5;cursor:pointer;
-               box-shadow:0 4px 12px rgba(79,70,229,0.3)"
-        onclick="document.getElementById('photo-input').click()">`
-    : `<div class="profil-widget-initiales"
-            style="width:90px;height:90px;font-size:24px;cursor:pointer;
-                   box-shadow:0 4px 12px rgba(79,70,229,0.3)"
-            onclick="document.getElementById('photo-input').click()">${initiales}</div>`
-}
-<input type="file" id="photo-input" accept="image/*" style="display:none"
-    onchange="previewPhoto(event)">
-<span style="font-size:11px;color:#9ca3af;margin-top:8px">Appuyez sur la photo pour changer</span>
-${photoSrc
-    ? `<button id="btn-supprimer-photo" onclick="supprimerPhoto()"
-        style="margin-top:8px;background:#fee2e2;color:#ef4444;border:none;
-               border-radius:8px;padding:6px 14px;font-size:12px;
-               font-weight:600;cursor:pointer">
+                            ? `<img id="profil-photo-preview" src="${photoSrc}"
+                                style="width:90px;height:90px;border-radius:50%;object-fit:cover;
+                                       border:3px solid #4f46e5;cursor:pointer;
+                                       box-shadow:0 4px 12px rgba(79,70,229,0.3)"
+                                onclick="document.getElementById('photo-input').click()">`
+                            : `<div class="profil-widget-initiales"
+                                    style="width:90px;height:90px;font-size:24px;cursor:pointer;
+                                           box-shadow:0 4px 12px rgba(79,70,229,0.3)"
+                                    onclick="document.getElementById('photo-input').click()">${initiales}</div>`
+                        }
+                        <input type="file" id="photo-input" accept="image/*" style="display:none"
+                            onchange="previewPhoto(event)">
+                        <span style="font-size:11px;color:#9ca3af;margin-top:8px">Appuyez sur la photo pour changer</span>
+                        ${photoSrc
+                            ? `<button id="btn-supprimer-photo" onclick="supprimerPhoto()"
+                                style="margin-top:8px;background:#fee2e2;color:#ef4444;border:none;
+                                       border-radius:8px;padding:6px 14px;font-size:12px;
+                                       font-weight:600;cursor:pointer">
                                 🗑️ Supprimer la photo
                                </button>`
                             : ''
@@ -368,7 +368,7 @@ ${photoSrc
                 });
             });
 
-                        await afficherSectionWidgets();
+            await afficherSectionWidgets();
 
         } catch {
             document.getElementById('modal-body').innerHTML = '<p>Erreur de chargement du profil.</p>';
@@ -378,7 +378,7 @@ ${photoSrc
     } else if (type === 'astrologie') {
         await ouvrirModaleAstrologie();
 
-    // ── Admin ─────────────────────────────────────────────────
+        // ── Admin ─────────────────────────────────────────────────
     } else if (type === 'admin') {
         document.getElementById('modal-body').innerHTML = `
             <div class="admin-tabs">
@@ -422,11 +422,11 @@ function lirePriereModal(e) {
         const voix     = synth.getVoices();
         const voixMasc = voix.find(v =>
             v.lang.startsWith('fr') && (
-                v.name.toLowerCase().includes('thomas') ||
+                v.name.toLowerCase().includes('thomas')  ||
                 v.name.toLowerCase().includes('nicolas') ||
-                v.name.toLowerCase().includes('pierre') ||
-                v.name.toLowerCase().includes('jean') ||
-                v.name.toLowerCase().includes('male') ||
+                v.name.toLowerCase().includes('pierre')  ||
+                v.name.toLowerCase().includes('jean')    ||
+                v.name.toLowerCase().includes('male')    ||
                 v.name.toLowerCase().includes('man')
             )
         ) || voix.find(v => v.lang.startsWith('fr'));
