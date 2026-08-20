@@ -1,5 +1,5 @@
 // ============================================================
-// public/js/profil.js — v3.45
+// public/js/profil.js — v3.56
 // Profil utilisateur : affichage, édition, photo (cropper),
 // suppression photo, trigramme 3 lettres, changement de mot
 // de passe, préférences widgets (opt-out).
@@ -8,9 +8,6 @@
 // ============================================================
 
 // ===================== UTILITAIRE TRIGRAMME ==================
-// Construit un trigramme 3 lettres depuis prénom(s) + nom.
-// Ex : "Ange Christelle Aguillon" → "ACA"
-
 function construireTrigramme(prenom, nom) {
     const mots = [...(prenom || '').split(/\s+/), ...(nom || '').split(/\s+/)]
         .map(m => m.trim())
@@ -19,8 +16,6 @@ function construireTrigramme(prenom, nom) {
 }
 
 // ===================== PROFIL HEADER =========================
-// Source unique — app.js ne redéfinit plus cette fonction.
-
 async function chargerProfilHeader() {
     const user = getUser();
     if (!user?.token) return;
@@ -36,7 +31,6 @@ async function chargerProfilHeader() {
         const p         = d.profil;
         const trigramme = construireTrigramme(p.prenom, p.nom);
 
-        // Bouton header navbar
         if (p.photo) {
             btn.innerHTML          = `<img src="${p.photo}" alt="profil">`;
             btn.style.fontSize     = '';
@@ -54,7 +48,6 @@ async function chargerProfilHeader() {
             btn.style.fontWeight   = '';
         }
 
-        // Widget profil dans la grille
         const wc = document.getElementById('wc-profil');
         if (!wc) return;
         const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
@@ -80,7 +73,7 @@ async function chargerProfilHeader() {
                 <button class="profil-widget-btn" onclick="openModal('profil')">✏️ Modifier</button>
             </div>
         `;
-    } catch { /* silencieux — non critique */ }
+    } catch { /* silencieux */ }
 }
 
 // ===================== PHOTO & CROPPER =======================
@@ -105,7 +98,7 @@ function previewPhoto(event) {
                 </div>
             `;
             const tabInfos = document.getElementById('profil-tab-infos');
-			if (tabInfos) tabInfos.insertBefore(cropZone, tabInfos.firstChild);
+            if (tabInfos) tabInfos.insertBefore(cropZone, tabInfos.firstChild);
         }
         document.getElementById('crop-img').src = e.target.result;
         cropperInstance = new Cropper(document.getElementById('crop-img'), {
@@ -121,20 +114,45 @@ function validerCrop() {
     if (!cropperInstance) return;
     const canvas  = cropperInstance.getCroppedCanvas({ width: 300, height: 300 });
     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-    let preview   = document.getElementById('profil-photo-preview');
+
+    // Met à jour le preview dans la modale
+    let preview = document.getElementById('profil-photo-preview');
     if (preview) {
         preview.src = dataUrl;
     } else {
-        const zone = document.querySelector('.profil-widget-initiales, .initiales');
+        // Remplace initiales par une img
+        const zone = document.querySelector('#profil-tab-infos .profil-widget-initiales, #profil-tab-infos .initiales');
         if (zone) {
             const newImg     = document.createElement('img');
             newImg.id        = 'profil-photo-preview';
             newImg.src       = dataUrl;
-            newImg.className = 'photo-circle';
+            newImg.style.cssText = 'width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)';
             newImg.onclick   = () => document.getElementById('photo-input').click();
             zone.replaceWith(newImg);
+            preview = newImg;
         }
     }
+
+    // Affiche le bouton "Supprimer" si pas encore présent
+    let btnSuppr = document.getElementById('btn-supprimer-photo');
+    if (!btnSuppr && preview) {
+        btnSuppr = document.createElement('button');
+        btnSuppr.id          = 'btn-supprimer-photo';
+        btnSuppr.onclick     = supprimerPhoto;
+        btnSuppr.style.cssText = 'margin-top:8px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer';
+        btnSuppr.innerHTML   = '🗑️ Supprimer la photo';
+        preview.insertAdjacentElement('afterend', btnSuppr);
+    }
+
+    // Met à jour la navbar immédiatement sans attendre la sauvegarde
+    const btn = document.getElementById('btn-profil-header');
+    if (btn) {
+        btn.innerHTML      = `<img src="${dataUrl}" alt="profil">`;
+        btn.style.fontSize = '';
+        btn.style.fontWeight = '';
+        btn.style.background = '';
+    }
+
     annulerCrop();
 }
 
@@ -147,7 +165,6 @@ function annulerCrop() {
 }
 
 // ===================== SUPPRESSION PHOTO =====================
-// Visible uniquement si photo existante (géré dans la modale).
 
 async function supprimerPhoto() {
     const user = getUser();
@@ -166,17 +183,16 @@ async function supprimerPhoto() {
                 msg.style.color = '#10b981';
             }
             chargerProfilHeader();
-            // Remplace l'aperçu photo par le trigramme dans la modale
             const preview   = document.getElementById('profil-photo-preview');
             const trigramme = construireTrigramme(profilCache?.prenom, profilCache?.nom);
             if (preview) {
                 const div       = document.createElement('div');
-                div.className   = 'initiales';
+                div.className   = 'profil-widget-initiales';
+                div.style.cssText = 'width:90px;height:90px;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)';
                 div.textContent = trigramme || '👤';
                 div.onclick     = () => document.getElementById('photo-input').click();
                 preview.replaceWith(div);
             }
-            // Masque le bouton supprimer
             const btnSuppr = document.getElementById('btn-supprimer-photo');
             if (btnSuppr) btnSuppr.style.display = 'none';
         } else {
@@ -292,8 +308,6 @@ async function changerMdp() {
 }
 
 // ===================== WIDGETS OPT-OUT =======================
-// TOUS_WIDGETS défini dans app.js.
-// widgets_caches = slugs décochés. Absent = visible par défaut.
 
 async function afficherSectionWidgets() {
     const user      = getUser();
@@ -303,7 +317,7 @@ async function afficherSectionWidgets() {
         const res  = await fetch('/api/profil/widgets-visibles', {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
-        const data       = await res.json();
+        const data          = await res.json();
         const widgetsCaches = data.widgets_caches || [];
         container.innerHTML = TOUS_WIDGETS.map(w => `
             <label class="widget-choix-item">
@@ -321,7 +335,6 @@ async function sauvegarderWidgetsVisibles() {
     const msg        = document.getElementById('widgets-msg');
     const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
 
-    // Opt-out : slugs décochés uniquement
     const widgets_caches = [...checkboxes]
         .filter(cb => !cb.checked)
         .map(cb => cb.value);
