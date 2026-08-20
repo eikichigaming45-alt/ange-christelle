@@ -1,7 +1,7 @@
 // ============================================================
-// routes/profil.js
+// routes/profil.js — v3.43
 // Gestion du profil utilisateur : lecture, écriture, mot de passe,
-// et préférences widgets (opt-out).
+// suppression photo, et préférences widgets (opt-out).
 // signe_zodiaque : saisi manuellement si pas de date_naissance.
 // ============================================================
 
@@ -19,7 +19,7 @@ router.get('/', authenticateToken, async (req, res) => {
         const result = await pool.query(
             `SELECT prenom, nom, date_naissance, email, telephone,
                     profession, note, photo, widgets_visibles, signe_zodiaque
-             FROM profiles WHERE user_id = \$1`,
+             FROM profiles WHERE user_id = \\$1`,
             [req.user.id]
         );
         if (result.rows.length === 0) {
@@ -41,17 +41,32 @@ router.post('/', authenticateToken, async (req, res) => {
             INSERT INTO profiles
                 (user_id, prenom, nom, date_naissance, email, telephone,
                  profession, note, photo, signe_zodiaque, updated_at)
-            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10, NOW())
+            VALUES (\\$1, \\$2, \\$3, \\$4, \\$5, \\$6, \\$7, \\$8, \\$9, \\$10, NOW())
             ON CONFLICT (user_id) DO UPDATE SET
-                prenom=\$2, nom=\$3, date_naissance=\$4, email=\$5,
-                telephone=\$6, profession=\$7, note=\$8, photo=\$9,
-                signe_zodiaque=\$10, updated_at=NOW()
+                prenom=\\$2, nom=\\$3, date_naissance=\\$4, email=\\$5,
+                telephone=\\$6, profession=\\$7, note=\\$8, photo=\\$9,
+                signe_zodiaque=\\$10, updated_at=NOW()
         `, [req.user.id, prenom, nom, date_naissance || null,
             email, telephone, profession, note, photo,
             signe_zodiaque || null]);
         res.json({ success: true });
     } catch (err) {
         console.error('[PROFIL] POST /', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── DELETE /api/profil/photo ──────────────────────────────────
+// Supprime la photo de profil (remet photo à NULL en base).
+router.delete('/photo', authenticateToken, async (req, res) => {
+    try {
+        await pool.query(
+            'UPDATE profiles SET photo = NULL, updated_at = NOW() WHERE user_id = \\$1',
+            [req.user.id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[PROFIL] DELETE /photo :', err.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
@@ -67,7 +82,7 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
     if (erreur) return res.status(400).json({ success: false, message: erreur });
     try {
         const result = await pool.query(
-            'SELECT password FROM users WHERE id = \$1',
+            'SELECT password FROM users WHERE id = \\$1',
             [req.user.id]
         );
         if (result.rows.length === 0) {
@@ -79,7 +94,7 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
         }
         const hash = await bcrypt.hash(nouveauMdp, 10);
         await pool.query(
-            'UPDATE users SET password = \$1, must_change_password = FALSE WHERE id = \$2',
+            'UPDATE users SET password = \\$1, must_change_password = FALSE WHERE id = \\$2',
             [hash, req.user.id]
         );
         res.json({ success: true });
@@ -94,7 +109,7 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
 router.get('/widgets-visibles', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT widgets_visibles FROM profiles WHERE user_id = \$1',
+            'SELECT widgets_visibles FROM profiles WHERE user_id = \\$1',
             [req.user.id]
         );
         const widgets_caches = result.rows[0]?.widgets_visibles || [];
@@ -114,7 +129,7 @@ router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
     }
     try {
         await pool.query(
-            'UPDATE profiles SET widgets_visibles = \$1 WHERE user_id = \$2',
+            'UPDATE profiles SET widgets_visibles = \\$1 WHERE user_id = \\$2',
             [widgets_caches, req.user.id]
         );
         res.json({ success: true });
