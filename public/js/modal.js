@@ -218,9 +218,10 @@ ${photoSrc
         style="margin-top:8px;background:#fee2e2;color:#ef4444;border:none;
                border-radius:8px;padding:6px 14px;font-size:12px;
                font-weight:600;cursor:pointer">
-        🗑️ Supprimer la photo
-       </button>`
-    : ''
+                                🗑️ Supprimer la photo
+                               </button>`
+                            : ''
+                        }
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
                         <div>
