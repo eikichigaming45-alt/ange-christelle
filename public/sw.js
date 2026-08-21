@@ -1,12 +1,5 @@
-// ============================================================
-// public/sw.js
-// Service Worker — cache des assets statiques + push notifications.
-// Version incrémentée à chaque push significatif.
-// ============================================================
+const CACHE_NAME = 'mydaily-cache-v3.65';
 
-const CACHE_NAME = 'mydaily-cache-v3.64';
-
-// Assets mis en cache à l'installation
 const ASSETS_TO_CACHE = [
     '/css/style.css',
     '/js/app.js',
@@ -29,7 +22,6 @@ const ASSETS_TO_CACHE = [
     '/icon-512.png'
 ];
 
-// ── Installation : mise en cache des assets ───────────────────
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE))
@@ -37,7 +29,6 @@ self.addEventListener('install', event => {
     self.skipWaiting();
 });
 
-// ── Activation : suppression des anciens caches ───────────────
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(keys =>
@@ -47,27 +38,21 @@ self.addEventListener('activate', event => {
     self.clients.claim();
 });
 
-// ── Messages depuis la page ───────────────────────────────────
 self.addEventListener('message', event => {
     if (event.data?.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
 });
 
-// ── Fetch : stratégie par type de ressource ───────────────────
 self.addEventListener('fetch', event => {
     if (event.request.url.startsWith('chrome-extension')) return;
     if (event.request.method !== 'GET') return;
 
     const url = new URL(event.request.url);
 
-    // API : toujours réseau — jamais de cache
-    if (url.pathname.startsWith('/api/')) {
-        event.respondWith(fetch(event.request));
-        return;
-    }
+    // API : ne jamais intercepter — le navigateur gère avec les headers
+    if (url.pathname.startsWith('/api/')) return;
 
-    // Fichiers critiques : network-first
     const networkFirst = ['/', '/index.html', '/css/style.css'];
     if (networkFirst.includes(url.pathname)) {
         event.respondWith(
@@ -82,7 +67,6 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // Autres assets : cache-first avec mise à jour en arrière-plan
     event.respondWith(
         caches.match(event.request).then(cached => {
             const fetchPromise = fetch(event.request).then(response => {
@@ -97,7 +81,6 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// ── Push notifications ────────────────────────────────────────
 self.addEventListener('push', event => {
     let data = {};
     try { data = event.data.json(); } catch {}
@@ -112,7 +95,6 @@ self.addEventListener('push', event => {
     );
 });
 
-// ── Clic sur notification ─────────────────────────────────────
 self.addEventListener('notificationclick', event => {
     event.notification.close();
     event.waitUntil(
