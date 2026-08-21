@@ -1,22 +1,23 @@
-// ============================================================
-// server.js
-// Point d'entrée du serveur Express.
-// Gère : middlewares globaux, routage, initialisation DB et VAPID.
-// ============================================================
-
 const express = require('express');
 const webpush  = require('web-push');
+const helmet   = require('helmet');
 const { pool, initDB } = require('./db/pool');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// ── Trust proxy (Render est un reverse proxy) ─────────────────
+app.set('trust proxy', 1);
+
+// ── Sécurité HTTP headers ─────────────────────────────────────
+app.use(helmet());
+
 // ── Désactiver ETag pour les réponses API ─────────────────────
 app.set('etag', false);
 
 // ── Parsers ───────────────────────────────────────────────────
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // ── Fichiers statiques (ETag activé uniquement ici) ───────────
 app.use(express.static('public', { etag: true, lastModified: true }));
@@ -56,7 +57,6 @@ app.use('/api/admin',          require('./routes/admin'));
 app.use('/api/cycle',          require('./routes/cycle'));
 app.use('/api/rendezvous',     require('./routes/rendezvous'));
 app.use('/api/planning',       require('./routes/planning'));
-// ✅ Widget Astrologie — horoscope du jour par signe (scraping horoscope.fr)
 app.use('/api/astrologie',     require('./routes/astrologie'));
 
 // ── Middleware de gestion d'erreurs global ────────────────────

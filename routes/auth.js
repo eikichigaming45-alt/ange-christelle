@@ -1,10 +1,3 @@
-// ============================================================
-// routes/auth.js
-// Authentification : login, token JWT, rate limiting.
-// Exporte : router, authenticateToken (legacy — préférer
-// middleware/auth.js pour les nouvelles routes).
-// ============================================================
-
 const express    = require('express');
 const router     = express.Router();
 const bcrypt     = require('bcryptjs');
@@ -16,19 +9,17 @@ const { validerMotDePasse } = require('../utils/validations');
 
 // ── Rate limiter login ────────────────────────────────────────
 // 10 tentatives max par IP sur 15 minutes.
-// L'admin est exclu pour éviter le blocage accidentel.
 const loginLimiter = rateLimit({
     windowMs        : 15 * 60 * 1000,
     max             : 10,
     message         : { success: false, message: 'Trop de tentatives. Réessayez dans 15 minutes.' },
     standardHeaders : true,
-    legacyHeaders   : false,
-    skip            : (req) => req.body?.username === 'admin'
+    legacyHeaders   : false
 });
 
 // ── POST /api/login ───────────────────────────────────────────
-// Vérifie les identifiants et retourne un token JWT 7 jours.
-// B.13 — Login insensible à la casse :
+// Vérifie les identifiants et retourne un token JWT 1 jour.
+// Login insensible à la casse :
 //   Le username est normalisé en minuscules avant comparaison DB.
 //   Les usernames sont stockés en minuscules (format prenom.nom).
 //   Ainsi "Mickael.Aguillon" et "mickael.aguillon" sont équivalents.
@@ -43,7 +34,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
     try {
         const result = await pool.query(
-            'SELECT id, username, password, role, must_change_password FROM users WHERE username = \$1',
+            'SELECT id, username, password, role, must_change_password FROM users WHERE username = \\$1',
             [username]
         );
         if (result.rows.length === 0) {
@@ -58,15 +49,15 @@ router.post('/login', loginLimiter, async (req, res) => {
         // Forcer le changement si le mot de passe ne respecte pas les règles
         const mdpInvalide = validerMotDePasse(password) !== null;
         if (mdpInvalide && !user.must_change_password) {
-            await pool.query('UPDATE users SET must_change_password = TRUE WHERE id = \$1', [user.id]);
+            await pool.query('UPDATE users SET must_change_password = TRUE WHERE id = \\$1', [user.id]);
         }
 
-        await pool.query('UPDATE users SET last_login = NOW() WHERE id = \$1', [user.id]);
+        await pool.query('UPDATE users SET last_login = NOW() WHERE id = \\$1', [user.id]);
 
         const token = jwt.sign(
             { id: user.id, username: user.username, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: '1d' }
         );
 
         res.json({
@@ -85,9 +76,6 @@ router.post('/login', loginLimiter, async (req, res) => {
 
 // ── POST /api/debloquer ───────────────────────────────────────
 // Réservé admin — point de contrôle pour débloquer un utilisateur.
-// Le rate limiter étant basé sur l'IP, cette route sert de
-// confirmation de rôle. Une vraie réinitialisation par IP
-// nécessiterait un store Redis (hors scope actuel).
 router.post('/debloquer', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ success: false, message: 'Accès refusé.' });
