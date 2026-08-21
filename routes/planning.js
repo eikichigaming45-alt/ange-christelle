@@ -1,24 +1,12 @@
-// ============================================================
-// routes/planning.js — v3.48
-// Gestion du planning — nouveau modèle métier :
-// catégories : Travail, Repos, Congé payé, Mission, Autre.
-// Congé payé : plage date_debut → date_fin.
-// Autre : libelle_personnalise obligatoire.
-// Purge lazy : entrées > 6 mois supprimées silencieusement au GET.
-// ============================================================
-
 const express  = require('express');
 const router   = express.Router();
 const { pool } = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
-// ── Catégories valides ────────────────────────────────────────
 const CATEGORIES_VALIDES = ['Travail', 'Repos', 'Congé payé', 'Mission', 'Autre'];
 
-// ── Toutes les routes nécessitent un token JWT ────────────────
 router.use(authenticateToken);
 
-// ── GET /api/planning/employeurs ──────────────────────────────
 router.get('/employeurs', async (req, res) => {
     try {
         const { rows } = await pool.query(
@@ -32,7 +20,6 @@ router.get('/employeurs', async (req, res) => {
     }
 });
 
-// ── POST /api/planning/employeurs ─────────────────────────────
 router.post('/employeurs', async (req, res) => {
     const { nom } = req.body;
     if (!nom?.trim()) {
@@ -53,7 +40,6 @@ router.post('/employeurs', async (req, res) => {
     }
 });
 
-// ── DELETE /api/planning/employeurs/:id ───────────────────────
 router.delete('/employeurs/:id', async (req, res) => {
     try {
         const result = await pool.query(
@@ -70,27 +56,23 @@ router.delete('/employeurs/:id', async (req, res) => {
     }
 });
 
-// ── GET /api/planning ─────────────────────────────────────────
-// Purge lazy > 6 mois, puis retourne le mois demandé.
-// Pour Congé payé : retourne toutes les entrées dont la plage
-// chevauche le mois demandé.
 router.get('/', async (req, res) => {
     const { mois, annee } = req.query;
     if (!mois || !annee) {
         return res.status(400).json({ success: false, message: 'Mois et année requis.' });
     }
     try {
-        // Purge silencieuse — entrées dont date_fin (ou date_debut) > 6 mois
+        // Purge lazy — utilise date (toujours renseignée) plutôt que date_debut
         await pool.query(
             `DELETE FROM planning
              WHERE user_id = \$1
-               AND COALESCE(date_fin, date_debut) < NOW() - INTERVAL '6 months'`,
+               AND COALESCE(date_fin, date_debut, date) < NOW() - INTERVAL '6 months'`,
             [req.user.id]
         );
 
-        // Début et fin du mois demandé
         const debutMois = `${annee}-${String(mois).padStart(2, '0')}-01`;
-        const finMois   = `${annee}-${String(mois).padStart(2, '0')}-31`;
+        // Calcul dynamique du dernier jour du mois
+        const finMois   = new Date(annee, mois, 0).toISOString().slice(0, 10);
 
         const result = await pool.query(`
             SELECT *,
@@ -100,13 +82,11 @@ router.get('/', async (req, res) => {
             FROM planning
             WHERE user_id = \$1
               AND (
-                -- Entrée sur un seul jour dans le mois
-                (date_fin IS NULL AND date_debut BETWEEN \$2 AND \$3)
+                (date_fin IS NULL AND COALESCE(date_debut, date) BETWEEN \$2 AND \$3)
                 OR
-                -- Plage de congé chevauchant le mois
                 (date_fin IS NOT NULL AND date_debut <= \$3 AND date_fin >= \$2)
               )
-            ORDER BY date_debut ASC
+            ORDER BY COALESCE(date_debut, date) ASC
         `, [req.user.id, debutMois, finMois]);
 
         res.json({ success: true, planning: result.rows });
@@ -116,9 +96,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// ── GET /api/planning/jour ────────────────────────────────────
-// Retourne les entrées actives pour un jour précis
-// (entrée ponctuelle ou plage de congé couvrant ce jour).
 router.get('/jour', async (req, res) => {
     const { date } = req.query;
     if (!date) {
@@ -133,7 +110,7 @@ router.get('/jour', async (req, res) => {
             FROM planning
             WHERE user_id = \$1
               AND (
-                (date_fin IS NULL AND date_debut = \$2)
+                (date_fin IS NULL AND COALESCE(date_debut, date) = \$2)
                 OR
                 (date_fin IS NOT NULL AND date_debut <= \$2 AND date_fin >= \$2)
               )
@@ -146,7 +123,6 @@ router.get('/jour', async (req, res) => {
     }
 });
 
-// ── GET /api/planning/:id ─────────────────────────────────────
 router.get('/:id', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -167,10 +143,6 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// ── POST /api/planning ────────────────────────────────────────
-// Crée une nouvelle entrée.
-// Congé payé : date_debut + date_fin obligatoires.
-// Autre      : libelle_personnalise obligatoire.
 router.post('/', async (req, res) => {
     const {
         categorie, libelle_personnalise,
@@ -210,7 +182,7 @@ router.post('/', async (req, res) => {
             categorie,
             libelle_personnalise?.trim() || null,
             date_debut,
-            date_fin || null,
+            date_fin           || null,
             heure_debut        || null,
             heure_fin          || null,
             employeur          || null,
@@ -226,7 +198,6 @@ router.post('/', async (req, res) => {
     }
 });
 
-// ── PUT /api/planning/:id ─────────────────────────────────────
 router.put('/:id', async (req, res) => {
     const {
         categorie, libelle_personnalise,
@@ -265,7 +236,7 @@ router.put('/:id', async (req, res) => {
             categorie,
             libelle_personnalise?.trim() || null,
             date_debut,
-            date_fin || null,
+            date_fin           || null,
             heure_debut        || null,
             heure_fin          || null,
             employeur          || null,
@@ -286,7 +257,6 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-// ── DELETE /api/planning/:id ──────────────────────────────────
 router.delete('/:id', async (req, res) => {
     try {
         const result = await pool.query(
