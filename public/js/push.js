@@ -1,6 +1,7 @@
 // ============================================================
 // public/js/push.js
-// Authentification : JWT Bearer uniquement.
+// Notifications push : abonnement VAPID, rappels locaux
+// (tâches, RDV, planning, anniversaires).
 // ============================================================
 
 const VAPID_PUBLIC_KEY = 'BFUh_nh-iDi2povrAcCcn9G14kaAqPI0jNesokS5H-sbHEJFA8Hdmfz2UEqPolgqs6W938Er15gz4LqI_UkRnjQ';
@@ -12,19 +13,35 @@ function urlBase64ToUint8Array(base64String) {
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
+// ── Initialisation push ───────────────────────────────────────
+// B.7 — NotAllowedError :
+//   Vérification de Notification.permission avant toute tentative
+//   de subscribe(). Si 'denied', on sort silencieusement sans
+//   erreur console. Si 'default', on laisse le navigateur
+//   afficher sa popup native au moment du subscribe().
 async function initPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('Notification' in window)) return;
+
     const user = getUser();
     if (!user?.token) return;
+
+    // Permission refusée explicitement → sortie silencieuse
+    if (Notification.permission === 'denied') return;
+
     try {
         const reg = await navigator.serviceWorker.ready;
         let subscription = await reg.pushManager.getSubscription();
+
         if (!subscription) {
+            // 'default' → le navigateur affiche sa popup ici
+            // Si l'utilisateur refuse → NotAllowedError interceptée proprement
             subscription = await reg.pushManager.subscribe({
                 userVisibleOnly     : true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
             });
         }
+
         await fetch('/api/push/subscribe', {
             method : 'POST',
             headers: {
@@ -34,7 +51,11 @@ async function initPush() {
             body: JSON.stringify({ subscription })
         });
     } catch (e) {
-        console.warn('Push init échoué', e);
+        // NotAllowedError = permission refusée via popup → silencieux
+        // Autres erreurs → log informatif non bloquant
+        if (e.name !== 'NotAllowedError') {
+            console.warn('[Push] Initialisation échouée :', e.message);
+        }
     }
 }
 
@@ -84,7 +105,7 @@ async function verifierTachesLocales() {
                 });
             }
         }
-    } catch (e) { console.warn('Erreur tâches push:', e); }
+    } catch (e) { console.warn('[Push] Erreur tâches :', e.message); }
 
     // ── Rendez-vous ───────────────────────────────────────
     try {
@@ -92,7 +113,6 @@ async function verifierTachesLocales() {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const data = await res.json();
-        // ✅ Fix : destructuration correcte { success, rendezvous }
         const rdvs = data.rendezvous || [];
         for (const rdv of rdvs) {
             if (!rdv.date_rdv) continue;
@@ -114,7 +134,7 @@ async function verifierTachesLocales() {
                 tag: `rdv-${rdv.id}`, renotify: true, data: { url: '/' }
             });
         }
-    } catch (e) { console.warn('Erreur RDV push:', e); }
+    } catch (e) { console.warn('[Push] Erreur RDV :', e.message); }
 
     // ── Planning ──────────────────────────────────────────
     try {
@@ -143,7 +163,7 @@ async function verifierTachesLocales() {
                 tag: `planning-${p.id}`, renotify: true, data: { url: '/' }
             });
         }
-    } catch (e) { console.warn('Erreur planning push:', e); }
+    } catch (e) { console.warn('[Push] Erreur planning :', e.message); }
 
     // ── Anniversaires ─────────────────────────────────────
     try {
@@ -152,7 +172,6 @@ async function verifierTachesLocales() {
         });
         const data = await res.json();
         if (data.success) {
-            // ✅ Fix : wrap conditionnel au lieu de return
             if (heureActuelle === '08:00') {
                 const now     = new Date();
                 const jourNow = now.getDate();
@@ -187,7 +206,7 @@ async function verifierTachesLocales() {
                 }
             }
         }
-    } catch (e) { console.warn('Erreur anniversaires push:', e); }
+    } catch (e) { console.warn('[Push] Erreur anniversaires :', e.message); }
 }
 
 setInterval(verifierTachesLocales, 60 * 1000);

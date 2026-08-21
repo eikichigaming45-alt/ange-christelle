@@ -1,9 +1,10 @@
 // ============================================================
-// public/js/rendezvous.js — v3.58
+// public/js/rendezvous.js
 // Rendez-vous médicaux — CRUD complet + widget + modal.
 // Corrections : badge "Passé" fiable sur heure réelle,
 //               liste complète paginée 10/page.
-//               Suppression : message personnalisé titre + date.
+//               B.6 — après suppression/modification : retour
+//               dans la vue courante (pas de closeModal).
 // ============================================================
 
 const Rendezvous = (() => {
@@ -77,7 +78,7 @@ const Rendezvous = (() => {
 
     const TYPES = Object.keys(TYPE_ICONS);
 
-    // ── Fetch ─────────────────────────────────────────────────────────────
+    // ── Fetch ──────────────────────────────────────────────────────────────
 
     async function fetchRdvs() {
         const res  = await fetch('/api/rendezvous', { headers: authHeaders() });
@@ -86,7 +87,7 @@ const Rendezvous = (() => {
         return Array.isArray(data) ? data : (data.rendezvous || []);
     }
 
-    // ── Rendu widget — 3 prochains RDV à venir ────────────────────────────
+    // ── Rendu widget — 3 prochains RDV à venir ─────────────────────────────
 
     function renderWidget(rdvs) {
         const maintenant = new Date();
@@ -132,7 +133,7 @@ const Rendezvous = (() => {
             </div>`;
     }
 
-    // ── Détail (lecture seule) ────────────────────────────────────────────
+    // ── Détail (lecture seule) ─────────────────────────────────────────────
 
     async function ouvrirDetail(id) {
         let rdv = null;
@@ -159,14 +160,14 @@ const Rendezvous = (() => {
                     : ''}
                 <div class="modal-actions" style="margin-top:16px">
                     <button class="btn-save"   onclick="Rendezvous.ouvrirModal(${rdv.id})">✏️ Modifier</button>
-                    <button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id},'${rdv.titre.replace(/'/g,"\\'")}','${formatDateHeure(rdv.date_rdv).replace(/'/g,"\\'")}')">Supprimer</button>
-                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+                    <button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id})">Supprimer</button>
+                    <button class="btn-cancel" onclick="Rendezvous.ouvrirListe()">Retour</button>
                 </div>
             </div>`;
         document.getElementById('overlay').classList.add('on');
     }
 
-    // ── Chargement widget ─────────────────────────────────────────────────
+    // ── Chargement widget ──────────────────────────────────────────────────
 
     async function charger() {
         const container = document.getElementById('widget-rdv-content');
@@ -181,7 +182,7 @@ const Rendezvous = (() => {
         }
     }
 
-    // ── Modal ajout / édition ─────────────────────────────────────────────
+    // ── Modal ajout / édition ──────────────────────────────────────────────
 
     async function ouvrirModal(id = null) {
         let rdv = null;
@@ -237,8 +238,8 @@ const Rendezvous = (() => {
                     <button class="btn-save" onclick="Rendezvous.sauvegarder(${rdv?.id || 'null'})">
                         ${rdv ? 'Modifier' : 'Enregistrer'}
                     </button>
-                    ${rdv ? `<button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id},'${rdv.titre.replace(/'/g,"\\'")}','${formatDateHeure(rdv.date_rdv).replace(/'/g,"\\'")}')">Supprimer</button>` : ''}
-                    <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+                    ${rdv ? `<button class="btn-delete" onclick="Rendezvous.supprimer(${rdv.id})">Supprimer</button>` : ''}
+                    <button class="btn-cancel" onclick="Rendezvous.ouvrirListe()">Annuler</button>
                 </div>
             </div>`;
         document.getElementById('overlay').classList.add('on');
@@ -285,8 +286,9 @@ const Rendezvous = (() => {
                 body    : JSON.stringify({ titre, date_rdv, type_rdv, praticien, lieu, notes, rappel_avant })
             });
             if (!res.ok) throw new Error();
-            closeModal();
+            // B.6 — rester dans la vue courante après sauvegarde
             charger();
+            ouvrirListe();
         } catch {
             document.getElementById('modal-title').textContent = 'Erreur';
             document.getElementById('modal-body').innerHTML = `
@@ -297,14 +299,13 @@ const Rendezvous = (() => {
         }
     }
 
-    // ── Supprimer — message personnalisé titre + date ─────────────────────
+    // ── Supprimer — B.6 retour vue courante + message iso ─────────────────
 
-    async function supprimer(id, titre, dateFormatee) {
-        document.getElementById('modal-title').textContent = 'Confirmation de suppression';
+    async function supprimer(id) {
+        // B.6 — stocker l'origine pour le retour
+        document.getElementById('modal-title').textContent = 'Confirmation';
         document.getElementById('modal-body').innerHTML = `
-            <p style="color:#333;font-size:15px;margin-bottom:20px">
-                Supprimer le rendez-vous <strong>${titre}</strong> du <strong>${dateFormatee}</strong> ? Cette action est irréversible.
-            </p>
+            <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
             <div class="modal-actions">
                 <button class="btn-delete" id="btn-rdv-oui">Confirmer</button>
                 <button class="btn-cancel" id="btn-rdv-non">Annuler</button>
@@ -313,18 +314,19 @@ const Rendezvous = (() => {
         document.getElementById('btn-rdv-oui').onclick = async () => {
             try {
                 await fetch(`/api/rendezvous/${id}`, { method: 'DELETE', headers: authHeaders() });
-                closeModal();
+                // B.6 — rester dans la liste, pas closeModal
                 charger();
+                ouvrirListe();
             } catch {
                 document.getElementById('modal-title').textContent = 'Erreur';
                 document.getElementById('modal-body').innerHTML = `
                     <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
                     <div class="modal-actions">
-                        <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+                        <button class="btn-cancel" onclick="Rendezvous.ouvrirListe()">Retour</button>
                     </div>`;
             }
         };
-        document.getElementById('btn-rdv-non').onclick = () => closeModal();
+        document.getElementById('btn-rdv-non').onclick = () => ouvrirListe();
     }
 
     // ── Liste complète paginée 10/page ────────────────────────────────────

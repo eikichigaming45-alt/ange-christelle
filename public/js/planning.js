@@ -1,10 +1,10 @@
 // ============================================================
-// public/js/planning.js — v3.50
+// public/js/planning.js
 // Planning mensuel + widget 5 jours + gestion employeurs.
 // Nouveau modèle métier : Travail, Repos, Congé payé, Mission, Autre.
 // Congé payé : plage date_debut → date_fin.
 // Autre      : libelle_personnalise affiché à la place de "Autre".
-// Suppression : message personnalisé catégorie + date.
+// B.6 — message suppression iso : "Confirmer la suppression ?"
 // ============================================================
 
 const SHIFT_CONFIG = {
@@ -336,7 +336,7 @@ function _ouvrirDetailJourPlanning(jour) {
                             border:none;border-radius:8px;cursor:pointer;font-size:13px">
                             ✏️ Modifier
                         </button>
-                        <button onclick="_supprimerEntreePlanning(${e.id},'${dateStr}','${label_entry}')" style="
+                        <button onclick="_supprimerEntreePlanning(${e.id},'${dateStr}')" style="
                             flex:1;padding:8px;background:#fee2e2;color:#ef4444;
                             border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">
                             🗑️ Supprimer
@@ -486,9 +486,9 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
                     style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none">${entry.notes || ''}</textarea>
             </div>
 
-                        <div style="margin-bottom:16px">
+            <div style="margin-bottom:16px">
                 <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Rappel avant le shift</label>
-                <select id="pl-rappel" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
+                                <select id="pl-rappel" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
                     ${_optionsRappel(rappelVal)}
                 </select>
             </div>
@@ -539,11 +539,11 @@ async function _sauvegarderEntreePlanning(id) {
     const notes                = document.getElementById('pl-notes').value       || null;
     const rappel_avant_shift   = parseInt(document.getElementById('pl-rappel').value) || 0;
 
-    const selectEl  = document.getElementById('pl-employeur-select');
-    const nouveauEl = document.getElementById('pl-employeur-nouveau');
-    const selectVal = selectEl  ? selectEl.value         : '__nouveau__';
-    const nouveauVal= nouveauEl ? nouveauEl.value.trim() : '';
-    const employeur = selectVal === '__nouveau__' ? nouveauVal : selectVal;
+    const selectEl   = document.getElementById('pl-employeur-select');
+    const nouveauEl  = document.getElementById('pl-employeur-nouveau');
+    const selectVal  = selectEl  ? selectEl.value         : '__nouveau__';
+    const nouveauVal = nouveauEl ? nouveauEl.value.trim() : '';
+    const employeur  = selectVal === '__nouveau__' ? nouveauVal : selectVal;
 
     if (!date_debut) {
         if (msg) msg.textContent = 'La date de début est obligatoire.'; return;
@@ -597,13 +597,11 @@ async function _sauvegarderEntreePlanning(id) {
     }
 }
 
-// ── Suppression entrée — message personnalisé label + date ────────────────
-async function _supprimerEntreePlanning(id, dateStr, labelEntree) {
-    document.getElementById('modal-title').textContent = 'Confirmation de suppression';
+// ── Suppression entrée — message iso "Confirmer la suppression ?" ─────────
+async function _supprimerEntreePlanning(id, dateStr) {
+    document.getElementById('modal-title').textContent = 'Confirmation';
     document.getElementById('modal-body').innerHTML = `
-        <p style="color:#333;font-size:15px;margin-bottom:20px">
-            Supprimer <strong>${labelEntree}</strong> du <strong>${dateStr}</strong> ? Cette action est irréversible.
-        </p>
+        <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
         <div style="display:flex;gap:8px">
             <button id="btn-planning-oui" style="
                 flex:1;padding:13px;background:#ef4444;color:white;
@@ -720,6 +718,7 @@ async function _ajouterEmployeur() {
     }
 }
 
+// ── Suppression employeur — message iso "Confirmer la suppression ?" ──────
 async function _supprimerEmployeur(id, nom) {
     const body = document.getElementById('modal-body');
     body.innerHTML = `
@@ -727,9 +726,7 @@ async function _supprimerEmployeur(id, nom) {
             <div style="font-size:16px;font-weight:700;margin-bottom:12px;color:#1f2937">
                 Supprimer un employeur
             </div>
-            <p style="color:#374151;font-size:15px;margin-bottom:20px">
-                Supprimer <strong>${nom}</strong> ? Cette action est irréversible.
-            </p>
+            <p style="color:#374151;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
             <div style="display:flex;gap:8px">
                 <button id="btn-emp-oui" style="
                     flex:1;padding:13px;background:#ef4444;color:white;

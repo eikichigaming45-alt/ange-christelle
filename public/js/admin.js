@@ -3,6 +3,7 @@
 // Dashboard admin : widget, modale stats/users, CRUD users.
 // Authentification : JWT Bearer uniquement — plus d'adminId.
 // Dépend de : app.js (getUser), profil.js (validerMotDePasse)
+// B.6 — message suppression iso : "Confirmer la suppression ?"
 // ============================================================
 
 // ===================== WIDGET ADMIN (dashboard) ==============
@@ -460,7 +461,7 @@ function adminResetPwd(id, username) {
     el.innerHTML = `
         <div class="user-card">
             <div class="user-card-name" style="margin-bottom:4px">🔑 Nouveau MDP — <strong>${username}</strong></div>
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">8 car. min · majuscule · minuscule · chiffre · spécial</div>
+                        <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">8 car. min · majuscule · minuscule · chiffre · spécial</div>
             <input type="password" id="admin-new-pwd" placeholder="Nouveau mot de passe"
                 autocomplete="new-password" name="admin-pwd-field"
                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
@@ -502,14 +503,16 @@ async function adminConfirmResetPwd(id) {
 }
 
 // ===================== SUPPRIMER UTILISATEUR =================
+// B.6 — message iso "Confirmer la suppression ?"
 
 function adminSupprimerUser(id, username) {
     const el = document.getElementById('admin-tab-users');
     el.innerHTML = `
         <div class="user-card" style="border-color:#fee2e2;background:#fff5f5">
             <div style="font-size:32px;text-align:center;margin-bottom:8px">🗑</div>
-            <div class="user-card-name" style="text-align:center;margin-bottom:6px">Supprimer <strong>${username}</strong> ?</div>
-            <div class="user-card-meta" style="text-align:center;margin-bottom:16px">Cette action est irréversible.</div>
+            <div class="user-card-name" style="text-align:center;margin-bottom:16px">
+                Confirmer la suppression ?
+            </div>
             <div style="display:flex;gap:8px">
                 <button class="ua-btn ua-btn-red" style="flex:1" onclick="adminConfirmSupprimer(${id})">Confirmer</button>
                 <button class="ua-btn" style="flex:1;background:#f3f4f6;color:#374151" onclick="chargerAdminUsers()">Annuler</button>

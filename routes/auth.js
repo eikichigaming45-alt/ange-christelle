@@ -28,8 +28,16 @@ const loginLimiter = rateLimit({
 
 // ── POST /api/login ───────────────────────────────────────────
 // Vérifie les identifiants et retourne un token JWT 7 jours.
+// B.13 — Login insensible à la casse :
+//   Le username est normalisé en minuscules avant comparaison DB.
+//   Les usernames sont stockés en minuscules (format prenom.nom).
+//   Ainsi "Mickael.Aguillon" et "mickael.aguillon" sont équivalents.
 router.post('/login', loginLimiter, async (req, res) => {
-    const { username, password } = req.body;
+    const { username: rawUsername, password } = req.body;
+
+    // Normalisation insensible à la casse
+    const username = rawUsername ? rawUsername.trim().toLowerCase() : '';
+
     if (!username || !password) {
         return res.status(400).json({ success: false, message: 'Identifiants manquants.' });
     }

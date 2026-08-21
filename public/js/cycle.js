@@ -1,8 +1,9 @@
 // ============================================================
-// public/js/cycle.js — v3.47
+// public/js/cycle.js
 // Suivi du cycle menstruel — widget, calendrier, journal quotidien.
 // Auth via JWT Bearer (authHeaders). Pas d'userId client.
-// Correctifs : icône 👙 seins douloureux, historique paginé 10/page.
+// B.6 — après suppression/modification : retour vue courante.
+// Message suppression iso : "Confirmer la suppression ?"
 // ============================================================
 
 const Cycle = (() => {
@@ -49,18 +50,18 @@ const Cycle = (() => {
                a.getDate()     === b.getDate();
     }
 
-    function confirmerAction(message, onOui) {
+    // B.6 — confirmation iso, retour vers la vue passée en callback
+    function confirmerSuppression(onOui, onNon) {
         document.getElementById('modal-title').textContent = 'Confirmation';
         document.getElementById('modal-body').innerHTML = `
-            <p style="color:#333;font-size:15px;margin-bottom:20px">${message}</p>
+            <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
             <div class="modal-actions">
                 <button class="btn-delete" id="btn-confirmer-oui">Confirmer</button>
                 <button class="btn-cancel" id="btn-confirmer-non">Annuler</button>
-            </div>
-        `;
+            </div>`;
         document.getElementById('overlay').classList.add('on');
         document.getElementById('btn-confirmer-oui').onclick = () => onOui();
-        document.getElementById('btn-confirmer-non').onclick = () => closeModal();
+        document.getElementById('btn-confirmer-non').onclick = () => onNon();
     }
 
     function calculerDureeMoyenne(cycles) {
@@ -228,8 +229,7 @@ const Cycle = (() => {
                     <span class="cal-leg-item"><span style="color:#e83e8c">♥</span> Rapport</span>
                     <span class="cal-leg-item"><span style="color:#7c3aed">●</span> Symptômes</span>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 
     async function naviguerCalendrier(offset) {
@@ -248,7 +248,6 @@ const Cycle = (() => {
         });
         const symptomesActifs = journal.symptomes ? journal.symptomes.split(',') : [];
 
-        // ── Symptômes — icône 👙 validée pour "Seins douloureux" ─────────
         const SYMPTOMES = [
             { key: 'je_me_sens_bien',     label: 'Je me sens bien',     icon: '😊' },
             { key: 'crampes_abdominales', label: 'Crampes abdominales', icon: '🤰' },
@@ -288,8 +287,7 @@ const Cycle = (() => {
                     ${journal.id ? `<button class="btn-delete" onclick="Cycle._supprimerJournal(${journal.id}, '${dateStr}')">🗑️ Supprimer</button>` : ''}
                     <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Annuler</button>
                 </div>
-            </div>
-        `;
+            </div>`;
         document.getElementById('overlay').classList.add('on');
     }
 
@@ -304,7 +302,7 @@ const Cycle = (() => {
         const rapport    = rapportBtn
             ? (rapportBtn.textContent.includes('Protégé') ? 'protege' : 'non_protege')
             : null;
-        const symptomes  = [...document.querySelectorAll('.journal-symptomes input:checked')]
+        const symptomes = [...document.querySelectorAll('.journal-symptomes input:checked')]
             .map(i => i.value).join(',');
         const notes = document.getElementById('journal-notes').value;
         try {
@@ -316,6 +314,7 @@ const Cycle = (() => {
             await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
             const container = document.getElementById('cal-container');
             if (container) container.innerHTML = renderCalendrier(_calcCourant);
+            // B.6 — retour au calendrier, pas closeModal
             ouvrirModalCalendrier();
         } catch {
             document.getElementById('modal-title').textContent = 'Erreur';
@@ -328,24 +327,24 @@ const Cycle = (() => {
     }
 
     async function _supprimerJournal(id, dateStr) {
-        const [y, m, d] = dateStr.split('-').map(Number);
-        const dateAff   = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
-            weekday: 'long', day: '2-digit', month: 'long'
-        });
-        confirmerAction(`Supprimer l'entrée du ${dateAff} ? Cette action est irréversible.`, async () => {
-            try {
-                await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
-                await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
-                ouvrirModalCalendrier();
-            } catch {
-                document.getElementById('modal-title').textContent = 'Erreur';
-                document.getElementById('modal-body').innerHTML = `
-                    <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
-                    <div class="modal-actions">
-                        <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
-                    </div>`;
-            }
-        });
+        // B.6 — retour au calendrier après suppression
+        confirmerSuppression(
+            async () => {
+                try {
+                    await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
+                    await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+                    ouvrirModalCalendrier();
+                } catch {
+                    document.getElementById('modal-title').textContent = 'Erreur';
+                    document.getElementById('modal-body').innerHTML = `
+                        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
+                        <div class="modal-actions">
+                            <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
+                        </div>`;
+                }
+            },
+            () => ouvrirJournal(dateStr)
+        );
     }
 
     function renderWidget(cycles, dureeMoyenne) {
@@ -428,8 +427,7 @@ const Cycle = (() => {
                     <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
                     ${cycles.length > 0 ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>` : ''}
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 
     async function charger() {
@@ -493,8 +491,7 @@ const Cycle = (() => {
                             ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>`
                             : ''}
                     </div>
-                </div>
-            `;
+                </div>`;
             document.getElementById('overlay').classList.add('on');
         } catch {
             document.getElementById('modal-title').textContent = 'Erreur';
@@ -506,7 +503,7 @@ const Cycle = (() => {
         }
     }
 
-        function ouvrirModalAjout(cycleExistant = null) {
+    function ouvrirModalAjout(cycleExistant = null) {
         const isEdit = !!cycleExistant;
         const today  = formatDateInput(new Date());
         document.getElementById('modal-title').textContent = isEdit ? 'Modifier le cycle' : 'Enregistrer mes règles';
@@ -519,7 +516,7 @@ const Cycle = (() => {
                 <label>Durée des règles (jours)</label>
                 <input type="number" id="cycle-duree-regles" min="1" max="10"
                     value="${isEdit ? cycleExistant.duree_regles : 5}" />
-                <label>Durée du cycle (jours) — sera recalculée automatiquement après 2 cycles</label>
+                                <label>Durée du cycle (jours) — sera recalculée automatiquement après 2 cycles</label>
                 <input type="number" id="cycle-duree-cycle" min="21" max="45"
                     value="${isEdit ? cycleExistant.duree_cycle : 28}" />
                 <label>Notes (optionnel)</label>
@@ -529,10 +526,9 @@ const Cycle = (() => {
                         ${isEdit ? 'Modifier' : 'Enregistrer'}
                     </button>
                     ${isEdit ? `<button class="btn-delete" onclick="Cycle.supprimer(${cycleExistant.id})">Supprimer</button>` : ''}
-                    <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+                    <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Annuler</button>
                 </div>
-            </div>
-        `;
+            </div>`;
         document.getElementById('overlay').classList.add('on');
     }
 
@@ -555,8 +551,9 @@ const Cycle = (() => {
                 body   : JSON.stringify({ date_debut, duree_regles, duree_cycle, notes })
             });
             if (!res.ok) throw new Error();
-            closeModal();
+            // B.6 — retour au calendrier, pas closeModal
             charger();
+            ouvrirModalCalendrier();
         } catch {
             document.getElementById('modal-title').textContent = 'Erreur';
             document.getElementById('modal-body').innerHTML = `
@@ -568,23 +565,27 @@ const Cycle = (() => {
     }
 
     async function supprimer(id) {
-        confirmerAction('Supprimer ce cycle ? Cette action est irréversible.', async () => {
-            try {
-                await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
-                closeModal();
-                charger();
-            } catch {
-                document.getElementById('modal-title').textContent = 'Erreur';
-                document.getElementById('modal-body').innerHTML = `
-                    <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
-                    <div class="modal-actions">
-                        <button class="btn-cancel" onclick="closeModal()">Fermer</button>
-                    </div>`;
-            }
-        });
+        // B.6 — retour à l'historique après suppression
+        confirmerSuppression(
+            async () => {
+                try {
+                    await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
+                    charger();
+                    ouvrirHistorique();
+                } catch {
+                    document.getElementById('modal-title').textContent = 'Erreur';
+                    document.getElementById('modal-body').innerHTML = `
+                        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
+                        <div class="modal-actions">
+                            <button class="btn-cancel" onclick="Cycle.ouvrirHistorique()">Retour</button>
+                        </div>`;
+                }
+            },
+            () => ouvrirHistorique()
+        );
     }
 
-    // ── Historique paginé 10/page ─────────────────────────────────────────
+    // ── Historique paginé 10/page ──────────────────────────────────────────
 
     async function ouvrirHistorique(page = 0) {
         try {
@@ -629,17 +630,18 @@ const Cycle = (() => {
                         : ''}
                     ${lignes || '<p>Aucun cycle enregistré.</p>'}
                     ${pagination}
-                    <button class="btn-cycle-primary" style="margin-top:12px"
-                        onclick="Cycle.ouvrirModalAjout()">+ Nouveau cycle</button>
-                </div>
-            `;
+                    <div style="display:flex;gap:8px;margin-top:12px">
+                        <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Nouveau cycle</button>
+                        <button class="btn-cycle-secondary" onclick="Cycle.ouvrirModalCalendrier()">← Retour</button>
+                    </div>
+                </div>`;
             document.getElementById('overlay').classList.add('on');
         } catch {
             document.getElementById('modal-title').textContent = 'Erreur';
             document.getElementById('modal-body').innerHTML = `
                 <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur de chargement de l'historique.</p>
                 <div class="modal-actions">
-                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+                    <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
                 </div>`;
         }
     }

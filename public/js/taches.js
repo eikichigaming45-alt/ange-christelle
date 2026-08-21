@@ -1,6 +1,8 @@
 // ============================================================
 // public/js/taches.js
 // Authentification : JWT Bearer uniquement.
+// B.6 — après suppression/modification : retour vue courante.
+// Message suppression iso : "Confirmer la suppression ?"
 // ============================================================
 
 function _todayStr() {
@@ -291,14 +293,13 @@ async function cocherTache(id) {
 
 async function supprimerTache(id) {
     const user = getUser();
-    document.getElementById('modal-title').textContent = 'Confirmation de suppression';
+    document.getElementById('modal-title').textContent = 'Confirmation';
     document.getElementById('modal-body').innerHTML = `
-        <p style="color:#333;font-size:15px;margin-bottom:20px">Supprimer cette tâche ? Cette action est irréversible.</p>
+        <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
         <div class="modal-actions">
             <button class="btn-delete" id="btn-tache-oui">Confirmer</button>
             <button class="btn-cancel" id="btn-tache-non">Annuler</button>
-        </div>
-    `;
+        </div>`;
     document.getElementById('btn-tache-oui').onclick = async () => {
         try {
             await fetch(`/api/taches/${id}`, {

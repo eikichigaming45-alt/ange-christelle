@@ -1,5 +1,5 @@
 // ============================================================
-// public/js/app.js — v3.45
+// public/js/app.js
 // Point d'entrée front : état global, login, logout, init app,
 // utilitaires date/version, refresh widgets.
 // chargerProfilHeader() définie uniquement dans profil.js.
@@ -79,6 +79,20 @@ window.addEventListener('DOMContentLoaded', () => {
         showApp();
     } else {
         localStorage.removeItem('myvibe_user');
+    }
+
+    // B.14 — Toggle afficher/masquer le mot de passe (login)
+    // Fonctionne sur PC et mobile. type="button" dans index.html
+    // empêche la soumission accidentelle du formulaire.
+    const toggleBtn = document.getElementById('toggle-password');
+    const pwdInput  = document.getElementById('password');
+    if (toggleBtn && pwdInput) {
+        toggleBtn.addEventListener('click', () => {
+            const visible = pwdInput.type === 'text';
+            pwdInput.type           = visible ? 'password' : 'text';
+            toggleBtn.textContent   = visible ? '👁' : '🙈';
+            toggleBtn.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
+        });
     }
 });
 
@@ -163,6 +177,13 @@ function logout() {
     document.getElementById('login-page').style.display = 'flex';
     document.getElementById('username').value           = '';
     document.getElementById('password').value           = '';
+
+    // Réinitialiser le toggle mot de passe à l'état initial
+    const pwdInput  = document.getElementById('password');
+    const toggleBtn = document.getElementById('toggle-password');
+    if (pwdInput)  pwdInput.type          = 'password';
+    if (toggleBtn) toggleBtn.textContent  = '👁';
+
     const errEl = document.getElementById('error-msg');
     if (errEl) errEl.textContent = '';
 }

@@ -1,7 +1,8 @@
 // ============================================================
-// public/js/widgets.js — v3.43
+// public/js/widgets.js
 // Grille principale, drag & drop souris + tactile, opt-out widgets.
 // Dépend de : app.js (WIDGETS_DEF, dragSrc, dragActif, longPressTimer)
+// B.1 — bouton refresh supprimé sur tous les widgets.
 // ============================================================
 
 let gridConstruit = false;
@@ -55,13 +56,11 @@ async function buildGrid() {
     }
 
     if (ordre) {
-        // Tri selon l'ordre sauvegardé
         const sorted = [];
         ordre.forEach(id => { const w = defs.find(d => d.id === id); if (w) sorted.push(w); });
         defs.forEach(w  => { if (!ordre.includes(w.id)) sorted.push(w); });
         defs = sorted;
     } else {
-        // Tri alphabétique par défaut — profil et admin toujours en dernier
         const DERNIERS = ['profil', 'admin'];
         const normaux  = defs
             .filter(w => !DERNIERS.includes(w.id))
@@ -103,6 +102,8 @@ function creerWidget(def) {
     if (def.id === 'profil')      contentHtml = '<div id="wc-profil"></div>';
     if (def.id === 'astrologie')  contentHtml = 'Chargement...';
 
+    // B.1 — bouton refresh supprimé : la ligne ${def.refresh ? ...} est retirée.
+    // Le rafraîchissement reste disponible via le titre "MyDaily" (actualiser()).
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
         <div class="wh">
@@ -110,7 +111,6 @@ function creerWidget(def) {
                 <div class="wi" id="wi-${def.id}">${def.icon}</div>
                 <div class="wt">${def.label}</div>
             </div>
-            ${def.refresh ? `<button class="rbtn" id="rbtn-${def.id}" title="Actualiser">🔄</button>` : ''}
         </div>
         <div class="wc" id="wc-${def.id}">${contentHtml}</div>
         <div class="wf">${def.foot || ''}</div>
@@ -119,19 +119,10 @@ function creerWidget(def) {
     // Clic sur le widget → ouvre la modale
     div.addEventListener('click', e => {
         if (e.target.classList.contains('drag-handle')) return;
-        if (e.target.classList.contains('rbtn'))        return;
         if (e.target.closest('button'))                 return;
         if (e.target.closest('.rdv-card'))              return;
         openModal(def.id);
     });
-
-    // Boutons de rafraîchissement
-    if (def.id === 'meteo')      div.querySelector('#rbtn-meteo')?.addEventListener('click',      e => { e.stopPropagation(); chargerMeteoAuto(); });
-    if (def.id === 'priere')     div.querySelector('#rbtn-priere')?.addEventListener('click',     e => { e.stopPropagation(); chargerPriere(); });
-    if (def.id === 'islam')      div.querySelector('#rbtn-islam')?.addEventListener('click',      e => { e.stopPropagation(); if (typeof window.chargerIslam === 'function') window.chargerIslam(); });
-    if (def.id === 'cycle')      div.querySelector('#rbtn-cycle')?.addEventListener('click',      e => { e.stopPropagation(); Cycle.charger(); });
-    if (def.id === 'rendezvous') div.querySelector('#rbtn-rendezvous')?.addEventListener('click', e => { e.stopPropagation(); Rendezvous.charger(); });
-    if (def.id === 'astrologie') div.querySelector('#rbtn-astrologie')?.addEventListener('click', e => { e.stopPropagation(); if (typeof chargerAstrologie === 'function') chargerAstrologie(); });
 
     // Drag & drop souris
     div.addEventListener('dragstart', onDragStart);

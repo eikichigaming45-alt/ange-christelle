@@ -1,10 +1,11 @@
 // ============================================================
-// public/js/profil.js — v3.58
+// public/js/profil.js
 // Profil utilisateur : affichage, édition, photo (cropper),
 // suppression photo, trigramme 3 lettres, changement de mot
 // de passe, préférences widgets (opt-out).
 // Dépend de : app.js (getUser, profilCache, cropperInstance, TOUS_WIDGETS)
 //             widgets.js (appliquerWidgetsVisibles)
+// B.6 — message suppression iso : "Confirmer la suppression ?"
 // ============================================================
 
 // ===================== UTILITAIRE TRIGRAMME ==================
@@ -160,28 +161,23 @@ function annulerCrop() {
 }
 
 // ===================== SUPPRESSION PHOTO =====================
+// B.6 — message iso "Confirmer la suppression ?"
 
 function supprimerPhoto() {
-    document.getElementById('modal-title').textContent = 'Confirmation de suppression';
+    document.getElementById('modal-title').textContent = 'Confirmation';
     document.getElementById('modal-body').innerHTML = `
-        <p style="color:#333;font-size:15px;margin-bottom:20px">
-            Supprimer la photo de profil ? Cette action est irréversible.
-        </p>
+        <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
         <div class="modal-actions">
             <button class="btn-delete" id="btn-photo-oui">Confirmer</button>
             <button class="btn-cancel" id="btn-photo-non">Annuler</button>
         </div>`;
     document.getElementById('overlay').classList.add('on');
-
     document.getElementById('btn-photo-oui').onclick = () => _confirmerSupprimerPhoto();
     document.getElementById('btn-photo-non').onclick = () => openModal('profil');
 }
 
 async function _confirmerSupprimerPhoto() {
     const user = getUser();
-    const zone = document.getElementById('confirm-suppr-photo');
-    if (zone) zone.remove();
-
     try {
         const r = await fetch('/api/profil/photo', {
             method  : 'DELETE',
