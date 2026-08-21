@@ -505,3 +505,28 @@ input:focus{border-color:#7C3AED}
 .pwd-wrapper input{width:100%;margin-bottom:0;padding-right:44px}
 .pwd-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9ca3af;padding:4px;line-height:1;-webkit-tap-highlight-color:transparent}
 .pwd-toggle:hover{color:#7C3AED}
+
+/* ===================== FIXES MOBILE (B.3 B.4 B.8 B.9) ===================== */
+
+/* B.8 — Header mobile cache le dernier widget
+   Le footer fixe fait 37px (padding 10px + font 13px + line-height).
+   On ajoute un padding-bottom à la grille pour que le dernier widget
+   ne soit pas masqué. */
+@media(max-width:700px){
+  .grid{padding-bottom:56px}
+}
+
+/* B.3 — "Cliquez pour gérer" coupé sur mobile
+   Le texte du footer widget passe en wrap au lieu d'être tronqué. */
+.wf{margin-top:12px;font-size:12px;color:#9ca3af;text-align:right;white-space:normal;word-break:break-word}
+
+/* B.4 — Scrollbars modale Prière
+   La scrollbar interne .priere-texte-complet est trop visible sur mobile.
+   On la rend fine et discrète. */
+.priere-texte-complet::-webkit-scrollbar{width:3px}
+.priere-texte-complet::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:2px}
+.priere-texte-complet::-webkit-scrollbar-track{background:transparent}
+
+/* B.9 — Numéro de build trop noir
+   Le span dans .footer passe en gris moyen. */
+.footer span{color:#9ca3af !important;font-weight:500}
