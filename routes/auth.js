@@ -26,7 +26,6 @@ const loginLimiter = rateLimit({
 router.post('/login', loginLimiter, async (req, res) => {
     const { username: rawUsername, password } = req.body;
 
-    // Normalisation insensible à la casse
     const username = rawUsername ? rawUsername.trim().toLowerCase() : '';
 
     if (!username || !password) {
@@ -34,7 +33,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
     try {
         const result = await pool.query(
-            'SELECT id, username, password, role, must_change_password FROM users WHERE username = \\$1',
+            'SELECT id, username, password, role, must_change_password FROM users WHERE username = \$1',
             [username]
         );
         if (result.rows.length === 0) {
@@ -46,13 +45,12 @@ router.post('/login', loginLimiter, async (req, res) => {
             return res.status(401).json({ success: false, message: 'Mot de passe incorrect.' });
         }
 
-        // Forcer le changement si le mot de passe ne respecte pas les règles
         const mdpInvalide = validerMotDePasse(password) !== null;
         if (mdpInvalide && !user.must_change_password) {
-            await pool.query('UPDATE users SET must_change_password = TRUE WHERE id = \\$1', [user.id]);
+            await pool.query('UPDATE users SET must_change_password = TRUE WHERE id = \$1', [user.id]);
         }
 
-        await pool.query('UPDATE users SET last_login = NOW() WHERE id = \\$1', [user.id]);
+        await pool.query('UPDATE users SET last_login = NOW() WHERE id = \$1', [user.id]);
 
         const token = jwt.sign(
             { id: user.id, username: user.username, role: user.role },
