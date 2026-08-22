@@ -2,15 +2,13 @@
 // public/js/cycle.js
 // Suivi du cycle menstruel — widget, calendrier, journal, mood.
 // Auth via JWT Bearer (authHeaders). Pas d'userId client.
-// Phases mood calculées dynamiquement selon dureeRegles/dureeCycle
-// de chaque utilisatrice.
+// Phases mood calculées dynamiquement selon dureeRegles/dureeCycle.
 // ============================================================
 
 const Cycle = (() => {
 
     const PAGE_SIZE = 10;
 
-    // ── Labels et items des phases — fixes, bornes calculées dynamiquement ─
     const PHASES_MOOD_DEF = [
         {
             label: '🌑 Règles — Énergie basse',
@@ -39,21 +37,18 @@ const Cycle = (() => {
         }
     ];
 
-    // ── Calcule les bornes de phases selon le cycle réel ──────
-    // dureeRegles et dureeCycle viennent de calc (données BDD).
     function calculerBornesPhases(dureeRegles, dureeCycle) {
-        const ovulation      = dureeCycle - 14;
-        const debutFertile   = dureeCycle - 16;
+        const ovulation    = dureeCycle - 14;
+        const debutFertile = dureeCycle - 16;
         return [
-            { min: 1,                max: dureeRegles,    def: PHASES_MOOD_DEF[0] }, // Règles
-            { min: dureeRegles + 1,  max: debutFertile,   def: PHASES_MOOD_DEF[1] }, // Folliculaire
-            { min: ovulation,        max: ovulation,      def: PHASES_MOOD_DEF[2] }, // Ovulation
-            { min: ovulation + 1,    max: ovulation + 7,  def: PHASES_MOOD_DEF[3] }, // Lutéale début
-            { min: ovulation + 8,    max: dureeCycle,     def: PHASES_MOOD_DEF[4] }, // Lutéale fin
+            { min: 1,               max: dureeRegles,   def: PHASES_MOOD_DEF[0] },
+            { min: dureeRegles + 1, max: debutFertile,  def: PHASES_MOOD_DEF[1] },
+            { min: ovulation,       max: ovulation,     def: PHASES_MOOD_DEF[2] },
+            { min: ovulation + 1,   max: ovulation + 7, def: PHASES_MOOD_DEF[3] },
+            { min: ovulation + 8,   max: dureeCycle,    def: PHASES_MOOD_DEF[4] },
         ];
     }
 
-    // ── Retourne la phase mood du jour selon le cycle réel ────
     function getPhaseMood(jourCycle, calc) {
         if (!jourCycle || !calc) return null;
         const j      = Math.min(jourCycle, calc.dureeCycle);
@@ -403,7 +398,6 @@ const Cycle = (() => {
         );
     }
 
-    // ── Modal mood — items dynamiques selon cycle réel ────────
     async function ouvrirModalMood(calc) {
         const today     = formatDateInput(new Date());
         const jourCycle = calculerJourCycle(calc);
@@ -438,12 +432,13 @@ const Cycle = (() => {
                 </div>
                 <div class="modal-actions" style="margin-top:16px">
                     <button class="btn-save" onclick="Cycle._sauvegarderMood('${today}')">💾 Sauvegarder</button>
-                    <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Annuler</button>
+                    <button class="btn-cancel" onclick="closeModal()">Annuler</button>
                 </div>
             </div>`;
         document.getElementById('overlay').classList.add('on');
     }
 
+    // ── Fix 2 : retour dashboard après save mood ──────────────
     async function _sauvegarderMood(date) {
         const moods = [...document.querySelectorAll('.journal-symptomes input:checked')]
             .map(i => i.value).join(',');
@@ -454,7 +449,7 @@ const Cycle = (() => {
                 body   : JSON.stringify({ date, moods })
             });
             charger();
-            ouvrirModalCalendrier();
+            closeModal();
         } catch {
             document.getElementById('modal-title').textContent = 'Erreur';
             document.getElementById('modal-body').innerHTML = `
@@ -465,7 +460,6 @@ const Cycle = (() => {
         }
     }
 
-    // ── Bloc mood réutilisable ─────────────────────────────────
     function renderBlocMood(moodDuJour, calc, onclickFn) {
         if (!calc) return '';
         const jourCycle    = calculerJourCycle(calc);
@@ -501,7 +495,7 @@ const Cycle = (() => {
             </div>`;
     }
 
-        function renderWidget(cycles, dureeMoyenne, moodDuJour) {
+    function renderWidget(cycles, dureeMoyenne, moodDuJour) {
         const dernierCycle = cycles.length > 0 ? cycles[0] : null;
         const calc         = calculerCycle(dernierCycle, dureeMoyenne);
         const phase        = getPhase(calc);
@@ -517,7 +511,7 @@ const Cycle = (() => {
                 valeurOvulation = formatDate(prochaineOvulation);
                 labelFenetre    = 'Prochaine fenêtre fertile';
                 valeurFenetre   = `${formatDate(prochaineFenetreDebut)} → ${formatDate(prochaineFenetreFin)}`;
-            } else {
+                        } else {
                 labelOvulation  = 'Ovulation estimée';
                 valeurOvulation = formatDate(calc.ovulation);
                 labelFenetre    = 'Fenêtre fertile';
@@ -577,11 +571,11 @@ const Cycle = (() => {
                         <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0, Math.round(((new Date() - calc.debut) / (1000 * 60 * 60 * 24)) / calc.dureeCycle * 100)))}%;background:${phase.color}"></div>
                     </div>
                 </div>` : ''}
-                ${renderBlocMood(moodDuJour, calc, "Cycle._ouvrirMoodDepuisWidget()")}
                 <div class="cycle-actions">
                     <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
                     ${cycles.length > 0 ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>` : ''}
                 </div>
+                ${renderBlocMood(moodDuJour, calc, "Cycle._ouvrirMoodDepuisWidget()")}
             </div>`;
     }
 
@@ -610,10 +604,10 @@ const Cycle = (() => {
         const user = JSON.parse(localStorage.getItem('myvibe_user'));
         if (!user?.token) { setTimeout(() => charger(), 300); return; }
         try {
-            const res    = await fetch('/api/cycle', { headers: authHeaders() });
+            const res          = await fetch('/api/cycle', { headers: authHeaders() });
             if (!res.ok) throw new Error();
-            const d      = await res.json();
-            const cycles = d.cycles || [];
+            const d            = await res.json();
+            const cycles       = d.cycles || [];
             const dureeMoyenne = calculerDureeMoyenne(cycles);
 
             const today    = formatDateInput(new Date());
@@ -675,7 +669,6 @@ const Cycle = (() => {
                     ${dureeMoyenne
                         ? `<div class="cycle-duree-info">Durée moyenne calculée : <strong>${dureeMoyenne} jours</strong> (sur ${cycles.length} cycles)</div>`
                         : ''}
-                    ${renderBlocMood(moodDuJour, calc, "Cycle.ouvrirModalMood(Cycle._getCalcCourant())")}
                     <div id="cal-container">${renderCalendrier(calc)}</div>
                     <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
                         <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
@@ -683,6 +676,7 @@ const Cycle = (() => {
                             ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>`
                             : ''}
                     </div>
+                    ${renderBlocMood(moodDuJour, calc, "Cycle.ouvrirModalMood(Cycle._getCalcCourant())")}
                 </div>`;
             document.getElementById('overlay').classList.add('on');
         } catch {
