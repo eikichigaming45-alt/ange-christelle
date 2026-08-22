@@ -329,8 +329,8 @@ async function afficherVersion() {
         const txt   = await r.text();
         const match = txt.match(/CACHE_NAME\s*=\s*['"]([^'"]+)['"]/);
         if (match) {
-            const el = document.querySelector('.footer');
-            if (el) el.innerHTML = `<span style="font-size:13px;font-weight:600;color:#333">${match[1]}</span>`;
+            const el = document.getElementById('topbar-version');
+            if (el) el.textContent = match[1];
         }
     } catch { /* silencieux */ }
 }

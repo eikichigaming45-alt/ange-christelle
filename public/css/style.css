@@ -12,6 +12,12 @@ input:focus{border-color:#7C3AED}
 .btn:hover{background:#6D28D9}
 #error-msg{color:#ef4444;margin-top:14px;font-size:14px;min-height:20px}
 
+/* ===================== PASSWORD TOGGLE ===================== */
+.pwd-wrapper{position:relative;width:100%;margin-bottom:16px}
+.pwd-wrapper input{width:100%;margin-bottom:0;padding-right:44px}
+.pwd-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9ca3af;padding:4px;line-height:1;-webkit-tap-highlight-color:transparent}
+.pwd-toggle:hover{color:#7C3AED}
+
 /* ===================== APP LAYOUT ===================== */
 #app{display:none;flex-direction:column;width:100vw;min-height:100vh;background:#f3f4f6;overflow-x:hidden}
 .topbar{background:#7C3AED;color:#fff;padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;position:sticky;top:0;z-index:200}
@@ -30,8 +36,13 @@ input:focus{border-color:#7C3AED}
 .tab-pane.active{display:flex;flex-direction:column}
 
 /* ===================== ONGLET ACCUEIL ===================== */
-.accueil-meteo-fixed{background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 20px;flex-shrink:0}
-.accueil-feed{flex:1;overflow-y:auto;padding:16px 20px;padding-bottom:80px}
+.accueil-meteo-fixed{background:#fff;border-bottom:1px solid #e5e7eb;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.meteo-accueil-card{padding:14px 20px;cursor:pointer;transition:background .15s}
+.meteo-accueil-card:hover{background:#f8f5ff}
+.accueil-feed{flex:1;overflow-y:auto;padding:16px;padding-bottom:80px;display:flex;flex-direction:column;gap:16px;background:#f3f4f6}
+
+/* ===================== FEED PLACEHOLDER ===================== */
+.feed-placeholder{display:flex;align-items:center;justify-content:center;min-height:200px;color:#9ca3af;font-size:15px;font-weight:600;background:#fff;border-radius:16px;border:2px dashed #e5e7eb}
 
 /* ===================== BOTTOM NAV ===================== */
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:#fff;border-top:1px solid #e5e7eb;display:flex;align-items:stretch;z-index:300;box-shadow:0 -2px 12px rgba(0,0,0,.08)}
@@ -43,7 +54,6 @@ input:focus{border-color:#7C3AED}
 
 /* ===================== GRID & WIDGETS ===================== */
 .grid{flex:1;overflow-y:auto;padding:20px;padding-bottom:80px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-content:start}
-
 @media(max-width:700px){
   .grid{grid-template-columns:1fr !important;padding:12px;padding-bottom:80px;gap:12px}
   .widget{min-width:0}
@@ -174,6 +184,8 @@ input:focus{border-color:#7C3AED}
 .priere-titre-jour{font-size:15px;font-weight:700;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:10px;border-left:4px solid #d97706}
 .priere-section-label{font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.5px}
 .priere-texte-complet{font-size:13px;color:#444;line-height:1.7;font-style:italic;max-height:220px;overflow-y:auto;padding-right:4px}
+.priere-texte-complet::-webkit-scrollbar{width:3px}
+.priere-texte-complet::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:2px}
 .priere-lecture1{border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;background:#f9fafb}
 .priere-lecture1 summary{font-weight:600;color:#555;cursor:pointer;font-size:13px}
 .priere-lecture1 .priere-texte-complet{max-height:150px}
@@ -495,19 +507,6 @@ input:focus{border-color:#7C3AED}
 .astro-section{background:#faf5ff;border-radius:10px;padding:12px 14px;border-left:4px solid #a855f7}
 .astro-section-titre{font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .astro-section-texte{font-size:13px;color:#444;line-height:1.6}
-
-/* ===================== PASSWORD TOGGLE ===================== */
-.pwd-wrapper{position:relative;width:100%;margin-bottom:16px}
-.pwd-wrapper input{width:100%;margin-bottom:0;padding-right:44px}
-.pwd-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9ca3af;padding:4px;line-height:1;-webkit-tap-highlight-color:transparent}
-.pwd-toggle:hover{color:#7C3AED}
-
-/* ===================== FOOTER ===================== */
-.footer{background:#f3f4f6;color:#333;text-align:center;padding:6px;font-size:13px;font-weight:600;z-index:100}
-.footer span{color:#9ca3af !important;font-weight:500}
-
-/* ===================== FEED PLACEHOLDER ===================== */
-.feed-placeholder{display:flex;align-items:center;justify-content:center;height:200px;color:#9ca3af;font-size:15px;font-weight:600;background:#fff;border-radius:16px;border:2px dashed #e5e7eb}
 
 /* ===================== RESPONSIVE ===================== */
 @media(max-width:640px){

@@ -19,7 +19,6 @@ const WIDGETS_PAR_ONGLET = {
     apropos   : ['faq', 'changelog']
 };
 
-// Onglet d'un widget (recherche inverse)
 function getOngletWidget(id) {
     for (const [onglet, ids] of Object.entries(WIDGETS_PAR_ONGLET)) {
         if (ids.includes(id)) return onglet;
@@ -42,14 +41,14 @@ async function buildGrid() {
 
     try {
         const [rOrdre, rWidgets, rProfil] = await Promise.all([
-            fetch('/api/widget-order',           { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/widget-order',            { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/profil/widgets-visibles', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/profil',                  { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
         const dOrdre   = await rOrdre.json();
         const dWidgets = await rWidgets.json();
         const dProfil  = await rProfil.json();
-        if (dOrdre.success  && dOrdre.ordre)                            ordre         = dOrdre.ordre;
+        if (dOrdre.success   && dOrdre.ordre)                           ordre         = dOrdre.ordre;
         if (dWidgets.success && Array.isArray(dWidgets.widgets_caches)) widgetsCaches = dWidgets.widgets_caches;
         if (dProfil.success  && dProfil.profil) {
             sexe        = dProfil.profil.sexe;
@@ -69,21 +68,19 @@ async function buildGrid() {
         });
     }
 
-    // Masquer cycle si homme ou intersexe
     if (sexe === 'homme' || sexe === 'intersexe') {
         defs = defs.filter(w => w.id !== 'cycle');
     }
 
-    // Construire chaque onglet
+    // Construire chaque onglet — noms corrigés
     await buildTabGrid('quotidien', defs, ordre, widgetsCaches, user);
     await buildTabGrid('bienetre',  defs, ordre, widgetsCaches, user);
-    await buildTabGrid('liens',     defs, ordre, widgetsCaches, user);
-    await buildTabGrid('app',       defs, ordre, widgetsCaches, user);
+    await buildTabGrid('profil',    defs, ordre, widgetsCaches, user);
+    await buildTabGrid('apropos',   defs, ordre, widgetsCaches, user);
 
     // Météo onglet accueil
     _buildAccueilMeteo();
 
-    // Charger les données widgets
     if (typeof chargerProfilHeader   === 'function') chargerProfilHeader();
     if (typeof Cycle                 !== 'undefined') Cycle.charger();
     if (typeof Rendezvous            !== 'undefined') Rendezvous.charger();
@@ -97,11 +94,8 @@ async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
     grid.innerHTML = '';
 
     const idsOnglet = WIDGETS_PAR_ONGLET[onglet] || [];
-
-    // Filtrer les defs pour cet onglet
     let defs = allDefs.filter(w => idsOnglet.includes(w.id));
 
-    // Appliquer l'ordre sauvegardé (filtré sur cet onglet)
     if (ordre) {
         const ordreOnglet = ordre.filter(id => idsOnglet.includes(id));
         const sorted      = [];
@@ -119,7 +113,6 @@ async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
         defs = [...normaux, ...derniers];
     }
 
-    // Masquer les widgets cachés (sauf toujours visibles)
     const TOUJOURS_VISIBLES = ['profil'];
     defs = defs.filter(w => {
         if (w.id === 'admin')                 return user?.role === 'admin';
@@ -135,18 +128,23 @@ async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
 function _buildAccueilMeteo() {
     const el = document.getElementById('accueil-meteo');
     if (!el) return;
-    el.innerHTML = '<div id="wc-meteo">Chargement...</div>';
+    // Wrapper cliquable qui ouvre le modal météo
+    el.innerHTML = `
+        <div class="meteo-accueil-card" onclick="openModal('meteo')" title="Cliquez pour les détails">
+            <div id="wc-meteo">Chargement...</div>
+        </div>
+    `;
     if (typeof chargerMeteoAuto === 'function') chargerMeteoAuto();
 }
 
 // ===================== CRÉER WIDGET ==========================
 
 function creerWidget(def, gridId) {
-    const div      = document.createElement('div');
-    div.className  = `widget ${def.cls}`;
-    div.dataset.id = def.id;
+    const div        = document.createElement('div');
+    div.className    = `widget ${def.cls}`;
+    div.dataset.id   = def.id;
     div.dataset.grid = gridId;
-    div.draggable  = true;
+    div.draggable    = true;
 
     let contentHtml = def.desc || '';
     if (def.id === 'cycle')      contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
@@ -209,7 +207,6 @@ function onDrop(e) {
     e.preventDefault();
     this.classList.remove('drag-over');
     if (this === dragSrc) return;
-    // Drop uniquement dans le même onglet
     if (this.dataset.grid !== dragSrc.dataset.grid) return;
     const grid    = document.getElementById(this.dataset.grid);
     const widgets = [...grid.children];
@@ -303,7 +300,6 @@ function ajouterTouchDrag(el) {
 
 async function sauvegarderOrdre() {
     const user  = getUser();
-    // Collecter l'ordre global de tous les onglets
     const ordre = [];
     Object.keys(WIDGETS_PAR_ONGLET).forEach(onglet => {
         const grid = document.getElementById(`grid-${onglet}`);
