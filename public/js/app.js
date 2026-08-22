@@ -3,6 +3,7 @@
 // Point d'entrée front : état global, login, logout, init app,
 // utilitaires date/version, refresh widgets.
 // chargerProfilHeader() définie uniquement dans profil.js.
+// v3.83 — TOUS_WIDGETS ordre alphabétique corrigé (Prières & Hadiths)
 // ============================================================
 
 // ===================== STATE GLOBAL ==========================
@@ -19,7 +20,7 @@ let _appInitialisee = false;
 const WIDGETS_DEF = [
     { id:'meteo',         label:'Météo du jour',      icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',  foot:'Cliquez pour les détails',         refresh:true },
     { id:'priere',        label:'Prière du jour',     icon:'🙏',  cls:'w-priere',        desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
-    { id:'islam',         label:'Prières & Hadiths',  icon:'☪️',  cls:'w-islam',         desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
+    { id:'islam',         label:'Prières & Hadiths',  icon:'🌙',  cls:'w-islam',         desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
     { id:'taches',        label:'Tâches du jour',     icon:'✅',  cls:'w-taches',        desc:'Chargement...',  foot:'Cliquez pour gérer' },
     { id:'cycle',         label:'Suivi du cycle',     icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
     { id:'rendezvous',    label:'Rendez-vous',        icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
@@ -29,17 +30,19 @@ const WIDGETS_DEF = [
     { id:'profil',        label:'Mon Profil',         icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
 ];
 
-// Ordre alphabétique strict (sans emoji) — règle absolue :
-// tout nouveau widget ajouté ici doit respecter cet ordre.
+// Ordre alphabétique strict sur le label texte (sans emoji).
+// Règle : tout nouveau widget ajouté ici doit respecter cet ordre.
+// Un nouveau widget absent de widgets_caches d'un user existant
+// sera automatiquement coché (visible) sans toucher à ses préférences.
 const TOUS_WIDGETS = [
     { slug:'anniversaires', label:'🎂 Anniversaires' },
     { slug:'astrologie',    label:'✨ Astrologie' },
-    { slug:'cycle',         label:'🌸 Suivi du cycle' },
-    { slug:'islam',         label:'☪️ Prières & Hadiths' },
     { slug:'meteo',         label:'🌤️ Météo' },
     { slug:'planning',      label:'📋 Planning' },
     { slug:'priere',        label:'🙏 Prière du jour' },
+    { slug:'islam',         label:'🌙 Prières & Hadiths' },
     { slug:'rendezvous',    label:'🩺 Rendez-vous' },
+    { slug:'cycle',         label:'🌸 Suivi du cycle' },
     { slug:'taches',        label:'✅ Tâches' },
 ];
 
