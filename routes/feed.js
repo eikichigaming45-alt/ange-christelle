@@ -3,11 +3,11 @@
 // Fil social : posts, likes, commentaires, follows
 // ============================================================
 
-const express              = require('express');
-const router               = express.Router();
-const { pool }             = require('../db/pool');
+const express               = require('express');
+const router                = express.Router();
+const { pool }              = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
-const { createClient }     = require('@supabase/supabase-js');
+const { createClient }      = require('@supabase/supabase-js');
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -16,7 +16,7 @@ const supabase = createClient(
 
 // ── GET /api/feed?filter=following ───────────────────────────
 router.get('/', authenticateToken, async (req, res) => {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const filter = req.query.filter;
     try {
         let query = `
@@ -47,10 +47,10 @@ router.get('/', authenticateToken, async (req, res) => {
 
 // ── POST /api/feed (JSON + base64 photo optionnelle) ─────────
 router.post('/', authenticateToken, async (req, res) => {
-    const userId  = req.user.userId;
-    const contenu = (req.body.contenu || '').trim();
-    const photoB64 = req.body.photo || null;
-    const photoMime = req.body.mime || 'image/jpeg';
+    const userId    = req.user.id;
+    const contenu   = (req.body.contenu || '').trim();
+    const photoB64  = req.body.photo || null;
+    const photoMime = req.body.mime  || 'image/jpeg';
 
     if (!contenu && !photoB64) {
         return res.status(400).json({ success: false, message: 'Post vide.' });
@@ -82,7 +82,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
 // ── DELETE /api/feed/:id ──────────────────────────────────────
 router.delete('/:id', authenticateToken, async (req, res) => {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const postId = parseInt(req.params.id);
     try {
         const { rows } = await pool.query(
@@ -107,7 +107,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
 // ── POST /api/feed/:id/like ───────────────────────────────────
 router.post('/:id/like', authenticateToken, async (req, res) => {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const postId = parseInt(req.params.id);
     try {
         const { rows } = await pool.query(
@@ -156,7 +156,7 @@ router.get('/:id/comments', authenticateToken, async (req, res) => {
 
 // ── POST /api/feed/:id/comments ───────────────────────────────
 router.post('/:id/comments', authenticateToken, async (req, res) => {
-    const userId  = req.user.userId;
+    const userId  = req.user.id;
     const postId  = parseInt(req.params.id);
     const contenu = (req.body.contenu || '').trim();
     if (!contenu) return res.status(400).json({ success: false, message: 'Commentaire vide.' });
@@ -175,7 +175,7 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
 
 // ── DELETE /api/feed/comments/:id ────────────────────────────
 router.delete('/comments/:id', authenticateToken, async (req, res) => {
-    const userId    = req.user.userId;
+    const userId    = req.user.id;
     const commentId = parseInt(req.params.id);
     try {
         const { rows } = await pool.query(
@@ -195,7 +195,7 @@ router.delete('/comments/:id', authenticateToken, async (req, res) => {
 
 // ── POST /api/feed/follow/:id ─────────────────────────────────
 router.post('/follow/:id', authenticateToken, async (req, res) => {
-    const followerId  = req.user.userId;
+    const followerId  = req.user.id;
     const followingId = parseInt(req.params.id);
     if (followerId === followingId) {
         return res.status(400).json({ success: false, message: 'Impossible de se suivre soi-même.' });
@@ -226,7 +226,7 @@ router.post('/follow/:id', authenticateToken, async (req, res) => {
 
 // ── GET /api/feed/following ───────────────────────────────────
 router.get('/following', authenticateToken, async (req, res) => {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     try {
         const { rows } = await pool.query(
             `SELECT following_id FROM follows WHERE follower_id = \$1`, [userId]
