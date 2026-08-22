@@ -1,13 +1,10 @@
 // ============================================================
 // db/pool.js
 // Connexion PostgreSQL via Supabase + initialisation des tables.
-// Utilise DATABASE_URL (variable Render) — pas de config fragmentée.
-// Ne contient aucune logique métier ni seed de données.
 // ============================================================
 
 const { Pool } = require('pg');
 
-// ── Connexion ─────────────────────────────────────────────────
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
@@ -16,10 +13,6 @@ const pool = new Pool({
     connectionTimeoutMillis: 5000
 });
 
-// ── Création des tables au démarrage ──────────────────────────
-// CREATE TABLE IF NOT EXISTS = sans effet si la table existe déjà.
-// Les ALTER TABLE en fin de fonction ajoutent les colonnes manquantes
-// sur les bases existantes sans casser les données.
 async function initDB() {
     try {
 
@@ -130,6 +123,18 @@ async function initDB() {
             );
         `);
 
+        // ── Mood quotidien ────────────────────────────────────
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS cycle_mood (
+                id         SERIAL PRIMARY KEY,
+                user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                date       DATE    NOT NULL,
+                moods      TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(user_id, date)
+            );
+        `);
+
         // ── Rendez-vous ───────────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS rendezvous (
@@ -177,14 +182,12 @@ async function initDB() {
             );
         `);
 
-        // ── Migrations — colonnes ajoutées après création ─────
-        // Sans effet si les colonnes existent déjà.
+        // ── Migrations ────────────────────────────────────────
         await pool.query(`ALTER TABLE users      ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN   DEFAULT FALSE;`);
         await pool.query(`ALTER TABLE users      ADD COLUMN IF NOT EXISTS last_login           TIMESTAMP;`);
         await pool.query(`ALTER TABLE taches     ADD COLUMN IF NOT EXISTS rappel_avant         INTEGER   DEFAULT 0;`);
         await pool.query(`ALTER TABLE rendezvous ADD COLUMN IF NOT EXISTS rappel_avant         INTEGER   DEFAULT 0;`);
         await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS widgets_visibles     TEXT[];`);
-        // ✅ Signe du zodiaque — saisi manuellement si pas de date_naissance
         await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS signe_zodiaque       VARCHAR(20);`);
 
         console.log('[DB] Tables initialisées.');

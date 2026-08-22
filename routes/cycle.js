@@ -1,6 +1,6 @@
 // ============================================================
 // routes/cycle.js
-// Gestion du suivi de cycle menstruel et du journal quotidien.
+// Gestion du suivi de cycle menstruel, journal quotidien et mood.
 // ============================================================
 
 const express  = require('express');
@@ -8,11 +8,9 @@ const router   = express.Router();
 const { pool } = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
-// ── Toutes les routes nécessitent un token JWT ────────────────
 router.use(authenticateToken);
 
 // ── GET /api/cycle ────────────────────────────────────────────
-// Retourne tous les cycles de l'utilisateur, du plus récent au plus ancien.
 router.get('/', async (req, res) => {
     try {
         const result = await pool.query(
@@ -30,7 +28,6 @@ router.get('/', async (req, res) => {
 });
 
 // ── POST /api/cycle ───────────────────────────────────────────
-// Enregistre un nouveau cycle.
 router.post('/', async (req, res) => {
     const { date_debut, duree_regles, duree_cycle, notes } = req.body;
     if (!date_debut) {
@@ -41,10 +38,7 @@ router.post('/', async (req, res) => {
             `INSERT INTO cycles (user_id, date_debut, duree_regles, duree_cycle, notes)
              VALUES (\$1, \$2, \$3, \$4, \$5)
              RETURNING *`,
-            [req.user.id, date_debut,
-             duree_regles || 5,
-             duree_cycle  || 28,
-             notes        || null]
+            [req.user.id, date_debut, duree_regles || 5, duree_cycle || 28, notes || null]
         );
         res.json({ success: true, cycle: result.rows[0] });
     } catch (err) {
@@ -54,7 +48,6 @@ router.post('/', async (req, res) => {
 });
 
 // ── PUT /api/cycle/:id ────────────────────────────────────────
-// Met à jour un cycle existant (vérification propriétaire).
 router.put('/:id', async (req, res) => {
     const { date_debut, duree_regles, duree_cycle, notes } = req.body;
     if (!date_debut) {
@@ -66,8 +59,7 @@ router.put('/:id', async (req, res) => {
              SET date_debut=\$1, duree_regles=\$2, duree_cycle=\$3, notes=\$4
              WHERE id=\$5 AND user_id=\$6
              RETURNING *`,
-            [date_debut, duree_regles, duree_cycle, notes,
-             req.params.id, req.user.id]
+            [date_debut, duree_regles, duree_cycle, notes, req.params.id, req.user.id]
         );
         if (result.rowCount === 0) {
             return res.status(404).json({ success: false, message: 'Cycle introuvable.' });
@@ -80,7 +72,6 @@ router.put('/:id', async (req, res) => {
 });
 
 // ── DELETE /api/cycle/:id ─────────────────────────────────────
-// Supprime un cycle (vérification propriétaire).
 router.delete('/:id', async (req, res) => {
     try {
         const result = await pool.query(
@@ -98,7 +89,6 @@ router.delete('/:id', async (req, res) => {
 });
 
 // ── GET /api/cycle/journal ────────────────────────────────────
-// Retourne les entrées du journal pour un mois donné.
 router.get('/journal', async (req, res) => {
     const { mois, annee } = req.query;
     if (!mois || !annee) {
@@ -121,8 +111,6 @@ router.get('/journal', async (req, res) => {
 });
 
 // ── POST /api/cycle/journal ───────────────────────────────────
-// Crée ou met à jour une entrée du journal (upsert par date).
-// Le champ "rapport" côté front est stocké dans la colonne "humeur".
 router.post('/journal', async (req, res) => {
     const { date, rapport, symptomes, notes } = req.body;
     if (!date) {
@@ -135,10 +123,7 @@ router.post('/journal', async (req, res) => {
              ON CONFLICT (user_id, date) DO UPDATE
              SET humeur=\$3, symptomes=\$4, notes=\$5
              RETURNING *`,
-            [req.user.id, date,
-             rapport   || null,
-             symptomes || null,
-             notes     || null]
+            [req.user.id, date, rapport || null, symptomes || null, notes || null]
         );
         res.json({ success: true, journal: result.rows[0] });
     } catch (err) {
@@ -148,7 +133,6 @@ router.post('/journal', async (req, res) => {
 });
 
 // ── DELETE /api/cycle/journal/:id ────────────────────────────
-// Supprime une entrée du journal (vérification propriétaire).
 router.delete('/journal/:id', async (req, res) => {
     try {
         const result = await pool.query(
@@ -161,6 +145,65 @@ router.delete('/journal/:id', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error('[CYCLE] DELETE /journal/:id :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── GET /api/cycle/mood ───────────────────────────────────────
+// Retourne le mood enregistré pour une date donnée.
+router.get('/mood', async (req, res) => {
+    const { date } = req.query;
+    if (!date) {
+        return res.status(400).json({ success: false, message: 'Date requise.' });
+    }
+    try {
+        const result = await pool.query(
+            'SELECT id, date, moods FROM cycle_mood WHERE user_id=\$1 AND date=\$2',
+            [req.user.id, date]
+        );
+        res.json({ success: true, mood: result.rows[0] || null });
+    } catch (err) {
+        console.error('[CYCLE] GET /mood :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── POST /api/cycle/mood ──────────────────────────────────────
+// Crée ou met à jour le mood du jour (upsert par date).
+router.post('/mood', async (req, res) => {
+    const { date, moods } = req.body;
+    if (!date) {
+        return res.status(400).json({ success: false, message: 'La date est obligatoire.' });
+    }
+    try {
+        const result = await pool.query(
+            `INSERT INTO cycle_mood (user_id, date, moods)
+             VALUES (\$1, \$2, \$3)
+             ON CONFLICT (user_id, date) DO UPDATE
+             SET moods=\$3
+             RETURNING *`,
+            [req.user.id, date, moods || null]
+        );
+        res.json({ success: true, mood: result.rows[0] });
+    } catch (err) {
+        console.error('[CYCLE] POST /mood :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── DELETE /api/cycle/mood/:id ────────────────────────────────
+router.delete('/mood/:id', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'DELETE FROM cycle_mood WHERE id=\$1 AND user_id=\$2',
+            [req.params.id, req.user.id]
+        );
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Mood introuvable.' });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[CYCLE] DELETE /mood/:id :', err.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });

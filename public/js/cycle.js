@@ -1,14 +1,66 @@
 // ============================================================
 // public/js/cycle.js
-// Suivi du cycle menstruel — widget, calendrier, journal quotidien.
+// Suivi du cycle menstruel — widget, calendrier, journal, mood.
 // Auth via JWT Bearer (authHeaders). Pas d'userId client.
-// B.6 — après suppression/modification : retour vue courante.
-// Message suppression iso : "Confirmer la suppression ?"
+// Phases mood calculées dynamiquement selon dureeRegles/dureeCycle
+// de chaque utilisatrice.
 // ============================================================
 
 const Cycle = (() => {
 
     const PAGE_SIZE = 10;
+
+    // ── Labels et items des phases — fixes, bornes calculées dynamiquement ─
+    const PHASES_MOOD_DEF = [
+        {
+            label: '🌑 Règles — Énergie basse',
+            items: ['Fatiguée','Irritée','Sensibilité haute','Besoin de repos',
+                    'Moins sociable','Lourdeur corporelle','Manque de motivation']
+        },
+        {
+            label: '🌱 Folliculaire — Montée d\'énergie',
+            items: ['Motivée','Stable','Optimiste','Concentrée',
+                    'Sociable','Créative','Confiance tranquille']
+        },
+        {
+            label: '☀️ Ovulation — Pic de confiance',
+            items: ['Confiance max','Énergie haute','Charme naturel','Très sociable',
+                    'Décisive','Bonne humeur','Aisance relationnelle']
+        },
+        {
+            label: '🌙 Lutéale début — Calme',
+            items: ['Apaisée','Ralentissement','Besoin de douceur',
+                    'Moins dans le rush','Patiente','Introspective']
+        },
+        {
+            label: '🌙 Lutéale fin — SPM',
+            items: ['Irritabilité','Hypersensibilité','Stress facile','Baisse d\'énergie',
+                    'Besoin d\'isolement','Moins de patience','Pensées négatives','Sensation de surcharge']
+        }
+    ];
+
+    // ── Calcule les bornes de phases selon le cycle réel ──────
+    // dureeRegles et dureeCycle viennent de calc (données BDD).
+    function calculerBornesPhases(dureeRegles, dureeCycle) {
+        const ovulation      = dureeCycle - 14;
+        const debutFertile   = dureeCycle - 16;
+        return [
+            { min: 1,                max: dureeRegles,    def: PHASES_MOOD_DEF[0] }, // Règles
+            { min: dureeRegles + 1,  max: debutFertile,   def: PHASES_MOOD_DEF[1] }, // Folliculaire
+            { min: ovulation,        max: ovulation,      def: PHASES_MOOD_DEF[2] }, // Ovulation
+            { min: ovulation + 1,    max: ovulation + 7,  def: PHASES_MOOD_DEF[3] }, // Lutéale début
+            { min: ovulation + 8,    max: dureeCycle,     def: PHASES_MOOD_DEF[4] }, // Lutéale fin
+        ];
+    }
+
+    // ── Retourne la phase mood du jour selon le cycle réel ────
+    function getPhaseMood(jourCycle, calc) {
+        if (!jourCycle || !calc) return null;
+        const j      = Math.min(jourCycle, calc.dureeCycle);
+        const phases = calculerBornesPhases(calc.dureeRegles, calc.dureeCycle);
+        const phase  = phases.find(p => j >= p.min && j <= p.max);
+        return phase ? phase.def : PHASES_MOOD_DEF[4];
+    }
 
     function authHeaders() {
         const user = JSON.parse(localStorage.getItem('myvibe_user'));
@@ -50,7 +102,6 @@ const Cycle = (() => {
                a.getDate()     === b.getDate();
     }
 
-    // B.6 — confirmation iso, retour vers la vue passée en callback
     function confirmerSuppression(onOui, onNon) {
         document.getElementById('modal-title').textContent = 'Confirmation';
         document.getElementById('modal-body').innerHTML = `
@@ -150,6 +201,12 @@ const Cycle = (() => {
         const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
         if (memeJour(aujourd_hui, calc.ovulation)) return { label: "Jour d'ovulation", emoji: '🌟', color: '#f39c12' };
         return { label: 'Phase de repos', emoji: '🔵', color: '#3498db' };
+    }
+
+    function calculerJourCycle(calc) {
+        if (!calc) return null;
+        const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
+        return Math.round((aujourd_hui - calc.debut) / (1000 * 60 * 60 * 24)) + 1;
     }
 
     async function chargerJournal(mois, annee) {
@@ -259,9 +316,10 @@ const Cycle = (() => {
             { key: 'humeur_irritable',    label: 'Humeur irritable',    icon: '😤' },
         ];
 
-        document.getElementById('modal-title').textContent = dateAff;
+        document.getElementById('modal-title').textContent = 'Enregistrer un rapport sexuel';
         document.getElementById('modal-body').innerHTML = `
             <div class="journal-form">
+                <div style="font-size:12px;color:#9ca3af;margin-bottom:12px">${dateAff}</div>
                 <div class="journal-section-title">Rapport sexuel</div>
                 <div class="journal-rapport-btns">
                     <button class="btn-rapport ${journal.humeur === 'protege' ? 'active' : ''}"
@@ -314,7 +372,6 @@ const Cycle = (() => {
             await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
             const container = document.getElementById('cal-container');
             if (container) container.innerHTML = renderCalendrier(_calcCourant);
-            // B.6 — retour au calendrier, pas closeModal
             ouvrirModalCalendrier();
         } catch {
             document.getElementById('modal-title').textContent = 'Erreur';
@@ -327,7 +384,6 @@ const Cycle = (() => {
     }
 
     async function _supprimerJournal(id, dateStr) {
-        // B.6 — retour au calendrier après suppression
         confirmerSuppression(
             async () => {
                 try {
@@ -347,7 +403,105 @@ const Cycle = (() => {
         );
     }
 
-    function renderWidget(cycles, dureeMoyenne) {
+    // ── Modal mood — items dynamiques selon cycle réel ────────
+    async function ouvrirModalMood(calc) {
+        const today     = formatDateInput(new Date());
+        const jourCycle = calculerJourCycle(calc);
+        const phaseMood = getPhaseMood(jourCycle, calc);
+
+        let moodsActifs = [];
+        try {
+            const res = await fetch(`/api/cycle/mood?date=${today}`, { headers: authHeaders() });
+            const d   = await res.json();
+            if (d.mood?.moods) moodsActifs = d.mood.moods.split(',').filter(Boolean);
+        } catch { /* silencieux */ }
+
+        document.getElementById('modal-title').textContent = 'Comment je me sens ?';
+        document.getElementById('modal-body').innerHTML = `
+            <div class="journal-form">
+                ${phaseMood ? `
+                    <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:14px;
+                                background:#f5f3ff;border-radius:10px;padding:10px 14px">
+                        ${phaseMood.label}
+                        <div style="font-size:11px;font-weight:400;color:#9ca3af;margin-top:4px">
+                            J${jourCycle} · Règles ${calc.dureeRegles}j · Cycle ${calc.dureeCycle}j
+                        </div>
+                    </div>` : ''}
+                <div class="journal-symptomes">
+                    ${(phaseMood?.items || []).map(item => `
+                        <label class="symptome-chip ${moodsActifs.includes(item) ? 'active' : ''}"
+                            onclick="var cb=this.querySelector('input');cb.checked=!cb.checked;this.classList.toggle('active',cb.checked)">
+                            <input type="checkbox" value="${item}" ${moodsActifs.includes(item) ? 'checked' : ''}>
+                            <span class="symptome-chip-label">${item}</span>
+                        </label>
+                    `).join('')}
+                </div>
+                <div class="modal-actions" style="margin-top:16px">
+                    <button class="btn-save" onclick="Cycle._sauvegarderMood('${today}')">💾 Sauvegarder</button>
+                    <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Annuler</button>
+                </div>
+            </div>`;
+        document.getElementById('overlay').classList.add('on');
+    }
+
+    async function _sauvegarderMood(date) {
+        const moods = [...document.querySelectorAll('.journal-symptomes input:checked')]
+            .map(i => i.value).join(',');
+        try {
+            await fetch('/api/cycle/mood', {
+                method : 'POST',
+                headers: authHeaders(),
+                body   : JSON.stringify({ date, moods })
+            });
+            charger();
+            ouvrirModalCalendrier();
+        } catch {
+            document.getElementById('modal-title').textContent = 'Erreur';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+                </div>`;
+        }
+    }
+
+    // ── Bloc mood réutilisable ─────────────────────────────────
+    function renderBlocMood(moodDuJour, calc, onclickFn) {
+        if (!calc) return '';
+        const jourCycle    = calculerJourCycle(calc);
+        const phaseMood    = getPhaseMood(jourCycle, calc);
+        const moodsRemplis = moodDuJour?.moods ? moodDuJour.moods.split(',').filter(Boolean) : [];
+
+        return `
+            <div style="margin-top:14px;background:#f5f3ff;border-radius:12px;padding:12px 14px">
+                ${moodsRemplis.length > 0 ? `
+                    <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px;
+                                text-transform:uppercase;letter-spacing:.5px">
+                        ${phaseMood?.label || 'Mon humeur du jour'}
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+                        ${moodsRemplis.map(m =>
+                            `<span style="background:#ede9fe;color:#7c3aed;border-radius:20px;
+                                          padding:4px 10px;font-size:12px;font-weight:600">${m}</span>`
+                        ).join('')}
+                    </div>
+                    <button class="btn-cycle-secondary" style="width:100%;font-size:12px"
+                        onclick="${onclickFn}">
+                        ✏️ Modifier mon humeur
+                    </button>
+                ` : `
+                    <div style="font-size:13px;color:#6b7280;margin-bottom:10px">
+                        Comment tu te sens aujourd'hui ? 🌸
+                    </div>
+                    <button class="btn-cycle-primary" style="width:100%;font-size:13px"
+                        onclick="${onclickFn}">
+                        Comment je me sens ?
+                    </button>
+                `}
+            </div>`;
+    }
+
+        function renderWidget(cycles, dureeMoyenne, moodDuJour) {
         const dernierCycle = cycles.length > 0 ? cycles[0] : null;
         const calc         = calculerCycle(dernierCycle, dureeMoyenne);
         const phase        = getPhase(calc);
@@ -423,11 +577,31 @@ const Cycle = (() => {
                         <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0, Math.round(((new Date() - calc.debut) / (1000 * 60 * 60 * 24)) / calc.dureeCycle * 100)))}%;background:${phase.color}"></div>
                     </div>
                 </div>` : ''}
+                ${renderBlocMood(moodDuJour, calc, "Cycle._ouvrirMoodDepuisWidget()")}
                 <div class="cycle-actions">
                     <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
                     ${cycles.length > 0 ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>` : ''}
                 </div>
             </div>`;
+    }
+
+    async function _ouvrirMoodDepuisWidget() {
+        try {
+            const res          = await fetch('/api/cycle', { headers: authHeaders() });
+            const d            = await res.json();
+            const cycles       = d.cycles || [];
+            const dureeMoyenne = calculerDureeMoyenne(cycles);
+            const dernierCycle = cycles.length > 0 ? cycles[0] : null;
+            const calc         = calculerCycle(dernierCycle, dureeMoyenne);
+            await ouvrirModalMood(calc);
+        } catch {
+            document.getElementById('modal-title').textContent = 'Erreur';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur de chargement.</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+                </div>`;
+        }
     }
 
     async function charger() {
@@ -440,8 +614,17 @@ const Cycle = (() => {
             if (!res.ok) throw new Error();
             const d      = await res.json();
             const cycles = d.cycles || [];
-            const dureeMoyenne  = calculerDureeMoyenne(cycles);
-            container.innerHTML = renderWidget(cycles, dureeMoyenne);
+            const dureeMoyenne = calculerDureeMoyenne(cycles);
+
+            const today    = formatDateInput(new Date());
+            let moodDuJour = null;
+            try {
+                const resMood = await fetch(`/api/cycle/mood?date=${today}`, { headers: authHeaders() });
+                const dMood   = await resMood.json();
+                moodDuJour    = dMood.mood || null;
+            } catch { /* silencieux */ }
+
+            container.innerHTML = renderWidget(cycles, dureeMoyenne, moodDuJour);
         } catch {
             container.innerHTML = `<p class="cycle-error">Erreur de chargement du cycle.</p>`;
         }
@@ -462,6 +645,14 @@ const Cycle = (() => {
             _toutesLesP  = calculerToutesPeriodes(cycles, dureeMoyenne);
 
             await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+
+            const today    = formatDateInput(new Date());
+            let moodDuJour = null;
+            try {
+                const resMood = await fetch(`/api/cycle/mood?date=${today}`, { headers: authHeaders() });
+                const dMood   = await resMood.json();
+                moodDuJour    = dMood.mood || null;
+            } catch { /* silencieux */ }
 
             document.getElementById('modal-title').textContent = 'Suivi du cycle';
             document.getElementById('modal-body').innerHTML = `
@@ -484,6 +675,7 @@ const Cycle = (() => {
                     ${dureeMoyenne
                         ? `<div class="cycle-duree-info">Durée moyenne calculée : <strong>${dureeMoyenne} jours</strong> (sur ${cycles.length} cycles)</div>`
                         : ''}
+                    ${renderBlocMood(moodDuJour, calc, "Cycle.ouvrirModalMood(Cycle._getCalcCourant())")}
                     <div id="cal-container">${renderCalendrier(calc)}</div>
                     <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
                         <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
@@ -516,7 +708,7 @@ const Cycle = (() => {
                 <label>Durée des règles (jours)</label>
                 <input type="number" id="cycle-duree-regles" min="1" max="10"
                     value="${isEdit ? cycleExistant.duree_regles : 5}" />
-                                <label>Durée du cycle (jours) — sera recalculée automatiquement après 2 cycles</label>
+                <label>Durée du cycle (jours) — sera recalculée automatiquement après 2 cycles</label>
                 <input type="number" id="cycle-duree-cycle" min="21" max="45"
                     value="${isEdit ? cycleExistant.duree_cycle : 28}" />
                 <label>Notes (optionnel)</label>
@@ -551,7 +743,6 @@ const Cycle = (() => {
                 body   : JSON.stringify({ date_debut, duree_regles, duree_cycle, notes })
             });
             if (!res.ok) throw new Error();
-            // B.6 — retour au calendrier, pas closeModal
             charger();
             ouvrirModalCalendrier();
         } catch {
@@ -565,7 +756,6 @@ const Cycle = (() => {
     }
 
     async function supprimer(id) {
-        // B.6 — retour à l'historique après suppression
         confirmerSuppression(
             async () => {
                 try {
@@ -584,8 +774,6 @@ const Cycle = (() => {
             () => ouvrirHistorique()
         );
     }
-
-    // ── Historique paginé 10/page ──────────────────────────────────────────
 
     async function ouvrirHistorique(page = 0) {
         try {
@@ -646,6 +834,10 @@ const Cycle = (() => {
         }
     }
 
+    function _getCalcCourant() {
+        return _calcCourant;
+    }
+
     return {
         charger,
         ouvrirModalAjout,
@@ -655,9 +847,13 @@ const Cycle = (() => {
         supprimer,
         ouvrirHistorique,
         ouvrirJournal,
+        ouvrirModalMood,
         _toggleRapport,
         _sauvegarderJournal,
-        _supprimerJournal
+        _supprimerJournal,
+        _sauvegarderMood,
+        _ouvrirMoodDepuisWidget,
+        _getCalcCourant
     };
 
 })();
