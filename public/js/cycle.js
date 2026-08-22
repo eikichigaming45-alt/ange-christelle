@@ -11,27 +11,27 @@ const Cycle = (() => {
 
     const PHASES_MOOD_DEF = [
         {
-            label: '🌑 Règles — Énergie basse',
+            label: '🌑 Règles - Énergie basse',
             items: ['Fatiguée','Irritée','Sensibilité haute','Besoin de repos',
                     'Moins sociable','Lourdeur corporelle','Manque de motivation']
         },
         {
-            label: '🌱 Folliculaire — Montée d\'énergie',
+            label: '🌱 Folliculaire - Montée d\'énergie',
             items: ['Motivée','Stable','Optimiste','Concentrée',
                     'Sociable','Créative','Confiance tranquille']
         },
         {
-            label: '☀️ Ovulation — Pic de confiance',
+            label: '☀️ Ovulation - Pic de confiance',
             items: ['Confiance max','Énergie haute','Charme naturel','Très sociable',
                     'Décisive','Bonne humeur','Aisance relationnelle']
         },
         {
-            label: '🌙 Lutéale début — Calme',
+            label: '🌙 Lutéale début - Calme',
             items: ['Apaisée','Ralentissement','Besoin de douceur',
                     'Moins dans le rush','Patiente','Introspective']
         },
         {
-            label: '🌙 Lutéale fin — SPM',
+            label: '🌙 Lutéale fin - SPM',
             items: ['Irritabilité','Hypersensibilité','Stress facile','Baisse d\'énergie',
                     'Besoin d\'isolement','Moins de patience','Pensées négatives','Sensation de surcharge']
         }
