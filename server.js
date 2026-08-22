@@ -1,6 +1,5 @@
 const express = require('express');
 const webpush  = require('web-push');
-const helmet   = require('helmet');
 const { pool, initDB } = require('./db/pool');
 
 const app  = express();
@@ -8,9 +7,6 @@ const PORT = process.env.PORT || 3000;
 
 // ── Trust proxy (Render est un reverse proxy) ─────────────────
 app.set('trust proxy', 1);
-
-// ── Sécurité HTTP headers ─────────────────────────────────────
-app.use(helmet());
 
 // ── Désactiver ETag pour les réponses API ─────────────────────
 app.set('etag', false);
