@@ -3,6 +3,8 @@
 // Suivi du cycle menstruel — widget, calendrier, journal, mood.
 // Auth via JWT Bearer (authHeaders). Pas d'userId client.
 // Phases mood calculées dynamiquement selon dureeRegles/dureeCycle.
+// _journalCache : { 'YYYY-MM-DD': [ rapport1, rapport2, ... ] }
+// Plusieurs rapports sexuels par jour autorisés.
 // ============================================================
 
 const Cycle = (() => {
@@ -164,6 +166,7 @@ const Cycle = (() => {
 
     let _calcCourant  = null;
     let _moisAffiche  = null;
+    // { 'YYYY-MM-DD': [ {id, humeur, symptomes, notes, created_at}, ... ] }
     let _journalCache = {};
     let _toutesLesP   = [];
 
@@ -204,7 +207,6 @@ const Cycle = (() => {
         return { label: 'Phase de repos', emoji: '🔵', color: '#3498db' };
     }
 
-    // ── Calcule la phase d'un jour précis (pas forcément aujourd'hui) ──
     function getPhaseDuJour(dateStr) {
         const date = parseDateLocale(dateStr);
         for (const p of _toutesLesP) {
@@ -215,7 +217,7 @@ const Cycle = (() => {
             if (date >= p.debutFertile && date <= p.finFertile)
                 return { label: 'Fenêtre fertile', emoji: '🟢', color: '#2ecc71' };
         }
-        return null; // jour neutre — pas de statut particulier
+        return null;
     }
 
     function calculerJourCycle(calc) {
@@ -224,12 +226,17 @@ const Cycle = (() => {
         return Math.round((aujourd_hui - calc.debut) / (1000 * 60 * 60 * 24)) + 1;
     }
 
+    // ── Cache groupé par date en tableau ──────────────────────
     async function chargerJournal(mois, annee) {
         try {
             const res = await fetch(`/api/cycle/journal?mois=${mois}&annee=${annee}`, { headers: authHeaders() });
             const d   = await res.json();
             _journalCache = {};
-            (d.journal || []).forEach(r => { _journalCache[r.date.split('T')[0]] = r; });
+            (d.journal || []).forEach(r => {
+                const key = r.date.split('T')[0];
+                if (!_journalCache[key]) _journalCache[key] = [];
+                _journalCache[key].push(r);
+            });
         } catch { _journalCache = {}; }
     }
 
@@ -264,9 +271,10 @@ const Cycle = (() => {
             }
 
             const estAujourdhui = memeJour(date, aujourd_hui);
-            const journal       = _journalCache[dateStr];
-            const aRapport      = journal?.humeur === 'protege' || journal?.humeur === 'non_protege';
-            const aSymptomes    = journal?.symptomes;
+            const rapports      = _journalCache[dateStr] || [];
+            const aRapport      = rapports.length > 0;
+            const aSymptomes    = rapports.some(r => r.symptomes);
+            const nbRapports    = rapports.length;
 
             let cls   = 'cal-day';
             let badge = '';
@@ -276,8 +284,11 @@ const Cycle = (() => {
             else if (estFertile) cls  += ' cal-fertile';
             if (estAujourdhui)   cls  += ' cal-today';
             if (estOvul)         badge = '<span class="cal-ovulation-star">★</span>';
-            if (aRapport)        icons += `<span class="cal-icon-rapport ${journal.humeur === 'protege' ? 'protege' : 'non-protege'}">♥</span>`;
-            if (aSymptomes)      icons += `<span class="cal-icon-symptome">●</span>`;
+            if (aRapport) {
+                const couleur = rapports.some(r => r.humeur === 'non_protege') ? 'non-protege' : 'protege';
+                icons += `<span class="cal-icon-rapport ${couleur}">♥${nbRapports > 1 ? `<sup>${nbRapports}</sup>` : ''}</span>`;
+            }
+            if (aSymptomes) icons += `<span class="cal-icon-symptome">●</span>`;
 
             cases += `<div class="${cls}" onclick="Cycle.ouvrirJournal('${dateStr}')">${j}${badge}${icons ? `<div class="cal-day-icons">${icons}</div>` : ''}</div>`;
         }
@@ -312,29 +323,40 @@ const Cycle = (() => {
         if (container) container.innerHTML = renderCalendrier(_calcCourant);
     }
 
-    // ── Vue jour enrichie : phase + rapport + symptômes + notes ──
+    const LABELS_SYMPTOMES = {
+        je_me_sens_bien    : 'Je me sens bien',
+        crampes_abdominales: 'Crampes abdominales',
+        seins_douloureux   : 'Seins douloureux',
+        douleurs_lombaires : 'Douleurs lombaires',
+        pertes_claires     : 'Pertes claires',
+        fievre             : 'Fièvre',
+        fatigue            : 'Fatigue',
+        humeur_irritable   : 'Humeur irritable'
+    };
+
+    const SYMPTOMES_LIST = [
+        { key: 'je_me_sens_bien',     label: 'Je me sens bien',     icon: '😊' },
+        { key: 'crampes_abdominales', label: 'Crampes abdominales', icon: '🤰' },
+        { key: 'seins_douloureux',    label: 'Seins douloureux',    icon: '👙' },
+        { key: 'douleurs_lombaires',  label: 'Douleurs lombaires',  icon: '🔙' },
+        { key: 'pertes_claires',      label: 'Pertes claires',      icon: '💧' },
+        { key: 'fievre',              label: 'Fièvre',              icon: '🌡️' },
+        { key: 'fatigue',             label: 'Fatigue',             icon: '😴' },
+        { key: 'humeur_irritable',    label: 'Humeur irritable',    icon: '😤' },
+    ];
+
+    // ── Vue jour : liste tous les rapports + bouton ajouter ──
     async function ouvrirJournal(dateStr) {
-        const journal = _journalCache[dateStr] || null;
+        const rapports = _journalCache[dateStr] || [];
         const [y, m, d] = dateStr.split('-').map(Number);
         const dateAff = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
             weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
         });
 
-        const LABELS_SYMPTOMES = {
-            je_me_sens_bien    : 'Je me sens bien',
-            crampes_abdominales: 'Crampes abdominales',
-            seins_douloureux   : 'Seins douloureux',
-            douleurs_lombaires : 'Douleurs lombaires',
-            pertes_claires     : 'Pertes claires',
-            fievre             : 'Fièvre',
-            fatigue            : 'Fatigue',
-            humeur_irritable   : 'Humeur irritable'
-        };
-
-        // ── Statut du cycle pour ce jour précis ──
         const phaseDuJour = getPhaseDuJour(dateStr);
         let contenu = '';
 
+        // Phase du cycle
         if (phaseDuJour) {
             contenu += `
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;
@@ -345,101 +367,78 @@ const Cycle = (() => {
                 </div>`;
         }
 
-        if (journal) {
-            const rapport   = journal.humeur;
-            const symptomes = journal.symptomes ? journal.symptomes.split(',').filter(Boolean) : [];
-            const notes     = journal.notes || '';
-            const heure     = journal.created_at
-                ? new Date(journal.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        // Liste des rapports existants
+        if (rapports.length === 0 && !phaseDuJour) {
+            contenu += `<p style="color:#9ca3af;font-size:13px;margin-bottom:4px">Aucun enregistrement pour ce jour.</p>`;
+        }
+
+        rapports.forEach((r, idx) => {
+            const heure = r.created_at
+                ? new Date(r.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
                 : null;
+            const symptomes = r.symptomes ? r.symptomes.split(',').filter(Boolean) : [];
+            const rapportLabel = r.humeur === 'protege' ? '🛡️ Protégé' : r.humeur === 'non_protege' ? '♥ Non protégé' : null;
 
-            if (heure) {
-                contenu += `<div style="font-size:11px;color:#9ca3af;margin-bottom:14px">Enregistré à ${heure}</div>`;
-            }
-
-            if (rapport) {
-                const rapportLabel = rapport === 'protege' ? '🛡️ Protégé' : '♥ Non protégé';
-                contenu += `
-                    <div style="margin-bottom:12px">
-                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.5px;margin-bottom:6px">Rapport sexuel</div>
+            contenu += `
+                <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <span style="font-size:11px;color:#9ca3af">
+                            Rapport ${rapports.length > 1 ? `#${idx + 1}` : ''}${heure ? ` · ${heure}` : ''}
+                        </span>
+                        <div style="display:flex;gap:6px">
+                            <button class="btn-edit-small"
+                                onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', ${r.id})">✏️</button>
+                            <button class="btn-edit-small" style="color:#ef4444"
+                                onclick="Cycle._supprimerJournal(${r.id}, '${dateStr}')">🗑️</button>
+                        </div>
+                    </div>
+                    ${rapportLabel ? `
                         <span style="background:#fce7f3;color:#db2777;border-radius:20px;
-                                     padding:5px 12px;font-size:13px;font-weight:600">${rapportLabel}</span>
-                    </div>`;
-            }
-
-            if (symptomes.length > 0) {
-                contenu += `
-                    <div style="margin-bottom:12px">
-                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.5px;margin-bottom:6px">Symptômes</div>
-                        <div style="display:flex;flex-wrap:wrap;gap:6px">
+                                     padding:4px 10px;font-size:12px;font-weight:600;display:inline-block;margin-bottom:6px">
+                            ${rapportLabel}
+                        </span>` : ''}
+                    ${symptomes.length > 0 ? `
+                        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">
                             ${symptomes.map(s =>
                                 `<span style="background:#ede9fe;color:#7c3aed;border-radius:20px;
-                                              padding:4px 10px;font-size:12px;font-weight:600">
+                                              padding:3px 8px;font-size:11px;font-weight:600">
                                     ${LABELS_SYMPTOMES[s] || s}
                                 </span>`
                             ).join('')}
-                        </div>
-                    </div>`;
-            }
-
-            if (notes) {
-                contenu += `
-                    <div style="margin-bottom:12px">
-                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.5px;margin-bottom:6px">Notes</div>
-                        <div style="font-size:13px;color:#374151;line-height:1.5">${notes}</div>
-                    </div>`;
-            }
-
-            if (!rapport && symptomes.length === 0 && !notes) {
-                contenu += `<p style="color:#9ca3af;font-size:13px;margin-bottom:4px">Aucune donnée enregistrée pour ce rapport.</p>`;
-            }
-        } else if (!phaseDuJour) {
-            // Jour neutre sans données
-            contenu += `<p style="color:#9ca3af;font-size:13px;margin-bottom:4px">Aucun enregistrement pour ce jour.</p>`;
-        }
+                        </div>` : ''}
+                    ${r.notes ? `<div style="font-size:12px;color:#6b7280;line-height:1.4">${r.notes}</div>` : ''}
+                </div>`;
+        });
 
         document.getElementById('modal-title').textContent = dateAff;
         document.getElementById('modal-body').innerHTML = `
             <div class="journal-form">
                 ${contenu}
                 <div class="modal-actions" style="margin-top:16px">
-                    <button class="btn-save" onclick="Cycle._ouvrirFormulaireJournal('${dateStr}')">
-                        ${journal ? '✏️ Modifier le rapport' : '+ Enregistrer un rapport'}
+                    <button class="btn-save" onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', null)">
+                        + Enregistrer un rapport
                     </button>
-                    ${journal?.id
-                        ? `<button class="btn-delete" onclick="Cycle._supprimerJournal(${journal.id}, '${dateStr}')">🗑️ Supprimer</button>`
-                        : ''}
                     <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
                 </div>
             </div>`;
         document.getElementById('overlay').classList.add('on');
     }
 
-    async function _ouvrirFormulaireJournal(dateStr) {
-        const journal = _journalCache[dateStr] || {};
-        const [y, m, d] = dateStr.split('-').map(Number);
-        const dateAff = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
+    // ── Formulaire : null = nouveau, id = édition ────────────
+    async function _ouvrirFormulaireJournal(dateStr, rapportId) {
+        // Cherche le rapport existant si édition
+        const rapports   = _journalCache[dateStr] || [];
+        const journal    = rapportId ? rapports.find(r => r.id === rapportId) || {} : {};
+        const isEdit     = !!rapportId;
+        const [y, m, d]  = dateStr.split('-').map(Number);
+        const dateAff    = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
             weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
         });
         const symptomesActifs = journal.symptomes ? journal.symptomes.split(',') : [];
 
-        const SYMPTOMES = [
-            { key: 'je_me_sens_bien',     label: 'Je me sens bien',     icon: '😊' },
-            { key: 'crampes_abdominales', label: 'Crampes abdominales', icon: '🤰' },
-            { key: 'seins_douloureux',    label: 'Seins douloureux',    icon: '👙' },
-            { key: 'douleurs_lombaires',  label: 'Douleurs lombaires',  icon: '🔙' },
-            { key: 'pertes_claires',      label: 'Pertes claires',      icon: '💧' },
-            { key: 'fievre',              label: 'Fièvre',              icon: '🌡️' },
-            { key: 'fatigue',             label: 'Fatigue',             icon: '😴' },
-            { key: 'humeur_irritable',    label: 'Humeur irritable',    icon: '😤' },
-        ];
-
-        document.getElementById('modal-title').textContent = journal.id
-            ? 'Modifier le rapport sexuel'
-            : 'Enregistrer un rapport sexuel';
+        document.getElementById('modal-title').textContent = isEdit
+            ? 'Modifier le rapport'
+            : 'Enregistrer un rapport';
         document.getElementById('modal-body').innerHTML = `
             <div class="journal-form">
                 <div style="font-size:12px;color:#9ca3af;margin-bottom:12px">${dateAff}</div>
@@ -452,7 +451,7 @@ const Cycle = (() => {
                 </div>
                 <div class="journal-section-title" style="margin-top:14px">Symptômes</div>
                 <div class="journal-symptomes">
-                    ${SYMPTOMES.map(s => `
+                    ${SYMPTOMES_LIST.map(s => `
                         <label class="symptome-chip ${symptomesActifs.includes(s.key) ? 'active' : ''}"
                             onclick="var cb=this.querySelector('input');cb.checked=!cb.checked;this.classList.toggle('active',cb.checked)">
                             <input type="checkbox" value="${s.key}" ${symptomesActifs.includes(s.key) ? 'checked' : ''}>
@@ -464,10 +463,10 @@ const Cycle = (() => {
                 <div class="journal-section-title" style="margin-top:14px">Notes libres</div>
                 <textarea id="journal-notes" rows="3" placeholder="Autre chose à noter...">${journal.notes || ''}</textarea>
                 <div class="modal-actions" style="margin-top:16px">
-                    <button class="btn-save" onclick="Cycle._sauvegarderJournal('${dateStr}')">💾 Sauvegarder</button>
-                    ${journal.id
-                        ? `<button class="btn-delete" onclick="Cycle._supprimerJournal(${journal.id}, '${dateStr}')">🗑️ Supprimer</button>`
-                        : ''}
+                    <button class="btn-save"
+                        onclick="Cycle._sauvegarderJournal('${dateStr}', ${rapportId || 'null'})">
+                        💾 Sauvegarder
+                    </button>
                     <button class="btn-cancel" onclick="Cycle.ouvrirJournal('${dateStr}')">Annuler</button>
                 </div>
             </div>`;
@@ -480,20 +479,31 @@ const Cycle = (() => {
         if (!estDejaActif) btn.classList.add('active');
     }
 
-    async function _sauvegarderJournal(dateStr) {
+        // ── Sauvegarde : POST (nouveau) ou PUT (édition) ──────────
+    async function _sauvegarderJournal(dateStr, rapportId) {
         const rapportBtn = document.querySelector('.btn-rapport.active');
         const rapport    = rapportBtn
             ? (rapportBtn.textContent.includes('Protégé') ? 'protege' : 'non_protege')
             : null;
         const symptomes = [...document.querySelectorAll('.journal-symptomes input:checked')]
             .map(i => i.value).join(',');
-                const notes = document.getElementById('journal-notes').value;
+        const notes = document.getElementById('journal-notes').value;
         try {
-            await fetch('/api/cycle/journal', {
-                method : 'POST',
-                headers: authHeaders(),
-                body   : JSON.stringify({ date: dateStr, rapport, symptomes, notes })
-            });
+            if (rapportId) {
+                // Édition d'un rapport existant
+                await fetch(`/api/cycle/journal/${rapportId}`, {
+                    method : 'PUT',
+                    headers: authHeaders(),
+                    body   : JSON.stringify({ rapport, symptomes, notes })
+                });
+            } else {
+                // Nouveau rapport — INSERT pur
+                await fetch('/api/cycle/journal', {
+                    method : 'POST',
+                    headers: authHeaders(),
+                    body   : JSON.stringify({ date: dateStr, rapport, symptomes, notes })
+                });
+            }
             await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
             ouvrirJournal(dateStr);
         } catch {
@@ -501,7 +511,7 @@ const Cycle = (() => {
             document.getElementById('modal-body').innerHTML = `
                 <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
                 <div class="modal-actions">
-                    <button class="btn-cancel" onclick="Cycle._ouvrirFormulaireJournal('${dateStr}')">Retour</button>
+                    <button class="btn-cancel" onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', ${rapportId || 'null'})">Retour</button>
                 </div>`;
         }
     }
@@ -751,7 +761,6 @@ const Cycle = (() => {
         }
     }
 
-    // ── Modal calendrier : ZERO bloc mood ──
     async function ouvrirModalCalendrier() {
         try {
             const res          = await fetch('/api/cycle', { headers: authHeaders() });
