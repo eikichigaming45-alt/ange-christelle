@@ -129,6 +129,12 @@ async function showApp() {
     afficherVersion();
 
     const saved = localStorage.getItem('mydaily_onglet') || 'accueil';
+
+    // Masquer tous les panes immédiatement pour éviter le flash
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    const paneImmediat = document.getElementById(`tab-${saved}`);
+    if (paneImmediat) paneImmediat.classList.add('active');
+
     await buildGrid();
     switchTab(saved, true);
 
