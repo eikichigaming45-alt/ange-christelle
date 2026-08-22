@@ -204,6 +204,20 @@ const Cycle = (() => {
         return { label: 'Phase de repos', emoji: '🔵', color: '#3498db' };
     }
 
+    // ── Calcule la phase d'un jour précis (pas forcément aujourd'hui) ──
+    function getPhaseDuJour(dateStr) {
+        const date = parseDateLocale(dateStr);
+        for (const p of _toutesLesP) {
+            if (date >= p.debutRegles && date <= p.finRegles)
+                return { label: 'Règles', emoji: '🔴', color: '#e74c3c' };
+            if (memeJour(date, p.ovulation))
+                return { label: "Jour d'ovulation", emoji: '🌟', color: '#f39c12' };
+            if (date >= p.debutFertile && date <= p.finFertile)
+                return { label: 'Fenêtre fertile', emoji: '🟢', color: '#2ecc71' };
+        }
+        return null; // jour neutre — pas de statut particulier
+    }
+
     function calculerJourCycle(calc) {
         if (!calc) return null;
         const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
@@ -298,6 +312,7 @@ const Cycle = (() => {
         if (container) container.innerHTML = renderCalendrier(_calcCourant);
     }
 
+    // ── Vue jour enrichie : phase + rapport + symptômes + notes ──
     async function ouvrirJournal(dateStr) {
         const journal = _journalCache[dateStr] || null;
         const [y, m, d] = dateStr.split('-').map(Number);
@@ -316,7 +331,19 @@ const Cycle = (() => {
             humeur_irritable   : 'Humeur irritable'
         };
 
+        // ── Statut du cycle pour ce jour précis ──
+        const phaseDuJour = getPhaseDuJour(dateStr);
         let contenu = '';
+
+        if (phaseDuJour) {
+            contenu += `
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;
+                            background:${phaseDuJour.color}18;border-left:4px solid ${phaseDuJour.color};
+                            border-radius:8px;padding:10px 12px">
+                    <span style="font-size:20px">${phaseDuJour.emoji}</span>
+                    <span style="font-size:13px;font-weight:700;color:${phaseDuJour.color}">${phaseDuJour.label}</span>
+                </div>`;
+        }
 
         if (journal) {
             const rapport   = journal.humeur;
@@ -367,10 +394,11 @@ const Cycle = (() => {
             }
 
             if (!rapport && symptomes.length === 0 && !notes) {
-                contenu += `<p style="color:#9ca3af;font-size:13px">Aucune donnée enregistrée.</p>`;
+                contenu += `<p style="color:#9ca3af;font-size:13px;margin-bottom:4px">Aucune donnée enregistrée pour ce rapport.</p>`;
             }
-        } else {
-            contenu = `<p style="color:#9ca3af;font-size:13px;margin-bottom:4px">Aucun enregistrement pour ce jour.</p>`;
+        } else if (!phaseDuJour) {
+            // Jour neutre sans données
+            contenu += `<p style="color:#9ca3af;font-size:13px;margin-bottom:4px">Aucun enregistrement pour ce jour.</p>`;
         }
 
         document.getElementById('modal-title').textContent = dateAff;
@@ -379,7 +407,7 @@ const Cycle = (() => {
                 ${contenu}
                 <div class="modal-actions" style="margin-top:16px">
                     <button class="btn-save" onclick="Cycle._ouvrirFormulaireJournal('${dateStr}')">
-                        + Enregistrer un rapport
+                        ${journal ? '✏️ Modifier le rapport' : '+ Enregistrer un rapport'}
                     </button>
                     ${journal?.id
                         ? `<button class="btn-delete" onclick="Cycle._supprimerJournal(${journal.id}, '${dateStr}')">🗑️ Supprimer</button>`
@@ -409,7 +437,9 @@ const Cycle = (() => {
             { key: 'humeur_irritable',    label: 'Humeur irritable',    icon: '😤' },
         ];
 
-        document.getElementById('modal-title').textContent = 'Enregistrer un rapport sexuel';
+        document.getElementById('modal-title').textContent = journal.id
+            ? 'Modifier le rapport sexuel'
+            : 'Enregistrer un rapport sexuel';
         document.getElementById('modal-body').innerHTML = `
             <div class="journal-form">
                 <div style="font-size:12px;color:#9ca3af;margin-bottom:12px">${dateAff}</div>
@@ -435,7 +465,9 @@ const Cycle = (() => {
                 <textarea id="journal-notes" rows="3" placeholder="Autre chose à noter...">${journal.notes || ''}</textarea>
                 <div class="modal-actions" style="margin-top:16px">
                     <button class="btn-save" onclick="Cycle._sauvegarderJournal('${dateStr}')">💾 Sauvegarder</button>
-                    ${journal.id ? `<button class="btn-delete" onclick="Cycle._supprimerJournal(${journal.id}, '${dateStr}')">🗑️ Supprimer</button>` : ''}
+                    ${journal.id
+                        ? `<button class="btn-delete" onclick="Cycle._supprimerJournal(${journal.id}, '${dateStr}')">🗑️ Supprimer</button>`
+                        : ''}
                     <button class="btn-cancel" onclick="Cycle.ouvrirJournal('${dateStr}')">Annuler</button>
                 </div>
             </div>`;
@@ -455,7 +487,7 @@ const Cycle = (() => {
             : null;
         const symptomes = [...document.querySelectorAll('.journal-symptomes input:checked')]
             .map(i => i.value).join(',');
-        const notes = document.getElementById('journal-notes').value;
+                const notes = document.getElementById('journal-notes').value;
         try {
             await fetch('/api/cycle/journal', {
                 method : 'POST',
@@ -494,7 +526,7 @@ const Cycle = (() => {
         );
     }
 
-        async function ouvrirModalMood(calc) {
+    async function ouvrirModalMood(calc) {
         const today     = formatDateInput(new Date());
         const jourCycle = calculerJourCycle(calc);
         const phaseMood = getPhaseMood(jourCycle, calc);
@@ -719,7 +751,7 @@ const Cycle = (() => {
         }
     }
 
-    // ── Modal calendrier : PAS de bloc mood ici, uniquement dans le widget ──
+    // ── Modal calendrier : ZERO bloc mood ──
     async function ouvrirModalCalendrier() {
         try {
             const res          = await fetch('/api/cycle', { headers: authHeaders() });
