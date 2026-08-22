@@ -1,3 +1,7 @@
+// ============================================================
+// server.js
+// ============================================================
+
 const express = require('express');
 const webpush  = require('web-push');
 const { pool, initDB } = require('./db/pool');
@@ -54,6 +58,7 @@ app.use('/api/cycle',          require('./routes/cycle'));
 app.use('/api/rendezvous',     require('./routes/rendezvous'));
 app.use('/api/planning',       require('./routes/planning'));
 app.use('/api/astrologie',     require('./routes/astrologie'));
+app.use('/api/feed',           require('./routes/feed'));
 
 // ── Middleware de gestion d'erreurs global ────────────────────
 app.use((err, req, res, next) => {

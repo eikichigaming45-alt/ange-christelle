@@ -141,6 +141,7 @@ async function showApp() {
     chargerPriere();
     if (typeof window.chargerIslam === 'function') window.chargerIslam();
     chargerMeteoAuto();
+    if (typeof initFeed            === 'function') initFeed();
     if (typeof chargerAstrologie   === 'function') chargerAstrologie();
     setTimeout(() => {
         if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
@@ -206,7 +207,7 @@ function logout() {
     const accueilMeteo = document.getElementById('accueil-meteo');
     if (accueilMeteo) accueilMeteo.innerHTML = '';
     const accueilFeed  = document.getElementById('accueil-feed');
-    if (accueilFeed) accueilFeed.innerHTML = '<div class="feed-placeholder"><span>Le fil social arrive bientôt ✨</span></div>';
+    if (accueilFeed)   accueilFeed.innerHTML = '';
 
     const errEl = document.getElementById('error-msg');
     if (errEl) errEl.textContent = '';
@@ -220,6 +221,7 @@ function actualiser() {
     chargerPriere();
     if (typeof window.chargerIslam  === 'function') window.chargerIslam();
     chargerMeteoAuto();
+    if (typeof initFeed             === 'function') initFeed();
     if (typeof chargerAstrologie    === 'function') chargerAstrologie();
     if (typeof chargerProfilHeader  === 'function') chargerProfilHeader();
     if (typeof chargerWidgetTaches  === 'function') chargerWidgetTaches();
