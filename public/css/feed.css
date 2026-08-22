@@ -20,6 +20,7 @@
     padding-bottom: 80px;
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 16px;
     background: #f3f4f6;
 }
@@ -30,6 +31,8 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 4px;
+    width: 100%;
+    max-width: 600px;
 }
 
 .feed-filters {
@@ -67,6 +70,15 @@
     box-shadow: 0 2px 8px rgba(124,58,237,.25);
 }
 
+/* ===================== FEED LIST ===================== */
+#feed-list {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
 /* ===================== CARD POST ===================== */
 .feed-card {
     background: #fff;
@@ -76,6 +88,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    width: 100%;
 }
 
 .feed-card-header {
@@ -199,7 +212,7 @@
 /* ===================== PHOTO POST ===================== */
 .feed-photo-wrap {
     width: 100%;
-    height: 320px;
+    aspect-ratio: 4 / 3;
     border-radius: 12px;
     overflow: hidden;
     background: #f3f4f6;
