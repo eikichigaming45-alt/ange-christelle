@@ -6,11 +6,56 @@
 // _journalCache : { 'YYYY-MM-DD': [ rapport1, rapport2, ... ] }
 // Plusieurs rapports sexuels par jour autorisés.
 // Mood inline dans le widget, sans modal.
+// v3.79 — mood widget : invite cliquable si vide, icônes si rempli
 // ============================================================
 
 const Cycle = (() => {
 
     const PAGE_SIZE = 10;
+
+    // ── Icônes par humeur ─────────────────────────────────────
+    const MOOD_ICONS = {
+        // Règles
+        'Fatiguée'            : '😔',
+        'Irritée'             : '😤',
+        'Sensibilité haute'   : '🥺',
+        'Besoin de repos'     : '🛌',
+        'Moins sociable'      : '🚪',
+        'Lourdeur corporelle' : '🪨',
+        'Manque de motivation': '😶',
+        // Folliculaire
+        'Motivée'             : '💪',
+        'Stable'              : '😌',
+        'Optimiste'           : '🌤️',
+        'Concentrée'          : '🎯',
+        'Sociable'            : '🤝',
+        'Créative'            : '🎨',
+        'Confiance tranquille': '🌿',
+        // Ovulation
+        'Confiance max'       : '✨',
+        'Énergie haute'       : '⚡',
+        'Charme naturel'      : '🌸',
+        'Très sociable'       : '🎉',
+        'Décisive'            : '🎯',
+        'Bonne humeur'        : '😄',
+        'Aisance relationnelle': '💬',
+        // Lutéale début
+        'Apaisée'             : '🕊️',
+        'Ralentissement'      : '🐢',
+        'Besoin de douceur'   : '🫶',
+        'Moins dans le rush'  : '🌙',
+        'Patiente'            : '⏳',
+        'Introspective'       : '🔮',
+        // Lutéale fin / SPM
+        'Irritabilité'        : '😠',
+        'Hypersensibilité'    : '💧',
+        'Stress facile'       : '😰',
+        "Baisse d'énergie"    : '🪫',
+        "Besoin d'isolement"  : '🫙',
+        'Moins de patience'   : '⏱️',
+        'Pensées négatives'   : '🌧️',
+        'Sensation de surcharge': '🧳',
+    };
 
     const PHASES_MOOD_DEF = [
         {
@@ -35,8 +80,8 @@ const Cycle = (() => {
         },
         {
             label: '🌙 Lutéale fin - SPM',
-            items: ['Irritabilité','Hypersensibilité','Stress facile','Baisse d\'énergie',
-                    'Besoin d\'isolement','Moins de patience','Pensées négatives','Sensation de surcharge']
+            items: ['Irritabilité','Hypersensibilité','Stress facile',"Baisse d'énergie",
+                    "Besoin d'isolement",'Moins de patience','Pensées négatives','Sensation de surcharge']
         }
     ];
 
@@ -167,7 +212,6 @@ const Cycle = (() => {
 
     let _calcCourant  = null;
     let _moisAffiche  = null;
-    // { 'YYYY-MM-DD': [ {id, humeur, symptomes, notes, created_at}, ... ] }
     let _journalCache = {};
     let _toutesLesP   = [];
 
@@ -227,7 +271,6 @@ const Cycle = (() => {
         return Math.round((aujourd_hui - calc.debut) / (1000 * 60 * 60 * 24)) + 1;
     }
 
-    // ── Cache groupé par date en tableau ──────────────────────
     async function chargerJournal(mois, annee) {
         try {
             const res = await fetch(`/api/cycle/journal?mois=${mois}&annee=${annee}`, { headers: authHeaders() });
@@ -346,12 +389,9 @@ const Cycle = (() => {
         { key: 'humeur_irritable',    label: 'Humeur irritable',    icon: '😤' },
     ];
 
-    // ── Vue jour : recharge le bon mois puis affiche tous les rapports ──
     async function ouvrirJournal(dateStr) {
-        // Recharge le mois du jour cliqué pour avoir le bon cache
         const [ry, rm] = dateStr.split('-').map(Number);
         await chargerJournal(rm, ry);
-        // Synchronise _moisAffiche si on a navigué ailleurs
         if (_moisAffiche) _moisAffiche = new Date(ry, rm - 1, 1);
 
         const rapports = _journalCache[dateStr] || [];
@@ -435,7 +475,6 @@ const Cycle = (() => {
         document.getElementById('overlay').classList.add('on');
     }
 
-    // ── Formulaire : null = nouveau, id = édition ────────────
     async function _ouvrirFormulaireJournal(dateStr, rapportId) {
         const rapports        = _journalCache[dateStr] || [];
         const journal         = rapportId ? rapports.find(r => r.id === rapportId) || {} : {};
@@ -468,12 +507,12 @@ const Cycle = (() => {
                             <span class="symptome-chip-icon">${s.icon}</span>
                             <span class="symptome-chip-label">${s.label}</span>
                         </label>
-                    `).join('')}
+    `).join('')}
                 </div>
                 <div class="journal-section-title" style="margin-top:14px">Notes libres</div>
                 <textarea id="journal-notes" rows="3"
                     placeholder="Autre chose à noter...">${journal.notes || ''}</textarea>
-                                <div class="modal-actions" style="margin-top:16px">
+                <div class="modal-actions" style="margin-top:16px">
                     <button class="btn-save"
                         onclick="Cycle._sauvegarderJournal('${dateStr}', ${rapportId || 'null'})">
                         💾 Sauvegarder
@@ -490,8 +529,6 @@ const Cycle = (() => {
         if (!estDejaActif) btn.classList.add('active');
     }
 
-    // ── Sauvegarde : POST (nouveau) ou PUT (édition) ──────────
-    // Recharge le mois extrait du dateStr, pas de _moisAffiche
     async function _sauvegarderJournal(dateStr, rapportId) {
         const rapportBtn = document.querySelector('.btn-rapport.active');
         const rapport    = rapportBtn
@@ -553,9 +590,7 @@ const Cycle = (() => {
         );
     }
 
-    // ── Mood inline dans le widget ────────────────────────────
-    // Chips directement visibles, clic = toggle + sauvegarde immédiate.
-    // Si humeur déjà enregistrée : chips pré-sélectionnées + "✓ Humeur enregistrée".
+    // ── Mood widget : invite si vide, chips icône+label si rempli ──
     async function _afficherMoodInline(calc) {
         const zone = document.getElementById('cycle-mood-zone');
         if (!zone || !calc) return;
@@ -575,7 +610,105 @@ const Cycle = (() => {
         _renderMoodZone(zone, items, moodsActifs, phaseMood, today);
     }
 
+    // ── Rendu mood : deux états distincts ────────────────────────
+    // État VIDE  → invite cliquable qui ouvre les chips
+    // État REMPLI → affiche uniquement les chips cochées (icône + label),
+    //               cliquables pour rouvrir et modifier
     function _renderMoodZone(zone, items, moodsActifs, phaseMood, today) {
+        const aDejaHumeur = moodsActifs.length > 0;
+
+        if (aDejaHumeur) {
+            // ── Vue "remplie" : chips cochées icône + label, cliquables ──
+            const chipsRemplies = moodsActifs.map(item => {
+                const icone = MOOD_ICONS[item] || '💭';
+                return `<button
+                    class="mood-chip-filled"
+                    onclick="Cycle._ouvrirEditionMood('${today}')"
+                    title="Modifier mon humeur"
+                    style="display:inline-flex;align-items:center;gap:6px;
+                           border:1.5px solid #7c3aed;background:#ede9fe;
+                           color:#7c3aed;border-radius:20px;padding:5px 12px;
+                           font-size:12px;font-weight:600;cursor:pointer;
+                           transition:all .15s">
+                    <span style="font-size:15px;line-height:1">${icone}</span>
+                    <span>${item}</span>
+                </button>`;
+            }).join('');
+
+            zone.innerHTML = `
+                <div style="border-top:1px solid #f0e6ff;margin-top:12px;padding-top:10px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;
+                                gap:6px;margin-bottom:8px">
+                        <span style="font-size:11px;color:#10b981;font-weight:600">✓ Humeur enregistrée</span>
+                        <button onclick="Cycle._ouvrirEditionMood('${today}')"
+                            style="background:none;border:none;cursor:pointer;
+                                   font-size:11px;color:#9ca3af;text-decoration:underline;
+                                   padding:0">Modifier</button>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px">
+                        ${chipsRemplies}
+                    </div>
+                </div>`;
+        } else {
+            // ── Vue "vide" : invite cliquable ──────────────────────────
+            zone.innerHTML = `
+                <div style="border-top:1px solid #f0e6ff;margin-top:12px;padding-top:10px">
+                    <button onclick="Cycle._ouvrirEditionMood('${today}')"
+                        style="width:100%;display:flex;align-items:center;justify-content:space-between;
+                               background:#faf5ff;border:1.5px dashed #c4b5fd;border-radius:10px;
+                               padding:10px 14px;cursor:pointer;transition:background .2s">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:18px">💭</span>
+                            <span style="font-size:13px;color:#7c3aed;font-weight:600">
+                                Comment tu te sens aujourd'hui ?
+                            </span>
+                        </div>
+                        ${phaseMood ? `
+                            <span style="font-size:10px;background:#f5f3ff;color:#7c3aed;
+                                border-radius:10px;padding:2px 7px;font-weight:600;
+                                white-space:nowrap;flex-shrink:0">
+                                ${phaseMood.label}
+                            </span>` : ''}
+                    </button>
+                </div>`;
+        }
+    }
+
+    // ── Panneau d'édition mood inline (remplace la zone, sans modal) ──
+    function _ouvrirEditionMood(today) {
+        const zone = document.getElementById('cycle-mood-zone');
+        if (!zone) return;
+
+        // Récupère les humeurs actuellement affichées (chips filled)
+        const moodsActuels = [];
+        zone.querySelectorAll('.mood-chip-filled span:last-child').forEach(s => {
+            moodsActuels.push(s.textContent.trim());
+        });
+
+        // Récupère les items de la phase depuis _calcCourant ou recalcule
+        const jourCycle = _calcCourant ? calculerJourCycle(_calcCourant) : null;
+        const phaseMood = _calcCourant ? getPhaseMood(jourCycle, _calcCourant) : null;
+        const items     = phaseMood?.items || [];
+
+        const chipsEdit = items.map(item => {
+            const icone = MOOD_ICONS[item] || '💭';
+            const sel   = moodsActuels.includes(item);
+            return `<button
+                data-mood="${item}"
+                data-selected="${sel ? '1' : '0'}"
+                onclick="Cycle._toggleMoodChip(this, '${today}')"
+                style="display:inline-flex;align-items:center;gap:6px;
+                       border:1.5px solid ${sel ? '#7c3aed' : '#e5e7eb'};
+                       background:${sel ? '#ede9fe' : '#f9fafb'};
+                       color:${sel ? '#7c3aed' : '#6b7280'};
+                       border-radius:20px;padding:5px 12px;font-size:12px;
+                       font-weight:${sel ? '600' : '400'};cursor:pointer;
+                       transition:all .15s">
+                <span style="font-size:15px;line-height:1">${icone}</span>
+                <span>${item}</span>
+            </button>`;
+        }).join('');
+
         zone.innerHTML = `
             <div style="border-top:1px solid #f0e6ff;margin-top:12px;padding-top:10px">
                 <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
@@ -587,57 +720,37 @@ const Cycle = (() => {
                         </span>` : ''}
                 </div>
                 <div id="cycle-mood-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-                    ${items.map(item => {
-                        const sel = moodsActifs.includes(item);
-                        return `<button
-                            data-mood="${item}"
-                            data-selected="${sel ? '1' : '0'}"
-                            onclick="Cycle._toggleMoodChip(this, '${today}')"
-                            style="border:1px solid ${sel ? '#7c3aed' : '#e5e7eb'};
-                                   background:${sel ? '#ede9fe' : '#f9fafb'};
-                                   color:${sel ? '#7c3aed' : '#6b7280'};
-                                   border-radius:20px;padding:5px 11px;font-size:12px;
-                                   font-weight:${sel ? '600' : '400'};cursor:pointer;
-                                   transition:all .15s">
-                            ${item}
-                        </button>`;
-                    }).join('')}
+                    ${chipsEdit}
                 </div>
-                ${moodsActifs.length > 0
-                    ? `<div id="cycle-mood-confirm"
-                            style="font-size:11px;color:#10b981;font-weight:600">
-                            ✓ Humeur enregistrée
-                       </div>`
-                    : `<div id="cycle-mood-confirm"></div>`}
+                <div id="cycle-mood-confirm"></div>
             </div>`;
     }
 
-    // ── Toggle chip : détection via data-selected, sauvegarde immédiate ──
+    // ── Toggle chip : détection via data-selected, sauvegarde + refresh vue ──
     async function _toggleMoodChip(btn, date) {
         const chips    = [...document.querySelectorAll('#cycle-mood-chips button')];
         const estActif = btn.dataset.selected === '1';
 
-        // Toggle
         btn.dataset.selected = estActif ? '0' : '1';
 
-        // Recalcule la liste complète des actifs
         const actifs = chips
             .filter(b => b.dataset.selected === '1')
             .map(b => b.dataset.mood);
 
-        // Mise à jour visuelle immédiate de tous les chips
+        // Mise à jour visuelle immédiate
         chips.forEach(b => {
             const sel = b.dataset.selected === '1';
-            b.style.border      = `1px solid ${sel ? '#7c3aed' : '#e5e7eb'}`;
-            b.style.background  = sel ? '#ede9fe' : '#f9fafb';
-            b.style.color       = sel ? '#7c3aed' : '#6b7280';
-            b.style.fontWeight  = sel ? '600' : '400';
+            b.style.border     = `1.5px solid ${sel ? '#7c3aed' : '#e5e7eb'}`;
+            b.style.background = sel ? '#ede9fe' : '#f9fafb';
+            b.style.color      = sel ? '#7c3aed' : '#6b7280';
+            b.style.fontWeight = sel ? '600' : '400';
         });
 
-        // Badge confirmation
         const conf = document.getElementById('cycle-mood-confirm');
-        if (conf) conf.textContent = actifs.length > 0 ? '✓ Humeur enregistrée' : '';
-        if (conf) conf.style.color = '#10b981';
+        if (conf) {
+            conf.textContent = actifs.length > 0 ? '✓ Humeur enregistrée' : '';
+            conf.style.cssText = 'font-size:11px;color:#10b981;font-weight:600';
+        }
 
         // Sauvegarde silencieuse
         try {
@@ -647,9 +760,16 @@ const Cycle = (() => {
                 body   : JSON.stringify({ date, moods: actifs.join(',') })
             });
         } catch { /* silencieux */ }
+
+        // Refresh la zone mood après 800ms si on ne touche plus rien
+        clearTimeout(_moodRefreshTimer);
+        _moodRefreshTimer = setTimeout(async () => {
+            if (_calcCourant) await _afficherMoodInline(_calcCourant);
+        }, 800);
     }
 
-    // ── ouvrirModalMood : conservé pour compatibilité ─────────
+    let _moodRefreshTimer = null;
+
     async function ouvrirModalMood(calc) {
         await _afficherMoodInline(calc);
     }
@@ -675,7 +795,6 @@ const Cycle = (() => {
         }
     }
 
-    // ── renderBlocMood : zone vide, remplie après rendu par _afficherMoodInline ──
     function renderBlocMood() {
         return `<div id="cycle-mood-zone"></div>`;
     }
@@ -773,10 +892,6 @@ const Cycle = (() => {
             </div>`;
     }
 
-    async function _ouvrirMoodDepuisWidget() {
-        // Non utilisé en mode inline — conservé pour compatibilité
-    }
-
     async function charger() {
         const container = document.getElementById('widget-cycle-content');
         if (!container) return;
@@ -791,10 +906,9 @@ const Cycle = (() => {
             const dernierCycle = cycles.length > 0 ? cycles[0] : null;
             const calc         = calculerCycle(dernierCycle, dureeMoyenne);
 
-            // Rendu widget sans moodDuJour (plus passé en paramètre)
+            _calcCourant = calc;
             container.innerHTML = renderWidget(cycles, dureeMoyenne);
 
-            // Charge et affiche le mood inline immédiatement après rendu
             if (calc) await _afficherMoodInline(calc);
         } catch {
             container.innerHTML = `<p class="cycle-error">Erreur de chargement du cycle.</p>`;
@@ -1032,8 +1146,11 @@ const Cycle = (() => {
         _supprimerJournal,
         _sauvegarderMood,
         _toggleMoodChip,
-        _ouvrirMoodDepuisWidget,
+        _ouvrirEditionMood,
+        _ouvrirMoodDepuisWidget : async function() {},
         _getCalcCourant
     };
 
 })();
+
+                
