@@ -1,10 +1,9 @@
 // ============================================================
 // public/js/planning.js
 // Planning mensuel + widget 5 jours + gestion employeurs.
-// Nouveau modèle métier : Travail, Repos, Congé payé, Mission, Autre.
+// Catégories : Travail, Repos, Congé payé, Mission, Autre.
 // Congé payé : plage date_debut → date_fin.
 // Autre      : libelle_personnalise affiché à la place de "Autre".
-// B.6 — message suppression iso : "Confirmer la suppression ?"
 // ============================================================
 
 const SHIFT_CONFIG = {
@@ -70,7 +69,7 @@ async function _fetchEmployeurs(token) {
             cache  : 'no-store'
         });
         if (!res.ok) throw new Error();
-        const data = await res.json();
+        const data  = await res.json();
         const liste = Array.isArray(data) ? data
                     : Array.isArray(data.employeurs) ? data.employeurs
                     : [];
@@ -486,9 +485,9 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
                     style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none">${entry.notes || ''}</textarea>
             </div>
 
-            <div style="margin-bottom:16px">
+                        <div style="margin-bottom:16px">
                 <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Rappel avant le shift</label>
-                                <select id="pl-rappel" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
+                <select id="pl-rappel" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
                     ${_optionsRappel(rappelVal)}
                 </select>
             </div>
@@ -597,7 +596,7 @@ async function _sauvegarderEntreePlanning(id) {
     }
 }
 
-// ── Suppression entrée — message iso "Confirmer la suppression ?" ─────────
+// ── Suppression entrée ────────────────────────────────────────────────────
 async function _supprimerEntreePlanning(id, dateStr) {
     document.getElementById('modal-title').textContent = 'Confirmation';
     document.getElementById('modal-body').innerHTML = `
@@ -718,7 +717,7 @@ async function _ajouterEmployeur() {
     }
 }
 
-// ── Suppression employeur — message iso "Confirmer la suppression ?" ──────
+// ── Suppression employeur ─────────────────────────────────────────────────
 async function _supprimerEmployeur(id, nom) {
     const body = document.getElementById('modal-body');
     body.innerHTML = `

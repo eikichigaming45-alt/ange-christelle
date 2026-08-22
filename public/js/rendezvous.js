@@ -1,10 +1,9 @@
 // ============================================================
 // public/js/rendezvous.js
 // Rendez-vous médicaux — CRUD complet + widget + modal.
-// Corrections : badge "Passé" fiable sur heure réelle,
-//               liste complète paginée 10/page.
-//               B.6 — après suppression/modification : retour
-//               dans la vue courante (pas de closeModal).
+// Badge "Passé" fiable sur heure réelle.
+// Liste complète paginée 10/page.
+// Après suppression/modification : retour dans la vue courante.
 // ============================================================
 
 const Rendezvous = (() => {
@@ -87,7 +86,7 @@ const Rendezvous = (() => {
         return Array.isArray(data) ? data : (data.rendezvous || []);
     }
 
-    // ── Rendu widget — 3 prochains RDV à venir ─────────────────────────────
+    // ── Widget — 3 prochains RDV à venir ──────────────────────────────────
 
     function renderWidget(rdvs) {
         const maintenant = new Date();
@@ -111,8 +110,8 @@ const Rendezvous = (() => {
                         <span class="rdv-badge ${cls}">${label}</span>
                     </div>
                     <div class="rdv-card-date">${formatDateHeure(r.date_rdv)}</div>
-                    ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>`                  : ''}
-                    ${r.lieu      ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>`                        : ''}
+                    ${r.praticien ? `<div class="rdv-card-sub">Dr. ${r.praticien}</div>` : ''}
+                    ${r.lieu      ? `<div class="rdv-card-sub">📍 ${r.lieu}</div>`       : ''}
                     ${r.rappel_avant > 0
                         ? `<div class="rdv-card-sub">⏰ Rappel ${formatRappel(r.rappel_avant)}</div>`
                         : ''}
@@ -286,7 +285,6 @@ const Rendezvous = (() => {
                 body    : JSON.stringify({ titre, date_rdv, type_rdv, praticien, lieu, notes, rappel_avant })
             });
             if (!res.ok) throw new Error();
-            // B.6 — rester dans la vue courante après sauvegarde
             charger();
             ouvrirListe();
         } catch {
@@ -299,10 +297,9 @@ const Rendezvous = (() => {
         }
     }
 
-    // ── Supprimer — B.6 retour vue courante + message iso ─────────────────
+    // ── Supprimer ─────────────────────────────────────────────────────────
 
     async function supprimer(id) {
-        // B.6 — stocker l'origine pour le retour
         document.getElementById('modal-title').textContent = 'Confirmation';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
@@ -314,7 +311,6 @@ const Rendezvous = (() => {
         document.getElementById('btn-rdv-oui').onclick = async () => {
             try {
                 await fetch(`/api/rendezvous/${id}`, { method: 'DELETE', headers: authHeaders() });
-                // B.6 — rester dans la liste, pas closeModal
                 charger();
                 ouvrirListe();
             } catch {

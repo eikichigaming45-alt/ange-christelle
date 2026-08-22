@@ -1,3 +1,10 @@
+// ============================================================
+// routes/planning.js
+// CRUD planning utilisateur + gestion des employeurs.
+// Catégories : Travail, Repos, Congé payé, Mission, Autre.
+// Purge lazy : entrées > 6 mois au GET mensuel.
+// ============================================================
+
 const express  = require('express');
 const router   = express.Router();
 const { pool } = require('../db/pool');
@@ -7,10 +14,12 @@ const CATEGORIES_VALIDES = ['Travail', 'Repos', 'Congé payé', 'Mission', 'Autr
 
 router.use(authenticateToken);
 
+// ── GET /api/planning/employeurs ──────────────────────────────
+// Retourne la liste des employeurs de l'utilisateur.
 router.get('/employeurs', async (req, res) => {
     try {
         const { rows } = await pool.query(
-            'SELECT id, nom FROM planning_employeurs WHERE user_id = \$1 ORDER BY nom ASC',
+            'SELECT id, nom FROM planning_employeurs WHERE user_id = \\$1 ORDER BY nom ASC',
             [req.user.id]
         );
         res.json({ success: true, employeurs: rows });
@@ -20,6 +29,8 @@ router.get('/employeurs', async (req, res) => {
     }
 });
 
+// ── POST /api/planning/employeurs ─────────────────────────────
+// Crée un employeur (upsert silencieux si doublon).
 router.post('/employeurs', async (req, res) => {
     const { nom } = req.body;
     if (!nom?.trim()) {
@@ -28,7 +39,7 @@ router.post('/employeurs', async (req, res) => {
     try {
         const { rows } = await pool.query(
             `INSERT INTO planning_employeurs (user_id, nom)
-             VALUES (\$1, \$2)
+             VALUES (\\$1, \\$2)
              ON CONFLICT (user_id, nom) DO NOTHING
              RETURNING *`,
             [req.user.id, nom.trim()]
@@ -40,10 +51,12 @@ router.post('/employeurs', async (req, res) => {
     }
 });
 
+// ── DELETE /api/planning/employeurs/:id ───────────────────────
+// Supprime un employeur (vérification propriétaire).
 router.delete('/employeurs/:id', async (req, res) => {
     try {
         const result = await pool.query(
-            'DELETE FROM planning_employeurs WHERE id=\$1 AND user_id=\$2',
+            'DELETE FROM planning_employeurs WHERE id=\\$1 AND user_id=\\$2',
             [req.params.id, req.user.id]
         );
         if (result.rowCount === 0) {
@@ -56,22 +69,22 @@ router.delete('/employeurs/:id', async (req, res) => {
     }
 });
 
+// ── GET /api/planning?mois=&annee= ───────────────────────────
+// Purge lazy > 6 mois, puis retourne les entrées du mois demandé.
 router.get('/', async (req, res) => {
     const { mois, annee } = req.query;
     if (!mois || !annee) {
         return res.status(400).json({ success: false, message: 'Mois et année requis.' });
     }
     try {
-        // Purge lazy — utilise date (toujours renseignée) plutôt que date_debut
         await pool.query(
             `DELETE FROM planning
-             WHERE user_id = \$1
+             WHERE user_id = \\$1
                AND COALESCE(date_fin, date_debut, date) < NOW() - INTERVAL '6 months'`,
             [req.user.id]
         );
 
         const debutMois = `${annee}-${String(mois).padStart(2, '0')}-01`;
-        // Calcul dynamique du dernier jour du mois
         const finMois   = new Date(annee, mois, 0).toISOString().slice(0, 10);
 
         const result = await pool.query(`
@@ -80,11 +93,11 @@ router.get('/', async (req, res) => {
                 TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin_str,
                 TO_CHAR(date,       'YYYY-MM-DD') AS date_str
             FROM planning
-            WHERE user_id = \$1
+            WHERE user_id = \\$1
               AND (
-                (date_fin IS NULL AND COALESCE(date_debut, date) BETWEEN \$2 AND \$3)
+                (date_fin IS NULL AND COALESCE(date_debut, date) BETWEEN \\$2 AND \\$3)
                 OR
-                (date_fin IS NOT NULL AND date_debut <= \$3 AND date_fin >= \$2)
+                (date_fin IS NOT NULL AND date_debut <= \\$3 AND date_fin >= \\$2)
               )
             ORDER BY COALESCE(date_debut, date) ASC
         `, [req.user.id, debutMois, finMois]);
@@ -96,6 +109,8 @@ router.get('/', async (req, res) => {
     }
 });
 
+// ── GET /api/planning/jour?date= ─────────────────────────────
+// Retourne les entrées d'un jour précis (utilisé par le push).
 router.get('/jour', async (req, res) => {
     const { date } = req.query;
     if (!date) {
@@ -108,11 +123,11 @@ router.get('/jour', async (req, res) => {
                 TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin_str,
                 TO_CHAR(date,       'YYYY-MM-DD') AS date_str
             FROM planning
-            WHERE user_id = \$1
+            WHERE user_id = \\$1
               AND (
-                (date_fin IS NULL AND COALESCE(date_debut, date) = \$2)
+                (date_fin IS NULL AND COALESCE(date_debut, date) = \\$2)
                 OR
-                (date_fin IS NOT NULL AND date_debut <= \$2 AND date_fin >= \$2)
+                (date_fin IS NOT NULL AND date_debut <= \\$2 AND date_fin >= \\$2)
               )
             ORDER BY heure_debut ASC NULLS LAST
         `, [req.user.id, date]);
@@ -123,6 +138,8 @@ router.get('/jour', async (req, res) => {
     }
 });
 
+// ── GET /api/planning/:id ─────────────────────────────────────
+// Retourne une entrée par son id (vérification propriétaire).
 router.get('/:id', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -131,7 +148,7 @@ router.get('/:id', async (req, res) => {
                 TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin_str,
                 TO_CHAR(date,       'YYYY-MM-DD') AS date_str
             FROM planning
-            WHERE id = \$1 AND user_id = \$2
+            WHERE id = \\$1 AND user_id = \\$2
         `, [req.params.id, req.user.id]);
         if (result.rowCount === 0) {
             return res.status(404).json({ success: false, message: 'Entrée introuvable.' });
@@ -143,6 +160,8 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// ── POST /api/planning ────────────────────────────────────────
+// Crée une nouvelle entrée planning.
 router.post('/', async (req, res) => {
     const {
         categorie, libelle_personnalise,
@@ -173,7 +192,7 @@ router.post('/', async (req, res) => {
                  heure_debut, heure_fin,
                  employeur, adresse, telephone,
                  notes, rappel_avant_shift)
-            VALUES (\$1,\$2,\$3,\$4,\$5,\$4,\$6,\$7,\$8,\$9,\$10,\$11,\$12)
+            VALUES (\\$1,\\$2,\\$3,\\$4,\\$5,\\$4,\\$6,\\$7,\\$8,\\$9,\\$10,\\$11,\\$12)
             RETURNING *,
                 TO_CHAR(date_debut, 'YYYY-MM-DD') AS date_debut_str,
                 TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin_str
@@ -198,6 +217,8 @@ router.post('/', async (req, res) => {
     }
 });
 
+// ── PUT /api/planning/:id ─────────────────────────────────────
+// Met à jour une entrée planning (vérification propriétaire).
 router.put('/:id', async (req, res) => {
     const {
         categorie, libelle_personnalise,
@@ -223,12 +244,12 @@ router.put('/:id', async (req, res) => {
     try {
         const result = await pool.query(`
             UPDATE planning SET
-                categorie=\$1, libelle_personnalise=\$2,
-                date_debut=\$3, date_fin=\$4, date=\$3,
-                heure_debut=\$5, heure_fin=\$6,
-                employeur=\$7, adresse=\$8, telephone=\$9,
-                notes=\$10, rappel_avant_shift=\$11
-            WHERE id=\$12 AND user_id=\$13
+                categorie=\\$1, libelle_personnalise=\\$2,
+                date_debut=\\$3, date_fin=\\$4, date=\\$3,
+                heure_debut=\\$5, heure_fin=\\$6,
+                employeur=\\$7, adresse=\\$8, telephone=\\$9,
+                notes=\\$10, rappel_avant_shift=\\$11
+            WHERE id=\\$12 AND user_id=\\$13
             RETURNING *,
                 TO_CHAR(date_debut, 'YYYY-MM-DD') AS date_debut_str,
                 TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin_str
@@ -257,10 +278,12 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+// ── DELETE /api/planning/:id ──────────────────────────────────
+// Supprime une entrée planning (vérification propriétaire).
 router.delete('/:id', async (req, res) => {
     try {
         const result = await pool.query(
-            'DELETE FROM planning WHERE id=\$1 AND user_id=\$2',
+            'DELETE FROM planning WHERE id=\\$1 AND user_id=\\$2',
             [req.params.id, req.user.id]
         );
         if (result.rowCount === 0) {
