@@ -336,6 +336,10 @@ async function afficherSectionWidgets() {
         });
         const data          = await res.json();
         const widgetsCaches = data.widgets_caches || [];
+        // TOUS_WIDGETS est déjà trié alphabétiquement dans app.js — on itère directement.
+        // Logique opt-out : slug absent de widgets_caches = coché (visible).
+        // Nouveau widget ajouté au site = absent de widgets_caches = coché par défaut
+        // sans toucher aux choix existants du user.
         container.innerHTML = TOUS_WIDGETS.map(w => `
             <label class="widget-choix-item">
                 <input type="checkbox" value="${w.slug}" ${widgetsCaches.includes(w.slug) ? '' : 'checked'}>

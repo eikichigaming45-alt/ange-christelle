@@ -29,16 +29,18 @@ const WIDGETS_DEF = [
     { id:'profil',        label:'Mon Profil',         icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
 ];
 
+// Ordre alphabétique strict (sans emoji) — règle absolue :
+// tout nouveau widget ajouté ici doit respecter cet ordre.
 const TOUS_WIDGETS = [
-    { slug:'meteo',         label:'🌤️ Météo' },
-    { slug:'priere',        label:'🙏 Prière du jour' },
-    { slug:'islam',         label:'☪️ Prières & Hadiths' },
-    { slug:'planning',      label:'📋 Planning' },
-    { slug:'rendezvous',    label:'🩺 Rendez-vous' },
-    { slug:'cycle',         label:'🌸 Suivi du cycle' },
-    { slug:'taches',        label:'✅ Tâches' },
     { slug:'anniversaires', label:'🎂 Anniversaires' },
     { slug:'astrologie',    label:'✨ Astrologie' },
+    { slug:'cycle',         label:'🌸 Suivi du cycle' },
+    { slug:'islam',         label:'☪️ Prières & Hadiths' },
+    { slug:'meteo',         label:'🌤️ Météo' },
+    { slug:'planning',      label:'📋 Planning' },
+    { slug:'priere',        label:'🙏 Prière du jour' },
+    { slug:'rendezvous',    label:'🩺 Rendez-vous' },
+    { slug:'taches',        label:'✅ Tâches' },
 ];
 
 // ===================== CODES MÉTÉO ===========================
@@ -81,9 +83,6 @@ window.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('myvibe_user');
     }
 
-    // B.14 — Toggle afficher/masquer le mot de passe (login)
-    // Fonctionne sur PC et mobile. type="button" dans index.html
-    // empêche la soumission accidentelle du formulaire.
     const toggleBtn = document.getElementById('toggle-password');
     const pwdInput  = document.getElementById('password');
     if (toggleBtn && pwdInput) {
@@ -178,7 +177,6 @@ function logout() {
     document.getElementById('username').value           = '';
     document.getElementById('password').value           = '';
 
-    // Réinitialiser le toggle mot de passe à l'état initial
     const pwdInput  = document.getElementById('password');
     const toggleBtn = document.getElementById('toggle-password');
     if (pwdInput)  pwdInput.type          = 'password';
