@@ -346,13 +346,19 @@ const Cycle = (() => {
         { key: 'humeur_irritable',    label: 'Humeur irritable',    icon: '😤' },
     ];
 
-    // ── Vue jour : liste tous les rapports + bouton ajouter ──
+    // ── Vue jour : recharge le bon mois puis affiche tous les rapports ──
     async function ouvrirJournal(dateStr) {
+        // Recharge le mois du jour cliqué pour avoir le bon cache
+        const [ry, rm] = dateStr.split('-').map(Number);
+        await chargerJournal(rm, ry);
+        // Synchronise _moisAffiche si on a navigué ailleurs
+        if (_moisAffiche) _moisAffiche = new Date(ry, rm - 1, 1);
+
         const rapports = _journalCache[dateStr] || [];
-        const [y, m, d] = dateStr.split('-').map(Number);
-        const dateAff = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
-            weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
-        });
+        const dateAff  = new Date(ry, rm - 1, parseInt(dateStr.split('-')[2]))
+            .toLocaleDateString('fr-FR', {
+                weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+            });
 
         const phaseDuJour = getPhaseDuJour(dateStr);
         let contenu = '';
@@ -376,7 +382,11 @@ const Cycle = (() => {
                 ? new Date(r.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
                 : null;
             const symptomes    = r.symptomes ? r.symptomes.split(',').filter(Boolean) : [];
-            const rapportLabel = r.humeur === 'protege' ? '🛡️ Protégé' : r.humeur === 'non_protege' ? '♥ Non protégé' : null;
+            const rapportLabel = r.humeur === 'protege'
+                ? '🛡️ Protégé'
+                : r.humeur === 'non_protege'
+                    ? '♥ Non protégé'
+                    : null;
 
             contenu += `
                 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px">
@@ -393,7 +403,8 @@ const Cycle = (() => {
                     </div>
                     ${rapportLabel ? `
                         <span style="background:#fce7f3;color:#db2777;border-radius:20px;
-                                     padding:4px 10px;font-size:12px;font-weight:600;display:inline-block;margin-bottom:6px">
+                                     padding:4px 10px;font-size:12px;font-weight:600;
+                                     display:inline-block;margin-bottom:6px">
                             ${rapportLabel}
                         </span>` : ''}
                     ${symptomes.length > 0 ? `
@@ -414,7 +425,8 @@ const Cycle = (() => {
             <div class="journal-form">
                 ${contenu}
                 <div class="modal-actions" style="margin-top:16px">
-                    <button class="btn-save" onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', null)">
+                    <button class="btn-save"
+                        onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', null)">
                         + Enregistrer un rapport
                     </button>
                     <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
@@ -434,7 +446,9 @@ const Cycle = (() => {
         });
         const symptomesActifs = journal.symptomes ? journal.symptomes.split(',') : [];
 
-        document.getElementById('modal-title').textContent = isEdit ? 'Modifier le rapport' : 'Enregistrer un rapport';
+        document.getElementById('modal-title').textContent = isEdit
+            ? 'Modifier le rapport'
+            : 'Enregistrer un rapport';
         document.getElementById('modal-body').innerHTML = `
             <div class="journal-form">
                 <div style="font-size:12px;color:#9ca3af;margin-bottom:12px">${dateAff}</div>
@@ -457,8 +471,9 @@ const Cycle = (() => {
                     `).join('')}
                 </div>
                 <div class="journal-section-title" style="margin-top:14px">Notes libres</div>
-                <textarea id="journal-notes" rows="3" placeholder="Autre chose à noter...">${journal.notes || ''}</textarea>
-                <div class="modal-actions" style="margin-top:16px">
+                <textarea id="journal-notes" rows="3"
+                    placeholder="Autre chose à noter...">${journal.notes || ''}</textarea>
+                                <div class="modal-actions" style="margin-top:16px">
                     <button class="btn-save"
                         onclick="Cycle._sauvegarderJournal('${dateStr}', ${rapportId || 'null'})">
                         💾 Sauvegarder
@@ -497,10 +512,9 @@ const Cycle = (() => {
                 await fetch('/api/cycle/journal', {
                     method : 'POST',
                     headers: authHeaders(),
-                                        body   : JSON.stringify({ date: dateStr, rapport, symptomes, notes })
+                    body   : JSON.stringify({ date: dateStr, rapport, symptomes, notes })
                 });
             }
-            // Recharge le mois du jour concerné, pas _moisAffiche
             await chargerJournal(rm, ry);
             if (_moisAffiche) _moisAffiche = new Date(ry, rm - 1, 1);
             ouvrirJournal(dateStr);
@@ -509,7 +523,10 @@ const Cycle = (() => {
             document.getElementById('modal-body').innerHTML = `
                 <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
                 <div class="modal-actions">
-                    <button class="btn-cancel" onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', ${rapportId || 'null'})">Retour</button>
+                    <button class="btn-cancel"
+                        onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', ${rapportId || 'null'})">
+                        Retour
+                    </button>
                 </div>`;
         }
     }
@@ -536,8 +553,9 @@ const Cycle = (() => {
         );
     }
 
-    // ── Mood inline dans le widget — pas de modal séparé ──────
-    // Affiche les chips directement dans #cycle-mood-zone et sauvegarde à la volée.
+    // ── Mood inline dans le widget ────────────────────────────
+    // Chips directement visibles, clic = toggle + sauvegarde immédiate.
+    // Si humeur déjà enregistrée : chips pré-sélectionnées + "✓ Humeur enregistrée".
     async function _afficherMoodInline(calc) {
         const zone = document.getElementById('cycle-mood-zone');
         if (!zone || !calc) return;
@@ -545,65 +563,81 @@ const Cycle = (() => {
         const today     = formatDateInput(new Date());
         const jourCycle = calculerJourCycle(calc);
         const phaseMood = getPhaseMood(jourCycle, calc);
+        const items     = phaseMood?.items || [];
 
         let moodsActifs = [];
-        let moodId      = null;
         try {
             const res = await fetch(`/api/cycle/mood?date=${today}`, { headers: authHeaders() });
             const d   = await res.json();
             if (d.mood?.moods) moodsActifs = d.mood.moods.split(',').filter(Boolean);
-            if (d.mood?.id)    moodId      = d.mood.id;
         } catch { /* silencieux */ }
 
-        const items = phaseMood?.items || [];
+        _renderMoodZone(zone, items, moodsActifs, phaseMood, today);
+    }
 
+    function _renderMoodZone(zone, items, moodsActifs, phaseMood, today) {
         zone.innerHTML = `
-            <div style="border-top:1px solid #f0e6ff;margin-top:12px;padding-top:12px">
-                <div style="font-size:11px;color:#9ca3af;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-                    <span>Comment tu te sens aujourd'hui ?</span>
-                    ${phaseMood ? `<span style="font-size:10px;background:#f5f3ff;color:#7c3aed;
-                        border-radius:10px;padding:2px 7px;font-weight:600">${phaseMood.label}</span>` : ''}
+            <div style="border-top:1px solid #f0e6ff;margin-top:12px;padding-top:10px">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+                    <span style="font-size:12px;color:#9ca3af">Comment tu te sens aujourd'hui ?</span>
+                    ${phaseMood ? `
+                        <span style="font-size:10px;background:#f5f3ff;color:#7c3aed;
+                            border-radius:10px;padding:2px 7px;font-weight:600;white-space:nowrap">
+                            ${phaseMood.label}
+                        </span>` : ''}
                 </div>
-                <div id="cycle-mood-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-                    ${items.map(item => `
-                        <button
+                <div id="cycle-mood-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+                    ${items.map(item => {
+                        const sel = moodsActifs.includes(item);
+                        return `<button
                             data-mood="${item}"
+                            data-selected="${sel ? '1' : '0'}"
                             onclick="Cycle._toggleMoodChip(this, '${today}')"
-                            style="border:1px solid ${moodsActifs.includes(item) ? '#7c3aed' : '#e5e7eb'};
-                                   background:${moodsActifs.includes(item) ? '#ede9fe' : '#fff'};
-                                   color:${moodsActifs.includes(item) ? '#7c3aed' : '#6b7280'};
+                            style="border:1px solid ${sel ? '#7c3aed' : '#e5e7eb'};
+                                   background:${sel ? '#ede9fe' : '#f9fafb'};
+                                   color:${sel ? '#7c3aed' : '#6b7280'};
                                    border-radius:20px;padding:5px 11px;font-size:12px;
-                                   font-weight:${moodsActifs.includes(item) ? '600' : '400'};
-                                   cursor:pointer;transition:all .15s">
+                                   font-weight:${sel ? '600' : '400'};cursor:pointer;
+                                   transition:all .15s">
                             ${item}
-                        </button>
-                    `).join('')}
+                        </button>`;
+                    }).join('')}
                 </div>
-                ${moodsActifs.length > 0 ? `
-                    <div style="font-size:11px;color:#10b981;font-weight:600">✓ Humeur enregistrée</div>
-                ` : ''}
+                ${moodsActifs.length > 0
+                    ? `<div id="cycle-mood-confirm"
+                            style="font-size:11px;color:#10b981;font-weight:600">
+                            ✓ Humeur enregistrée
+                       </div>`
+                    : `<div id="cycle-mood-confirm"></div>`}
             </div>`;
     }
 
-    // ── Toggle d'un chip mood + sauvegarde immédiate ──────────
+    // ── Toggle chip : détection via data-selected, sauvegarde immédiate ──
     async function _toggleMoodChip(btn, date) {
-        const mood    = btn.dataset.mood;
-        const chips   = [...document.querySelectorAll('#cycle-mood-chips button')];
-        const actifs  = chips.filter(b => b.style.background === 'rgb(237, 233, 254)').map(b => b.dataset.mood);
+        const chips    = [...document.querySelectorAll('#cycle-mood-chips button')];
+        const estActif = btn.dataset.selected === '1';
 
-        // Toggle dans la liste locale
-        const idx = actifs.indexOf(mood);
-        if (idx > -1) actifs.splice(idx, 1);
-        else actifs.push(mood);
+        // Toggle
+        btn.dataset.selected = estActif ? '0' : '1';
 
-        // Mise à jour visuelle immédiate
+        // Recalcule la liste complète des actifs
+        const actifs = chips
+            .filter(b => b.dataset.selected === '1')
+            .map(b => b.dataset.mood);
+
+        // Mise à jour visuelle immédiate de tous les chips
         chips.forEach(b => {
-            const sel = actifs.includes(b.dataset.mood);
+            const sel = b.dataset.selected === '1';
             b.style.border      = `1px solid ${sel ? '#7c3aed' : '#e5e7eb'}`;
-            b.style.background  = sel ? '#ede9fe' : '#fff';
+            b.style.background  = sel ? '#ede9fe' : '#f9fafb';
             b.style.color       = sel ? '#7c3aed' : '#6b7280';
             b.style.fontWeight  = sel ? '600' : '400';
         });
+
+        // Badge confirmation
+        const conf = document.getElementById('cycle-mood-confirm');
+        if (conf) conf.textContent = actifs.length > 0 ? '✓ Humeur enregistrée' : '';
+        if (conf) conf.style.color = '#10b981';
 
         // Sauvegarde silencieuse
         try {
@@ -612,28 +646,15 @@ const Cycle = (() => {
                 headers: authHeaders(),
                 body   : JSON.stringify({ date, moods: actifs.join(',') })
             });
-            // Met à jour le badge "enregistré"
-            const zone    = document.getElementById('cycle-mood-zone');
-            const badge   = zone?.querySelector('div[style*="10b981"]');
-            if (actifs.length > 0 && !badge) {
-                const conf = document.createElement('div');
-                conf.style.cssText = 'font-size:11px;color:#10b981;font-weight:600;margin-top:4px';
-                conf.textContent   = '✓ Humeur enregistrée';
-                zone.querySelector('#cycle-mood-chips').after(conf);
-            } else if (actifs.length === 0 && badge) {
-                badge.remove();
-            }
         } catch { /* silencieux */ }
     }
 
-    // ── ouvrirModalMood conservé pour compatibilité éventuelle ─
+    // ── ouvrirModalMood : conservé pour compatibilité ─────────
     async function ouvrirModalMood(calc) {
-        // Redirige vers le inline — plus de modal
         await _afficherMoodInline(calc);
     }
 
     async function _sauvegarderMood(date) {
-        // Conservé pour compatibilité — non utilisé en mode inline
         const moods = [...document.querySelectorAll('.journal-symptomes input:checked')]
             .map(i => i.value).join(',');
         try {
@@ -654,12 +675,12 @@ const Cycle = (() => {
         }
     }
 
-    // ── renderBlocMood : zone vide, remplie par _afficherMoodInline ──
+    // ── renderBlocMood : zone vide, remplie après rendu par _afficherMoodInline ──
     function renderBlocMood() {
         return `<div id="cycle-mood-zone"></div>`;
     }
 
-    function renderWidget(cycles, dureeMoyenne, moodDuJour) {
+    function renderWidget(cycles, dureeMoyenne) {
         const dernierCycle = cycles.length > 0 ? cycles[0] : null;
         const calc         = calculerCycle(dernierCycle, dureeMoyenne);
         const phase        = getPhase(calc);
@@ -732,28 +753,28 @@ const Cycle = (() => {
                 <div class="cycle-progress-wrap">
                     <div class="cycle-progress-label">Progression du cycle (${calc.dureeCycle} jours)</div>
                     <div class="cycle-progress-bar">
-                        <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0, Math.round(((new Date() - calc.debut) / (1000 * 60 * 60 * 24)) / calc.dureeCycle * 100)))}%;background:${phase.color}"></div>
+                        <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0,
+                            Math.round(((new Date() - calc.debut) / (1000 * 60 * 60 * 24))
+                            / calc.dureeCycle * 100)))}%;background:${phase.color}">
+                        </div>
                     </div>
                 </div>` : ''}
                 <div class="cycle-actions">
-                    <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
-                    ${cycles.length > 0 ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>` : ''}
+                    <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
+                        + Enregistrer mes règles
+                    </button>
+                    ${cycles.length > 0
+                        ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">
+                               Historique (${cycles.length})
+                           </button>`
+                        : ''}
                 </div>
                 ${renderBlocMood()}
             </div>`;
     }
 
     async function _ouvrirMoodDepuisWidget() {
-        // Plus utilisé en mode inline — conservé pour compatibilité
-        try {
-            const res          = await fetch('/api/cycle', { headers: authHeaders() });
-            const d            = await res.json();
-            const cycles       = d.cycles || [];
-            const dureeMoyenne = calculerDureeMoyenne(cycles);
-            const dernierCycle = cycles.length > 0 ? cycles[0] : null;
-            const calc         = calculerCycle(dernierCycle, dureeMoyenne);
-            await _afficherMoodInline(calc);
-        } catch { /* silencieux */ }
+        // Non utilisé en mode inline — conservé pour compatibilité
     }
 
     async function charger() {
@@ -762,7 +783,7 @@ const Cycle = (() => {
         const user = JSON.parse(localStorage.getItem('myvibe_user'));
         if (!user?.token) { setTimeout(() => charger(), 300); return; }
         try {
-            const res          = await fetch('/api/cycle', { headers: authHeaders() });
+            const res = await fetch('/api/cycle', { headers: authHeaders() });
             if (!res.ok) throw new Error();
             const d            = await res.json();
             const cycles       = d.cycles || [];
@@ -770,10 +791,11 @@ const Cycle = (() => {
             const dernierCycle = cycles.length > 0 ? cycles[0] : null;
             const calc         = calculerCycle(dernierCycle, dureeMoyenne);
 
-            container.innerHTML = renderWidget(cycles, dureeMoyenne, null);
+            // Rendu widget sans moodDuJour (plus passé en paramètre)
+            container.innerHTML = renderWidget(cycles, dureeMoyenne);
 
-            // Charge le mood inline après rendu du widget
-            await _afficherMoodInline(calc);
+            // Charge et affiche le mood inline immédiatement après rendu
+            if (calc) await _afficherMoodInline(calc);
         } catch {
             container.innerHTML = `<p class="cycle-error">Erreur de chargement du cycle.</p>`;
         }
@@ -818,9 +840,13 @@ const Cycle = (() => {
                         : ''}
                     <div id="cal-container">${renderCalendrier(calc)}</div>
                     <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
-                        <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
+                        <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
+                            + Enregistrer mes règles
+                        </button>
                         ${cycles.length > 0
-                            ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>`
+                            ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">
+                                   Historique (${cycles.length})
+                               </button>`
                             : ''}
                     </div>
                 </div>`;
@@ -838,12 +864,16 @@ const Cycle = (() => {
     function ouvrirModalAjout(cycleExistant = null) {
         const isEdit = !!cycleExistant;
         const today  = formatDateInput(new Date());
-        document.getElementById('modal-title').textContent = isEdit ? 'Modifier le cycle' : 'Enregistrer mes règles';
+        document.getElementById('modal-title').textContent = isEdit
+            ? 'Modifier le cycle'
+            : 'Enregistrer mes règles';
         document.getElementById('modal-body').innerHTML = `
             <div class="modal-cycle-form">
                 <label>Date de début des règles *</label>
                 <input type="date" id="cycle-date-debut"
-                    value="${isEdit ? formatDateInput(parseDateLocale(cycleExistant.date_debut.split('T')[0])) : today}"
+                    value="${isEdit
+                        ? formatDateInput(parseDateLocale(cycleExistant.date_debut.split('T')[0]))
+                        : today}"
                     max="${today}" />
                 <label>Durée des règles (jours)</label>
                 <input type="number" id="cycle-duree-regles" min="1" max="10"
@@ -852,12 +882,15 @@ const Cycle = (() => {
                 <input type="number" id="cycle-duree-cycle" min="21" max="45"
                     value="${isEdit ? cycleExistant.duree_cycle : 28}" />
                 <label>Notes (optionnel)</label>
-                <textarea id="cycle-notes" rows="3" placeholder="Douleurs, humeur, symptômes...">${isEdit ? (cycleExistant.notes || '') : ''}</textarea>
+                <textarea id="cycle-notes" rows="3"
+                    placeholder="Douleurs, humeur, symptômes...">${isEdit ? (cycleExistant.notes || '') : ''}</textarea>
                 <div class="modal-actions">
                     <button class="btn-save" onclick="Cycle.sauvegarder(${isEdit ? cycleExistant.id : 'null'})">
                         ${isEdit ? 'Modifier' : 'Enregistrer'}
                     </button>
-                    ${isEdit ? `<button class="btn-delete" onclick="Cycle.supprimer(${cycleExistant.id})">Supprimer</button>` : ''}
+                    ${isEdit
+                        ? `<button class="btn-delete" onclick="Cycle.supprimer(${cycleExistant.id})">Supprimer</button>`
+                        : ''}
                     <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Annuler</button>
                 </div>
             </div>`;
@@ -890,7 +923,8 @@ const Cycle = (() => {
             document.getElementById('modal-body').innerHTML = `
                 <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
                 <div class="modal-actions">
-                    <button class="btn-cancel" onclick="Cycle.ouvrirModalAjout(${id ? id : 'null'})">Retour</button>
+                    <button class="btn-cancel"
+                        onclick="Cycle.ouvrirModalAjout(${id ? id : 'null'})">Retour</button>
                 </div>`;
         }
     }
@@ -940,11 +974,13 @@ const Cycle = (() => {
             const pagination = totalPages > 1 ? `
                 <div class="rdv-pagination">
                     ${page > 0
-                        ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique(${page - 1})">← Précédent</button>`
+                        ? `<button class="btn-cycle-secondary"
+                               onclick="Cycle.ouvrirHistorique(${page - 1})">← Précédent</button>`
                         : ''}
                     <span>${page + 1} / ${totalPages}</span>
                     ${page < totalPages - 1
-                        ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique(${page + 1})">Suivant →</button>`
+                        ? `<button class="btn-cycle-secondary"
+                               onclick="Cycle.ouvrirHistorique(${page + 1})">Suivant →</button>`
                         : ''}
                 </div>` : '';
 
@@ -967,7 +1003,9 @@ const Cycle = (() => {
         } catch {
             document.getElementById('modal-title').textContent = 'Erreur';
             document.getElementById('modal-body').innerHTML = `
-                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur de chargement de l'historique.</p>
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">
+                    Erreur de chargement de l'historique.
+                </p>
                 <div class="modal-actions">
                     <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
                 </div>`;
