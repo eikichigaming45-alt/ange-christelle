@@ -5,6 +5,7 @@
 // Phases mood calculées dynamiquement selon dureeRegles/dureeCycle.
 // _journalCache : { 'YYYY-MM-DD': [ rapport1, rapport2, ... ] }
 // Plusieurs rapports sexuels par jour autorisés.
+// Mood inline dans le widget, sans modal.
 // ============================================================
 
 const Cycle = (() => {
@@ -356,7 +357,6 @@ const Cycle = (() => {
         const phaseDuJour = getPhaseDuJour(dateStr);
         let contenu = '';
 
-        // Phase du cycle
         if (phaseDuJour) {
             contenu += `
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;
@@ -367,7 +367,6 @@ const Cycle = (() => {
                 </div>`;
         }
 
-        // Liste des rapports existants
         if (rapports.length === 0 && !phaseDuJour) {
             contenu += `<p style="color:#9ca3af;font-size:13px;margin-bottom:4px">Aucun enregistrement pour ce jour.</p>`;
         }
@@ -376,14 +375,14 @@ const Cycle = (() => {
             const heure = r.created_at
                 ? new Date(r.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
                 : null;
-            const symptomes = r.symptomes ? r.symptomes.split(',').filter(Boolean) : [];
+            const symptomes    = r.symptomes ? r.symptomes.split(',').filter(Boolean) : [];
             const rapportLabel = r.humeur === 'protege' ? '🛡️ Protégé' : r.humeur === 'non_protege' ? '♥ Non protégé' : null;
 
             contenu += `
                 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                         <span style="font-size:11px;color:#9ca3af">
-                            Rapport ${rapports.length > 1 ? `#${idx + 1}` : ''}${heure ? ` · ${heure}` : ''}
+                            Rapport${rapports.length > 1 ? ` #${idx + 1}` : ''}${heure ? ` · ${heure}` : ''}
                         </span>
                         <div style="display:flex;gap:6px">
                             <button class="btn-edit-small"
@@ -426,19 +425,16 @@ const Cycle = (() => {
 
     // ── Formulaire : null = nouveau, id = édition ────────────
     async function _ouvrirFormulaireJournal(dateStr, rapportId) {
-        // Cherche le rapport existant si édition
-        const rapports   = _journalCache[dateStr] || [];
-        const journal    = rapportId ? rapports.find(r => r.id === rapportId) || {} : {};
-        const isEdit     = !!rapportId;
-        const [y, m, d]  = dateStr.split('-').map(Number);
-        const dateAff    = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
+        const rapports        = _journalCache[dateStr] || [];
+        const journal         = rapportId ? rapports.find(r => r.id === rapportId) || {} : {};
+        const isEdit          = !!rapportId;
+        const [y, m, d]       = dateStr.split('-').map(Number);
+        const dateAff         = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
             weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
         });
         const symptomesActifs = journal.symptomes ? journal.symptomes.split(',') : [];
 
-        document.getElementById('modal-title').textContent = isEdit
-            ? 'Modifier le rapport'
-            : 'Enregistrer un rapport';
+        document.getElementById('modal-title').textContent = isEdit ? 'Modifier le rapport' : 'Enregistrer un rapport';
         document.getElementById('modal-body').innerHTML = `
             <div class="journal-form">
                 <div style="font-size:12px;color:#9ca3af;margin-bottom:12px">${dateAff}</div>
@@ -479,7 +475,8 @@ const Cycle = (() => {
         if (!estDejaActif) btn.classList.add('active');
     }
 
-        // ── Sauvegarde : POST (nouveau) ou PUT (édition) ──────────
+    // ── Sauvegarde : POST (nouveau) ou PUT (édition) ──────────
+    // Recharge le mois extrait du dateStr, pas de _moisAffiche
     async function _sauvegarderJournal(dateStr, rapportId) {
         const rapportBtn = document.querySelector('.btn-rapport.active');
         const rapport    = rapportBtn
@@ -487,24 +484,25 @@ const Cycle = (() => {
             : null;
         const symptomes = [...document.querySelectorAll('.journal-symptomes input:checked')]
             .map(i => i.value).join(',');
-        const notes = document.getElementById('journal-notes').value;
+        const notes     = document.getElementById('journal-notes').value;
+        const [ry, rm]  = dateStr.split('-').map(Number);
         try {
             if (rapportId) {
-                // Édition d'un rapport existant
                 await fetch(`/api/cycle/journal/${rapportId}`, {
                     method : 'PUT',
                     headers: authHeaders(),
                     body   : JSON.stringify({ rapport, symptomes, notes })
                 });
             } else {
-                // Nouveau rapport — INSERT pur
                 await fetch('/api/cycle/journal', {
                     method : 'POST',
                     headers: authHeaders(),
-                    body   : JSON.stringify({ date: dateStr, rapport, symptomes, notes })
+                                        body   : JSON.stringify({ date: dateStr, rapport, symptomes, notes })
                 });
             }
-            await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+            // Recharge le mois du jour concerné, pas _moisAffiche
+            await chargerJournal(rm, ry);
+            if (_moisAffiche) _moisAffiche = new Date(ry, rm - 1, 1);
             ouvrirJournal(dateStr);
         } catch {
             document.getElementById('modal-title').textContent = 'Erreur';
@@ -519,9 +517,11 @@ const Cycle = (() => {
     async function _supprimerJournal(id, dateStr) {
         confirmerSuppression(
             async () => {
+                const [ry, rm] = dateStr.split('-').map(Number);
                 try {
                     await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
-                    await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+                    await chargerJournal(rm, ry);
+                    if (_moisAffiche) _moisAffiche = new Date(ry, rm - 1, 1);
                     ouvrirJournal(dateStr);
                 } catch {
                     document.getElementById('modal-title').textContent = 'Erreur';
@@ -536,47 +536,104 @@ const Cycle = (() => {
         );
     }
 
-    async function ouvrirModalMood(calc) {
+    // ── Mood inline dans le widget — pas de modal séparé ──────
+    // Affiche les chips directement dans #cycle-mood-zone et sauvegarde à la volée.
+    async function _afficherMoodInline(calc) {
+        const zone = document.getElementById('cycle-mood-zone');
+        if (!zone || !calc) return;
+
         const today     = formatDateInput(new Date());
         const jourCycle = calculerJourCycle(calc);
         const phaseMood = getPhaseMood(jourCycle, calc);
 
         let moodsActifs = [];
+        let moodId      = null;
         try {
             const res = await fetch(`/api/cycle/mood?date=${today}`, { headers: authHeaders() });
             const d   = await res.json();
             if (d.mood?.moods) moodsActifs = d.mood.moods.split(',').filter(Boolean);
+            if (d.mood?.id)    moodId      = d.mood.id;
         } catch { /* silencieux */ }
 
-        document.getElementById('modal-title').textContent = 'Comment je me sens ?';
-        document.getElementById('modal-body').innerHTML = `
-            <div class="journal-form">
-                ${phaseMood ? `
-                    <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:14px;
-                                background:#f5f3ff;border-radius:10px;padding:10px 14px">
-                        ${phaseMood.label}
-                        <div style="font-size:11px;font-weight:400;color:#9ca3af;margin-top:4px">
-                            J${jourCycle} · Règles ${calc.dureeRegles}j · Cycle ${calc.dureeCycle}j
-                        </div>
-                    </div>` : ''}
-                <div class="journal-symptomes">
-                    ${(phaseMood?.items || []).map(item => `
-                        <label class="symptome-chip ${moodsActifs.includes(item) ? 'active' : ''}"
-                            onclick="var cb=this.querySelector('input');cb.checked=!cb.checked;this.classList.toggle('active',cb.checked)">
-                            <input type="checkbox" value="${item}" ${moodsActifs.includes(item) ? 'checked' : ''}>
-                            <span class="symptome-chip-label">${item}</span>
-                        </label>
+        const items = phaseMood?.items || [];
+
+        zone.innerHTML = `
+            <div style="border-top:1px solid #f0e6ff;margin-top:12px;padding-top:12px">
+                <div style="font-size:11px;color:#9ca3af;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                    <span>Comment tu te sens aujourd'hui ?</span>
+                    ${phaseMood ? `<span style="font-size:10px;background:#f5f3ff;color:#7c3aed;
+                        border-radius:10px;padding:2px 7px;font-weight:600">${phaseMood.label}</span>` : ''}
+                </div>
+                <div id="cycle-mood-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+                    ${items.map(item => `
+                        <button
+                            data-mood="${item}"
+                            onclick="Cycle._toggleMoodChip(this, '${today}')"
+                            style="border:1px solid ${moodsActifs.includes(item) ? '#7c3aed' : '#e5e7eb'};
+                                   background:${moodsActifs.includes(item) ? '#ede9fe' : '#fff'};
+                                   color:${moodsActifs.includes(item) ? '#7c3aed' : '#6b7280'};
+                                   border-radius:20px;padding:5px 11px;font-size:12px;
+                                   font-weight:${moodsActifs.includes(item) ? '600' : '400'};
+                                   cursor:pointer;transition:all .15s">
+                            ${item}
+                        </button>
                     `).join('')}
                 </div>
-                <div class="modal-actions" style="margin-top:16px">
-                    <button class="btn-save" onclick="Cycle._sauvegarderMood('${today}')">💾 Sauvegarder</button>
-                    <button class="btn-cancel" onclick="closeModal()">Annuler</button>
-                </div>
+                ${moodsActifs.length > 0 ? `
+                    <div style="font-size:11px;color:#10b981;font-weight:600">✓ Humeur enregistrée</div>
+                ` : ''}
             </div>`;
-        document.getElementById('overlay').classList.add('on');
+    }
+
+    // ── Toggle d'un chip mood + sauvegarde immédiate ──────────
+    async function _toggleMoodChip(btn, date) {
+        const mood    = btn.dataset.mood;
+        const chips   = [...document.querySelectorAll('#cycle-mood-chips button')];
+        const actifs  = chips.filter(b => b.style.background === 'rgb(237, 233, 254)').map(b => b.dataset.mood);
+
+        // Toggle dans la liste locale
+        const idx = actifs.indexOf(mood);
+        if (idx > -1) actifs.splice(idx, 1);
+        else actifs.push(mood);
+
+        // Mise à jour visuelle immédiate
+        chips.forEach(b => {
+            const sel = actifs.includes(b.dataset.mood);
+            b.style.border      = `1px solid ${sel ? '#7c3aed' : '#e5e7eb'}`;
+            b.style.background  = sel ? '#ede9fe' : '#fff';
+            b.style.color       = sel ? '#7c3aed' : '#6b7280';
+            b.style.fontWeight  = sel ? '600' : '400';
+        });
+
+        // Sauvegarde silencieuse
+        try {
+            await fetch('/api/cycle/mood', {
+                method : 'POST',
+                headers: authHeaders(),
+                body   : JSON.stringify({ date, moods: actifs.join(',') })
+            });
+            // Met à jour le badge "enregistré"
+            const zone    = document.getElementById('cycle-mood-zone');
+            const badge   = zone?.querySelector('div[style*="10b981"]');
+            if (actifs.length > 0 && !badge) {
+                const conf = document.createElement('div');
+                conf.style.cssText = 'font-size:11px;color:#10b981;font-weight:600;margin-top:4px';
+                conf.textContent   = '✓ Humeur enregistrée';
+                zone.querySelector('#cycle-mood-chips').after(conf);
+            } else if (actifs.length === 0 && badge) {
+                badge.remove();
+            }
+        } catch { /* silencieux */ }
+    }
+
+    // ── ouvrirModalMood conservé pour compatibilité éventuelle ─
+    async function ouvrirModalMood(calc) {
+        // Redirige vers le inline — plus de modal
+        await _afficherMoodInline(calc);
     }
 
     async function _sauvegarderMood(date) {
+        // Conservé pour compatibilité — non utilisé en mode inline
         const moods = [...document.querySelectorAll('.journal-symptomes input:checked')]
             .map(i => i.value).join(',');
         try {
@@ -597,39 +654,9 @@ const Cycle = (() => {
         }
     }
 
-    function renderBlocMood(moodDuJour, calc, onclickFn) {
-        if (!calc) return '';
-        const jourCycle    = calculerJourCycle(calc);
-        const phaseMood    = getPhaseMood(jourCycle, calc);
-        const moodsRemplis = moodDuJour?.moods ? moodDuJour.moods.split(',').filter(Boolean) : [];
-
-        return `
-            <div style="margin-top:14px;background:#f5f3ff;border-radius:12px;padding:12px 14px">
-                ${moodsRemplis.length > 0 ? `
-                    <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px;
-                                text-transform:uppercase;letter-spacing:.5px">
-                        ${phaseMood?.label || 'Mon humeur du jour'}
-                    </div>
-                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-                        ${moodsRemplis.map(m =>
-                            `<span style="background:#ede9fe;color:#7c3aed;border-radius:20px;
-                                          padding:4px 10px;font-size:12px;font-weight:600">${m}</span>`
-                        ).join('')}
-                    </div>
-                    <button class="btn-cycle-secondary" style="width:100%;font-size:12px"
-                        onclick="${onclickFn}">
-                        ✏️ Modifier mon humeur
-                    </button>
-                ` : `
-                    <div style="font-size:13px;color:#6b7280;margin-bottom:10px">
-                        Comment tu te sens aujourd'hui ? 🌸
-                    </div>
-                    <button class="btn-cycle-primary" style="width:100%;font-size:13px"
-                        onclick="${onclickFn}">
-                        + Enregistrer mon humeur
-                    </button>
-                `}
-            </div>`;
+    // ── renderBlocMood : zone vide, remplie par _afficherMoodInline ──
+    function renderBlocMood() {
+        return `<div id="cycle-mood-zone"></div>`;
     }
 
     function renderWidget(cycles, dureeMoyenne, moodDuJour) {
@@ -712,11 +739,12 @@ const Cycle = (() => {
                     <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Enregistrer mes règles</button>
                     ${cycles.length > 0 ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">Historique (${cycles.length})</button>` : ''}
                 </div>
-                ${renderBlocMood(moodDuJour, calc, "Cycle._ouvrirMoodDepuisWidget()")}
+                ${renderBlocMood()}
             </div>`;
     }
 
     async function _ouvrirMoodDepuisWidget() {
+        // Plus utilisé en mode inline — conservé pour compatibilité
         try {
             const res          = await fetch('/api/cycle', { headers: authHeaders() });
             const d            = await res.json();
@@ -724,15 +752,8 @@ const Cycle = (() => {
             const dureeMoyenne = calculerDureeMoyenne(cycles);
             const dernierCycle = cycles.length > 0 ? cycles[0] : null;
             const calc         = calculerCycle(dernierCycle, dureeMoyenne);
-            await ouvrirModalMood(calc);
-        } catch {
-            document.getElementById('modal-title').textContent = 'Erreur';
-            document.getElementById('modal-body').innerHTML = `
-                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur de chargement.</p>
-                <div class="modal-actions">
-                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
-                </div>`;
-        }
+            await _afficherMoodInline(calc);
+        } catch { /* silencieux */ }
     }
 
     async function charger() {
@@ -746,16 +767,13 @@ const Cycle = (() => {
             const d            = await res.json();
             const cycles       = d.cycles || [];
             const dureeMoyenne = calculerDureeMoyenne(cycles);
+            const dernierCycle = cycles.length > 0 ? cycles[0] : null;
+            const calc         = calculerCycle(dernierCycle, dureeMoyenne);
 
-            const today    = formatDateInput(new Date());
-            let moodDuJour = null;
-            try {
-                const resMood = await fetch(`/api/cycle/mood?date=${today}`, { headers: authHeaders() });
-                const dMood   = await resMood.json();
-                moodDuJour    = dMood.mood || null;
-            } catch { /* silencieux */ }
+            container.innerHTML = renderWidget(cycles, dureeMoyenne, null);
 
-            container.innerHTML = renderWidget(cycles, dureeMoyenne, moodDuJour);
+            // Charge le mood inline après rendu du widget
+            await _afficherMoodInline(calc);
         } catch {
             container.innerHTML = `<p class="cycle-error">Erreur de chargement du cycle.</p>`;
         }
@@ -975,6 +993,7 @@ const Cycle = (() => {
         _sauvegarderJournal,
         _supprimerJournal,
         _sauvegarderMood,
+        _toggleMoodChip,
         _ouvrirMoodDepuisWidget,
         _getCalcCourant
     };
