@@ -45,13 +45,12 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 });
 
-// ── POST /api/feed (JSON + base64 photo optionnelle) ─────────
+// ── POST /api/feed ────────────────────────────────────────────
 router.post('/', authenticateToken, async (req, res) => {
     const userId    = req.user.id;
     const contenu   = (req.body.contenu || '').trim();
     const photoB64  = req.body.photo || null;
     const photoMime = req.body.mime  || 'image/jpeg';
-
     if (!contenu && !photoB64) {
         return res.status(400).json({ success: false, message: 'Post vide.' });
     }
@@ -76,6 +75,28 @@ router.post('/', authenticateToken, async (req, res) => {
         res.json({ success: true, post: rows[0] });
     } catch (e) {
         console.error('[FEED POST]', e.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── PUT /api/feed/:id (édition post) ─────────────────────────
+router.put('/:id', authenticateToken, async (req, res) => {
+    const userId  = req.user.id;
+    const postId  = parseInt(req.params.id);
+    const contenu = (req.body.contenu || '').trim();
+    if (!contenu) return res.status(400).json({ success: false, message: 'Contenu vide.' });
+    try {
+        const { rows } = await pool.query(
+            `SELECT user_id FROM posts WHERE id = \$1`, [postId]
+        );
+        if (!rows.length) return res.status(404).json({ success: false, message: 'Post introuvable.' });
+        if (rows[0].user_id !== userId && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Interdit.' });
+        }
+        await pool.query(`UPDATE posts SET contenu = \$1 WHERE id = \$2`, [contenu, postId]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('[FEED PUT]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
@@ -115,16 +136,10 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
             [postId, userId]
         );
         if (rows.length) {
-            await pool.query(
-                `DELETE FROM post_likes WHERE post_id = \$1 AND user_id = \$2`,
-                [postId, userId]
-            );
+            await pool.query(`DELETE FROM post_likes WHERE post_id = \$1 AND user_id = \$2`, [postId, userId]);
             res.json({ success: true, liked: false });
         } else {
-            await pool.query(
-                `INSERT INTO post_likes (post_id, user_id) VALUES (\$1, \$2)`,
-                [postId, userId]
-            );
+            await pool.query(`INSERT INTO post_likes (post_id, user_id) VALUES (\$1, \$2)`, [postId, userId]);
             res.json({ success: true, liked: true });
         }
     } catch (e) {
@@ -133,20 +148,42 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
     }
 });
 
+// ── GET /api/feed/:id/likes (liste likers) ────────────────────
+router.get('/:id/likes', authenticateToken, async (req, res) => {
+    const postId = parseInt(req.params.id);
+    try {
+        const { rows } = await pool.query(`
+            SELECT pr.prenom, pr.nom, pr.photo AS avatar, u.username
+            FROM post_likes l
+            JOIN users u ON u.id = l.user_id
+            LEFT JOIN profiles pr ON pr.user_id = l.user_id
+            WHERE l.post_id = \$1
+            ORDER BY l.id ASC
+        `, [postId]);
+        res.json({ success: true, likers: rows });
+    } catch (e) {
+        console.error('[FEED LIKES GET]', e.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
 // ── GET /api/feed/:id/comments ────────────────────────────────
 router.get('/:id/comments', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
     const postId = parseInt(req.params.id);
     try {
         const { rows } = await pool.query(`
             SELECT c.id, c.contenu, c.created_at,
                    pr.prenom, pr.nom, pr.photo AS avatar,
-                   u.username
+                   u.username, u.id AS user_id,
+                   (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id)::int AS likes,
+                   EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = \$2) AS liked
             FROM post_comments c
             JOIN users u ON u.id = c.user_id
             LEFT JOIN profiles pr ON pr.user_id = c.user_id
             WHERE c.post_id = \$1
             ORDER BY c.created_at ASC
-        `, [postId]);
+        `, [postId, userId]);
         res.json({ success: true, comments: rows });
     } catch (e) {
         console.error('[FEED COMMENTS GET]', e.message);
@@ -173,6 +210,28 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
     }
 });
 
+// ── PUT /api/feed/comments/:id (édition commentaire) ─────────
+router.put('/comments/:id', authenticateToken, async (req, res) => {
+    const userId    = req.user.id;
+    const commentId = parseInt(req.params.id);
+    const contenu   = (req.body.contenu || '').trim();
+    if (!contenu) return res.status(400).json({ success: false, message: 'Contenu vide.' });
+    try {
+        const { rows } = await pool.query(
+            `SELECT user_id FROM post_comments WHERE id = \$1`, [commentId]
+        );
+        if (!rows.length) return res.status(404).json({ success: false, message: 'Commentaire introuvable.' });
+        if (rows[0].user_id !== userId && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Interdit.' });
+        }
+        await pool.query(`UPDATE post_comments SET contenu = \$1 WHERE id = \$2`, [contenu, commentId]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('[FEED COMMENT PUT]', e.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
 // ── DELETE /api/feed/comments/:id ────────────────────────────
 router.delete('/comments/:id', authenticateToken, async (req, res) => {
     const userId    = req.user.id;
@@ -193,6 +252,28 @@ router.delete('/comments/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// ── POST /api/feed/comments/:id/like ─────────────────────────
+router.post('/comments/:id/like', authenticateToken, async (req, res) => {
+    const userId    = req.user.id;
+    const commentId = parseInt(req.params.id);
+    try {
+        const { rows } = await pool.query(
+            `SELECT id FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`,
+            [commentId, userId]
+        );
+        if (rows.length) {
+            await pool.query(`DELETE FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`, [commentId, userId]);
+            res.json({ success: true, liked: false });
+        } else {
+            await pool.query(`INSERT INTO comment_likes (comment_id, user_id) VALUES (\$1, \$2)`, [commentId, userId]);
+            res.json({ success: true, liked: true });
+        }
+    } catch (e) {
+        console.error('[COMMENT LIKE]', e.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
 // ── POST /api/feed/follow/:id ─────────────────────────────────
 router.post('/follow/:id', authenticateToken, async (req, res) => {
     const followerId  = req.user.id;
@@ -206,16 +287,10 @@ router.post('/follow/:id', authenticateToken, async (req, res) => {
             [followerId, followingId]
         );
         if (rows.length) {
-            await pool.query(
-                `DELETE FROM follows WHERE follower_id = \$1 AND following_id = \$2`,
-                [followerId, followingId]
-            );
+            await pool.query(`DELETE FROM follows WHERE follower_id = \$1 AND following_id = \$2`, [followerId, followingId]);
             res.json({ success: true, following: false });
         } else {
-            await pool.query(
-                `INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`,
-                [followerId, followingId]
-            );
+            await pool.query(`INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`, [followerId, followingId]);
             res.json({ success: true, following: true });
         }
     } catch (e) {

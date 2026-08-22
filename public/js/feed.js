@@ -99,9 +99,17 @@ function renderPost(p) {
                 </div>
                 <div class="feed-card-actions">
                     ${!isOwner ? `<button class="feed-follow-btn ${followed ? 'following' : ''}" onclick="toggleFollow(${p.user_id}, this)">${followed ? 'Abonné' : 'Suivre'}</button>` : ''}
-                    ${isOwner || isAdmin ? `<button class="feed-delete-btn" onclick="supprimerPost(${p.id})" title="Supprimer">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                    ${isOwner || isAdmin ? `
+                    <button class="feed-action-btn" onclick="editerPost(${p.id}, \`${escapeHtml(p.contenu || '')}\`)" title="Modifier">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button class="feed-delete-btn" onclick="supprimerPost(${p.id})" title="Supprimer">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
                         </svg>
                     </button>` : ''}
                 </div>
@@ -110,20 +118,20 @@ function renderPost(p) {
             ${p.photo_url ? `<div class="feed-photo-wrap"><img src="${p.photo_url}" class="feed-photo" alt="" onclick="ouvrirPhoto('${p.photo_url}')"></div>` : ''}
             <div class="feed-footer">
                 <button class="feed-like-btn ${p.liked ? 'liked' : ''}" onclick="toggleLike(${p.id}, this)">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="${p.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="${p.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
                         <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
                     </svg>
-                    <span>${p.likes}</span>
+                    <span class="feed-like-count" onclick="voirLikers(${p.id}, event)">${p.likes}</span>
                 </button>
                 <button class="feed-comment-btn" onclick="toggleCommentaires(${p.id})">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
                     <span>${p.nb_comments}</span>
                 </button>
                 <button class="feed-share-btn" onclick="partagerPost(${p.id}, '${escapeHtml(p.contenu || '')}')">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                         <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
                         <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
@@ -135,7 +143,7 @@ function renderPost(p) {
     `;
 }
 
-// ── LIKE ──────────────────────────────────────────────────────
+// ── LIKE POST ─────────────────────────────────────────────────
 async function toggleLike(postId, btn) {
     const user = getUser();
     try {
@@ -148,8 +156,126 @@ async function toggleLike(postId, btn) {
         btn.classList.toggle('liked', d.liked);
         const svg = btn.querySelector('svg');
         if (svg) svg.setAttribute('fill', d.liked ? 'currentColor' : 'none');
-        const span = btn.querySelector('span');
-        span.textContent = parseInt(span.textContent) + (d.liked ? 1 : -1);
+        const span = btn.querySelector('.feed-like-count');
+        if (span) span.textContent = parseInt(span.textContent) + (d.liked ? 1 : -1);
+    } catch {}
+}
+
+// ── VOIR LIKERS ───────────────────────────────────────────────
+async function voirLikers(postId, e) {
+    e.stopPropagation();
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/feed/${postId}/likes`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        document.getElementById('modal-title').textContent = 'Personnes qui aiment';
+        document.getElementById('modal-body').innerHTML = d.likers.length
+            ? d.likers.map(l => {
+                const av = l.avatar
+                    ? `<img src="${l.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
+                    : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${(l.prenom?.[0] || l.username[0]).toUpperCase()}</div>`;
+                return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6">
+                    ${av}
+                    <div>
+                        <div style="font-size:14px;font-weight:700;color:#111">${escapeHtml(l.prenom || '')} ${escapeHtml(l.nom || '')}</div>
+                        <div style="font-size:12px;color:#9ca3af">@${escapeHtml(l.username)}</div>
+                    </div>
+                </div>`;
+            }).join('')
+            : '<p style="text-align:center;color:#9ca3af;padding:20px">Aucun like pour l\'instant.</p>';
+        document.getElementById('overlay').classList.add('on');
+    } catch {}
+}
+
+// ── ÉDITER POST ───────────────────────────────────────────────
+function editerPost(postId, contenuActuel) {
+    document.getElementById('modal-title').textContent = 'Modifier le post';
+    document.getElementById('modal-body').innerHTML = `
+        <textarea id="edit-post-contenu" rows="4"
+            style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                   font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit">${contenuActuel}</textarea>
+        <button onclick="sauvegarderEditionPost(${postId})"
+            style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                   color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
+            Sauvegarder
+        </button>
+        <div id="edit-post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+    `;
+    document.getElementById('overlay').classList.add('on');
+}
+
+async function sauvegarderEditionPost(postId) {
+    const user    = getUser();
+    const contenu = document.getElementById('edit-post-contenu').value.trim();
+    const msg     = document.getElementById('edit-post-msg');
+    if (!contenu) { msg.style.color = '#ef4444'; msg.textContent = 'Contenu vide.'; return; }
+    try {
+        const r = await fetch(`/api/feed/${postId}`, {
+            method  : 'PUT',
+            headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body    : JSON.stringify({ contenu })
+        });
+        const d = await r.json();
+        if (d.success) {
+            closeModal();
+            await chargerFeed();
+        } else {
+            msg.style.color = '#ef4444';
+            msg.textContent = d.message || 'Erreur.';
+        }
+    } catch {
+        msg.style.color = '#ef4444';
+        msg.textContent = 'Erreur réseau.';
+    }
+}
+
+// ── LIKE POST ─────────────────────────────────────────────────
+async function toggleLike(postId, btn) {
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/feed/${postId}/like`, {
+            method : 'POST',
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        btn.classList.toggle('liked', d.liked);
+        const svg = btn.querySelector('svg');
+        if (svg) svg.setAttribute('fill', d.liked ? 'currentColor' : 'none');
+        const span = btn.querySelector('.feed-like-count');
+        if (span) span.textContent = parseInt(span.textContent) + (d.liked ? 1 : -1);
+    } catch {}
+}
+
+// ── VOIR LIKERS ───────────────────────────────────────────────
+async function voirLikers(postId, e) {
+    e.stopPropagation();
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/feed/${postId}/likes`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        document.getElementById('modal-title').textContent = 'Personnes qui aiment';
+        document.getElementById('modal-body').innerHTML = d.likers.length
+            ? d.likers.map(l => {
+                const av = l.avatar
+                    ? `<img src="${l.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
+                    : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${(l.prenom?.[0] || l.username[0]).toUpperCase()}</div>`;
+                return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6">
+                    ${av}
+                    <div>
+                        <div style="font-size:14px;font-weight:700;color:#111">${escapeHtml(l.prenom || '')} ${escapeHtml(l.nom || '')}</div>
+                        <div style="font-size:12px;color:#9ca3af">@${escapeHtml(l.username)}</div>
+                    </div>
+                </div>`;
+            }).join('')
+            : '<p style="text-align:center;color:#9ca3af;padding:20px">Aucun like pour l\'instant.</p>';
+        document.getElementById('overlay').classList.add('on');
     } catch {}
 }
 
@@ -202,15 +328,30 @@ function renderComment(c, postId) {
             <div class="feed-comment-meta">
                 <span class="feed-comment-author">${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')} <span class="feed-handle">@${escapeHtml(c.username)}</span></span>
                 <span class="feed-comment-date">${date}</span>
-                ${isOwner || isAdmin ? `
-                <button class="feed-comment-delete" onclick="supprimerCommentaire(${c.id}, ${postId})">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                        <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                    </svg>
-                </button>` : ''}
+                <div class="feed-comment-actions">
+                    ${isOwner || isAdmin ? `
+                    <button class="feed-comment-edit-btn" onclick="editerCommentaire(${c.id}, ${postId}, \`${escapeHtml(c.contenu)}\`)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button class="feed-comment-delete" onclick="supprimerCommentaire(${c.id}, ${postId})">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                        </svg>
+                    </button>` : ''}
+                    <button class="feed-comment-like-btn ${c.liked ? 'liked' : ''}" onclick="toggleLikeCommentaire(${c.id}, this)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="${c.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+                            <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                        </svg>
+                        <span class="comment-like-count">${c.likes}</span>
+                    </button>
+                </div>
             </div>
-            <div class="feed-comment-contenu">${escapeHtml(c.contenu)}</div>
+            <div class="feed-comment-contenu" id="comment-text-${c.id}">${escapeHtml(c.contenu)}</div>
         </div>
     `;
 }
@@ -236,6 +377,48 @@ async function envoyerCommentaire(postId) {
     } catch {}
 }
 
+// ── ÉDITER COMMENTAIRE ────────────────────────────────────────
+function editerCommentaire(commentId, postId, contenuActuel) {
+    const zone = document.getElementById(`comment-${commentId}`);
+    if (!zone) return;
+    const textEl = document.getElementById(`comment-text-${commentId}`);
+    if (!textEl) return;
+    textEl.innerHTML = `
+        <div style="display:flex;gap:6px;margin-top:4px">
+            <input type="text" id="edit-comment-input-${commentId}" value="${escapeHtml(contenuActuel)}"
+                style="flex:1;padding:6px 10px;border:1.5px solid #7c3aed;border-radius:20px;
+                       font-size:13px;outline:none;font-family:inherit">
+            <button onclick="sauvegarderEditionCommentaire(${commentId}, ${postId})"
+                style="padding:6px 12px;background:#7c3aed;color:#fff;border:none;
+                       border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">
+                OK
+            </button>
+            <button onclick="chargerCommentaires(${postId})"
+                style="padding:6px 10px;background:#f3f4f6;color:#374151;border:none;
+                       border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">
+                ✕
+            </button>
+        </div>
+    `;
+    document.getElementById(`edit-comment-input-${commentId}`)?.focus();
+}
+
+async function sauvegarderEditionCommentaire(commentId, postId) {
+    const user    = getUser();
+    const input   = document.getElementById(`edit-comment-input-${commentId}`);
+    const contenu = (input?.value || '').trim();
+    if (!contenu) return;
+    try {
+        const r = await fetch(`/api/feed/comments/${commentId}`, {
+            method  : 'PUT',
+            headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body    : JSON.stringify({ contenu })
+        });
+        const d = await r.json();
+        if (d.success) await chargerCommentaires(postId);
+    } catch {}
+}
+
 // ── SUPPRIMER COMMENTAIRE — modale custom ─────────────────────
 function supprimerCommentaire(commentId, postId) {
     document.getElementById('modal-title').textContent = 'Confirmation';
@@ -254,7 +437,6 @@ function supprimerCommentaire(commentId, postId) {
             </button>
         </div>`;
     document.getElementById('overlay').classList.add('on');
-
     document.getElementById('btn-delcomment-non').onclick = () => {
         document.getElementById('overlay').classList.remove('on');
     };
@@ -268,12 +450,30 @@ function supprimerCommentaire(commentId, postId) {
             const d = await r.json();
             if (d.success) {
                 document.getElementById('overlay').classList.remove('on');
-                document.getElementById(`comment-${commentId}`)?.remove();
+                await chargerCommentaires(postId);
                 const btn = document.querySelector(`#post-${postId} .feed-comment-btn span`);
                 if (btn) btn.textContent = Math.max(0, parseInt(btn.textContent) - 1);
             }
         } catch {}
     };
+}
+
+// ── LIKE COMMENTAIRE ──────────────────────────────────────────
+async function toggleLikeCommentaire(commentId, btn) {
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/feed/comments/${commentId}/like`, {
+            method : 'POST',
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        btn.classList.toggle('liked', d.liked);
+        const svg = btn.querySelector('svg');
+        if (svg) svg.setAttribute('fill', d.liked ? 'currentColor' : 'none');
+        const span = btn.querySelector('.comment-like-count');
+        if (span) span.textContent = parseInt(span.textContent) + (d.liked ? 1 : -1);
+    } catch {}
 }
 
 // ── SUPPRIMER POST — modale custom ────────────────────────────
@@ -294,7 +494,6 @@ function supprimerPost(postId) {
             </button>
         </div>`;
     document.getElementById('overlay').classList.add('on');
-
     document.getElementById('btn-delpost-non').onclick = () => {
         document.getElementById('overlay').classList.remove('on');
     };
@@ -374,13 +573,11 @@ async function publierPost() {
     const contenu = document.getElementById('post-contenu').value.trim();
     const photo   = document.getElementById('post-photo').files[0];
     const msg     = document.getElementById('post-msg');
-
     if (!contenu && !photo) {
         msg.style.color = '#ef4444';
         msg.textContent = 'Le post ne peut pas être vide.';
         return;
     }
-
     try {
         let photoB64 = null;
         let mime     = null;
@@ -393,17 +590,12 @@ async function publierPost() {
                 reader.readAsDataURL(photo);
             });
         }
-
         const body = { contenu };
         if (photoB64) { body.photo = photoB64; body.mime = mime; }
-
         const r = await fetch('/api/feed', {
             method  : 'POST',
-            headers : {
-                'Authorization' : `Bearer ${user.token}`,
-                'Content-Type'  : 'application/json'
-            },
-            body: JSON.stringify(body)
+            headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body    : JSON.stringify(body)
         });
         const d = await r.json();
         if (d.success) {
