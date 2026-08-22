@@ -53,7 +53,13 @@ async function chargerMeteo(lat, lon, nomVille) {
         };
 
         _renderWidget();
-        localStorage.setItem('myvibe_ville', JSON.stringify({ lat, lon, ville: nomVille }));
+        
+        // Sauvegarde de la ville dans le profil utilisateur en base (perso par user)
+        fetch('/api/profil/meteo-ville', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lon, ville: nomVille })
+        }).catch(() => {});
     } catch { if (el) el.textContent = 'Météo non disponible'; }
 }
 
@@ -208,12 +214,17 @@ function afficherDetailJourModale(i) {
 }
 
 async function chargerMeteoAuto() {
-    const saved = localStorage.getItem('myvibe_ville');
-    if (saved) {
-        const v = JSON.parse(saved);
-        chargerMeteo(v.lat, v.lon, v.ville);
-        return;
-    }
+    try {
+        const r = await fetch('/api/profil');
+        const d = await r.json();
+        const p = d.profil;
+
+        if (p?.meteo_lat && p?.meteo_lon) {
+            chargerMeteo(p.meteo_lat, p.meteo_lon, p.meteo_ville || 'Ma ville');
+            return;
+        }
+    } catch { /* fallback géoloc */ }
+
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             async pos => {
@@ -259,7 +270,6 @@ async function geoLocaliser() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
         async pos => {
-            localStorage.removeItem('myvibe_ville');
             const ville = await getNomVille(pos.coords.latitude, pos.coords.longitude);
             await chargerMeteo(pos.coords.latitude, pos.coords.longitude, ville);
             closeModal();
@@ -275,3 +285,4 @@ async function geoLocaliser() {
         }
     );
 }
+// ============================================================
