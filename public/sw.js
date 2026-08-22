@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mydaily-cache-v3.67';
+const CACHE_NAME = 'mydaily-cache-v3.68';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
@@ -50,7 +50,6 @@ self.addEventListener('fetch', event => {
 
     const url = new URL(event.request.url);
 
-    // API : ne jamais intercepter — le navigateur gère avec les headers
     if (url.pathname.startsWith('/api/')) return;
 
     const networkFirst = ['/', '/index.html', '/css/style.css'];
