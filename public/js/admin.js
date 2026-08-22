@@ -215,16 +215,15 @@ function _renderAdminUsers() {
                 style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;outline:none;box-sizing:border-box;background:#f8fafc">
         </form>
-        <div id="admin-users-liste"></div>
         <button onclick="_toggleCreerForm()" id="btn-creer-user"
             style="width:100%;padding:11px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
                    color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;
-                   cursor:pointer;margin-top:12px;display:flex;align-items:center;
+                   cursor:pointer;margin-bottom:12px;display:flex;align-items:center;
                    justify-content:center;gap:6px">
             ➕ Créer un utilisateur
         </button>
         <div id="admin-creer-form" style="display:none;background:#f8fafc;border-radius:12px;
-             padding:16px;margin-top:10px;border:1.5px solid #e5e7eb">
+             padding:16px;margin-bottom:12px;border:1.5px solid #e5e7eb">
             <div style="font-size:13px;font-weight:700;color:#1e1b4b;margin-bottom:12px">Nouveau compte</div>
             <input type="text" id="new-username" placeholder="Nom d'utilisateur"
                 autocomplete="off" name="new-username-field"
@@ -249,6 +248,7 @@ function _renderAdminUsers() {
             </button>
             <div id="create-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
         </div>
+        <div id="admin-users-liste"></div>
     `;
     setTimeout(() => {
         const s = document.getElementById('admin-search');
@@ -281,12 +281,24 @@ function _toggleCreerForm() {
 
 function _filtrerAdminUsers() {
     const q     = (document.getElementById('admin-search')?.value || '').toLowerCase().trim();
-    const users = (window._adminUsersCache || []).filter(u =>
-        !q
-        || u.username.toLowerCase().includes(q)
-        || (u.prenom && u.prenom.toLowerCase().includes(q))
-        || (u.nom    && u.nom.toLowerCase().includes(q))
-    );
+    const users = (window._adminUsersCache || [])
+        .filter(u =>
+            !q
+            || u.username.toLowerCase().includes(q)
+            || (u.prenom && u.prenom.toLowerCase().includes(q))
+            || (u.nom    && u.nom.toLowerCase().includes(q))
+        )
+        .sort((a, b) => {
+            // Admins en premier, puis tri alphabétique nom ASC, prenom ASC
+            if (a.role === 'admin' && b.role !== 'admin') return -1;
+            if (a.role !== 'admin' && b.role === 'admin') return  1;
+            const nomA    = (a.nom    || a.username).toLowerCase();
+            const nomB    = (b.nom    || b.username).toLowerCase();
+            const prenomA = (a.prenom || '').toLowerCase();
+            const prenomB = (b.prenom || '').toLowerCase();
+            if (nomA !== nomB) return nomA.localeCompare(nomB, 'fr');
+            return prenomA.localeCompare(prenomB, 'fr');
+        });
     const el = document.getElementById('admin-users-liste');
     if (!el) return;
     el.innerHTML = users.length ? users.map(u => {
@@ -461,11 +473,10 @@ function adminResetPwd(id, username) {
     el.innerHTML = `
         <div class="user-card">
             <div class="user-card-name" style="margin-bottom:4px">🔑 Nouveau MDP — <strong>${username}</strong></div>
-                        <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">8 car. min · majuscule · minuscule · chiffre · spécial</div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">8 car. min · majuscule · minuscule · chiffre · spécial</div>
             <input type="password" id="admin-new-pwd" placeholder="Nouveau mot de passe"
                 autocomplete="new-password" name="admin-pwd-field"
-                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
-                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">
+                style="width:100%;padding:10px 12px                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">
             <div style="display:flex;gap:8px">
                 <button class="ua-btn ua-btn-blue" style="flex:1" onclick="adminConfirmResetPwd(${id})">✓ Confirmer</button>
                 <button class="ua-btn" style="flex:1;background:#f3f4f6;color:#374151" onclick="chargerAdminUsers()">Annuler</button>
@@ -593,3 +604,4 @@ function switchAdminTab(tab) {
     if (tab === 'stats') chargerAdminStats();
     if (tab === 'users') chargerAdminUsers();
 }
+
