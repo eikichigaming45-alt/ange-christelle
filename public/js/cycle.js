@@ -765,7 +765,7 @@ const Cycle = (() => {
         clearTimeout(_moodRefreshTimer);
         _moodRefreshTimer = setTimeout(async () => {
             if (_calcCourant) await _afficherMoodInline(_calcCourant);
-        }, 800);
+        }, 3000);
     }
 
     let _moodRefreshTimer = null;
