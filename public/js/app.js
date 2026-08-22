@@ -79,17 +79,6 @@ window.addEventListener('DOMContentLoaded', () => {
     } else {
         localStorage.removeItem('myvibe_user');
     }
-
-    const toggleBtn = document.getElementById('toggle-password');
-    const pwdInput  = document.getElementById('password');
-    if (toggleBtn && pwdInput) {
-        toggleBtn.addEventListener('click', () => {
-            const visible       = pwdInput.type === 'text';
-            pwdInput.type       = visible ? 'password' : 'text';
-            toggleBtn.textContent = visible ? '👁' : '🙈';
-            toggleBtn.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
-        });
-    }
 });
 
 // ===================== LOGIN =================================
@@ -139,10 +128,8 @@ async function showApp() {
     afficherDate();
     afficherVersion();
 
-    // Restaurer onglet actif
     const saved = localStorage.getItem('mydaily_onglet') || 'accueil';
     await buildGrid();
-
     switchTab(saved, true);
 
     chargerPriere();
@@ -167,25 +154,22 @@ const ONGLET_TITRES = {
     accueil  : 'MyDaily',
     quotidien: 'Mon Quotidien',
     bienetre : 'Bien-être',
-    liens    : 'Liens',
-    app      : 'Application'
+    profil   : 'Profil',
+    apropos  : 'À propos'
 };
 
 function switchTab(onglet, silent = false) {
     _ongletActif = onglet;
     if (!silent) localStorage.setItem('mydaily_onglet', onglet);
 
-    // Masquer / afficher les panes
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     const pane = document.getElementById(`tab-${onglet}`);
     if (pane) pane.classList.add('active');
 
-    // Mettre à jour la bottom nav
     document.querySelectorAll('.bn-item').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === onglet);
     });
 
-    // Titre topbar
     const titleEl = document.getElementById('topbar-title');
     if (titleEl) titleEl.textContent = ONGLET_TITRES[onglet] || 'MyDaily';
 }
@@ -208,11 +192,11 @@ function logout() {
     document.getElementById('username').value           = '';
     document.getElementById('password').value           = '';
 
-    // Vider toutes les grilles
-    ['quotidien','bienetre','liens','app'].forEach(o => {
+    ['quotidien','bienetre','profil','apropos'].forEach(o => {
         const g = document.getElementById(`grid-${o}`);
         if (g) g.innerHTML = '';
     });
+
     const accueilMeteo = document.getElementById('accueil-meteo');
     if (accueilMeteo) accueilMeteo.innerHTML = '';
     const accueilFeed  = document.getElementById('accueil-feed');
@@ -220,13 +204,12 @@ function logout() {
 
     const pwdInput  = document.getElementById('password');
     const toggleBtn = document.getElementById('toggle-password');
-    if (pwdInput)  pwdInput.type        = 'password';
+    if (pwdInput)  pwdInput.type         = 'password';
     if (toggleBtn) toggleBtn.textContent = '👁';
 
     const errEl = document.getElementById('error-msg');
     if (errEl) errEl.textContent = '';
 
-    // Reset bottom nav
     switchTab('accueil', true);
 }
 
@@ -371,4 +354,3 @@ function enregistrerServiceWorker() {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 }
-

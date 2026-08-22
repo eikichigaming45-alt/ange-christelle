@@ -35,8 +35,9 @@ input:focus{border-color:#7C3AED}
 
 /* ===================== BOTTOM NAV ===================== */
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:#fff;border-top:1px solid #e5e7eb;display:flex;align-items:stretch;z-index:300;box-shadow:0 -2px 12px rgba(0,0,0,.08)}
-.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 4px;transition:color .15s;color:#9ca3af;-webkit-tap-highlight-color:transparent}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 4px;transition:color .15s;color:#9ca3af;-webkit-tap-highlight-color:transparent;position:relative}
 .bn-item.active{color:#7C3AED}
+.bn-item.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:3px;background:#7C3AED;border-radius:3px 3px 0 0}
 .bn-icon{font-size:20px;line-height:1}
 .bn-label{font-size:10px;font-weight:600;line-height:1}
 

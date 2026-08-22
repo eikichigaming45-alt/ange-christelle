@@ -15,8 +15,8 @@ function resetGrid() {
 const WIDGETS_PAR_ONGLET = {
     quotidien : ['planning', 'taches', 'priere', 'islam', 'anniversaires', 'astrologie'],
     bienetre  : ['rendezvous', 'cycle', 'sport'],
-    liens     : ['profil', 'admin'],
-    app       : ['faq', 'changelog']
+    profil    : ['profil', 'admin'],
+    apropos   : ['faq', 'changelog']
 };
 
 // Onglet d'un widget (recherche inverse)
