@@ -3,7 +3,7 @@
 // Point d'entrée front : état global, login, logout, init app,
 // utilitaires date/version, refresh widgets.
 // chargerProfilHeader() définie uniquement dans profil.js.
-// v3.83 — TOUS_WIDGETS ordre alphabétique corrigé (Prières & Hadiths)
+// v3.84 — TOUS_WIDGETS avec icon séparé, tri automatique localeCompare
 // ============================================================
 
 // ===================== STATE GLOBAL ==========================
@@ -30,20 +30,20 @@ const WIDGETS_DEF = [
     { id:'profil',        label:'Mon Profil',         icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
 ];
 
-// Ordre alphabétique strict sur le label texte (sans emoji).
-// Règle : tout nouveau widget ajouté ici doit respecter cet ordre.
-// Un nouveau widget absent de widgets_caches d'un user existant
-// sera automatiquement coché (visible) sans toucher à ses préférences.
+// Ajouter un nouveau widget ici dans n'importe quel ordre —
+// le tri alphabétique est automatique dans profil.js et widgets.js.
+// Un nouveau slug absent de widgets_caches = coché par défaut pour
+// les utilisateurs existants, sans toucher à leurs préférences.
 const TOUS_WIDGETS = [
-    { slug:'anniversaires', label:'🎂 Anniversaires' },
-    { slug:'astrologie',    label:'✨ Astrologie' },
-    { slug:'meteo',         label:'🌤️ Météo' },
-    { slug:'planning',      label:'📋 Planning' },
-    { slug:'priere',        label:'🙏 Prière du jour' },
-    { slug:'islam',         label:'🌙 Prières & Hadiths' },
-    { slug:'rendezvous',    label:'🩺 Rendez-vous' },
-    { slug:'cycle',         label:'🌸 Suivi du cycle' },
-    { slug:'taches',        label:'✅ Tâches' },
+    { slug:'anniversaires', label:'Anniversaires',     icon:'🎂' },
+    { slug:'astrologie',    label:'Astrologie',        icon:'✨' },
+    { slug:'cycle',         label:'Suivi du cycle',    icon:'🌸' },
+    { slug:'islam',         label:'Prières & Hadiths', icon:'🌙' },
+    { slug:'meteo',         label:'Météo',             icon:'🌤️' },
+    { slug:'planning',      label:'Planning',          icon:'📋' },
+    { slug:'priere',        label:'Prière du jour',    icon:'🙏' },
+    { slug:'rendezvous',    label:'Rendez-vous',       icon:'🩺' },
+    { slug:'taches',        label:'Tâches',            icon:'✅' },
 ];
 
 // ===================== CODES MÉTÉO ===========================

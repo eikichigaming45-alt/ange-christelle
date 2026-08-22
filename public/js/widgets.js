@@ -3,6 +3,7 @@
 // Grille principale, drag & drop souris + tactile, opt-out widgets.
 // Dépend de : app.js (WIDGETS_DEF, dragSrc, dragActif, longPressTimer)
 // B.1 — bouton refresh supprimé sur tous les widgets.
+// v3.84 — tri automatique localeCompare sensitivity base
 // ============================================================
 
 let gridConstruit = false;
@@ -64,7 +65,7 @@ async function buildGrid() {
         const DERNIERS = ['profil', 'admin'];
         const normaux  = defs
             .filter(w => !DERNIERS.includes(w.id))
-            .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+            .sort((a, b) => a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' }));
         const derniers = DERNIERS
             .map(id => defs.find(w => w.id === id))
             .filter(Boolean);
@@ -102,8 +103,6 @@ function creerWidget(def) {
     if (def.id === 'profil')      contentHtml = '<div id="wc-profil"></div>';
     if (def.id === 'astrologie')  contentHtml = 'Chargement...';
 
-    // B.1 — bouton refresh supprimé : la ligne ${def.refresh ? ...} est retirée.
-    // Le rafraîchissement reste disponible via le titre "MyDaily" (actualiser()).
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
         <div class="wh">
@@ -116,7 +115,6 @@ function creerWidget(def) {
         <div class="wf">${def.foot || ''}</div>
     `;
 
-    // Clic sur le widget → ouvre la modale
     div.addEventListener('click', e => {
         if (e.target.classList.contains('drag-handle')) return;
         if (e.target.closest('button'))                 return;
@@ -124,14 +122,12 @@ function creerWidget(def) {
         openModal(def.id);
     });
 
-    // Drag & drop souris
     div.addEventListener('dragstart', onDragStart);
     div.addEventListener('dragover',  onDragOver);
     div.addEventListener('dragleave', onDragLeave);
     div.addEventListener('drop',      onDrop);
     div.addEventListener('dragend',   onDragEnd);
 
-    // Drag & drop tactile
     ajouterTouchDrag(div);
 
     return div;

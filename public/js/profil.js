@@ -6,6 +6,7 @@
 // Dépend de : app.js (getUser, profilCache, cropperInstance, TOUS_WIDGETS)
 //             widgets.js (appliquerWidgetsVisibles)
 // B.6 — message suppression iso : "Confirmer la suppression ?"
+// v3.84 — tri automatique localeCompare dans afficherSectionWidgets
 // ============================================================
 
 // ===================== UTILITAIRE TRIGRAMME ==================
@@ -259,7 +260,7 @@ async function sauvegarderProfil() {
             chargerProfilHeader();
         } else {
             msg.textContent = '❌ ' + (d.message || 'Erreur.');
-            msg.style.color = '#ef4444';
+            msg.style.            color = '#ef4444';
         }
     } catch {
         msg.textContent = '❌ Erreur réseau.';
@@ -336,14 +337,18 @@ async function afficherSectionWidgets() {
         });
         const data          = await res.json();
         const widgetsCaches = data.widgets_caches || [];
-        // TOUS_WIDGETS est déjà trié alphabétiquement dans app.js — on itère directement.
-        // Logique opt-out : slug absent de widgets_caches = coché (visible).
-        // Nouveau widget ajouté au site = absent de widgets_caches = coché par défaut
-        // sans toucher aux choix existants du user.
-        container.innerHTML = TOUS_WIDGETS.map(w => `
+
+        // Tri automatique alphabétique sur le label pur sans emoji,
+        // peu importe l'ordre dans TOUS_WIDGETS dans app.js.
+        const tries = [...TOUS_WIDGETS].sort((a, b) =>
+            a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' })
+        );
+
+        container.innerHTML = tries.map(w => `
             <label class="widget-choix-item">
-                <input type="checkbox" value="${w.slug}" ${widgetsCaches.includes(w.slug) ? '' : 'checked'}>
-                <span>${w.label}</span>
+                <input type="checkbox" value="${w.slug}"
+                    ${widgetsCaches.includes(w.slug) ? '' : 'checked'}>
+                <span>${w.icon} ${w.label}</span>
             </label>
         `).join('');
     } catch {
@@ -385,3 +390,4 @@ async function sauvegarderWidgetsVisibles() {
         msg.style.color = '#ef4444';
     }
 }
+
