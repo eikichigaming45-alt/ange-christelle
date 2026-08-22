@@ -1,7 +1,8 @@
 // ============================================================
 // public/js/taches.js
-// CRUD tâches + widget + modal.
-// Après suppression/modification : retour dans la vue courante.
+// Authentification : JWT Bearer uniquement.
+// B.6 — après suppression/modification : retour vue courante.
+// Message suppression iso : "Confirmer la suppression ?"
 // ============================================================
 
 function _todayStr() {
@@ -129,10 +130,10 @@ async function chargerModalTaches() {
 }
 
 function renderTache(t, today) {
-    const dateStr     = t.date ? t.date.split('T')[0] : null;
-    const heureStr    = t.heure ? t.heure.slice(0, 5) : '';
-    const isToday     = dateStr === today;
-    const recuLabels  = { daily: 'Quotidien', weekly: 'Hebdo', monthly: 'Mensuel' };
+    const dateStr    = t.date ? t.date.split('T')[0] : null;
+    const heureStr   = t.heure ? t.heure.slice(0, 5) : '';
+    const isToday    = dateStr === today;
+    const recuLabels = { daily: 'Quotidien', weekly: 'Hebdo', monthly: 'Mensuel' };
     const rappelLabel = t.rappel_avant > 0
         ? `<span class="badge-recur">⏰ ${_formatRappelTache(t.rappel_avant)}</span>` : '';
     return `

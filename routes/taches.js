@@ -1,7 +1,6 @@
 // ============================================================
 // routes/taches.js
 // CRUD des tâches utilisateur + gestion des récurrences.
-// Tâches récurrentes : nouvelle occurrence créée à la validation.
 // ============================================================
 
 const express  = require('express');
@@ -9,16 +8,17 @@ const router   = express.Router();
 const { pool } = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
+// ── Toutes les routes nécessitent un token JWT ────────────────
 router.use(authenticateToken);
 
 // ── GET /api/taches ───────────────────────────────────────────
-// Retourne toutes les tâches triées : datées ASC, sans date en fin.
+// Retourne toutes les tâches de l'utilisateur, triées par date.
 router.get('/', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT id, titre, date, heure, recurrence, rappel_avant, faite, created_at
             FROM taches
-            WHERE user_id = \\$1
+            WHERE user_id = \$1
             ORDER BY
                 CASE WHEN date IS NULL THEN 1 ELSE 0 END,
                 date ASC, heure ASC NULLS LAST, created_at ASC
@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
     try {
         const result = await pool.query(`
             INSERT INTO taches (user_id, titre, date, heure, recurrence, rappel_avant)
-            VALUES (\\$1, \\$2, \\$3, \\$4, \\$5, \\$6) RETURNING *
+            VALUES (\$1, \$2, \$3, \$4, \$5, \$6) RETURNING *
         `, [req.user.id, titre, date || null, heure || null,
             recurrence || 'none', rappel_avant || 0]);
         res.json({ success: true, tache: result.rows[0] });
@@ -51,7 +51,7 @@ router.post('/', async (req, res) => {
 });
 
 // ── PUT /api/taches/:id ───────────────────────────────────────
-// Met à jour une tâche (vérification propriétaire).
+// Met à jour une tâche existante (vérification propriétaire).
 router.put('/:id', async (req, res) => {
     const { titre, date, heure, recurrence, rappel_avant } = req.body;
     if (!titre) {
@@ -60,8 +60,8 @@ router.put('/:id', async (req, res) => {
     try {
         const result = await pool.query(`
             UPDATE taches
-            SET titre=\\$1, date=\\$2, heure=\\$3, recurrence=\\$4, rappel_avant=\\$5
-            WHERE id=\\$6 AND user_id=\\$7
+            SET titre=\$1, date=\$2, heure=\$3, recurrence=\$4, rappel_avant=\$5
+            WHERE id=\$6 AND user_id=\$7
             RETURNING *
         `, [titre, date || null, heure || null,
             recurrence || 'none', rappel_avant || 0,
@@ -77,21 +77,22 @@ router.put('/:id', async (req, res) => {
 });
 
 // ── POST /api/taches/:id/cocher ───────────────────────────────
-// Marque une tâche comme faite et crée la prochaine occurrence si récurrente.
+// Marque une tâche comme faite et crée la suivante si récurrente.
 router.post('/:id/cocher', async (req, res) => {
     const { id } = req.params;
     try {
         const t = await pool.query(
             `SELECT id, titre, date, heure, recurrence, rappel_avant
-             FROM taches WHERE id=\\$1 AND user_id=\\$2`,
+             FROM taches WHERE id=\$1 AND user_id=\$2`,
             [id, req.user.id]
         );
         if (!t.rows.length) {
             return res.status(404).json({ success: false, message: 'Tâche introuvable.' });
         }
         const tache = t.rows[0];
-        await pool.query('UPDATE taches SET faite=TRUE WHERE id=\\$1', [id]);
+        await pool.query('UPDATE taches SET faite=TRUE WHERE id=\$1', [id]);
 
+        // Création de la prochaine occurrence si tâche récurrente
         if (tache.recurrence !== 'none' && tache.date) {
             const base = new Date(tache.date.toISOString().split('T')[0] + 'T00:00:00Z');
             const next = new Date(base);
@@ -100,7 +101,7 @@ router.post('/:id/cocher', async (req, res) => {
             if (tache.recurrence === 'monthly') next.setMonth(base.getUTCMonth() + 1);
             await pool.query(`
                 INSERT INTO taches (user_id, titre, date, heure, recurrence, rappel_avant)
-                VALUES (\\$1, \\$2, \\$3, \\$4, \\$5, \\$6)
+                VALUES (\$1, \$2, \$3, \$4, \$5, \$6)
             `, [req.user.id, tache.titre,
                 next.toISOString().split('T')[0],
                 tache.heure, tache.recurrence,
@@ -118,7 +119,7 @@ router.post('/:id/cocher', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const result = await pool.query(
-            'DELETE FROM taches WHERE id=\\$1 AND user_id=\\$2',
+            'DELETE FROM taches WHERE id=\$1 AND user_id=\$2',
             [req.params.id, req.user.id]
         );
         if (result.rowCount === 0) {

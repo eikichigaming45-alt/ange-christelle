@@ -14,6 +14,11 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 // ── Initialisation push ───────────────────────────────────────
+// B.7 — NotAllowedError :
+//   Vérification de Notification.permission avant toute tentative
+//   de subscribe(). Si 'denied', on sort silencieusement sans
+//   erreur console. Si 'default', on laisse le navigateur
+//   afficher sa popup native au moment du subscribe().
 async function initPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     if (!('Notification' in window)) return;
@@ -21,6 +26,7 @@ async function initPush() {
     const user = getUser();
     if (!user?.token) return;
 
+    // Permission refusée explicitement → sortie silencieuse
     if (Notification.permission === 'denied') return;
 
     try {
@@ -28,6 +34,8 @@ async function initPush() {
         let subscription = await reg.pushManager.getSubscription();
 
         if (!subscription) {
+            // 'default' → le navigateur affiche sa popup ici
+            // Si l'utilisateur refuse → NotAllowedError interceptée proprement
             subscription = await reg.pushManager.subscribe({
                 userVisibleOnly     : true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
@@ -43,6 +51,8 @@ async function initPush() {
             body: JSON.stringify({ subscription })
         });
     } catch (e) {
+        // NotAllowedError = permission refusée via popup → silencieux
+        // Autres erreurs → log informatif non bloquant
         if (e.name !== 'NotAllowedError') {
             console.warn('[Push] Initialisation échouée :', e.message);
         }
@@ -134,9 +144,9 @@ async function verifierTachesLocales() {
         const data     = await res.json();
         const planning = Array.isArray(data) ? data : (data.planning || []);
         for (const p of planning) {
-            if (!p.heure_debut || !p.rappel_avant_shift || p.rappel_avant_shift === 0) continue;
+            if (!p.heure_debut || !p.rappel_avant || p.rappel_avant === 0) continue;
             const debutDate = new Date(`${dateAujourdhui}T${p.heure_debut}`);
-            const notifDate = new Date(debutDate.getTime() - p.rappel_avant_shift * 60 * 1000);
+            const notifDate = new Date(debutDate.getTime() - p.rappel_avant * 60 * 1000);
             const hN = String(notifDate.getHours()).padStart(2, '0');
             const mN = String(notifDate.getMinutes()).padStart(2, '0');
             const dN = `${notifDate.getFullYear()}-${String(notifDate.getMonth()+1).padStart(2,'0')}-${String(notifDate.getDate()).padStart(2,'0')}`;
@@ -145,10 +155,10 @@ async function verifierTachesLocales() {
             const cle = `planning-${p.id}-${dN}-${hN}:${mN}`;
             if (dejaNotifies.has(cle)) continue;
             dejaNotifies.add(cle);
-            const label = p.rappel_avant_shift >= 60 ? `${p.rappel_avant_shift/60}h` : `${p.rappel_avant_shift}min`;
+            const label = p.rappel_avant >= 60 ? `${p.rappel_avant/60}h` : `${p.rappel_avant}min`;
             const reg = await navigator.serviceWorker.ready;
             reg.showNotification('📋 Rappel Planning', {
-                body: `${p.categorie || p.type || ''} — dans ${label} (${p.heure_debut.slice(0,5)}) — ${p.employeur || ''}`,
+                body: `${p.type} — dans ${label} (${p.heure_debut.slice(0,5)}) — ${p.employeur || ''}`,
                 icon: '/icon-192.png', badge: '/icon-192.png',
                 tag: `planning-${p.id}`, renotify: true, data: { url: '/' }
             });
