@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" href="/icon-192.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/feed.css">
 </head>
 <body>
 
@@ -27,8 +28,11 @@
     <img src="/icon-192.png" alt="MyDaily" style="width:72px;border-radius:16px;margin-bottom:12px;">
     <h1>MyDaily</h1>
     <form id="login-form" autocomplete="off" style="width:100%">
-        <input type="text" id="username" placeholder="Nom d'utilisateur" required>
-        <input type="password" id="password" placeholder="Mot de passe" required>
+        <input type="text"     id="username" placeholder="Nom d'utilisateur" required>
+        <div class="pwd-wrapper">
+            <input type="password" id="password" placeholder="Mot de passe" required>
+            <button type="button" class="pwd-toggle" id="toggle-password" aria-label="Afficher le mot de passe">👁</button>
+        </div>
         <button type="submit" class="btn">Se connecter</button>
     </form>
     <div id="error-msg"></div>
@@ -36,17 +40,80 @@
 
 <!-- Application principale -->
 <div id="app">
+
+    <!-- Topbar -->
     <div class="topbar">
         <div class="topbar-left">
-            <h2 onclick="actualiser()" title="Actualiser">MyDaily</h2>
+            <h2 id="topbar-title">MyDaily</h2>
             <span class="date-badge" id="date-display"></span>
         </div>
         <div class="topbar-right">
-            <button class="icon-btn" id="btn-profil-header" onclick="openModal('profil')" title="Mon Profil">👤</button>
+            <button class="icon-btn" id="btn-profil-header" onclick="switchTab('moi')" title="Mon Profil">👤</button>
             <button class="icon-btn" onclick="logout()" title="Se déconnecter">🔓</button>
         </div>
     </div>
-    <div class="grid" id="main-grid"></div>
+
+    <!-- Contenu onglets -->
+    <div class="tab-content-wrap">
+
+        <!-- ONGLET 1 — Accueil -->
+        <div class="tab-pane" id="tab-accueil">
+            <!-- Météo figée -->
+            <div class="accueil-meteo-fixed" id="accueil-meteo"></div>
+            <!-- Feed social -->
+            <div class="accueil-feed" id="accueil-feed">
+                <div class="feed-placeholder">
+                    <span>Le fil social arrive bientôt ✨</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ONGLET 2 — Mon Quotidien -->
+        <div class="tab-pane" id="tab-quotidien">
+            <div class="grid" id="grid-quotidien"></div>
+        </div>
+
+        <!-- ONGLET 3 — Bien-être -->
+        <div class="tab-pane" id="tab-bienetre">
+            <div class="grid" id="grid-bienetre"></div>
+        </div>
+
+        <!-- ONGLET 4 — Liens -->
+        <div class="tab-pane" id="tab-liens">
+            <div class="grid" id="grid-liens"></div>
+        </div>
+
+        <!-- ONGLET 5 — App -->
+        <div class="tab-pane" id="tab-app">
+            <div class="grid" id="grid-app"></div>
+        </div>
+
+    </div>
+
+    <!-- Bottom nav (mobile) -->
+    <nav class="bottom-nav" id="bottom-nav">
+        <button class="bn-item active" data-tab="accueil"   onclick="switchTab('accueil')">
+            <span class="bn-icon">🏠</span>
+            <span class="bn-label">Accueil</span>
+        </button>
+        <button class="bn-item" data-tab="quotidien" onclick="switchTab('quotidien')">
+            <span class="bn-icon">📅</span>
+            <span class="bn-label">Quotidien</span>
+        </button>
+        <button class="bn-item" data-tab="bienetre"  onclick="switchTab('bienetre')">
+            <span class="bn-icon">🌸</span>
+            <span class="bn-label">Bien-être</span>
+        </button>
+        <button class="bn-item" data-tab="liens"     onclick="switchTab('liens')">
+            <span class="bn-icon">🔗</span>
+            <span class="bn-label">Liens</span>
+        </button>
+        <button class="bn-item" data-tab="app"       onclick="switchTab('app')">
+            <span class="bn-icon">⚙️</span>
+            <span class="bn-label">App</span>
+        </button>
+    </nav>
+
     <div class="footer"></div>
 </div>
 
@@ -59,7 +126,7 @@
     </div>
 </div>
 
-<!-- Scripts — ordre important : app.js en premier, widgets.js en dernier -->
+<!-- Scripts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js" defer></script>
 <script src="/js/app.js"           defer></script>
 <script src="/js/modal.js"         defer></script>
@@ -76,5 +143,6 @@
 <script src="/js/planning.js"      defer></script>
 <script src="/js/push.js"          defer></script>
 <script src="/js/astrologie.js"    defer></script>
+<script src="/js/feed.js"          defer></script>
 </body>
 </html>

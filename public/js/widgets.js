@@ -1,6 +1,6 @@
 // ============================================================
 // public/js/widgets.js
-// Grille principale, drag & drop souris + tactile, opt-out widgets.
+// Grille par onglet, drag & drop souris + tactile, opt-out widgets.
 // Dépend de : app.js (WIDGETS_DEF, dragSrc, dragActif, longPressTimer)
 // ============================================================
 
@@ -10,14 +10,31 @@ function resetGrid() {
     gridConstruit = false;
 }
 
+// ===================== DÉFINITION PAR ONGLET =================
+
+const WIDGETS_PAR_ONGLET = {
+    quotidien : ['planning', 'taches', 'priere', 'islam', 'anniversaires', 'astrologie'],
+    bienetre  : ['rendezvous', 'cycle', 'sport'],
+    liens     : ['profil', 'admin'],
+    app       : ['faq', 'changelog']
+};
+
+// Onglet d'un widget (recherche inverse)
+function getOngletWidget(id) {
+    for (const [onglet, ids] of Object.entries(WIDGETS_PAR_ONGLET)) {
+        if (ids.includes(id)) return onglet;
+    }
+    return null;
+}
+
+// ===================== BUILD PRINCIPAL =======================
+
 async function buildGrid() {
     if (gridConstruit) return;
     gridConstruit = true;
 
     const user  = getUser();
     const token = user?.token;
-    const grid  = document.getElementById('main-grid');
-    grid.innerHTML = '';
 
     let ordre         = null;
     let widgetsCaches = [];
@@ -25,24 +42,18 @@ async function buildGrid() {
 
     try {
         const [rOrdre, rWidgets, rProfil] = await Promise.all([
-            fetch('/api/widget-order', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            }),
-            fetch('/api/profil/widgets-visibles', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            }),
-            fetch('/api/profil', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
+            fetch('/api/widget-order',           { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/profil/widgets-visibles', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/profil',                  { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
         const dOrdre   = await rOrdre.json();
         const dWidgets = await rWidgets.json();
         const dProfil  = await rProfil.json();
-        if (dOrdre.success && dOrdre.ordre)                             ordre         = dOrdre.ordre;
+        if (dOrdre.success  && dOrdre.ordre)                            ordre         = dOrdre.ordre;
         if (dWidgets.success && Array.isArray(dWidgets.widgets_caches)) widgetsCaches = dWidgets.widgets_caches;
-        if (dProfil.success && dProfil.profil) {
+        if (dProfil.success  && dProfil.profil) {
             sexe        = dProfil.profil.sexe;
-            profilCache = dProfil.profil; // ← FIX : remplir profilCache ici
+            profilCache = dProfil.profil;
         }
     } catch { /* silencieux */ }
 
@@ -63,10 +74,39 @@ async function buildGrid() {
         defs = defs.filter(w => w.id !== 'cycle');
     }
 
+    // Construire chaque onglet
+    await buildTabGrid('quotidien', defs, ordre, widgetsCaches, user);
+    await buildTabGrid('bienetre',  defs, ordre, widgetsCaches, user);
+    await buildTabGrid('liens',     defs, ordre, widgetsCaches, user);
+    await buildTabGrid('app',       defs, ordre, widgetsCaches, user);
+
+    // Météo onglet accueil
+    _buildAccueilMeteo();
+
+    // Charger les données widgets
+    if (typeof chargerProfilHeader   === 'function') chargerProfilHeader();
+    if (typeof Cycle                 !== 'undefined') Cycle.charger();
+    if (typeof Rendezvous            !== 'undefined') Rendezvous.charger();
+    if (typeof chargerWidgetPlanning === 'function')  chargerWidgetPlanning();
+}
+
+async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
+    const gridId = `grid-${onglet}`;
+    const grid   = document.getElementById(gridId);
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const idsOnglet = WIDGETS_PAR_ONGLET[onglet] || [];
+
+    // Filtrer les defs pour cet onglet
+    let defs = allDefs.filter(w => idsOnglet.includes(w.id));
+
+    // Appliquer l'ordre sauvegardé (filtré sur cet onglet)
     if (ordre) {
-        const sorted = [];
-        ordre.forEach(id => { const w = defs.find(d => d.id === id); if (w) sorted.push(w); });
-        defs.forEach(w  => { if (!ordre.includes(w.id)) sorted.push(w); });
+        const ordreOnglet = ordre.filter(id => idsOnglet.includes(id));
+        const sorted      = [];
+        ordreOnglet.forEach(id => { const w = defs.find(d => d.id === id); if (w) sorted.push(w); });
+        defs.forEach(w => { if (!ordreOnglet.includes(w.id)) sorted.push(w); });
         defs = sorted;
     } else {
         const DERNIERS = ['profil', 'admin'];
@@ -79,6 +119,7 @@ async function buildGrid() {
         defs = [...normaux, ...derniers];
     }
 
+    // Masquer les widgets cachés (sauf toujours visibles)
     const TOUJOURS_VISIBLES = ['profil'];
     defs = defs.filter(w => {
         if (w.id === 'admin')                 return user?.role === 'admin';
@@ -86,26 +127,34 @@ async function buildGrid() {
         return !widgetsCaches.includes(w.id);
     });
 
-    defs.forEach(def => grid.appendChild(creerWidget(def)));
-
-    if (typeof chargerProfilHeader   === 'function') chargerProfilHeader();
-    if (typeof Cycle                 !== 'undefined') Cycle.charger();
-    if (typeof Rendezvous            !== 'undefined') Rendezvous.charger();
-    if (typeof chargerWidgetPlanning === 'function') chargerWidgetPlanning();
+    defs.forEach(def => grid.appendChild(creerWidget(def, gridId)));
 }
 
-function creerWidget(def) {
+// ===================== MÉTÉO ONGLET ACCUEIL ==================
+
+function _buildAccueilMeteo() {
+    const el = document.getElementById('accueil-meteo');
+    if (!el) return;
+    el.innerHTML = '<div id="wc-meteo">Chargement...</div>';
+    if (typeof chargerMeteoAuto === 'function') chargerMeteoAuto();
+}
+
+// ===================== CRÉER WIDGET ==========================
+
+function creerWidget(def, gridId) {
     const div      = document.createElement('div');
     div.className  = `widget ${def.cls}`;
     div.dataset.id = def.id;
+    div.dataset.grid = gridId;
     div.draggable  = true;
 
     let contentHtml = def.desc || '';
-    if (def.id === 'cycle')       contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
-    if (def.id === 'rendezvous')  contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
-    if (def.id === 'planning')    contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
-    if (def.id === 'profil')      contentHtml = '<div id="wc-profil"></div>';
-    if (def.id === 'astrologie')  contentHtml = 'Chargement...';
+    if (def.id === 'cycle')      contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
+    if (def.id === 'rendezvous') contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
+    if (def.id === 'planning')   contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
+    if (def.id === 'profil')     contentHtml = '<div id="wc-profil"></div>';
+    if (def.id === 'astrologie') contentHtml = 'Chargement...';
+    if (def.id === 'admin')      contentHtml = '<div id="wc-admin">Chargement...</div>';
 
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
@@ -160,7 +209,9 @@ function onDrop(e) {
     e.preventDefault();
     this.classList.remove('drag-over');
     if (this === dragSrc) return;
-    const grid    = document.getElementById('main-grid');
+    // Drop uniquement dans le même onglet
+    if (this.dataset.grid !== dragSrc.dataset.grid) return;
+    const grid    = document.getElementById(this.dataset.grid);
     const widgets = [...grid.children];
     const si      = widgets.indexOf(dragSrc);
     const ti      = widgets.indexOf(this);
@@ -228,8 +279,8 @@ function ajouterTouchDrag(el) {
         const below  = t ? document.elementFromPoint(t.clientX, t.clientY) : null;
         const target = below?.closest('.widget');
         document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
-        if (target && target !== el) {
-            const grid    = document.getElementById('main-grid');
+        if (target && target !== el && target.dataset.grid === el.dataset.grid) {
+            const grid    = document.getElementById(el.dataset.grid);
             const widgets = [...grid.children];
             const si      = widgets.indexOf(el);
             const ti      = widgets.indexOf(target);
@@ -252,7 +303,14 @@ function ajouterTouchDrag(el) {
 
 async function sauvegarderOrdre() {
     const user  = getUser();
-    const ordre = [...document.querySelectorAll('.widget')].map(w => w.dataset.id);
+    // Collecter l'ordre global de tous les onglets
+    const ordre = [];
+    Object.keys(WIDGETS_PAR_ONGLET).forEach(onglet => {
+        const grid = document.getElementById(`grid-${onglet}`);
+        if (grid) {
+            [...grid.children].forEach(w => { if (w.dataset.id) ordre.push(w.dataset.id); });
+        }
+    });
     try {
         await fetch('/api/widget-order', {
             method  : 'POST',
@@ -262,7 +320,7 @@ async function sauvegarderOrdre() {
             },
             body: JSON.stringify({ ordre })
         });
-    } catch { /* silencieux — non critique */ }
+    } catch { /* silencieux */ }
 }
 
 // ===================== APPLIQUER WIDGETS VISIBLES ============
@@ -272,12 +330,14 @@ function appliquerWidgetsVisibles(widgetsCaches) {
     const TOUJOURS_VISIBLES = user?.role === 'admin'
         ? ['profil', 'admin']
         : ['profil'];
-    const grid = document.getElementById('main-grid');
-    if (!grid) return;
-    [...grid.children].forEach(el => {
-        const id = el.dataset.id;
-        if (!id)                            return;
-        if (TOUJOURS_VISIBLES.includes(id)) return;
-        el.style.display = widgetsCaches.includes(id) ? 'none' : '';
+    Object.keys(WIDGETS_PAR_ONGLET).forEach(onglet => {
+        const grid = document.getElementById(`grid-${onglet}`);
+        if (!grid) return;
+        [...grid.children].forEach(el => {
+            const id = el.dataset.id;
+            if (!id)                            return;
+            if (TOUJOURS_VISIBLES.includes(id)) return;
+            el.style.display = widgetsCaches.includes(id) ? 'none' : '';
+        });
     });
 }

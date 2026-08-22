@@ -3,7 +3,6 @@
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(180deg,#F3E8FF 0%,#D8B4FE 100%) fixed;min-height:100vh;display:flex;justify-content:center;align-items:center}
 
 /* ===================== LOGIN ===================== */
-/* flex-direction:column garanti ici — plus besoin de styles inline dans index.html ou JS */
 .login-card{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);width:100%;max-width:380px;text-align:center;align-self:center;display:flex;flex-direction:column;align-items:center}
 .login-card h1{color:#7C3AED;font-size:24px;margin-bottom:8px}
 .login-card p{color:#888;font-size:14px;margin-bottom:28px}
@@ -15,7 +14,7 @@ input:focus{border-color:#7C3AED}
 
 /* ===================== APP LAYOUT ===================== */
 #app{display:none;flex-direction:column;width:100vw;min-height:100vh;background:#f3f4f6;overflow-x:hidden}
-.topbar{background:#7C3AED;color:#fff;padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.topbar{background:#7C3AED;color:#fff;padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;position:sticky;top:0;z-index:200}
 .topbar-left{display:flex;align-items:center;gap:12px}
 .topbar-left h2{font-size:18px;font-weight:700;cursor:pointer;user-select:none}
 .topbar-left h2:hover{opacity:.85}
@@ -24,13 +23,28 @@ input:focus{border-color:#7C3AED}
 .icon-btn{background:rgba(255,255,255,.2);border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s;overflow:hidden;padding:0}
 .icon-btn:hover{background:rgba(255,255,255,.35)}
 .icon-btn img{width:38px;height:38px;object-fit:cover;border-radius:50%}
-.footer{background:#f3f4f6;color:#333;text-align:center;padding:10px;font-size:13px;font-weight:600;position:fixed;bottom:0;left:0;right:0;z-index:100}
+
+/* ===================== TAB PANES ===================== */
+.tab-content-wrap{flex:1;overflow:hidden;position:relative}
+.tab-pane{display:none;height:100%;overflow-y:auto}
+.tab-pane.active{display:flex;flex-direction:column}
+
+/* ===================== ONGLET ACCUEIL ===================== */
+.accueil-meteo-fixed{background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 20px;flex-shrink:0}
+.accueil-feed{flex:1;overflow-y:auto;padding:16px 20px;padding-bottom:80px}
+
+/* ===================== BOTTOM NAV ===================== */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:#fff;border-top:1px solid #e5e7eb;display:flex;align-items:stretch;z-index:300;box-shadow:0 -2px 12px rgba(0,0,0,.08)}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 4px;transition:color .15s;color:#9ca3af;-webkit-tap-highlight-color:transparent}
+.bn-item.active{color:#7C3AED}
+.bn-icon{font-size:20px;line-height:1}
+.bn-label{font-size:10px;font-weight:600;line-height:1}
 
 /* ===================== GRID & WIDGETS ===================== */
-.grid{flex:1;overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-content:start}
+.grid{flex:1;overflow-y:auto;padding:20px;padding-bottom:80px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-content:start}
 
 @media(max-width:700px){
-  .grid{grid-template-columns:1fr !important;padding:12px;gap:12px}
+  .grid{grid-template-columns:1fr !important;padding:12px;padding-bottom:80px;gap:12px}
   .widget{min-width:0}
 }
 .widget{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .15s;position:relative;user-select:none;display:flex;flex-direction:column}
@@ -46,7 +60,7 @@ input:focus{border-color:#7C3AED}
 .wi img{width:40px;height:40px;object-fit:cover;border-radius:50%}
 .wt{font-weight:700;font-size:15px;color:#333}
 .wc{color:#666;font-size:14px;line-height:1.5;flex:1}
-.wf{margin-top:12px;font-size:12px;color:#9ca3af;text-align:right}
+.wf{margin-top:12px;font-size:12px;color:#9ca3af;text-align:right;white-space:normal;word-break:break-word}
 .rbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;border-radius:4px}
 .rbtn:hover{background:#f3f4f6}
 
@@ -80,7 +94,6 @@ input:focus{border-color:#7C3AED}
 .modal-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 
 /* ===================== BOUTONS GÉNÉRIQUES ===================== */
-/* btn-save et save-btn fusionnés — une seule classe viola */
 .btn-save,.save-btn{flex:1;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
 .btn-save:hover,.save-btn:hover{background:#6D28D9}
 .btn-delete,.danger-btn{padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
@@ -264,8 +277,6 @@ input:focus{border-color:#7C3AED}
 .btn-rapport:hover{border-color:#e83e8c}
 .journal-form textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;font-family:inherit;resize:vertical}
 .journal-form textarea:focus{border-color:#e83e8c}
-
-/* Grille symptômes — chips icon + label alignés */
 .journal-symptomes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .symptome-chip{display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid #e5e7eb;border-radius:10px;cursor:pointer;transition:all .15s;background:#fff;user-select:none}
 .symptome-chip:hover{border-color:#e83e8c;background:#fdf2f8}
@@ -458,18 +469,9 @@ input:focus{border-color:#7C3AED}
 .create-form input,.create-form select{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:10px;outline:none;font-family:inherit;background:#fff}
 .create-form input:focus,.create-form select:focus{border-color:#7C3AED}
 
-/* ===================== RESPONSIVE ===================== */
-@media(max-width:640px){
-  .wa-stats-row{grid-template-columns:repeat(2,1fr)}
-  .as-cards-grid{grid-template-columns:repeat(2,1fr)}
-  .user-card-actions{flex-wrap:nowrap;overflow-x:auto}
-}
-
 /* ===================== WIDGET ASTROLOGIE ===================== */
 .widget.w-astrologie{background:linear-gradient(135deg,#fdf4ff 0%,#ffffff 100%)}
 .w-astrologie .wi{background:#f3e8ff}
-
-/* Widget — résumé */
 .astro-widget{display:flex;flex-direction:column;gap:10px}
 .astro-signe-row{display:flex;align-items:center;gap:12px}
 .astro-emoji{font-size:32px;line-height:1;flex-shrink:0}
@@ -479,54 +481,40 @@ input:focus{border-color:#7C3AED}
 .astro-no-signe{display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0}
 .astro-btn-profil{padding:8px 20px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-top:4px}
 .astro-btn-profil:hover{background:#6d28d9}
-
-/* Modale — selector signes */
 .astro-modal{display:flex;flex-direction:column;gap:16px}
 .astro-selector{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
 .astro-selector-btn{padding:6px 10px;border:1.5px solid #e5e7eb;border-radius:20px;background:#fff;font-size:12px;font-weight:600;color:#555;cursor:pointer;transition:all .15s}
 .astro-selector-btn:hover{border-color:#a855f7;color:#7c3aed}
 .astro-selector-btn.active{border-color:#7c3aed;background:#f3e8ff;color:#7c3aed}
-
-/* Modale — header signe */
 .astro-modal-header{display:flex;align-items:center;gap:14px;background:#faf5ff;border-radius:14px;padding:14px 16px}
 .astro-modal-emoji{font-size:40px;line-height:1;flex-shrink:0}
 .astro-modal-signe{font-size:20px;font-weight:800;color:#6d28d9}
 .astro-modal-dates{font-size:12px;color:#9ca3af;margin-top:2px}
-
-/* Modale — sections horoscope */
 .astro-sections{display:flex;flex-direction:column;gap:12px}
 .astro-section{background:#faf5ff;border-radius:10px;padding:12px 14px;border-left:4px solid #a855f7}
 .astro-section-titre{font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .astro-section-texte{font-size:13px;color:#444;line-height:1.6}
 
-/* ===================== PASSWORD TOGGLE (B.14) ===================== */
-/* Wrapper relatif pour positionner l'icône dans le champ */
+/* ===================== PASSWORD TOGGLE ===================== */
 .pwd-wrapper{position:relative;width:100%;margin-bottom:16px}
 .pwd-wrapper input{width:100%;margin-bottom:0;padding-right:44px}
 .pwd-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9ca3af;padding:4px;line-height:1;-webkit-tap-highlight-color:transparent}
 .pwd-toggle:hover{color:#7C3AED}
 
-/* ===================== FIXES MOBILE (B.3 B.4 B.8 B.9) ===================== */
-
-/* B.8 — Header mobile cache le dernier widget
-   Le footer fixe fait 37px (padding 10px + font 13px + line-height).
-   On ajoute un padding-bottom à la grille pour que le dernier widget
-   ne soit pas masqué. */
-@media(max-width:700px){
-  .grid{padding-bottom:56px}
-}
-
-/* B.3 — "Cliquez pour gérer" coupé sur mobile
-   Le texte du footer widget passe en wrap au lieu d'être tronqué. */
-.wf{margin-top:12px;font-size:12px;color:#9ca3af;text-align:right;white-space:normal;word-break:break-word}
-
-/* B.4 — Scrollbars modale Prière
-   La scrollbar interne .priere-texte-complet est trop visible sur mobile.
-   On la rend fine et discrète. */
-.priere-texte-complet::-webkit-scrollbar{width:3px}
-.priere-texte-complet::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:2px}
-.priere-texte-complet::-webkit-scrollbar-track{background:transparent}
-
-/* B.9 — Numéro de build trop noir
-   Le span dans .footer passe en gris moyen. */
+/* ===================== FOOTER ===================== */
+.footer{background:#f3f4f6;color:#333;text-align:center;padding:6px;font-size:13px;font-weight:600;z-index:100}
 .footer span{color:#9ca3af !important;font-weight:500}
+
+/* ===================== FEED PLACEHOLDER ===================== */
+.feed-placeholder{display:flex;align-items:center;justify-content:center;height:200px;color:#9ca3af;font-size:15px;font-weight:600;background:#fff;border-radius:16px;border:2px dashed #e5e7eb}
+
+/* ===================== RESPONSIVE ===================== */
+@media(max-width:640px){
+  .wa-stats-row{grid-template-columns:repeat(2,1fr)}
+  .as-cards-grid{grid-template-columns:repeat(2,1fr)}
+  .user-card-actions{flex-wrap:nowrap;overflow-x:auto}
+  .date-badge{display:none}
+}
+@media(max-width:700px){
+  .accueil-feed{padding-bottom:80px}
+}

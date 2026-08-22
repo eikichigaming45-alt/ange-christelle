@@ -1,9 +1,7 @@
 // ============================================================
 // public/js/app.js
 // Point d'entrée front : état global, login, logout, init app,
-// utilitaires date/version, refresh widgets.
-// chargerProfilHeader() définie uniquement dans profil.js.
-// v3.84 — TOUS_WIDGETS avec icon séparé, tri automatique localeCompare
+// navigation onglets, utilitaires date/version, refresh widgets.
 // ============================================================
 
 // ===================== STATE GLOBAL ==========================
@@ -15,6 +13,7 @@ let longPressTimer  = null;
 let dragActif       = false;
 let cropperInstance = null;
 let _appInitialisee = false;
+let _ongletActif    = 'accueil';
 
 // ===================== DÉFINITION DES WIDGETS ================
 const WIDGETS_DEF = [
@@ -30,16 +29,11 @@ const WIDGETS_DEF = [
     { id:'profil',        label:'Mon Profil',         icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
 ];
 
-// Ajouter un nouveau widget ici dans n'importe quel ordre —
-// le tri alphabétique est automatique dans profil.js et widgets.js.
-// Un nouveau slug absent de widgets_caches = coché par défaut pour
-// les utilisateurs existants, sans toucher à leurs préférences.
 const TOUS_WIDGETS = [
     { slug:'anniversaires', label:'Anniversaires',     icon:'🎂' },
     { slug:'astrologie',    label:'Astrologie',        icon:'✨' },
     { slug:'cycle',         label:'Suivi du cycle',    icon:'🌸' },
     { slug:'islam',         label:'Prières & Hadiths', icon:'🌙' },
-    { slug:'meteo',         label:'Météo',             icon:'🌤️' },
     { slug:'planning',      label:'Planning',          icon:'📋' },
     { slug:'priere',        label:'Prière du jour',    icon:'🙏' },
     { slug:'rendezvous',    label:'Rendez-vous',       icon:'🩺' },
@@ -70,9 +64,9 @@ function getUser() {
         const app       = document.getElementById('app');
         if (loginPage) loginPage.style.display = 'none';
         if (app) {
-            app.style.display               = 'flex';
-            document.body.style.background  = '#f3f4f6';
-            document.body.style.alignItems  = 'stretch';
+            app.style.display              = 'flex';
+            document.body.style.background = '#f3f4f6';
+            document.body.style.alignItems = 'stretch';
         }
     }
 })();
@@ -90,9 +84,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const pwdInput  = document.getElementById('password');
     if (toggleBtn && pwdInput) {
         toggleBtn.addEventListener('click', () => {
-            const visible = pwdInput.type === 'text';
-            pwdInput.type           = visible ? 'password' : 'text';
-            toggleBtn.textContent   = visible ? '👁' : '🙈';
+            const visible       = pwdInput.type === 'text';
+            pwdInput.type       = visible ? 'password' : 'text';
+            toggleBtn.textContent = visible ? '👁' : '🙈';
             toggleBtn.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
         });
     }
@@ -144,12 +138,17 @@ async function showApp() {
 
     afficherDate();
     afficherVersion();
+
+    // Restaurer onglet actif
+    const saved = localStorage.getItem('mydaily_onglet') || 'accueil';
     await buildGrid();
 
+    switchTab(saved, true);
+
     chargerPriere();
-    if (typeof window.chargerIslam  === 'function') window.chargerIslam();
+    if (typeof window.chargerIslam === 'function') window.chargerIslam();
     chargerMeteoAuto();
-    if (typeof chargerAstrologie    === 'function') chargerAstrologie();
+    if (typeof chargerAstrologie   === 'function') chargerAstrologie();
     setTimeout(() => {
         if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
     }, 300);
@@ -162,6 +161,35 @@ async function showApp() {
     initPush();
 }
 
+// ===================== NAVIGATION ONGLETS ====================
+
+const ONGLET_TITRES = {
+    accueil  : 'MyDaily',
+    quotidien: 'Mon Quotidien',
+    bienetre : 'Bien-être',
+    liens    : 'Liens',
+    app      : 'Application'
+};
+
+function switchTab(onglet, silent = false) {
+    _ongletActif = onglet;
+    if (!silent) localStorage.setItem('mydaily_onglet', onglet);
+
+    // Masquer / afficher les panes
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    const pane = document.getElementById(`tab-${onglet}`);
+    if (pane) pane.classList.add('active');
+
+    // Mettre à jour la bottom nav
+    document.querySelectorAll('.bn-item').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === onglet);
+    });
+
+    // Titre topbar
+    const titleEl = document.getElementById('topbar-title');
+    if (titleEl) titleEl.textContent = ONGLET_TITRES[onglet] || 'MyDaily';
+}
+
 // ===================== LOGOUT ================================
 function logout() {
     localStorage.removeItem('myvibe_user');
@@ -171,22 +199,35 @@ function logout() {
     profilCache     = null;
     meteoData       = null;
     priere          = null;
+    _ongletActif    = 'accueil';
 
     document.getElementById('app').style.display        = 'none';
-    document.getElementById('main-grid').innerHTML      = '';
     document.body.style.background                      = '';
     document.body.style.alignItems                      = '';
     document.getElementById('login-page').style.display = 'flex';
     document.getElementById('username').value           = '';
     document.getElementById('password').value           = '';
 
+    // Vider toutes les grilles
+    ['quotidien','bienetre','liens','app'].forEach(o => {
+        const g = document.getElementById(`grid-${o}`);
+        if (g) g.innerHTML = '';
+    });
+    const accueilMeteo = document.getElementById('accueil-meteo');
+    if (accueilMeteo) accueilMeteo.innerHTML = '';
+    const accueilFeed  = document.getElementById('accueil-feed');
+    if (accueilFeed) accueilFeed.innerHTML = '<div class="feed-placeholder"><span>Le fil social arrive bientôt ✨</span></div>';
+
     const pwdInput  = document.getElementById('password');
     const toggleBtn = document.getElementById('toggle-password');
-    if (pwdInput)  pwdInput.type          = 'password';
-    if (toggleBtn) toggleBtn.textContent  = '👁';
+    if (pwdInput)  pwdInput.type        = 'password';
+    if (toggleBtn) toggleBtn.textContent = '👁';
 
     const errEl = document.getElementById('error-msg');
     if (errEl) errEl.textContent = '';
+
+    // Reset bottom nav
+    switchTab('accueil', true);
 }
 
 // ===================== ACTUALISER ============================
@@ -308,19 +349,19 @@ async function afficherVersion() {
             const el = document.querySelector('.footer');
             if (el) el.innerHTML = `<span style="font-size:13px;font-weight:600;color:#333">${match[1]}</span>`;
         }
-    } catch { /* silencieux — non critique */ }
+    } catch { /* silencieux */ }
 }
 
 // ===================== REFRESH WIDGET ========================
 function refreshWidget(id) {
     switch (id) {
-        case 'meteo'      : chargerMeteoAuto();                                                   break;
-        case 'priere'     : chargerPriere();                                                      break;
-        case 'islam'      : if (typeof window.chargerIslam === 'function') window.chargerIslam(); break;
-        case 'astrologie' : if (typeof chargerAstrologie   === 'function') chargerAstrologie();   break;
-        case 'cycle'      : if (typeof Cycle      !== 'undefined') Cycle.charger();               break;
-        case 'rendezvous' : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();          break;
-        case 'planning'   : chargerWidgetPlanning();                                              break;
+        case 'meteo'      : chargerMeteoAuto();                                                    break;
+        case 'priere'     : chargerPriere();                                                       break;
+        case 'islam'      : if (typeof window.chargerIslam === 'function') window.chargerIslam();  break;
+        case 'astrologie' : if (typeof chargerAstrologie   === 'function') chargerAstrologie();    break;
+        case 'cycle'      : if (typeof Cycle      !== 'undefined') Cycle.charger();                break;
+        case 'rendezvous' : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();           break;
+        case 'planning'   : chargerWidgetPlanning();                                               break;
     }
 }
 
@@ -330,3 +371,4 @@ function enregistrerServiceWorker() {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 }
+
