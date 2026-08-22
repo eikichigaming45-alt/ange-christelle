@@ -1,3 +1,8 @@
+// ============================================================
+// routes/auth.js
+// Authentification JWT — login + déblocage admin.
+// ============================================================
+
 const express    = require('express');
 const router     = express.Router();
 const bcrypt     = require('bcryptjs');
@@ -18,11 +23,9 @@ const loginLimiter = rateLimit({
 });
 
 // ── POST /api/login ───────────────────────────────────────────
-// Vérifie les identifiants et retourne un token JWT 1 jour.
-// Login insensible à la casse :
-//   Le username est normalisé en minuscules avant comparaison DB.
-//   Les usernames sont stockés en minuscules (format prenom.nom).
-//   Ainsi "Mickael.Aguillon" et "mickael.aguillon" sont équivalents.
+// Vérifie les identifiants et retourne un token JWT 7 jours.
+// Login insensible à la casse : username normalisé en minuscules.
+// Format attendu : prenom.nom — ex. jean.dupont et Jean.Dupont sont équivalents.
 router.post('/login', loginLimiter, async (req, res) => {
     const { username: rawUsername, password } = req.body;
 
@@ -33,7 +36,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
     try {
         const result = await pool.query(
-            'SELECT id, username, password, role, must_change_password FROM users WHERE username = \$1',
+            'SELECT id, username, password, role, must_change_password FROM users WHERE username = \\$1',
             [username]
         );
         if (result.rows.length === 0) {
@@ -47,15 +50,15 @@ router.post('/login', loginLimiter, async (req, res) => {
 
         const mdpInvalide = validerMotDePasse(password) !== null;
         if (mdpInvalide && !user.must_change_password) {
-            await pool.query('UPDATE users SET must_change_password = TRUE WHERE id = \$1', [user.id]);
+            await pool.query('UPDATE users SET must_change_password = TRUE WHERE id = \\$1', [user.id]);
         }
 
-        await pool.query('UPDATE users SET last_login = NOW() WHERE id = \$1', [user.id]);
+        await pool.query('UPDATE users SET last_login = NOW() WHERE id = \\$1', [user.id]);
 
         const token = jwt.sign(
             { id: user.id, username: user.username, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '1d' }
+            { expiresIn: '7d' }
         );
 
         res.json({
