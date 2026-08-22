@@ -37,8 +37,8 @@ input:focus{border-color:#7C3AED}
 
 /* ===================== ONGLET ACCUEIL ===================== */
 .accueil-meteo-fixed{background:#fff;border-bottom:1px solid #e5e7eb;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-.meteo-accueil-card{padding:14px 20px;cursor:pointer;transition:background .15s}
-.meteo-accueil-card:hover{background:#f8f5ff}
+.meteo-accueil-card{padding:14px 20px;cursor:pointer;transition:background .15s;max-width:600px;margin:0 auto}
+.meteo-accueil-card:hover{background:#f8f5ff;border-radius:12px}
 .accueil-feed{flex:1;overflow-y:auto;padding:16px;padding-bottom:80px;display:flex;flex-direction:column;gap:16px;background:#f3f4f6}
 
 /* ===================== FEED PLACEHOLDER ===================== */
