@@ -3,13 +3,11 @@
 // Fil social : posts, likes, commentaires, follows
 // ============================================================
 
-const express         = require('express');
-const router          = express.Router();
-const { pool }        = require('../db/pool');
+const express              = require('express');
+const router               = express.Router();
+const { pool }             = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
-const { createClient } = require('@supabase/supabase-js');
-const multer          = require('multer');
-const upload          = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const { createClient }     = require('@supabase/supabase-js');
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -18,14 +16,15 @@ const supabase = createClient(
 
 // ── GET /api/feed?filter=following ───────────────────────────
 router.get('/', authenticateToken, async (req, res) => {
-    const userId   = req.user.userId;
-    const filter   = req.query.filter;
+    const userId = req.user.userId;
+    const filter = req.query.filter;
     try {
         let query = `
             SELECT
                 p.id, p.contenu, p.photo_url, p.created_at,
                 pr.prenom, pr.nom, pr.photo AS avatar,
                 u.username,
+                u.id AS user_id,
                 (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id)::int AS likes,
                 (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id)::int AS nb_comments,
                 EXISTS(SELECT 1 FROM post_likes l WHERE l.post_id = p.id AND l.user_id = \$1) AS liked
@@ -46,19 +45,25 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 });
 
-// ── POST /api/feed ────────────────────────────────────────────
-router.post('/', authenticateToken, upload.single('photo'), async (req, res) => {
+// ── POST /api/feed (JSON + base64 photo optionnelle) ─────────
+router.post('/', authenticateToken, async (req, res) => {
     const userId  = req.user.userId;
     const contenu = (req.body.contenu || '').trim();
-    if (!contenu && !req.file) return res.status(400).json({ success: false, message: 'Post vide.' });
+    const photoB64 = req.body.photo || null;
+    const photoMime = req.body.mime || 'image/jpeg';
+
+    if (!contenu && !photoB64) {
+        return res.status(400).json({ success: false, message: 'Post vide.' });
+    }
     try {
         let photo_url = null;
-        if (req.file) {
-            const ext      = req.file.mimetype.split('/')[1] || 'jpg';
+        if (photoB64) {
+            const buffer   = Buffer.from(photoB64, 'base64');
+            const ext      = photoMime.split('/')[1] || 'jpg';
             const filename = `${userId}_${Date.now()}.${ext}`;
             const { error } = await supabase.storage
                 .from('posts-photos')
-                .upload(filename, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+                .upload(filename, buffer, { contentType: photoMime, upsert: false });
             if (error) throw new Error(error.message);
             const { data } = supabase.storage.from('posts-photos').getPublicUrl(filename);
             photo_url = data.publicUrl;
@@ -80,7 +85,9 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     const postId = parseInt(req.params.id);
     try {
-        const { rows } = await pool.query(`SELECT user_id, photo_url FROM posts WHERE id = \$1`, [postId]);
+        const { rows } = await pool.query(
+            `SELECT user_id, photo_url FROM posts WHERE id = \$1`, [postId]
+        );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Post introuvable.' });
         const post = rows[0];
         if (post.user_id !== userId && req.user.role !== 'admin') {
@@ -108,10 +115,16 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
             [postId, userId]
         );
         if (rows.length) {
-            await pool.query(`DELETE FROM post_likes WHERE post_id = \$1 AND user_id = \$2`, [postId, userId]);
+            await pool.query(
+                `DELETE FROM post_likes WHERE post_id = \$1 AND user_id = \$2`,
+                [postId, userId]
+            );
             res.json({ success: true, liked: false });
         } else {
-            await pool.query(`INSERT INTO post_likes (post_id, user_id) VALUES (\$1, \$2)`, [postId, userId]);
+            await pool.query(
+                `INSERT INTO post_likes (post_id, user_id) VALUES (\$1, \$2)`,
+                [postId, userId]
+            );
             res.json({ success: true, liked: true });
         }
     } catch (e) {
@@ -165,7 +178,9 @@ router.delete('/comments/:id', authenticateToken, async (req, res) => {
     const userId    = req.user.userId;
     const commentId = parseInt(req.params.id);
     try {
-        const { rows } = await pool.query(`SELECT user_id FROM post_comments WHERE id = \$1`, [commentId]);
+        const { rows } = await pool.query(
+            `SELECT user_id FROM post_comments WHERE id = \$1`, [commentId]
+        );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Commentaire introuvable.' });
         if (rows[0].user_id !== userId && req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Interdit.' });
@@ -182,17 +197,25 @@ router.delete('/comments/:id', authenticateToken, async (req, res) => {
 router.post('/follow/:id', authenticateToken, async (req, res) => {
     const followerId  = req.user.userId;
     const followingId = parseInt(req.params.id);
-    if (followerId === followingId) return res.status(400).json({ success: false, message: 'Impossible de se suivre soi-même.' });
+    if (followerId === followingId) {
+        return res.status(400).json({ success: false, message: 'Impossible de se suivre soi-même.' });
+    }
     try {
         const { rows } = await pool.query(
             `SELECT id FROM follows WHERE follower_id = \$1 AND following_id = \$2`,
             [followerId, followingId]
         );
         if (rows.length) {
-            await pool.query(`DELETE FROM follows WHERE follower_id = \$1 AND following_id = \$2`, [followerId, followingId]);
+            await pool.query(
+                `DELETE FROM follows WHERE follower_id = \$1 AND following_id = \$2`,
+                [followerId, followingId]
+            );
             res.json({ success: true, following: false });
         } else {
-            await pool.query(`INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`, [followerId, followingId]);
+            await pool.query(
+                `INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`,
+                [followerId, followingId]
+            );
             res.json({ success: true, following: true });
         }
     } catch (e) {
@@ -206,8 +229,7 @@ router.get('/following', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     try {
         const { rows } = await pool.query(
-            `SELECT following_id FROM follows WHERE follower_id = \$1`,
-            [userId]
+            `SELECT following_id FROM follows WHERE follower_id = \$1`, [userId]
         );
         res.json({ success: true, following: rows.map(r => r.following_id) });
     } catch (e) {

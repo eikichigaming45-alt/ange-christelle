@@ -297,19 +297,36 @@ async function publierPost() {
     const contenu = document.getElementById('post-contenu').value.trim();
     const photo   = document.getElementById('post-photo').files[0];
     const msg     = document.getElementById('post-msg');
+
     if (!contenu && !photo) {
         msg.style.color = '#ef4444';
         msg.textContent = 'Le post ne peut pas être vide.';
         return;
     }
-    const form = new FormData();
-    if (contenu) form.append('contenu', contenu);
-    if (photo)   form.append('photo', photo);
+
     try {
+        let photoB64 = null;
+        let mime     = null;
+        if (photo) {
+            mime     = photo.type || 'image/jpeg';
+            photoB64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload  = e => resolve(e.target.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(photo);
+            });
+        }
+
+        const body = { contenu };
+        if (photoB64) { body.photo = photoB64; body.mime = mime; }
+
         const r = await fetch('/api/feed', {
-            method : 'POST',
-            headers: { 'Authorization': `Bearer ${user.token}` },
-            body   : form
+            method  : 'POST',
+            headers : {
+                'Authorization' : `Bearer ${user.token}`,
+                'Content-Type'  : 'application/json'
+            },
+            body: JSON.stringify(body)
         });
         const d = await r.json();
         if (d.success) {
