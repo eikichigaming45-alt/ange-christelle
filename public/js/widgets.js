@@ -40,7 +40,10 @@ async function buildGrid() {
         const dProfil  = await rProfil.json();
         if (dOrdre.success && dOrdre.ordre)                             ordre         = dOrdre.ordre;
         if (dWidgets.success && Array.isArray(dWidgets.widgets_caches)) widgetsCaches = dWidgets.widgets_caches;
-        if (dProfil.success && dProfil.profil)                          sexe          = dProfil.profil.sexe;
+        if (dProfil.success && dProfil.profil) {
+            sexe        = dProfil.profil.sexe;
+            profilCache = dProfil.profil; // ← FIX : remplir profilCache ici
+        }
     } catch { /* silencieux */ }
 
     let defs = [...WIDGETS_DEF];
@@ -278,4 +281,3 @@ function appliquerWidgetsVisibles(widgetsCaches) {
         el.style.display = widgetsCaches.includes(id) ? 'none' : '';
     });
 }
-

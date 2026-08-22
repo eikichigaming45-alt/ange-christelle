@@ -53,13 +53,18 @@ async function chargerMeteo(lat, lon, nomVille) {
         };
 
         _renderWidget();
-        
-        // Sauvegarde de la ville dans le profil utilisateur en base (perso par user)
+
+        // Sauvegarde en base avec token
+        const user = getUser();
         fetch('/api/profil/meteo-ville', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            method : 'PATCH',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user?.token}`
+            },
             body: JSON.stringify({ lat, lon, ville: nomVille })
         }).catch(() => {});
+
     } catch { if (el) el.textContent = 'Météo non disponible'; }
 }
 
@@ -125,11 +130,11 @@ function _renderModaleMeteo(selectedIdx) {
     const dateLabel = selectedIdx === 0
         ? "Aujourd'hui"
         : dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-    const iMax   = Math.round(d.daily.temperature_2m_max[selectedIdx]);
-    const iMin   = Math.round(d.daily.temperature_2m_min[selectedIdx]);
-    const iIcon  = METEO_ICONS[d.daily.weather_code[selectedIdx]] || '🌡️';
-    const iPluie = d.daily.precipitation_probability_max?.[selectedIdx] || 0;
-    const desc   = METEO_DESC[d.daily.weather_code[selectedIdx]] || 'Variable';
+    const iMax    = Math.round(d.daily.temperature_2m_max[selectedIdx]);
+    const iMin    = Math.round(d.daily.temperature_2m_min[selectedIdx]);
+    const iIcon   = METEO_ICONS[d.daily.weather_code[selectedIdx]] || '🌡️';
+    const iPluie  = d.daily.precipitation_probability_max?.[selectedIdx] || 0;
+    const desc    = METEO_DESC[d.daily.weather_code[selectedIdx]] || 'Variable';
     const isToday = selectedIdx === 0;
 
     const joursHTML = d.daily.time.slice(0, 6).map((tj, i) => {
@@ -214,17 +219,29 @@ function afficherDetailJourModale(i) {
 }
 
 async function chargerMeteoAuto() {
-    try {
-        const r = await fetch('/api/profil');
-        const d = await r.json();
-        const p = d.profil;
+    // 1. profilCache déjà rempli par buildGrid() → priorité absolue
+    if (profilCache?.meteo_lat && profilCache?.meteo_lon) {
+        chargerMeteo(profilCache.meteo_lat, profilCache.meteo_lon, profilCache.meteo_ville || 'Ma ville');
+        return;
+    }
 
-        if (p?.meteo_lat && p?.meteo_lon) {
-            chargerMeteo(p.meteo_lat, p.meteo_lon, p.meteo_ville || 'Ma ville');
-            return;
+    // 2. Fallback : appel API avec token
+    try {
+        const user = getUser();
+        if (user?.token) {
+            const r = await fetch('/api/profil', {
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+            const d = await r.json();
+            if (d.profil?.meteo_lat && d.profil?.meteo_lon) {
+                profilCache = d.profil;
+                chargerMeteo(d.profil.meteo_lat, d.profil.meteo_lon, d.profil.meteo_ville || 'Ma ville');
+                return;
+            }
         }
     } catch { /* fallback géoloc */ }
 
+    // 3. Aucune ville en base → géolocalisation
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             async pos => {
