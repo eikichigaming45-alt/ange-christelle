@@ -19,7 +19,7 @@ router.get('/', authenticateToken, async (req, res) => {
             `SELECT prenom, nom, date_naissance, email, telephone,
                     profession, note, photo, widgets_visibles,
                     signe_zodiaque, sexe, meteo_lat, meteo_lon, meteo_ville
-             FROM profiles WHERE user_id = \\$1`,
+             FROM profiles WHERE user_id = \$1`,
             [req.user.id]
         );
         if (result.rows.length === 0) {
@@ -41,11 +41,11 @@ router.post('/', authenticateToken, async (req, res) => {
             INSERT INTO profiles
                 (user_id, prenom, nom, date_naissance, email, telephone,
                  profession, note, photo, signe_zodiaque, sexe, updated_at)
-            VALUES (\\$1, \\$2, \\$3, \\$4, \\$5, \\$6, \\$7, \\$8, \\$9, \\$10, \\$11, NOW())
+            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10, \$11, NOW())
             ON CONFLICT (user_id) DO UPDATE SET
-                prenom=\\$2, nom=\\$3, date_naissance=\\$4, email=\\$5,
-                telephone=\\$6, profession=\\$7, note=\\$8, photo=\\$9,
-                signe_zodiaque=\\$10, sexe=\\$11, updated_at=NOW()
+                prenom=\$2, nom=\$3, date_naissance=\$4, email=\$5,
+                telephone=\$6, profession=\$7, note=\$8, photo=\$9,
+                signe_zodiaque=\$10, sexe=\$11, updated_at=NOW()
         `, [req.user.id, prenom, nom, date_naissance || null,
             email, telephone, profession, note, photo,
             signe_zodiaque || null, sexe || null]);
@@ -65,8 +65,8 @@ router.patch('/meteo-ville', authenticateToken, async (req, res) => {
     try {
         await pool.query(
             `UPDATE profiles
-             SET meteo_lat = \\$1, meteo_lon = \\$2, meteo_ville = \\$3, updated_at = NOW()
-             WHERE user_id = \\$4`,
+             SET meteo_lat = \$1, meteo_lon = \$2, meteo_ville = \$3, updated_at = NOW()
+             WHERE user_id = \$4`,
             [lat, lon, ville || null, req.user.id]
         );
         res.json({ success: true });
@@ -80,7 +80,7 @@ router.patch('/meteo-ville', authenticateToken, async (req, res) => {
 router.delete('/photo', authenticateToken, async (req, res) => {
     try {
         await pool.query(
-            'UPDATE profiles SET photo = NULL, updated_at = NOW() WHERE user_id = \\$1',
+            'UPDATE profiles SET photo = NULL, updated_at = NOW() WHERE user_id = \$1',
             [req.user.id]
         );
         res.json({ success: true });
@@ -100,7 +100,7 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
     if (erreur) return res.status(400).json({ success: false, message: erreur });
     try {
         const result = await pool.query(
-            'SELECT password FROM users WHERE id = \\$1',
+            'SELECT password FROM users WHERE id = \$1',
             [req.user.id]
         );
         if (result.rows.length === 0) {
@@ -112,7 +112,7 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
         }
         const hash = await bcrypt.hash(nouveauMdp, 10);
         await pool.query(
-            'UPDATE users SET password = \\$1, must_change_password = FALSE WHERE id = \\$2',
+            'UPDATE users SET password = \$1, must_change_password = FALSE WHERE id = \$2',
             [hash, req.user.id]
         );
         res.json({ success: true });
@@ -126,7 +126,7 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
 router.get('/widgets-visibles', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT widgets_visibles FROM profiles WHERE user_id = \\$1',
+            'SELECT widgets_visibles FROM profiles WHERE user_id = \$1',
             [req.user.id]
         );
         const widgets_caches = result.rows[0]?.widgets_visibles || [];
@@ -145,7 +145,7 @@ router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
     }
     try {
         await pool.query(
-            'UPDATE profiles SET widgets_visibles = \\$1 WHERE user_id = \\$2',
+            'UPDATE profiles SET widgets_visibles = \$1 WHERE user_id = \$2',
             [widgets_caches, req.user.id]
         );
         res.json({ success: true });
