@@ -202,11 +202,6 @@ function logout() {
     const accueilFeed  = document.getElementById('accueil-feed');
     if (accueilFeed) accueilFeed.innerHTML = '<div class="feed-placeholder"><span>Le fil social arrive bientôt ✨</span></div>';
 
-    const pwdInput  = document.getElementById('password');
-    const toggleBtn = document.getElementById('toggle-password');
-    if (pwdInput)  pwdInput.type         = 'password';
-    if (toggleBtn) toggleBtn.textContent = '👁';
-
     const errEl = document.getElementById('error-msg');
     if (errEl) errEl.textContent = '';
 
