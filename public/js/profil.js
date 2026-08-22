@@ -5,8 +5,6 @@
 // de passe, préférences widgets (opt-out).
 // Dépend de : app.js (getUser, profilCache, cropperInstance, TOUS_WIDGETS)
 //             widgets.js (appliquerWidgetsVisibles)
-// B.6 — message suppression iso : "Confirmer la suppression ?"
-// v3.84 — tri automatique localeCompare dans afficherSectionWidgets
 // ============================================================
 
 // ===================== UTILITAIRE TRIGRAMME ==================
@@ -50,6 +48,9 @@ async function chargerProfilHeader() {
             btn.style.fontWeight   = '';
         }
 
+        // Masquer/afficher widget cycle selon sexe
+        _appliquerVisibiliteCycle(p.sexe);
+
         const wc = document.getElementById('wc-profil');
         if (!wc) return;
         const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
@@ -75,6 +76,14 @@ async function chargerProfilHeader() {
             </div>
         `;
     } catch { /* silencieux */ }
+}
+
+// ── Masquer widget cycle si homme ou intersexe ────────────────
+function _appliquerVisibiliteCycle(sexe) {
+    const widgetCycle = document.querySelector('.widget[data-id="cycle"]');
+    if (!widgetCycle) return;
+    const cacher = sexe === 'homme' || sexe === 'intersexe';
+    widgetCycle.style.display = cacher ? 'none' : '';
 }
 
 // ===================== PHOTO & CROPPER =======================
@@ -162,7 +171,6 @@ function annulerCrop() {
 }
 
 // ===================== SUPPRESSION PHOTO =====================
-// B.6 — message iso "Confirmer la suppression ?"
 
 function supprimerPhoto() {
     document.getElementById('modal-title').textContent = 'Confirmation';
@@ -240,6 +248,7 @@ async function sauvegarderProfil() {
         telephone     : document.getElementById('p-tel').value,
         profession    : document.getElementById('p-prof').value,
         note          : document.getElementById('p-note').value,
+        sexe          : document.getElementById('p-sexe').value || null,
         photo
     };
 
@@ -258,9 +267,11 @@ async function sauvegarderProfil() {
             msg.style.color = '#10b981';
             profilCache     = { ...profilCache, ...body };
             chargerProfilHeader();
+            // Applique immédiatement la visibilité du widget cycle
+            _appliquerVisibiliteCycle(body.sexe);
         } else {
             msg.textContent = '❌ ' + (d.message || 'Erreur.');
-            msg.style.            color = '#ef4444';
+            msg.style.color = '#ef4444';
         }
     } catch {
         msg.textContent = '❌ Erreur réseau.';
@@ -338,8 +349,6 @@ async function afficherSectionWidgets() {
         const data          = await res.json();
         const widgetsCaches = data.widgets_caches || [];
 
-        // Tri automatique alphabétique sur le label pur sans emoji,
-        // peu importe l'ordre dans TOUS_WIDGETS dans app.js.
         const tries = [...TOUS_WIDGETS].sort((a, b) =>
             a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' })
         );
@@ -390,4 +399,3 @@ async function sauvegarderWidgetsVisibles() {
         msg.style.color = '#ef4444';
     }
 }
-

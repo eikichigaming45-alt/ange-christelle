@@ -2,19 +2,13 @@
 // public/js/widgets.js
 // Grille principale, drag & drop souris + tactile, opt-out widgets.
 // Dépend de : app.js (WIDGETS_DEF, dragSrc, dragActif, longPressTimer)
-// B.1 — bouton refresh supprimé sur tous les widgets.
-// v3.84 — tri automatique localeCompare sensitivity base
 // ============================================================
 
 let gridConstruit = false;
 
-// ===================== RESET (rebuild propre) ================
-
 function resetGrid() {
     gridConstruit = false;
 }
-
-// ===================== CONSTRUCTION DE LA GRILLE =============
 
 async function buildGrid() {
     if (gridConstruit) return;
@@ -27,23 +21,28 @@ async function buildGrid() {
 
     let ordre         = null;
     let widgetsCaches = [];
+    let sexe          = null;
 
     try {
-        const [rOrdre, rWidgets] = await Promise.all([
+        const [rOrdre, rWidgets, rProfil] = await Promise.all([
             fetch('/api/widget-order', {
                 headers: { 'Authorization': `Bearer ${token}` }
             }),
             fetch('/api/profil/widgets-visibles', {
                 headers: { 'Authorization': `Bearer ${token}` }
+            }),
+            fetch('/api/profil', {
+                headers: { 'Authorization': `Bearer ${token}` }
             })
         ]);
         const dOrdre   = await rOrdre.json();
         const dWidgets = await rWidgets.json();
+        const dProfil  = await rProfil.json();
         if (dOrdre.success && dOrdre.ordre)                             ordre         = dOrdre.ordre;
         if (dWidgets.success && Array.isArray(dWidgets.widgets_caches)) widgetsCaches = dWidgets.widgets_caches;
-    } catch { /* silencieux — grille chargée avec valeurs par défaut */ }
+        if (dProfil.success && dProfil.profil)                          sexe          = dProfil.profil.sexe;
+    } catch { /* silencieux */ }
 
-    // Ajout du widget admin si rôle admin
     let defs = [...WIDGETS_DEF];
     if (user?.role === 'admin') {
         defs.push({
@@ -54,6 +53,11 @@ async function buildGrid() {
             desc : 'Gérer les utilisateurs et les paramètres',
             foot : 'Cliquez pour gérer'
         });
+    }
+
+    // Masquer cycle si homme ou intersexe
+    if (sexe === 'homme' || sexe === 'intersexe') {
+        defs = defs.filter(w => w.id !== 'cycle');
     }
 
     if (ordre) {
@@ -72,7 +76,6 @@ async function buildGrid() {
         defs = [...normaux, ...derniers];
     }
 
-    // Filtrage opt-out
     const TOUJOURS_VISIBLES = ['profil'];
     defs = defs.filter(w => {
         if (w.id === 'admin')                 return user?.role === 'admin';
@@ -87,8 +90,6 @@ async function buildGrid() {
     if (typeof Rendezvous            !== 'undefined') Rendezvous.charger();
     if (typeof chargerWidgetPlanning === 'function') chargerWidgetPlanning();
 }
-
-// ===================== CRÉATION D'UN WIDGET ==================
 
 function creerWidget(def) {
     const div      = document.createElement('div');
@@ -277,3 +278,4 @@ function appliquerWidgetsVisibles(widgetsCaches) {
         el.style.display = widgetsCaches.includes(id) ? 'none' : '';
     });
 }
+

@@ -199,8 +199,8 @@ async function openModal(type) {
             });
             const d = await r.json();
             const p = d.profil || {};
-            profilCache    = p;
-            const photoSrc = p.photo || '';
+            profilCache     = p;
+            const photoSrc  = p.photo || '';
             const initiales = construireTrigramme(p.prenom, p.nom) || '👤';
 
             document.getElementById('modal-body').innerHTML = `
@@ -261,6 +261,16 @@ async function openModal(type) {
                         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Date de naissance</label>
                         <input id="p-naissance" type="date" value="${p.date_naissance ? p.date_naissance.split('T')[0] : ''}"
                             style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                    </div>
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Sexe</label>
+                        <select id="p-sexe"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                            <option value="">— Non renseigné —</option>
+                            <option value="femme"     ${p.sexe === 'femme'     ? 'selected' : ''}>Femme</option>
+                            <option value="homme"     ${p.sexe === 'homme'     ? 'selected' : ''}>Homme</option>
+                            <option value="intersexe" ${p.sexe === 'intersexe' ? 'selected' : ''}>Intersexe</option>
+                        </select>
                     </div>
                     <div style="margin-bottom:10px">
                         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Email</label>
@@ -368,7 +378,7 @@ async function openModal(type) {
                         </div>
                         <button onclick="sauvegarderWidgetsVisibles()"
                             style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);
-                                   color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;
+                                   color:white;border:none;border                                   -radius:12px;font-size:15px;font-weight:600;
                                    cursor:pointer;margin-top:16px;box-shadow:0 4px 10px rgba(16,185,129,0.3)">
                             💾 Sauvegarder mes widgets
                         </button>
@@ -475,4 +485,3 @@ function closeOutside(e) {
     if (e.target === document.getElementById('overlay')) closeModal();
 }
 
-        

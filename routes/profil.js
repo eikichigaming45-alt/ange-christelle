@@ -1,5 +1,5 @@
 // ============================================================
-// routes/profil.js — v3.50
+// routes/profil.js
 // Gestion du profil utilisateur : lecture, écriture, mot de passe,
 // suppression photo, et préférences widgets (opt-out).
 // signe_zodiaque : saisi manuellement si pas de date_naissance.
@@ -17,7 +17,8 @@ router.get('/', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT prenom, nom, date_naissance, email, telephone,
-                    profession, note, photo, widgets_visibles, signe_zodiaque
+                    profession, note, photo, widgets_visibles,
+                    signe_zodiaque, sexe
              FROM profiles WHERE user_id = \$1`,
             [req.user.id]
         );
@@ -33,20 +34,21 @@ router.get('/', authenticateToken, async (req, res) => {
 
 // ── POST /api/profil ──────────────────────────────────────────
 router.post('/', authenticateToken, async (req, res) => {
-    const { prenom, nom, date_naissance, email, telephone, profession, note, photo, signe_zodiaque } = req.body;
+    const { prenom, nom, date_naissance, email, telephone,
+            profession, note, photo, signe_zodiaque, sexe } = req.body;
     try {
         await pool.query(`
             INSERT INTO profiles
                 (user_id, prenom, nom, date_naissance, email, telephone,
-                 profession, note, photo, signe_zodiaque, updated_at)
-            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10, NOW())
+                 profession, note, photo, signe_zodiaque, sexe, updated_at)
+            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10, \$11, NOW())
             ON CONFLICT (user_id) DO UPDATE SET
                 prenom=\$2, nom=\$3, date_naissance=\$4, email=\$5,
                 telephone=\$6, profession=\$7, note=\$8, photo=\$9,
-                signe_zodiaque=\$10, updated_at=NOW()
+                signe_zodiaque=\$10, sexe=\$11, updated_at=NOW()
         `, [req.user.id, prenom, nom, date_naissance || null,
             email, telephone, profession, note, photo,
-            signe_zodiaque || null]);
+            signe_zodiaque || null, sexe || null]);
         res.json({ success: true });
     } catch (err) {
         console.error('[PROFIL] POST /', err.message);
