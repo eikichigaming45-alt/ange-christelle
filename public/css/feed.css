@@ -90,6 +90,8 @@
     align-items: center;
     gap: 10px;
     cursor: pointer;
+    flex: 1;
+    min-width: 0;
 }
 
 .feed-avatar {
@@ -114,6 +116,9 @@
     font-size: 14px;
     font-weight: 700;
     color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .feed-handle {
@@ -138,6 +143,7 @@
     font-weight: 600;
     cursor: pointer;
     transition: all .2s;
+    white-space: nowrap;
 }
 
 .feed-follow-btn.following {
@@ -149,9 +155,18 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 16px;
-    color: #9ca3af;
-    padding: 4px;
+    color: #d1d5db;
+    padding: 6px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color .2s, background .2s;
+}
+
+.feed-delete-btn:hover {
+    color: #ef4444;
+    background: #fee2e2;
 }
 
 /* ===================== CONTENU POST ===================== */
@@ -163,20 +178,35 @@
     word-break: break-word;
 }
 
+/* ===================== PHOTO POST ===================== */
+.feed-photo-wrap {
+    width: 100%;
+    max-height: 320px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f3f4f6;
+}
+
 .feed-photo {
     width: 100%;
-    border-radius: 10px;
-    max-height: 300px;
+    height: 100%;
+    max-height: 320px;
     object-fit: cover;
+    display: block;
     cursor: pointer;
+    transition: opacity .2s;
+}
+
+.feed-photo:hover {
+    opacity: .92;
 }
 
 /* ===================== FOOTER POST ===================== */
 .feed-footer {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding-top: 6px;
+    gap: 20px;
+    padding-top: 8px;
     border-top: 1px solid #f3f4f6;
 }
 
@@ -188,21 +218,18 @@
     cursor: pointer;
     font-size: 13px;
     font-weight: 600;
-    color: #6b7280;
+    color: #9ca3af;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     padding: 4px 0;
     transition: color .2s;
 }
 
-.feed-like-btn.liked {
-    color: #ef4444;
-}
-
-.feed-like-btn:hover { color: #ef4444; }
+.feed-like-btn:hover    { color: #7c3aed; }
+.feed-like-btn.liked    { color: #7c3aed; }
 .feed-comment-btn:hover { color: #7c3aed; }
-.feed-share-btn:hover { color: #3b82f6; }
+.feed-share-btn:hover   { color: #7c3aed; }
 
 /* ===================== COMMENTAIRES ===================== */
 .feed-comments {
@@ -225,7 +252,7 @@
 .feed-comment-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
@@ -245,15 +272,24 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 13px;
-    color: #9ca3af;
-    padding: 0;
+    color: #d1d5db;
+    padding: 2px 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    transition: color .2s, background .2s;
+}
+
+.feed-comment-delete:hover {
+    color: #ef4444;
+    background: #fee2e2;
 }
 
 .feed-comment-contenu {
     font-size: 13px;
     color: #374151;
     word-break: break-word;
+    line-height: 1.5;
 }
 
 .feed-comment-form {
@@ -270,6 +306,11 @@
     font-size: 13px;
     outline: none;
     font-family: inherit;
+    transition: border-color .2s;
+}
+
+.feed-comment-input:focus {
+    border-color: #7c3aed;
 }
 
 .feed-comment-send {
@@ -281,6 +322,7 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+    white-space: nowrap;
 }
 
 /* ===================== ÉTATS ===================== */
