@@ -166,6 +166,8 @@ const ONGLET_TITRES = {
 };
 
 function switchTab(onglet, silent = false) {
+    const etaitDejaAccueil = (_ongletActif === 'accueil' && onglet === 'accueil');
+
     _ongletActif = onglet;
     if (!silent) localStorage.setItem('mydaily_onglet', onglet);
 
@@ -179,6 +181,12 @@ function switchTab(onglet, silent = false) {
 
     const titleEl = document.getElementById('topbar-title');
     if (titleEl) titleEl.textContent = ONGLET_TITRES[onglet] || 'MyDaily';
+
+    // Refresh silencieux du feed au clic sur l'onglet Accueil —
+    // qu'on y soit déjà ou qu'on y revienne depuis un autre onglet.
+    if (onglet === 'accueil' && !silent) {
+        if (typeof chargerFeed === 'function') chargerFeed();
+    }
 }
 
 // ===================== LOGOUT ================================
@@ -348,6 +356,45 @@ function refreshWidget(id) {
         case 'cycle'      : if (typeof Cycle      !== 'undefined') Cycle.charger();                break;
         case 'rendezvous' : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();           break;
         case 'planning'   : chargerWidgetPlanning();                                               break;
+    }
+}
+
+// ===================== SERVICE WORKER ========================
+function enregistrerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+}
+
+// ===================== NAVIGATION ONGLETS ====================
+
+const ONGLET_TITRES = {
+    accueil  : 'MyDaily',
+    quotidien: 'Mon Quotidien',
+    bienetre : 'Bien-être',
+    profil   : 'Profil',
+    apropos  : 'À propos'
+};
+
+function switchTab(onglet, silent = false) {
+    _ongletActif = onglet;
+    if (!silent) localStorage.setItem('mydaily_onglet', onglet);
+
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    const pane = document.getElementById(`tab-${onglet}`);
+    if (pane) pane.classList.add('active');
+
+    document.querySelectorAll('.bn-item').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === onglet);
+    });
+
+    const titleEl = document.getElementById('topbar-title');
+    if (titleEl) titleEl.textContent = ONGLET_TITRES[onglet] || 'MyDaily';
+
+    // Refresh silencieux du feed au clic sur l'onglet Accueil —
+    // qu'on y soit déjà ou qu'on y revienne depuis un autre onglet.
+    if (onglet === 'accueil' && !silent) {
+        if (typeof chargerFeed === 'function') chargerFeed();
     }
 }
 
