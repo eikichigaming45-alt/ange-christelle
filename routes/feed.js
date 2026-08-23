@@ -14,7 +14,7 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_KEY
 );
 
-// ── GET /api/feed?filter=following ───────────────────────────
+// ── GET /api/feed ─────────────────────────────────────────────
 router.get('/', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const filter = req.query.filter;
@@ -79,49 +79,105 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
-// ── PUT /api/feed/:id (édition post) ─────────────────────────
-router.put('/:id', authenticateToken, async (req, res) => {
-    const userId  = req.user.id;
-    const postId  = parseInt(req.params.id);
-    const contenu = (req.body.contenu || '').trim();
-    if (!contenu) return res.status(400).json({ success: false, message: 'Contenu vide.' });
+// ── GET /api/feed/following ───────────────────────────────────
+router.get('/following', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
     try {
         const { rows } = await pool.query(
-            `SELECT user_id FROM posts WHERE id = \$1`, [postId]
+            `SELECT following_id FROM follows WHERE follower_id = \$1`, [userId]
         );
-        if (!rows.length) return res.status(404).json({ success: false, message: 'Post introuvable.' });
-        if (rows[0].user_id !== userId && req.user.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Interdit.' });
-        }
-        await pool.query(`UPDATE posts SET contenu = \$1 WHERE id = \$2`, [contenu, postId]);
-        res.json({ success: true });
+        res.json({ success: true, following: rows.map(r => r.following_id) });
     } catch (e) {
-        console.error('[FEED PUT]', e.message);
+        console.error('[FEED FOLLOWING]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// ── DELETE /api/feed/:id ──────────────────────────────────────
-router.delete('/:id', authenticateToken, async (req, res) => {
-    const userId = req.user.id;
-    const postId = parseInt(req.params.id);
+// ── POST /api/feed/follow/:id ─────────────────────────────────
+router.post('/follow/:id', authenticateToken, async (req, res) => {
+    const followerId  = req.user.id;
+    const followingId = parseInt(req.params.id);
+    if (followerId === followingId) {
+        return res.status(400).json({ success: false, message: 'Impossible de se suivre soi-même.' });
+    }
     try {
         const { rows } = await pool.query(
-            `SELECT user_id, photo_url FROM posts WHERE id = \$1`, [postId]
+            `SELECT id FROM follows WHERE follower_id = \$1 AND following_id = \$2`,
+            [followerId, followingId]
         );
-        if (!rows.length) return res.status(404).json({ success: false, message: 'Post introuvable.' });
-        const post = rows[0];
-        if (post.user_id !== userId && req.user.role !== 'admin') {
+        if (rows.length) {
+            await pool.query(`DELETE FROM follows WHERE follower_id = \$1 AND following_id = \$2`, [followerId, followingId]);
+            res.json({ success: true, following: false });
+        } else {
+            await pool.query(`INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`, [followerId, followingId]);
+            res.json({ success: true, following: true });
+        }
+    } catch (e) {
+        console.error('[FEED FOLLOW]', e.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── PUT /api/feed/comments/:id (édition commentaire) ─────────
+router.put('/comments/:id', authenticateToken, async (req, res) => {
+    const userId    = req.user.id;
+    const commentId = parseInt(req.params.id);
+    const contenu   = (req.body.contenu || '').trim();
+    if (!contenu) return res.status(400).json({ success: false, message: 'Contenu vide.' });
+    try {
+        const { rows } = await pool.query(
+            `SELECT user_id FROM post_comments WHERE id = \$1`, [commentId]
+        );
+        if (!rows.length) return res.status(404).json({ success: false, message: 'Commentaire introuvable.' });
+        if (rows[0].user_id !== userId && req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Interdit.' });
         }
-        if (post.photo_url) {
-            const filename = post.photo_url.split('/').pop();
-            await supabase.storage.from('posts-photos').remove([filename]);
-        }
-        await pool.query(`DELETE FROM posts WHERE id = \$1`, [postId]);
+        await pool.query(`UPDATE post_comments SET contenu = \$1 WHERE id = \$2`, [contenu, commentId]);
         res.json({ success: true });
     } catch (e) {
-        console.error('[FEED DELETE]', e.message);
+        console.error('[FEED COMMENT PUT]', e.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── DELETE /api/feed/comments/:id ────────────────────────────
+router.delete('/comments/:id', authenticateToken, async (req, res) => {
+    const userId    = req.user.id;
+    const commentId = parseInt(req.params.id);
+    try {
+        const { rows } = await pool.query(
+            `SELECT user_id FROM post_comments WHERE id = \$1`, [commentId]
+        );
+        if (!rows.length) return res.status(404).json({ success: false, message: 'Commentaire introuvable.' });
+        if (rows[0].user_id !== userId && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Interdit.' });
+        }
+        await pool.query(`DELETE FROM post_comments WHERE id = \$1`, [commentId]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('[FEED COMMENT DELETE]', e.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── POST /api/feed/comments/:id/like ─────────────────────────
+router.post('/comments/:id/like', authenticateToken, async (req, res) => {
+    const userId    = req.user.id;
+    const commentId = parseInt(req.params.id);
+    try {
+        const { rows } = await pool.query(
+            `SELECT id FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`,
+            [commentId, userId]
+        );
+        if (rows.length) {
+            await pool.query(`DELETE FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`, [commentId, userId]);
+            res.json({ success: true, liked: false });
+        } else {
+            await pool.query(`INSERT INTO comment_likes (comment_id, user_id) VALUES (\$1, \$2)`, [commentId, userId]);
+            res.json({ success: true, liked: true });
+        }
+    } catch (e) {
+        console.error('[COMMENT LIKE]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
@@ -210,105 +266,49 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
     }
 });
 
-// ── PUT /api/feed/comments/:id (édition commentaire) ─────────
-router.put('/comments/:id', authenticateToken, async (req, res) => {
-    const userId    = req.user.id;
-    const commentId = parseInt(req.params.id);
-    const contenu   = (req.body.contenu || '').trim();
+// ── PUT /api/feed/:id (édition post) ─────────────────────────
+router.put('/:id', authenticateToken, async (req, res) => {
+    const userId  = req.user.id;
+    const postId  = parseInt(req.params.id);
+    const contenu = (req.body.contenu || '').trim();
     if (!contenu) return res.status(400).json({ success: false, message: 'Contenu vide.' });
     try {
         const { rows } = await pool.query(
-            `SELECT user_id FROM post_comments WHERE id = \$1`, [commentId]
+            `SELECT user_id FROM posts WHERE id = \$1`, [postId]
         );
-        if (!rows.length) return res.status(404).json({ success: false, message: 'Commentaire introuvable.' });
+        if (!rows.length) return res.status(404).json({ success: false, message: 'Post introuvable.' });
         if (rows[0].user_id !== userId && req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Interdit.' });
         }
-        await pool.query(`UPDATE post_comments SET contenu = \$1 WHERE id = \$2`, [contenu, commentId]);
+        await pool.query(`UPDATE posts SET contenu = \$1 WHERE id = \$2`, [contenu, postId]);
         res.json({ success: true });
     } catch (e) {
-        console.error('[FEED COMMENT PUT]', e.message);
+        console.error('[FEED PUT]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// ── DELETE /api/feed/comments/:id ────────────────────────────
-router.delete('/comments/:id', authenticateToken, async (req, res) => {
-    const userId    = req.user.id;
-    const commentId = parseInt(req.params.id);
-    try {
-        const { rows } = await pool.query(
-            `SELECT user_id FROM post_comments WHERE id = \$1`, [commentId]
-        );
-        if (!rows.length) return res.status(404).json({ success: false, message: 'Commentaire introuvable.' });
-        if (rows[0].user_id !== userId && req.user.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Interdit.' });
-        }
-        await pool.query(`DELETE FROM post_comments WHERE id = \$1`, [commentId]);
-        res.json({ success: true });
-    } catch (e) {
-        console.error('[FEED COMMENT DELETE]', e.message);
-        res.status(500).json({ success: false, message: 'Erreur serveur.' });
-    }
-});
-
-// ── POST /api/feed/comments/:id/like ─────────────────────────
-router.post('/comments/:id/like', authenticateToken, async (req, res) => {
-    const userId    = req.user.id;
-    const commentId = parseInt(req.params.id);
-    try {
-        const { rows } = await pool.query(
-            `SELECT id FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`,
-            [commentId, userId]
-        );
-        if (rows.length) {
-            await pool.query(`DELETE FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`, [commentId, userId]);
-            res.json({ success: true, liked: false });
-        } else {
-            await pool.query(`INSERT INTO comment_likes (comment_id, user_id) VALUES (\$1, \$2)`, [commentId, userId]);
-            res.json({ success: true, liked: true });
-        }
-    } catch (e) {
-        console.error('[COMMENT LIKE]', e.message);
-        res.status(500).json({ success: false, message: 'Erreur serveur.' });
-    }
-});
-
-// ── POST /api/feed/follow/:id ─────────────────────────────────
-router.post('/follow/:id', authenticateToken, async (req, res) => {
-    const followerId  = req.user.id;
-    const followingId = parseInt(req.params.id);
-    if (followerId === followingId) {
-        return res.status(400).json({ success: false, message: 'Impossible de se suivre soi-même.' });
-    }
-    try {
-        const { rows } = await pool.query(
-            `SELECT id FROM follows WHERE follower_id = \$1 AND following_id = \$2`,
-            [followerId, followingId]
-        );
-        if (rows.length) {
-            await pool.query(`DELETE FROM follows WHERE follower_id = \$1 AND following_id = \$2`, [followerId, followingId]);
-            res.json({ success: true, following: false });
-        } else {
-            await pool.query(`INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`, [followerId, followingId]);
-            res.json({ success: true, following: true });
-        }
-    } catch (e) {
-        console.error('[FEED FOLLOW]', e.message);
-        res.status(500).json({ success: false, message: 'Erreur serveur.' });
-    }
-});
-
-// ── GET /api/feed/following ───────────────────────────────────
-router.get('/following', authenticateToken, async (req, res) => {
+// ── DELETE /api/feed/:id ──────────────────────────────────────
+router.delete('/:id', authenticateToken, async (req, res) => {
     const userId = req.user.id;
+    const postId = parseInt(req.params.id);
     try {
         const { rows } = await pool.query(
-            `SELECT following_id FROM follows WHERE follower_id = \$1`, [userId]
+            `SELECT user_id, photo_url FROM posts WHERE id = \$1`, [postId]
         );
-        res.json({ success: true, following: rows.map(r => r.following_id) });
+        if (!rows.length) return res.status(404).json({ success: false, message: 'Post introuvable.' });
+        const post = rows[0];
+        if (post.user_id !== userId && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Interdit.' });
+        }
+        if (post.photo_url) {
+            const filename = post.photo_url.split('/').pop();
+            await supabase.storage.from('posts-photos').remove([filename]);
+        }
+        await pool.query(`DELETE FROM posts WHERE id = \$1`, [postId]);
+        res.json({ success: true });
     } catch (e) {
-        console.error('[FEED FOLLOWING]', e.message);
+        console.error('[FEED DELETE]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
