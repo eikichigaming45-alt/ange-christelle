@@ -1,7 +1,8 @@
-const CACHE_NAME = 'mydaily-cache-v4.06';
+const CACHE_NAME = 'mydaily-cache-v4.07';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
+    '/css/feed.css',
     '/js/app.js',
     '/js/widgets.js',
     '/js/modal.js',
@@ -17,6 +18,7 @@ const ASSETS_TO_CACHE = [
     '/js/push.js',
     '/js/admin.js',
     '/js/astrologie.js',
+    '/js/feed.js',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png'
@@ -52,16 +54,18 @@ self.addEventListener('fetch', event => {
 
     if (url.pathname.startsWith('/api/')) return;
 
-    const networkFirst = ['/', '/index.html', '/css/style.css'];
+    const networkFirst = ['/', '/index.html', '/css/style.css', '/css/feed.css'];
     if (networkFirst.includes(url.pathname)) {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                    if (response && response.status === 200) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                    }
                     return response;
                 })
-                .catch(() => caches.match(event.request))
+                .catch(() => caches.match(event.request).then(cached => cached || new Response('', { status: 503 })))
         );
         return;
     }
