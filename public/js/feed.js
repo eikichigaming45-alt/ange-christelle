@@ -88,7 +88,7 @@ function renderPost(p) {
     const followed = feedFollowing.includes(p.user_id);
 
     return `
-        <div class="feed-card" id="post-${p.id}" data-post-id="${p.id}">
+        <div class="feed-card" id="post-${p.id}" data-post-id="${p.id}" data-photo-url="${escapeHtml(p.photo_url || '')}">
             <div class="feed-card-header">
                 <div class="feed-user" onclick="ouvrirProfilPublic(${p.user_id})">
                     ${avatar}
@@ -194,11 +194,31 @@ async function voirLikers(postId, e) {
 // ── ÉDITER POST ───────────────────────────────────────────────
 function editerPost(postId) {
     const contenuActuel = document.getElementById(`post-contenu-${postId}`)?.textContent || '';
+    const photoActuelle = document.getElementById(`post-${postId}`)?.dataset.photoUrl || '';
+
     document.getElementById('modal-title').textContent = 'Modifier le post';
     document.getElementById('modal-body').innerHTML = `
         <textarea id="edit-post-contenu" rows="4"
             style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
                    font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
+        ${photoActuelle ? `
+        <div id="edit-photo-actuelle" style="margin-top:12px">
+            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px">Photo actuelle</div>
+            <img src="${photoActuelle}" style="width:100%;border-radius:10px;max-height:200px;object-fit:contain;background:#f3f4f6">
+            <button id="btn-suppr-photo" onclick="marquerSuppressionPhoto()"
+                style="margin-top:8px;padding:7px 14px;background:#fee2e2;color:#ef4444;border:none;
+                       border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
+                🗑️ Supprimer la photo
+            </button>
+        </div>` : ''}
+        <div style="margin-top:12px">
+            <label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">
+                ${photoActuelle ? 'Remplacer la photo' : 'Ajouter une photo (optionnelle)'}
+            </label>
+            <input type="file" id="edit-post-photo" accept="image/*"
+                style="font-size:13px;color:#374151">
+        </div>
+        <div id="edit-post-preview" style="margin-top:10px"></div>
         <button onclick="sauvegarderEditionPost(${postId})"
             style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
                    color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
@@ -207,22 +227,68 @@ function editerPost(postId) {
         <div id="edit-post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
     document.getElementById('edit-post-contenu').value = contenuActuel;
+
+    document.getElementById('edit-post-photo').addEventListener('change', e => {
+        const file    = e.target.files[0];
+        const preview = document.getElementById('edit-post-preview');
+        if (file) {
+            const url = URL.createObjectURL(file);
+            preview.innerHTML = `<img src="${url}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`;
+        } else {
+            preview.innerHTML = '';
+        }
+    });
+
     document.getElementById('overlay').classList.add('on');
+}
+
+window._editSupprimerPhoto = false;
+
+function marquerSuppressionPhoto() {
+    window._editSupprimerPhoto = true;
+    const bloc = document.getElementById('edit-photo-actuelle');
+    if (bloc) bloc.innerHTML = `<div style="font-size:13px;color:#ef4444;font-weight:600;padding:8px 0">Photo supprimée à la sauvegarde</div>`;
 }
 
 async function sauvegarderEditionPost(postId) {
     const user    = getUser();
     const contenu = document.getElementById('edit-post-contenu').value.trim();
+    const photo   = document.getElementById('edit-post-photo').files[0];
     const msg     = document.getElementById('edit-post-msg');
-    if (!contenu) { msg.style.color = '#ef4444'; msg.textContent = 'Contenu vide.'; return; }
+
+    if (!contenu && !photo && window._editSupprimerPhoto) {
+        msg.style.color = '#ef4444';
+        msg.textContent = 'Le post ne peut pas être vide (texte ou photo requis).';
+        return;
+    }
+
     try {
+        let photoB64 = null;
+        let mime     = null;
+        if (photo) {
+            mime     = photo.type || 'image/jpeg';
+            photoB64 = await new Promise((resolve, reject) => {
+                const reader   = new FileReader();
+                reader.onload  = e => resolve(e.target.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(photo);
+            });
+        }
+
+        const body = {
+            contenu,
+            supprimer_photo: window._editSupprimerPhoto
+        };
+        if (photoB64) { body.photo = photoB64; body.mime = mime; }
+
         const r = await fetch(`/api/feed/${postId}`, {
             method  : 'PUT',
             headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
-            body    : JSON.stringify({ contenu })
+            body    : JSON.stringify(body)
         });
         const d = await r.json();
         if (d.success) {
+            window._editSupprimerPhoto = false;
             closeModal();
             await chargerFeed();
         } else {
@@ -478,6 +544,7 @@ async function toggleFollow(userId, btn) {
 
 // ── MODAL NOUVEAU POST ────────────────────────────────────────
 function ouvrirModalPost() {
+    window._editSupprimerPhoto = false;
     document.getElementById('overlay').classList.add('on');
     document.getElementById('modal-title').textContent = 'Nouveau post';
     document.getElementById('modal-body').innerHTML = `
@@ -568,19 +635,28 @@ function ouvrirPhoto(url) {
 
 // ── PARTAGE ───────────────────────────────────────────────────
 async function partagerPost(postId) {
+    const card      = document.getElementById(`post-${postId}`);
     const contenuEl = document.getElementById(`post-contenu-${postId}`);
     const contenu   = contenuEl ? contenuEl.textContent.trim() : '';
-    const url       = location.origin;
+    const photoUrl  = card?.dataset.photoUrl || '';
     const text      = contenu.substring(0, 100) || 'Regarde ce post sur MyDaily';
+
     if (navigator.share) {
         try {
-            await navigator.share({ title: 'MyDaily', text, url });
+            const shareData = { title: 'MyDaily', text };
+            if (photoUrl) {
+                shareData.url = photoUrl;
+            } else {
+                shareData.url = location.origin;
+            }
+            await navigator.share(shareData);
         } catch (e) {
             if (e.name !== 'AbortError') console.error(e);
         }
     } else {
         try {
-            await navigator.clipboard.writeText(`${text}\n${url}`);
+            const urlACopier = photoUrl || location.origin;
+            await navigator.clipboard.writeText(`${text}\n${urlACopier}`);
             document.getElementById('modal-title').textContent = 'Lien copié';
             document.getElementById('modal-body').innerHTML = `
                 <p style="text-align:center;color:#374151;padding:20px 0">Le lien a été copié dans le presse-papier.</p>

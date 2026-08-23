@@ -266,22 +266,52 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
     }
 });
 
-// ── PUT /api/feed/:id (édition post) ─────────────────────────
+// ── PUT /api/feed/:id (édition post — contenu + photo) ───────
 router.put('/:id', authenticateToken, async (req, res) => {
-    const userId  = req.user.id;
-    const postId  = parseInt(req.params.id);
-    const contenu = (req.body.contenu || '').trim();
-    if (!contenu) return res.status(400).json({ success: false, message: 'Contenu vide.' });
+    const userId    = req.user.id;
+    const postId    = parseInt(req.params.id);
+    const contenu   = (req.body.contenu || '').trim();
+    const photoB64  = req.body.photo     || null;
+    const photoMime = req.body.mime      || 'image/jpeg';
+    const suppPhoto = req.body.supprimer_photo === true;
+
     try {
         const { rows } = await pool.query(
-            `SELECT user_id FROM posts WHERE id = \$1`, [postId]
+            `SELECT user_id, photo_url FROM posts WHERE id = \$1`, [postId]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Post introuvable.' });
-        if (rows[0].user_id !== userId && req.user.role !== 'admin') {
+        const post = rows[0];
+        if (post.user_id !== userId && req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Interdit.' });
         }
-        await pool.query(`UPDATE posts SET contenu = \$1 WHERE id = \$2`, [contenu, postId]);
-        res.json({ success: true });
+
+        let photo_url = post.photo_url;
+
+        // Suppression photo existante
+        if ((suppPhoto || photoB64) && post.photo_url) {
+            const filename = post.photo_url.split('/').pop();
+            await supabase.storage.from('posts-photos').remove([filename]);
+            photo_url = null;
+        }
+
+        // Upload nouvelle photo
+        if (photoB64) {
+            const buffer   = Buffer.from(photoB64, 'base64');
+            const ext      = photoMime.split('/')[1] || 'jpg';
+            const filename = `${userId}_${Date.now()}.${ext}`;
+            const { error } = await supabase.storage
+                .from('posts-photos')
+                .upload(filename, buffer, { contentType: photoMime, upsert: false });
+            if (error) throw new Error(error.message);
+            const { data } = supabase.storage.from('posts-photos').getPublicUrl(filename);
+            photo_url = data.publicUrl;
+        }
+
+        await pool.query(
+            `UPDATE posts SET contenu = \$1, photo_url = \$2 WHERE id = \$3`,
+            [contenu || null, photo_url, postId]
+        );
+        res.json({ success: true, photo_url });
     } catch (e) {
         console.error('[FEED PUT]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
