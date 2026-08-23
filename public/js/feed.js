@@ -627,12 +627,29 @@ function ouvrirPhoto(url) {
 
 // ── PARTAGE ───────────────────────────────────────────────────
 async function partagerPost(postId, contenu) {
+    const url  = location.origin;
+    const text = (contenu || '').substring(0, 100) || 'Regarde ce post sur MyDaily';
     if (navigator.share) {
         try {
-            await navigator.share({ title: 'MyDaily', text: contenu });
-        } catch {}
+            await navigator.share({ title: 'MyDaily', text, url });
+        } catch (e) {
+            if (e.name !== 'AbortError') console.error(e);
+        }
+    } else {
+        try {
+            await navigator.clipboard.writeText(`${text}\n${url}`);
+            document.getElementById('modal-title').textContent = 'Lien copié';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="text-align:center;color:#374151;padding:20px 0">Le lien a été copié dans le presse-papier.</p>
+                <button onclick="closeModal()" style="width:100%;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">OK</button>
+            `;
+            document.getElementById('overlay').classList.add('on');
+        } catch (e) {
+            console.error('clipboard', e);
+        }
     }
 }
+
 
 // ── ESCAPE HTML ───────────────────────────────────────────────
 function escapeHtml(str) {
