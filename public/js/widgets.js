@@ -13,7 +13,7 @@ function resetGrid() {
 // ===================== DÉFINITION PAR ONGLET =================
 
 const WIDGETS_PAR_ONGLET = {
-    quotidien : ['planning', 'taches', 'priere', 'islam', 'anniversaires', 'astrologie'],
+    quotidien : ['planning', 'taches', 'priere', 'islam', 'anniversaires', 'astrologie', 'social'],
     bienetre  : ['rendezvous', 'cycle', 'sport'],
     profil    : ['profil', 'admin'],
     apropos   : ['faq', 'changelog']
@@ -72,19 +72,18 @@ async function buildGrid() {
         defs = defs.filter(w => w.id !== 'cycle');
     }
 
-    // Construire chaque onglet — noms corrigés
     await buildTabGrid('quotidien', defs, ordre, widgetsCaches, user);
     await buildTabGrid('bienetre',  defs, ordre, widgetsCaches, user);
     await buildTabGrid('profil',    defs, ordre, widgetsCaches, user);
     await buildTabGrid('apropos',   defs, ordre, widgetsCaches, user);
 
-    // Météo onglet accueil
     _buildAccueilMeteo();
 
     if (typeof chargerProfilHeader   === 'function') chargerProfilHeader();
     if (typeof Cycle                 !== 'undefined') Cycle.charger();
     if (typeof Rendezvous            !== 'undefined') Rendezvous.charger();
     if (typeof chargerWidgetPlanning === 'function')  chargerWidgetPlanning();
+    if (typeof chargerWidgetSocial   === 'function')  chargerWidgetSocial();
 }
 
 async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
@@ -128,7 +127,6 @@ async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
 function _buildAccueilMeteo() {
     const el = document.getElementById('accueil-meteo');
     if (!el) return;
-    // Wrapper cliquable qui ouvre le modal météo
     el.innerHTML = `
         <div class="meteo-accueil-card" onclick="openModal('meteo')" title="Cliquez pour les détails">
             <div id="wc-meteo">Chargement...</div>
@@ -153,6 +151,7 @@ function creerWidget(def, gridId) {
     if (def.id === 'profil')     contentHtml = '<div id="wc-profil"></div>';
     if (def.id === 'astrologie') contentHtml = 'Chargement...';
     if (def.id === 'admin')      contentHtml = '<div id="wc-admin">Chargement...</div>';
+    if (def.id === 'social')     contentHtml = '<div id="wc-social">Chargement...</div>';
 
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>

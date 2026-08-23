@@ -26,6 +26,7 @@ const WIDGETS_DEF = [
     { id:'planning',      label:'Planning',           icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
     { id:'anniversaires', label:'Anniversaires',      icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
     { id:'astrologie',    label:'Astrologie',         icon:'✨',  cls:'w-astrologie',    desc:'Chargement...',  foot:'Cliquez pour votre horoscope',     refresh:true },
+    { id:'social',        label:'Social',             icon:'🤝',  cls:'w-social',        desc:'Chargement...',  foot:'Ce que mes proches partagent avec moi' },
     { id:'profil',        label:'Mon Profil',         icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
 ];
 
@@ -37,6 +38,7 @@ const TOUS_WIDGETS = [
     { slug:'planning',      label:'Planning',          icon:'📋' },
     { slug:'priere',        label:'Prière du jour',    icon:'🙏' },
     { slug:'rendezvous',    label:'Rendez-vous',       icon:'🩺' },
+    { slug:'social',        label:'Social',            icon:'🤝' },
     { slug:'taches',        label:'Tâches',            icon:'✅' },
 ];
 
@@ -139,10 +141,11 @@ async function showApp() {
     switchTab(saved, true);
 
     chargerPriere();
-    if (typeof window.chargerIslam === 'function') window.chargerIslam();
+    if (typeof window.chargerIslam   === 'function') window.chargerIslam();
     chargerMeteoAuto();
-    if (typeof initFeed            === 'function') initFeed();
-    if (typeof chargerAstrologie   === 'function') chargerAstrologie();
+    if (typeof initFeed              === 'function') initFeed();
+    if (typeof chargerAstrologie     === 'function') chargerAstrologie();
+    if (typeof chargerWidgetSocial   === 'function') chargerWidgetSocial();
     setTimeout(() => {
         if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
     }, 300);
@@ -233,6 +236,7 @@ function actualiser() {
     if (typeof chargerAstrologie    === 'function') chargerAstrologie();
     if (typeof chargerProfilHeader  === 'function') chargerProfilHeader();
     if (typeof chargerWidgetTaches  === 'function') chargerWidgetTaches();
+    if (typeof chargerWidgetSocial  === 'function') chargerWidgetSocial();
     chargerWidgetAnniversaires();
     chargerWidgetPlanning();
     if (typeof Cycle      !== 'undefined') Cycle.charger();
@@ -356,6 +360,7 @@ function refreshWidget(id) {
         case 'cycle'      : if (typeof Cycle      !== 'undefined') Cycle.charger();                break;
         case 'rendezvous' : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();           break;
         case 'planning'   : chargerWidgetPlanning();                                               break;
+        case 'social'     : if (typeof chargerWidgetSocial === 'function') chargerWidgetSocial();  break;
     }
 }
 
