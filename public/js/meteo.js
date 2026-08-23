@@ -54,7 +54,6 @@ async function chargerMeteo(lat, lon, nomVille) {
 
         _renderWidget();
 
-        // Sauvegarde en base avec token
         const user = getUser();
         fetch('/api/profil/meteo-ville', {
             method : 'PATCH',
@@ -72,6 +71,12 @@ function _renderWidget() {
     const el = document.getElementById('wc-meteo');
     if (!el || !meteoData) return;
     const d = meteoData;
+
+    const now       = new Date();
+    const dateLabel = now.toLocaleDateString('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long'
+    });
+    const dateCap   = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
 
     const joursHTML = d.daily.time.slice(0, 5).map((tj, i) => {
         const jObj  = new Date(tj + 'T12:00:00');
@@ -97,6 +102,7 @@ function _renderWidget() {
                     <div style="font-size:12px;color:#555;margin-top:2px">${d.icon} ${METEO_DESC[d.code] || 'Variable'}</div>
                     <div style="font-size:11px;color:#888">↑${d.max}° ↓${d.min}°</div>
                     <div style="font-size:11px;color:#e879a0;margin-top:2px;font-weight:600">📍 ${d.ville}</div>
+                    <div style="font-size:11px;color:#9ca3af;margin-top:2px">${dateCap}</div>
                 </div>
                 <div style="font-size:44px;line-height:1">${d.icon}</div>
             </div>
@@ -219,13 +225,10 @@ function afficherDetailJourModale(i) {
 }
 
 async function chargerMeteoAuto() {
-    // 1. profilCache déjà rempli par buildGrid() → priorité absolue
     if (profilCache?.meteo_lat && profilCache?.meteo_lon) {
         chargerMeteo(profilCache.meteo_lat, profilCache.meteo_lon, profilCache.meteo_ville || 'Ma ville');
         return;
     }
-
-    // 2. Fallback : appel API avec token
     try {
         const user = getUser();
         if (user?.token) {
@@ -241,7 +244,6 @@ async function chargerMeteoAuto() {
         }
     } catch { /* fallback géoloc */ }
 
-    // 3. Aucune ville en base → géolocalisation
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             async pos => {

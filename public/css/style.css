@@ -513,7 +513,6 @@ input:focus{border-color:#7C3AED}
   .wa-stats-row{grid-template-columns:repeat(2,1fr)}
   .as-cards-grid{grid-template-columns:repeat(2,1fr)}
   .user-card-actions{flex-wrap:nowrap;overflow-x:auto}
-  .date-badge{display:none}
 }
 @media(max-width:700px){
   .accueil-feed{padding-bottom:80px}
