@@ -232,53 +232,6 @@ async function sauvegarderEditionPost(postId) {
     }
 }
 
-// ── LIKE POST ─────────────────────────────────────────────────
-async function toggleLike(postId, btn) {
-    const user = getUser();
-    try {
-        const r = await fetch(`/api/feed/${postId}/like`, {
-            method : 'POST',
-            headers: { 'Authorization': `Bearer ${user.token}` }
-        });
-        const d = await r.json();
-        if (!d.success) return;
-        btn.classList.toggle('liked', d.liked);
-        const svg = btn.querySelector('svg');
-        if (svg) svg.setAttribute('fill', d.liked ? 'currentColor' : 'none');
-        const span = btn.querySelector('.feed-like-count');
-        if (span) span.textContent = parseInt(span.textContent) + (d.liked ? 1 : -1);
-    } catch {}
-}
-
-// ── VOIR LIKERS ───────────────────────────────────────────────
-async function voirLikers(postId, e) {
-    e.stopPropagation();
-    const user = getUser();
-    try {
-        const r = await fetch(`/api/feed/${postId}/likes`, {
-            headers: { 'Authorization': `Bearer ${user.token}` }
-        });
-        const d = await r.json();
-        if (!d.success) return;
-        document.getElementById('modal-title').textContent = 'Personnes qui aiment';
-        document.getElementById('modal-body').innerHTML = d.likers.length
-            ? d.likers.map(l => {
-                const av = l.avatar
-                    ? `<img src="${l.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
-                    : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${(l.prenom?.[0] || l.username[0]).toUpperCase()}</div>`;
-                return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6">
-                    ${av}
-                    <div>
-                        <div style="font-size:14px;font-weight:700;color:#111">${escapeHtml(l.prenom || '')} ${escapeHtml(l.nom || '')}</div>
-                        <div style="font-size:12px;color:#9ca3af">@${escapeHtml(l.username)}</div>
-                    </div>
-                </div>`;
-            }).join('')
-            : '<p style="text-align:center;color:#9ca3af;padding:20px">Aucun like pour l\'instant.</p>';
-        document.getElementById('overlay').classList.add('on');
-    } catch {}
-}
-
 // ── COMMENTAIRES ──────────────────────────────────────────────
 async function toggleCommentaires(postId) {
     const zone = document.getElementById(`comments-${postId}`);
@@ -425,16 +378,8 @@ function supprimerCommentaire(commentId, postId) {
     document.getElementById('modal-body').innerHTML = `
         <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
         <div style="display:flex;gap:8px">
-            <button id="btn-delcomment-oui" style="
-                flex:1;padding:13px;background:#ef4444;color:white;
-                border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
-                Confirmer
-            </button>
-            <button id="btn-delcomment-non" style="
-                flex:1;padding:13px;background:#f3f4f6;color:#374151;
-                border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
-                Annuler
-            </button>
+            <button id="btn-delcomment-oui" style="flex:1;padding:13px;background:#ef4444;color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Confirmer</button>
+            <button id="btn-delcomment-non" style="flex:1;padding:13px;background:#f3f4f6;color:#374151;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Annuler</button>
         </div>`;
     document.getElementById('overlay').classList.add('on');
     document.getElementById('btn-delcomment-non').onclick = () => {
@@ -482,16 +427,8 @@ function supprimerPost(postId) {
     document.getElementById('modal-body').innerHTML = `
         <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
         <div style="display:flex;gap:8px">
-            <button id="btn-delpost-oui" style="
-                flex:1;padding:13px;background:#ef4444;color:white;
-                border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
-                Confirmer
-            </button>
-            <button id="btn-delpost-non" style="
-                flex:1;padding:13px;background:#f3f4f6;color:#374151;
-                border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
-                Annuler
-            </button>
+            <button id="btn-delpost-oui" style="flex:1;padding:13px;background:#ef4444;color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Confirmer</button>
+            <button id="btn-delpost-non" style="flex:1;padding:13px;background:#f3f4f6;color:#374151;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Annuler</button>
         </div>`;
     document.getElementById('overlay').classList.add('on');
     document.getElementById('btn-delpost-non').onclick = () => {
@@ -649,7 +586,6 @@ async function partagerPost(postId, contenu) {
         }
     }
 }
-
 
 // ── ESCAPE HTML ───────────────────────────────────────────────
 function escapeHtml(str) {
