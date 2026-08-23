@@ -88,7 +88,7 @@ function renderPost(p) {
     const followed = feedFollowing.includes(p.user_id);
 
     return `
-        <div class="feed-card" id="post-${p.id}">
+        <div class="feed-card" id="post-${p.id}" data-post-id="${p.id}">
             <div class="feed-card-header">
                 <div class="feed-user" onclick="ouvrirProfilPublic(${p.user_id})">
                     ${avatar}
@@ -100,7 +100,7 @@ function renderPost(p) {
                 <div class="feed-card-actions">
                     ${!isOwner ? `<button class="feed-follow-btn ${followed ? 'following' : ''}" onclick="toggleFollow(${p.user_id}, this)">${followed ? 'Abonné' : 'Suivre'}</button>` : ''}
                     ${isOwner || isAdmin ? `
-                    <button class="feed-action-btn" onclick="editerPost(${p.id}, \`${escapeHtml(p.contenu || '')}\`)" title="Modifier">
+                    <button class="feed-action-btn" onclick="editerPost(${p.id})" title="Modifier">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -114,6 +114,7 @@ function renderPost(p) {
                     </button>` : ''}
                 </div>
             </div>
+            <div class="feed-contenu-text" id="post-contenu-${p.id}" style="display:none">${escapeHtml(p.contenu || '')}</div>
             ${p.contenu ? `<div class="feed-contenu">${escapeHtml(p.contenu)}</div>` : ''}
             ${p.photo_url ? `<div class="feed-photo-wrap"><img src="${p.photo_url}" class="feed-photo" alt="" onclick="ouvrirPhoto('${p.photo_url}')"></div>` : ''}
             <div class="feed-footer">
@@ -130,7 +131,7 @@ function renderPost(p) {
                     </svg>
                     <span>${p.nb_comments}</span>
                 </button>
-                <button class="feed-share-btn" onclick="partagerPost(${p.id}, '${escapeHtml(p.contenu || '')}')">
+                <button class="feed-share-btn" onclick="partagerPost(${p.id})">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                         <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
@@ -191,12 +192,13 @@ async function voirLikers(postId, e) {
 }
 
 // ── ÉDITER POST ───────────────────────────────────────────────
-function editerPost(postId, contenuActuel) {
+function editerPost(postId) {
+    const contenuActuel = document.getElementById(`post-contenu-${postId}`)?.textContent || '';
     document.getElementById('modal-title').textContent = 'Modifier le post';
     document.getElementById('modal-body').innerHTML = `
         <textarea id="edit-post-contenu" rows="4"
             style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
-                   font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit">${contenuActuel}</textarea>
+                   font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
         <button onclick="sauvegarderEditionPost(${postId})"
             style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
                    color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
@@ -204,6 +206,7 @@ function editerPost(postId, contenuActuel) {
         </button>
         <div id="edit-post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
+    document.getElementById('edit-post-contenu').value = contenuActuel;
     document.getElementById('overlay').classList.add('on');
 }
 
@@ -277,13 +280,13 @@ function renderComment(c, postId) {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
     });
     return `
-        <div class="feed-comment" id="comment-${c.id}">
+        <div class="feed-comment" id="comment-${c.id}" data-comment-id="${c.id}">
             <div class="feed-comment-meta">
                 <span class="feed-comment-author">${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')} <span class="feed-handle">@${escapeHtml(c.username)}</span></span>
                 <span class="feed-comment-date">${date}</span>
                 <div class="feed-comment-actions">
                     ${isOwner || isAdmin ? `
-                    <button class="feed-comment-edit-btn" onclick="editerCommentaire(${c.id}, ${postId}, \`${escapeHtml(c.contenu)}\`)">
+                    <button class="feed-comment-edit-btn" onclick="editerCommentaire(${c.id}, ${postId})">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -305,6 +308,7 @@ function renderComment(c, postId) {
                 </div>
             </div>
             <div class="feed-comment-contenu" id="comment-text-${c.id}">${escapeHtml(c.contenu)}</div>
+            <div class="feed-comment-raw" id="comment-raw-${c.id}" style="display:none">${escapeHtml(c.contenu)}</div>
         </div>
     `;
 }
@@ -331,14 +335,13 @@ async function envoyerCommentaire(postId) {
 }
 
 // ── ÉDITER COMMENTAIRE ────────────────────────────────────────
-function editerCommentaire(commentId, postId, contenuActuel) {
-    const zone = document.getElementById(`comment-${commentId}`);
-    if (!zone) return;
+function editerCommentaire(commentId, postId) {
+    const contenuActuel = document.getElementById(`comment-raw-${commentId}`)?.textContent || '';
     const textEl = document.getElementById(`comment-text-${commentId}`);
     if (!textEl) return;
     textEl.innerHTML = `
         <div style="display:flex;gap:6px;margin-top:4px">
-            <input type="text" id="edit-comment-input-${commentId}" value="${escapeHtml(contenuActuel)}"
+            <input type="text" id="edit-comment-input-${commentId}"
                 style="flex:1;padding:6px 10px;border:1.5px solid #7c3aed;border-radius:20px;
                        font-size:13px;outline:none;font-family:inherit">
             <button onclick="sauvegarderEditionCommentaire(${commentId}, ${postId})"
@@ -353,7 +356,8 @@ function editerCommentaire(commentId, postId, contenuActuel) {
             </button>
         </div>
     `;
-    document.getElementById(`edit-comment-input-${commentId}`)?.focus();
+    const input = document.getElementById(`edit-comment-input-${commentId}`);
+    if (input) { input.value = contenuActuel; input.focus(); }
 }
 
 async function sauvegarderEditionCommentaire(commentId, postId) {
@@ -563,9 +567,11 @@ function ouvrirPhoto(url) {
 }
 
 // ── PARTAGE ───────────────────────────────────────────────────
-async function partagerPost(postId, contenu) {
-    const url  = location.origin;
-    const text = (contenu || '').substring(0, 100) || 'Regarde ce post sur MyDaily';
+async function partagerPost(postId) {
+    const contenuEl = document.getElementById(`post-contenu-${postId}`);
+    const contenu   = contenuEl ? contenuEl.textContent.trim() : '';
+    const url       = location.origin;
+    const text      = contenu.substring(0, 100) || 'Regarde ce post sur MyDaily';
     if (navigator.share) {
         try {
             await navigator.share({ title: 'MyDaily', text, url });
