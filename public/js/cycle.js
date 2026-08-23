@@ -6,7 +6,6 @@
 // _journalCache : { 'YYYY-MM-DD': [ rapport1, rapport2, ... ] }
 // Plusieurs rapports sexuels par jour autorisés.
 // Mood inline dans le widget, sans modal.
-// Mood : phases suggérées + section "Bonne humeur" toujours disponible.
 // Sauvegarde manuelle, bouton explicite, pas de timer.
 // ============================================================
 
@@ -29,6 +28,7 @@ const Cycle = (() => {
         'Sociable'             : '🤝',
         'Créative'             : '🎨',
         'Confiance tranquille' : '🌿',
+        'Je me sens bien'      : '😊',
         'Confiance max'        : '✨',
         'Énergie haute'        : '⚡',
         'Charme naturel'       : '🌸',
@@ -50,18 +50,6 @@ const Cycle = (() => {
         'Moins de patience'    : '⏱️',
         'Pensées négatives'    : '🌧️',
         'Sensation de surcharge': '🧳',
-        // Section bonne humeur universelle
-        'Joyeuse'              : '😊',
-        'Reconnaissante'       : '🙏',
-        'Amoureuse'            : '💕',
-        'Épanouie'             : '🌻',
-        'Légère'               : '🍃',
-    };
-
-    // ── Section universelle toujours affichée ────────────────
-    const BONNE_HUMEUR_DEF = {
-        label: '🌈 Bonne humeur — peu importe la phase',
-        items: ['Bonne humeur', 'Joyeuse', 'Reconnaissante', 'Amoureuse', 'Épanouie', 'Légère']
     };
 
     const PHASES_MOOD_DEF = [
@@ -72,22 +60,22 @@ const Cycle = (() => {
         },
         {
             label: '🌱 Folliculaire - Montée d\'énergie',
-            items: ['Motivée','Stable','Optimiste','Concentrée',
+            items: ['Bonne humeur','Je me sens bien','Motivée','Stable','Optimiste','Concentrée',
                     'Sociable','Créative','Confiance tranquille']
         },
         {
             label: '☀️ Ovulation - Pic de confiance',
             items: ['Confiance max','Énergie haute','Charme naturel','Très sociable',
-                    'Décisive','Bonne humeur','Aisance relationnelle']
+                    'Décisive','Bonne humeur','Je me sens bien','Aisance relationnelle']
         },
         {
             label: '🌙 Lutéale début - Calme',
-            items: ['Apaisée','Ralentissement','Besoin de douceur',
+            items: ['Apaisée','Bonne humeur','Je me sens bien','Ralentissement','Besoin de douceur',
                     'Moins dans le rush','Patiente','Introspective']
         },
         {
             label: '🌙 Lutéale fin - SPM',
-            items: ['Irritabilité','Hypersensibilité','Stress facile',"Baisse d'énergie",
+            items: ['Irritabilité','Hypersensibilité','Bonne humeur','Je me sens bien','Stress facile',"Baisse d'énergie",
                     "Besoin d'isolement",'Moins de patience','Pensées négatives','Sensation de surcharge']
         }
     ];
@@ -221,6 +209,7 @@ const Cycle = (() => {
     let _moisAffiche  = null;
     let _journalCache = {};
     let _toutesLesP   = [];
+    let _moodsActifsCache = [];
 
     function calculerCycle(dernierCycle, dureeMoyenne) {
         if (!dernierCycle) return null;
@@ -490,9 +479,9 @@ const Cycle = (() => {
         const dateAff         = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
             weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
         });
-        const symptomesActifs = journal.symptomes ? journal.symptomes.split(',') : [];
+        const symptomesActifs = journal.symptomes ? journal.symptomes.split(',').filter(Boolean) : [];
 
-        document.getElementById('modal-title').textContent = isEdit
+                document.getElementById('modal-title').textContent = isEdit
             ? 'Modifier le rapport'
             : 'Enregistrer un rapport';
         document.getElementById('modal-body').innerHTML = `
@@ -505,7 +494,7 @@ const Cycle = (() => {
                     <button class="btn-rapport ${journal.humeur === 'non_protege' ? 'active' : ''}"
                         onclick="Cycle._toggleRapport(this)">♥ Non protégé</button>
                 </div>
-                                <div class="journal-section-title" style="margin-top:14px">Symptômes</div>
+                <div class="journal-section-title" style="margin-top:14px">Symptômes</div>
                 <div class="journal-symptomes">
                     ${SYMPTOMES_LIST.map(s => `
                         <label class="symptome-chip ${symptomesActifs.includes(s.key) ? 'active' : ''}"
@@ -597,24 +586,6 @@ const Cycle = (() => {
         );
     }
 
-    // ── Construit les chips d'une section mood ────────────────
-    function _renderChipsSection(items, moodsActifs) {
-        return items.map(item => {
-            const icone = MOOD_ICONS[item] || '💭';
-            return `<button
-                class="mood-chip-filled"
-                onclick="Cycle._ouvrirEditionMood('${formatDateInput(new Date())}')"
-                title="Modifier mon humeur"
-                style="display:inline-flex;align-items:center;gap:6px;
-                       border:1.5px solid #7c3aed;background:#ede9fe;
-                       color:#7c3aed;border-radius:20px;padding:5px 12px;
-                       font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">
-                <span style="font-size:15px;line-height:1">${icone}</span>
-                <span>${item}</span>
-            </button>`;
-        }).join('');
-    }
-
     // ── Vue widget mood : invite si vide, chips si rempli ─────
     async function _afficherMoodInline(calc) {
         const zone = document.getElementById('cycle-mood-zone');
@@ -624,14 +595,16 @@ const Cycle = (() => {
         const jourCycle = calculerJourCycle(calc);
         const phaseMood = getPhaseMood(jourCycle, calc);
 
-        let moodsActifs = [];
+        _moodsActifsCache = [];
         try {
             const res = await fetch(`/api/cycle/mood?date=${today}`, { headers: authHeaders() });
             const d   = await res.json();
-            if (d.mood?.moods) moodsActifs = d.mood.moods.split(',').filter(Boolean);
+            if (d.mood?.moods) {
+                _moodsActifsCache = d.mood.moods.split(',').filter(s => s.trim() !== '');
+            }
         } catch { /* silencieux */ }
 
-        _renderMoodZone(zone, phaseMood, moodsActifs, today);
+        _renderMoodZone(zone, phaseMood, _moodsActifsCache, today);
     }
 
     function _renderMoodZone(zone, phaseMood, moodsActifs, today) {
@@ -690,31 +663,19 @@ const Cycle = (() => {
         }
     }
 
-    // ── Panneau d'édition mood : phase suggérée + bonne humeur universelle ──
+    // ── Panneau d'édition mood — lit _moodsActifsCache, pas le DOM ──
     function _ouvrirEditionMood(today) {
         const zone = document.getElementById('cycle-mood-zone');
         if (!zone) return;
 
-        // Récupérer les moods actuellement affichés (chips remplies)
-        const moodsActuels = [];
-        zone.querySelectorAll('.mood-chip-filled span:last-child').forEach(s => {
-            moodsActuels.push(s.textContent.trim());
-        });
+        const moodsActuels = _moodsActifsCache;
 
-        const jourCycle = _calcCourant ? calculerJourCycle(_calcCourant) : null;
-        const phaseMood = _calcCourant ? getPhaseMood(jourCycle, _calcCourant) : null;
+        const jourCycle  = _calcCourant ? calculerJourCycle(_calcCourant) : null;
+        const phaseMood  = _calcCourant ? getPhaseMood(jourCycle, _calcCourant) : null;
         const itemsPhase = phaseMood?.items || [];
 
-        // ── Section phase du cycle ────────────────────────────
         const chipsPhase = itemsPhase.map(item => {
             const icone = MOOD_ICONS[item] || '💭';
-            const sel   = moodsActuels.includes(item);
-            return _chipEditHtml(item, icone, sel);
-        }).join('');
-
-        // ── Section bonne humeur universelle ──────────────────
-        const chipsBonneHumeur = BONNE_HUMEUR_DEF.items.map(item => {
-            const icone = MOOD_ICONS[item] || '😊';
             const sel   = moodsActuels.includes(item);
             return _chipEditHtml(item, icone, sel);
         }).join('');
@@ -729,15 +690,9 @@ const Cycle = (() => {
                         ${phaseMood.label}
                     </span>
                 </div>
-                <div id="cycle-mood-chips-phase" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+                <div id="cycle-mood-chips-phase" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
                     ${chipsPhase}
                 </div>` : ''}
-                <div style="font-size:11px;color:#9ca3af;margin-bottom:6px">
-                    ${BONNE_HUMEUR_DEF.label}
-                </div>
-                <div id="cycle-mood-chips-bonne" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
-                    ${chipsBonneHumeur}
-                </div>
                 <button onclick="Cycle._sauvegarderMoodManuel('${today}')"
                     style="width:100%;padding:9px;background:#7c3aed;color:#fff;border:none;
                            border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;
@@ -774,11 +729,7 @@ const Cycle = (() => {
     }
 
     async function _sauvegarderMoodManuel(today) {
-        // Collecter depuis les deux sections (phase + bonne humeur)
-        const chips  = [
-            ...document.querySelectorAll('#cycle-mood-chips-phase button'),
-            ...document.querySelectorAll('#cycle-mood-chips-bonne button')
-        ];
+        const chips  = [...document.querySelectorAll('#cycle-mood-chips-phase button')];
         const actifs = chips
             .filter(b => b.dataset.selected === '1')
             .map(b => b.dataset.mood);
@@ -1075,7 +1026,8 @@ const Cycle = (() => {
     async function supprimer(id) {
         confirmerSuppression(
             async () => {
-                try {                    await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
+                try {
+                    await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
                     charger();
                     ouvrirHistorique();
                 } catch {
@@ -1091,7 +1043,7 @@ const Cycle = (() => {
         );
     }
 
-    async function ouvrirHistorique(page = 0) {
+        async function ouvrirHistorique(page = 0) {
         try {
             const res          = await fetch('/api/cycle', { headers: authHeaders() });
             const d            = await res.json();
@@ -1181,5 +1133,3 @@ const Cycle = (() => {
     };
 
 })();
-
-                    
