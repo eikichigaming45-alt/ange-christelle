@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mydaily-cache-v4.21';
+const CACHE_NAME = 'mydaily-cache-v4.22';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
@@ -19,6 +19,7 @@ const ASSETS_TO_CACHE = [
     '/js/admin.js',
     '/js/astrologie.js',
     '/js/feed.js',
+    '/js/social.js',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png'

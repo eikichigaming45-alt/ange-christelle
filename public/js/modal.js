@@ -1,8 +1,5 @@
 // ============================================================
 // public/js/modal.js
-// Gestion de la modale générique, widget admin dashboard,
-// utilitaires date, validation mot de passe front.
-// Dépend de : app.js (getUser, priere), profil.js, admin.js front
 // ============================================================
 
 const JOURS_MODAL = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -206,17 +203,21 @@ async function openModal(type) {
             document.getElementById('modal-body').innerHTML = `
                 <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f3f4f6;">
                     <button class="profil-tab active" data-tab="infos"
-                        style="flex:1;padding:12px 4px;border:none;background:none;cursor:pointer;
-                               font-size:13px;font-weight:600;color:#4f46e5;
+                        style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
+                               font-size:12px;font-weight:600;color:#4f46e5;
                                border-bottom:2px solid #4f46e5;margin-bottom:-2px">👤 Profil</button>
                     <button class="profil-tab" data-tab="securite"
-                        style="flex:1;padding:12px 4px;border:none;background:none;cursor:pointer;
-                               font-size:13px;font-weight:600;color:#9ca3af;
+                        style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
+                               font-size:12px;font-weight:600;color:#9ca3af;
                                border-bottom:2px solid transparent;margin-bottom:-2px">🔑 Sécurité</button>
                     <button class="profil-tab" data-tab="widgets"
-                        style="flex:1;padding:12px 4px;border:none;background:none;cursor:pointer;
-                               font-size:13px;font-weight:600;color:#9ca3af;
+                        style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
+                               font-size:12px;font-weight:600;color:#9ca3af;
                                border-bottom:2px solid transparent;margin-bottom:-2px">📱 Widgets</button>
+                    <button class="profil-tab" data-tab="social"
+                        style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
+                               font-size:12px;font-weight:600;color:#9ca3af;
+                               border-bottom:2px solid transparent;margin-bottom:-2px">🤝 Social</button>
                 </div>
 
                 <div id="profil-tab-infos" class="profil-tab-content">
@@ -376,14 +377,35 @@ async function openModal(type) {
                         <div id="widgets-choix" class="widgets-choix-grid">
                             <p style="color:#9ca3af;font-size:13px">Chargement...</p>
                         </div>
-                        <button onclick="sauvegarderWidgetsVisibles()"
+                                                <button onclick="sauvegarderWidgetsVisibles()"
                             style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);
-                                   color:white;border:none;border                                   -radius:12px;font-size:15px;font-weight:600;
+                                   color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;
                                    cursor:pointer;margin-top:16px;box-shadow:0 4px 10px rgba(16,185,129,0.3)">
                             💾 Sauvegarder mes widgets
                         </button>
                         <div id="widgets-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
                     </div>
+                </div>
+
+                <div id="profil-tab-social" class="profil-tab-content" style="display:none">
+                    <div style="display:flex;gap:0;margin-bottom:16px;border-radius:10px;
+                                overflow:hidden;border:1px solid #ede9fe">
+                        <button data-social-tab="miens"
+                            onclick="_socialOnglet('miens')"
+                            id="social-tab-miens"
+                            style="flex:1;padding:10px;border:none;background:#7c3aed;
+                                   color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+                            Ce que je partage
+                        </button>
+                        <button data-social-tab="nouveau"
+                            onclick="_socialOnglet('nouveau')"
+                            id="social-tab-nouveau"
+                            style="flex:1;padding:10px;border:none;background:#f5f3ff;
+                                   color:#7c3aed;font-size:13px;font-weight:600;cursor:pointer">
+                            Partager avec…
+                        </button>
+                    </div>
+                    <div id="social-tab-content"></div>
                 </div>
             `;
 
@@ -396,7 +418,10 @@ async function openModal(type) {
                     tab.style.color             = '#4f46e5';
                     tab.style.borderBottomColor = '#4f46e5';
                     document.querySelectorAll('.profil-tab-content').forEach(c => c.style.display = 'none');
-                    document.getElementById(`profil-tab-${tab.dataset.tab}`).style.display = 'block';
+                    const cible = document.getElementById(`profil-tab-${tab.dataset.tab}`);
+                    if (cible) cible.style.display = 'block';
+                    if (tab.dataset.tab === 'widgets') afficherSectionWidgets();
+                    if (tab.dataset.tab === 'social')  _socialOnglet('miens');
                 });
             });
 
@@ -484,4 +509,3 @@ function closeModal() {
 function closeOutside(e) {
     if (e.target === document.getElementById('overlay')) closeModal();
 }
-
