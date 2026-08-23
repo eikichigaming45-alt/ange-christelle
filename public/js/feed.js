@@ -620,8 +620,87 @@ async function publierPost() {
 }
 
 // ── PROFIL PUBLIC ─────────────────────────────────────────────
-function ouvrirProfilPublic(userId) {
-    // Sera implémenté lors du chantier Profil public
+async function ouvrirProfilPublic(userId) {
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/profil/public/${userId}`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        const p      = d.profil;
+        const isSelf = user.username === p.username;
+        const avatar = p.photo
+            ? `<img src="${p.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed">`
+            : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
+
+        document.getElementById('modal-title').textContent = '';
+        document.getElementById('modal-body').innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:8px 0">
+                ${avatar}
+                <div style="text-align:center">
+                    <div style="font-size:18px;font-weight:700;color:#111">${escapeHtml(p.prenom || '')} ${escapeHtml(p.nom || '')}</div>
+                    <div style="font-size:13px;color:#9ca3af;margin-top:2px">@${escapeHtml(p.username)}</div>
+                    ${p.signe_zodiaque ? `<div style="font-size:12px;color:#7c3aed;margin-top:4px">${escapeHtml(p.signe_zodiaque)}</div>` : ''}
+                </div>
+                <div style="display:flex;gap:24px;text-align:center;background:#f9fafb;border-radius:14px;padding:14px 24px;width:100%;justify-content:center;box-sizing:border-box">
+                    <div>
+                        <div style="font-size:20px;font-weight:800;color:#111">${p.nb_posts}</div>
+                        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Posts</div>
+                    </div>
+                    <div>
+                        <div style="font-size:20px;font-weight:800;color:#111">${p.nb_abonnes}</div>
+                        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Abonnés</div>
+                    </div>
+                    <div>
+                        <div style="font-size:20px;font-weight:800;color:#111">${p.nb_abonnements}</div>
+                        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Abonnements</div>
+                    </div>
+                </div>
+                ${!isSelf ? `
+                <button id="btn-profil-follow" onclick="toggleFollowDepuisProfil(${p.id}, this)"
+                    style="width:100%;padding:12px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;
+                           background:${p.suivi ? '#f3f4f6' : 'linear-gradient(135deg,#7c3aed,#6d28d9)'};
+                           color:${p.suivi ? '#374151' : '#fff'}">
+                    ${p.suivi ? 'Abonné' : 'Suivre'}
+                </button>` : ''}
+                ${p.note ? `
+                <div style="width:100%;background:#f9fafb;border-radius:12px;padding:12px 14px;border-left:3px solid #7c3aed;box-sizing:border-box">
+                    <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px">Note</div>
+                    <div style="font-size:13px;color:#555;line-height:1.5">${escapeHtml(p.note)}</div>
+                </div>` : ''}
+            </div>
+        `;
+        document.getElementById('overlay').classList.add('on');
+    } catch {}
+}
+
+async function toggleFollowDepuisProfil(userId, btn) {
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/feed/follow/${userId}`, {
+            method : 'POST',
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        if (d.following) {
+            feedFollowing.push(userId);
+            btn.textContent      = 'Abonné';
+            btn.style.background = '#f3f4f6';
+            btn.style.color      = '#374151';
+        } else {
+            feedFollowing        = feedFollowing.filter(id => id !== userId);
+            btn.textContent      = 'Suivre';
+            btn.style.background = 'linear-gradient(135deg,#7c3aed,#6d28d9)';
+            btn.style.color      = '#fff';
+        }
+        const feedBtn = document.querySelector(`#feed-list .feed-follow-btn[onclick="toggleFollow(${userId}, this)"]`);
+        if (feedBtn) {
+            feedBtn.textContent = d.following ? 'Abonné' : 'Suivre';
+            feedBtn.classList.toggle('following', d.following);
+        }
+    } catch {}
 }
 
 // ── PHOTO PLEIN ÉCRAN ─────────────────────────────────────────

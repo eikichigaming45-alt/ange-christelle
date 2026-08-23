@@ -155,4 +155,56 @@ router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
     }
 });
 
+// ── GET /api/profil/public/:userId ───────────────────────────
+router.get('/public/:userId', authenticateToken, async (req, res) => {
+    const cibleId  = parseInt(req.params.userId);
+    const moi      = req.user.id;
+    if (isNaN(cibleId)) {
+        return res.status(400).json({ success: false, message: 'ID invalide.' });
+    }
+    try {
+        // Infos profil + username
+        const profilRes = await pool.query(
+            `SELECT u.id, u.username, p.prenom, p.nom, p.photo,
+                    p.signe_zodiaque, p.note
+             FROM users u
+             LEFT JOIN profiles p ON p.user_id = u.id
+             WHERE u.id = \$1`,
+            [cibleId]
+        );
+        if (profilRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+        }
+        const profil = profilRes.rows[0];
+
+        // Statistiques
+        const [[postsRes], [abonnesRes], [abonnementsRes], [suiviRes]] = await Promise.all([
+            pool.query('SELECT COUNT(*) FROM posts WHERE user_id = \$1', [cibleId]),
+            pool.query('SELECT COUNT(*) FROM follows WHERE following_id = \$1', [cibleId]),
+            pool.query('SELECT COUNT(*) FROM follows WHERE follower_id = \$1', [cibleId]),
+            pool.query('SELECT 1 FROM follows WHERE follower_id = \$1 AND following_id = \$2', [moi, cibleId])
+        ].map(p => p.then(r => [r])));
+
+        res.json({
+            success: true,
+            profil: {
+                id             : profil.id,
+                username       : profil.username,
+                prenom         : profil.prenom || '',
+                nom            : profil.nom    || '',
+                photo          : profil.photo  || null,
+                signe_zodiaque : profil.signe_zodiaque || null,
+                note           : profil.note   || null,
+                nb_posts       : parseInt(postsRes.rows[0].count),
+                nb_abonnes     : parseInt(abonnesRes.rows[0].count),
+                nb_abonnements : parseInt(abonnementsRes.rows[0].count),
+                suivi          : suiviRes.rows.length > 0
+            }
+        });
+    } catch (err) {
+        console.error('[PROFIL] GET /public/:userId :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
 module.exports = router;
