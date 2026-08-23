@@ -59,6 +59,7 @@ app.use('/api/rendezvous',     require('./routes/rendezvous'));
 app.use('/api/planning',       require('./routes/planning'));
 app.use('/api/astrologie',     require('./routes/astrologie'));
 app.use('/api/feed',           require('./routes/feed'));
+app.use('/api/social',         require('./routes/social'));
 
 // ── Middleware de gestion d'erreurs global ────────────────────
 app.use((err, req, res, next) => {
