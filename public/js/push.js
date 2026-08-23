@@ -12,6 +12,20 @@ function urlBase64ToUint8Array(base64String) {
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
+// ── Heure locale du navigateur ────────────────────────────────
+function getDateHeureLocale() {
+    const now     = new Date();
+    const annee   = now.getFullYear();
+    const mois    = String(now.getMonth() + 1).padStart(2, '0');
+    const jour    = String(now.getDate()).padStart(2, '0');
+    const heure   = String(now.getHours()).padStart(2, '0');
+    const minute  = String(now.getMinutes()).padStart(2, '0');
+    return {
+        dateLocale : `${annee}-${mois}-${jour}`,
+        heureLocale: `${heure}:${minute}`
+    };
+}
+
 // ── Initialisation push ───────────────────────────────────────
 async function initPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -63,13 +77,15 @@ function demarrerPolling() {
 async function appellerCheck() {
     const user = getUser();
     if (!user?.token) return;
+    const { dateLocale, heureLocale } = getDateHeureLocale();
     try {
         await fetch('/api/push/check', {
             method : 'POST',
             headers: {
                 'Content-Type' : 'application/json',
                 'Authorization': `Bearer ${user.token}`
-            }
+            },
+            body: JSON.stringify({ dateLocale, heureLocale })
         });
     } catch (e) {
         console.warn('[Push] /check échoué :', e.message);
