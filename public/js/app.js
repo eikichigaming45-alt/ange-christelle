@@ -179,6 +179,14 @@ function switchTab(onglet, silent = false) {
 
     const titleEl = document.getElementById('topbar-title');
     if (titleEl) titleEl.textContent = ONGLET_TITRES[onglet] || 'MyDaily';
+
+    // Refresh silencieux du feed au clic sur l'onglet Accueil —
+    // uniquement si l'utilisateur est connecté et que ce n'est pas
+    // un appel interne (silent = true, ex: logout, init).
+    if (onglet === 'accueil' && !silent) {
+        const u = getUser();
+        if (u?.token && typeof chargerFeed === 'function') chargerFeed();
+    }
 }
 
 // ===================== LOGOUT ================================
