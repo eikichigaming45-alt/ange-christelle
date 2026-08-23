@@ -1,3 +1,496 @@
+// ============================================================
+// public/js/feed.js
+// Fil social — onglet Accueil.
+// Dépend de : app.js (getUser)
+// ============================================================
+
+let feedFilter    = 'all';
+let feedFollowing = [];
+
+// ── INIT ─────────────────────────────────────────────────────
+async function initFeed() {
+    const el = document.getElementById('accueil-feed');
+    if (!el) return;
+    await chargerFollowing();
+    renderFeedHeader();
+    await chargerFeed();
+}
+
+// ── FOLLOWING LIST ────────────────────────────────────────────
+async function chargerFollowing() {
+    const user = getUser();
+    try {
+        const r = await fetch('/api/feed/following', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (d.success) feedFollowing = d.following;
+    } catch {}
+}
+
+// ── HEADER FEED ───────────────────────────────────────────────
+function renderFeedHeader() {
+    const el = document.getElementById('accueil-feed');
+    el.innerHTML = `
+        <div class="feed-header">
+            <div class="feed-filters">
+                <button class="feed-filter-btn active" data-filter="all" onclick="setFeedFilter('all')">Tous</button>
+                <button class="feed-filter-btn" data-filter="following" onclick="setFeedFilter('following')">Abonnements</button>
+            </div>
+            <button class="feed-new-btn" onclick="ouvrirModalPost()">+ Post</button>
+        </div>
+        <div id="feed-list"></div>
+    `;
+}
+
+// ── FILTRE ────────────────────────────────────────────────────
+async function setFeedFilter(filter) {
+    feedFilter = filter;
+    document.querySelectorAll('.feed-filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === filter);
+    });
+    await chargerFeed();
+}
+
+// ── CHARGER POSTS ─────────────────────────────────────────────
+async function chargerFeed() {
+    const user = getUser();
+    const list = document.getElementById('feed-list');
+    if (!list) return;
+    list.innerHTML = '<div class="feed-loading">Chargement...</div>';
+    try {
+        const r = await fetch(`/api/feed${feedFilter === 'following' ? '?filter=following' : ''}`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error();
+        if (!d.posts.length) {
+            list.innerHTML = '<div class="feed-empty">Aucun post pour l\'instant.</div>';
+            return;
+        }
+        list.innerHTML = d.posts.map(p => renderPost(p)).join('');
+    } catch {
+        list.innerHTML = '<div class="feed-empty">Erreur de chargement.</div>';
+    }
+}
+
+// ── RENDER POST ───────────────────────────────────────────────
+function renderPost(p) {
+    const user     = getUser();
+    const isOwner  = user.username === p.username;
+    const isAdmin  = user.role === 'admin';
+    const avatar   = p.avatar
+        ? `<img src="${p.avatar}" class="feed-avatar" alt="">`
+        : `<div class="feed-avatar feed-avatar-initiale">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
+    const date     = new Date(p.created_at).toLocaleDateString('fr-FR', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+    });
+    const followed = feedFollowing.includes(p.user_id);
+
+    return `
+        <div class="feed-card" id="post-${p.id}" data-post-id="${p.id}" data-photo-url="${escapeHtml(p.photo_url || '')}">
+            <div class="feed-card-header">
+                <div class="feed-user" onclick="ouvrirProfilPublic(${p.user_id})">
+                    ${avatar}
+                    <div>
+                        <div class="feed-username">${escapeHtml(p.prenom || '')} ${escapeHtml(p.nom || '')}</div>
+                        <div class="feed-handle">@${escapeHtml(p.username)} · ${date}</div>
+                    </div>
+                </div>
+                <div class="feed-card-actions">
+                    ${!isOwner ? `<button class="feed-follow-btn ${followed ? 'following' : ''}" onclick="toggleFollow(${p.user_id}, this)">${followed ? 'Abonné' : 'Suivre'}</button>` : ''}
+                    ${isOwner || isAdmin ? `
+                    <button class="feed-action-btn" onclick="editerPost(${p.id})" title="Modifier">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button class="feed-delete-btn" onclick="supprimerPost(${p.id})" title="Supprimer">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                        </svg>
+                    </button>` : ''}
+                </div>
+            </div>
+            <div class="feed-contenu-text" id="post-contenu-${p.id}" style="display:none">${escapeHtml(p.contenu || '')}</div>
+            ${p.contenu ? `<div class="feed-contenu">${escapeHtml(p.contenu)}</div>` : ''}
+            ${p.photo_url ? `<div class="feed-photo-wrap"><img src="${p.photo_url}" class="feed-photo" alt="" onclick="ouvrirPhoto('${p.photo_url}')"></div>` : ''}
+            <div class="feed-footer">
+                <button class="feed-like-btn ${p.liked ? 'liked' : ''}" onclick="toggleLike(${p.id}, this)">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="${p.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+                        <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                    </svg>
+                    <span class="feed-like-count" onclick="voirLikers(${p.id}, event)">${p.likes}</span>
+                </button>
+                <button class="feed-comment-btn" onclick="toggleCommentaires(${p.id})">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>${p.nb_comments}</span>
+                </button>
+                <button class="feed-share-btn" onclick="partagerPost(${p.id})">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="feed-comments" id="comments-${p.id}" style="display:none"></div>
+        </div>
+    `;
+}
+
+// ── LIKE POST ─────────────────────────────────────────────────
+async function toggleLike(postId, btn) {
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/feed/${postId}/like`, {
+            method : 'POST',
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        btn.classList.toggle('liked', d.liked);
+        const svg = btn.querySelector('svg');
+        if (svg) svg.setAttribute('fill', d.liked ? 'currentColor' : 'none');
+        const span = btn.querySelector('.feed-like-count');
+        if (span) span.textContent = parseInt(span.textContent) + (d.liked ? 1 : -1);
+    } catch {}
+}
+
+// ── VOIR LIKERS ───────────────────────────────────────────────
+async function voirLikers(postId, e) {
+    e.stopPropagation();
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/feed/${postId}/likes`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        document.getElementById('modal-title').textContent = 'Personnes qui aiment';
+        document.getElementById('modal-body').innerHTML = d.likers.length
+            ? d.likers.map(l => {
+                const av = l.avatar
+                    ? `<img src="${l.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
+                    : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${(l.prenom?.[0] || l.username[0]).toUpperCase()}</div>`;
+                return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6">
+                    ${av}
+                    <div>
+                        <div style="font-size:14px;font-weight:700;color:#111">${escapeHtml(l.prenom || '')} ${escapeHtml(l.nom || '')}</div>
+                        <div style="font-size:12px;color:#9ca3af">@${escapeHtml(l.username)}</div>
+                    </div>
+                </div>`;
+            }).join('')
+            : '<p style="text-align:center;color:#9ca3af;padding:20px">Aucun like pour l\'instant.</p>';
+        document.getElementById('overlay').classList.add('on');
+    } catch {}
+}
+
+// ── ÉDITER POST ───────────────────────────────────────────────
+function editerPost(postId) {
+    const contenuActuel = document.getElementById(`post-contenu-${postId}`)?.textContent || '';
+    const photoActuelle = document.getElementById(`post-${postId}`)?.dataset.photoUrl || '';
+
+    document.getElementById('modal-title').textContent = 'Modifier le post';
+    document.getElementById('modal-body').innerHTML = `
+        <textarea id="edit-post-contenu" rows="4"
+            style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                   font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
+        ${photoActuelle ? `
+        <div id="edit-photo-actuelle" style="margin-top:12px">
+            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px">Photo actuelle</div>
+            <img src="${photoActuelle}" style="width:100%;border-radius:10px;max-height:200px;object-fit:contain;background:#f3f4f6">
+            <button id="btn-suppr-photo" onclick="marquerSuppressionPhoto()"
+                style="margin-top:8px;padding:7px 14px;background:#fee2e2;color:#ef4444;border:none;
+                       border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
+                🗑️ Supprimer la photo
+            </button>
+        </div>` : ''}
+        <div style="margin-top:12px">
+            <label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">
+                ${photoActuelle ? 'Remplacer la photo' : 'Ajouter une photo (optionnelle)'}
+            </label>
+            <input type="file" id="edit-post-photo" accept="image/*"
+                style="font-size:13px;color:#374151">
+        </div>
+        <div id="edit-post-preview" style="margin-top:10px"></div>
+        <button onclick="sauvegarderEditionPost(${postId})"
+            style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                   color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
+            Sauvegarder
+        </button>
+        <div id="edit-post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+    `;
+    document.getElementById('edit-post-contenu').value = contenuActuel;
+
+    document.getElementById('edit-post-photo').addEventListener('change', e => {
+        const file    = e.target.files[0];
+        const preview = document.getElementById('edit-post-preview');
+        if (file) {
+            const url = URL.createObjectURL(file);
+            preview.innerHTML = `<img src="${url}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`;
+        } else {
+            preview.innerHTML = '';
+        }
+    });
+
+    document.getElementById('overlay').classList.add('on');
+}
+
+window._editSupprimerPhoto = false;
+
+function marquerSuppressionPhoto() {
+    window._editSupprimerPhoto = true;
+    const bloc = document.getElementById('edit-photo-actuelle');
+    if (bloc) bloc.innerHTML = `<div style="font-size:13px;color:#ef4444;font-weight:600;padding:8px 0">Photo supprimée à la sauvegarde</div>`;
+}
+
+async function sauvegarderEditionPost(postId) {
+    const user    = getUser();
+    const contenu = document.getElementById('edit-post-contenu').value.trim();
+    const photo   = document.getElementById('edit-post-photo').files[0];
+    const msg     = document.getElementById('edit-post-msg');
+
+    if (!contenu && !photo && window._editSupprimerPhoto) {
+        msg.style.color = '#ef4444';
+        msg.textContent = 'Le post ne peut pas être vide (texte ou photo requis).';
+        return;
+    }
+
+    try {
+        let photoB64 = null;
+        let mime     = null;
+        if (photo) {
+            mime     = photo.type || 'image/jpeg';
+            photoB64 = await new Promise((resolve, reject) => {
+                const reader   = new FileReader();
+                reader.onload  = e => resolve(e.target.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(photo);
+            });
+        }
+
+        const body = {
+            contenu,
+            supprimer_photo: window._editSupprimerPhoto
+        };
+        if (photoB64) { body.photo = photoB64; body.mime = mime; }
+
+        const r = await fetch(`/api/feed/${postId}`, {
+            method  : 'PUT',
+            headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body    : JSON.stringify(body)
+        });
+        const d = await r.json();
+        if (d.success) {
+            window._editSupprimerPhoto = false;
+            closeModal();
+            await chargerFeed();
+        } else {
+            msg.style.color = '#ef4444';
+            msg.textContent = d.message || 'Erreur.';
+        }
+    } catch {
+        msg.style.color = '#ef4444';
+        msg.textContent = 'Erreur réseau.';
+    }
+}
+
+// ── COMMENTAIRES ──────────────────────────────────────────────
+async function toggleCommentaires(postId) {
+    const zone = document.getElementById(`comments-${postId}`);
+    if (!zone) return;
+    if (zone.style.display === 'none') {
+        zone.style.display = 'block';
+        await chargerCommentaires(postId);
+    } else {
+        zone.style.display = 'none';
+    }
+}
+
+async function chargerCommentaires(postId) {
+    const user = getUser();
+    const zone = document.getElementById(`comments-${postId}`);
+    zone.innerHTML = '<div class="feed-loading">Chargement...</div>';
+    try {
+        const r = await fetch(`/api/feed/${postId}/comments`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error();
+        zone.innerHTML = `
+            ${d.comments.map(c => renderComment(c, postId)).join('')}
+            <div class="feed-comment-form">
+                <input type="text" id="comment-input-${postId}"
+                    placeholder="Écrire un commentaire..."
+                    class="feed-comment-input"
+                    onkeydown="if(event.key==='Enter') envoyerCommentaire(${postId})">
+                <button onclick="envoyerCommentaire(${postId})" class="feed-comment-send">Envoyer</button>
+            </div>
+        `;
+    } catch {
+        zone.innerHTML = '<div class="feed-empty">Erreur.</div>';
+    }
+}
+
+function renderComment(c, postId) {
+    const user    = getUser();
+    const isOwner = user.username === c.username;
+    const isAdmin = user.role === 'admin';
+    const date    = new Date(c.created_at).toLocaleDateString('fr-FR', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+    });
+    return `
+        <div class="feed-comment" id="comment-${c.id}" data-comment-id="${c.id}">
+            <div class="feed-comment-meta">
+                <span class="feed-comment-author">${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')} <span class="feed-handle">@${escapeHtml(c.username)}</span></span>
+                <span class="feed-comment-date">${date}</span>
+                <div class="feed-comment-actions">
+                    ${isOwner || isAdmin ? `
+                    <button class="feed-comment-edit-btn" onclick="editerCommentaire(${c.id}, ${postId})">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button class="feed-comment-delete" onclick="supprimerCommentaire(${c.id}, ${postId})">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                        </svg>
+                    </button>` : ''}
+                    <button class="feed-comment-like-btn ${c.liked ? 'liked' : ''}" onclick="toggleLikeCommentaire(${c.id}, this)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="${c.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+                            <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                        </svg>
+                        <span class="comment-like-count">${c.likes}</span>
+                    </button>
+                </div>
+            </div>
+            <div class="feed-comment-contenu" id="comment-text-${c.id}">${escapeHtml(c.contenu)}</div>
+            <div class="feed-comment-raw" id="comment-raw-${c.id}" style="display:none">${escapeHtml(c.contenu)}</div>
+        </div>
+    `;
+}
+
+async function envoyerCommentaire(postId) {
+    const user  = getUser();
+    const input = document.getElementById(`comment-input-${postId}`);
+    const text  = (input?.value || '').trim();
+    if (!text) return;
+    try {
+        const r = await fetch(`/api/feed/${postId}/comments`, {
+            method : 'POST',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ contenu: text })
+        });
+        const d = await r.json();
+        if (d.success) {
+            input.value = '';
+            await chargerCommentaires(postId);
+            const btn = document.querySelector(`#post-${postId} .feed-comment-btn span`);
+            if (btn) btn.textContent = parseInt(btn.textContent) + 1;
+        }
+    } catch {}
+}
+
+// ── ÉDITER COMMENTAIRE ────────────────────────────────────────
+function editerCommentaire(commentId, postId) {
+    const contenuActuel = document.getElementById(`comment-raw-${commentId}`)?.textContent || '';
+    const textEl = document.getElementById(`comment-text-${commentId}`);
+    if (!textEl) return;
+    textEl.innerHTML = `
+        <div style="display:flex;gap:6px;margin-top:4px">
+            <input type="text" id="edit-comment-input-${commentId}"
+                style="flex:1;padding:6px 10px;border:1.5px solid #7c3aed;border-radius:20px;
+                       font-size:13px;outline:none;font-family:inherit">
+            <button onclick="sauvegarderEditionCommentaire(${commentId}, ${postId})"
+                style="padding:6px 12px;background:#7c3aed;color:#fff;border:none;
+                       border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">
+                OK
+            </button>
+            <button onclick="chargerCommentaires(${postId})"
+                style="padding:6px 10px;background:#f3f4f6;color:#374151;border:none;
+                       border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">
+                ✕
+            </button>
+        </div>
+    `;
+    const input = document.getElementById(`edit-comment-input-${commentId}`);
+    if (input) { input.value = contenuActuel; input.focus(); }
+}
+
+async function sauvegarderEditionCommentaire(commentId, postId) {
+    const user    = getUser();
+    const input   = document.getElementById(`edit-comment-input-${commentId}`);
+    const contenu = (input?.value || '').trim();
+    if (!contenu) return;
+    try {
+        const r = await fetch(`/api/feed/comments/${commentId}`, {
+            method  : 'PUT',
+            headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body    : JSON.stringify({ contenu })
+        });
+        const d = await r.json();
+        if (d.success) await chargerCommentaires(postId);
+    } catch {}
+}
+
+// ── SUPPRIMER COMMENTAIRE — modale custom ─────────────────────
+function supprimerCommentaire(commentId, postId) {
+    document.getElementById('modal-title').textContent = 'Confirmation';
+    document.getElementById('modal-body').innerHTML = `
+        <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
+        <div style="display:flex;gap:8px">
+            <button id="btn-delcomment-oui" style="flex:1;padding:13px;background:#ef4444;color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Confirmer</button>
+            <button id="btn-delcomment-non" style="flex:1;padding:13px;background:#f3f4f6;color:#374151;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Annuler</button>
+        </div>`;
+    document.getElementById('overlay').classList.add('on');
+    document.getElementById('btn-delcomment-non').onclick = () => {
+        document.getElementById('overlay').classList.remove('on');
+    };
+    document.getElementById('btn-delcomment-oui').onclick = async () => {
+        const user = getUser();
+        try {
+            const r = await fetch(`/api/feed/comments/${commentId}`, {
+                method : 'DELETE',
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+            const d = await r.json();
+            if (d.success) {
+                document.getElementById('overlay').classList.remove('on');
+                await chargerCommentaires(postId);
+                const btn = document.querySelector(`#post-${postId} .feed-comment-btn span`);
+                if (btn) btn.textContent = Math.max(0, parseInt(btn.textContent) - 1);
+            }
+        } catch {}
+    };
+}
+
+// ── LIKE COMMENTAIRE ──────────────────────────────────────────
+async function toggleLikeCommentaire(commentId, btn) {
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/feed/comments/${commentId}/like`, {
+            method : 'POST',
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        btn.classList.toggle('liked', d.liked);
+        const svg = btn.querySelector('svg');
+        if (svg) svg.setAttribute('fill', d.liked ? 'currentColor' : 'none');
+        const span = btn.querySelector('.comment-like-count');
+        if (span) span.textContent = parseInt(span.textContent) + (d.liked ? 1 : -1);
+    } catch {}
+}
+
 // ── SUPPRIMER POST — modale custom ────────────────────────────
 function supprimerPost(postId) {
     document.getElementById('modal-title').textContent = 'Confirmation';
@@ -127,84 +620,8 @@ async function publierPost() {
 }
 
 // ── PROFIL PUBLIC ─────────────────────────────────────────────
-async function ouvrirProfilPublic(userId) {
-    const user = getUser();
-    try {
-        const r = await fetch(`/api/profil/public/${userId}`, {
-            headers: { 'Authorization': `Bearer ${user.token}` }
-        });
-        const d = await r.json();
-        if (!d.success) return;
-        const p       = d.profil;
-        const isSelf  = user.username === p.username;
-        const avatar  = p.photo
-            ? `<img src="${p.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed">`
-            : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
-
-        document.getElementById('modal-title').textContent = '';
-        document.getElementById('modal-body').innerHTML = `
-            <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:8px 0">
-                ${avatar}
-                <div style="text-align:center">
-                    <div style="font-size:18px;font-weight:700;color:#111">${escapeHtml(p.prenom || '')} ${escapeHtml(p.nom || '')}</div>
-                    <div style="font-size:13px;color:#9ca3af;margin-top:2px">@${escapeHtml(p.username)}</div>
-                    ${p.signe_zodiaque ? `<div style="font-size:12px;color:#7c3aed;margin-top:4px">${escapeHtml(p.signe_zodiaque)}</div>` : ''}
-                </div>
-                <div style="display:flex;gap:24px;text-align:center;background:#f9fafb;border-radius:14px;padding:14px 24px;width:100%;justify-content:center">
-                    <div>
-                        <div style="font-size:20px;font-weight:800;color:#111">${p.nb_posts}</div>
-                        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Posts</div>
-                    </div>
-                    <div>
-                        <div style="font-size:20px;font-weight:800;color:#111">${p.nb_abonnes}</div>
-                        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Abonnés</div>
-                    </div>
-                    <div>
-                        <div style="font-size:20px;font-weight:800;color:#111">${p.nb_abonnements}</div>
-                        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Abonnements</div>
-                    </div>
-                </div>
-                ${!isSelf ? `
-                <button id="btn-profil-follow"
-                    onclick="toggleFollowDepuisProfil(${p.id}, this)"
-                    style="width:100%;padding:12px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;
-                           background:${p.suivi ? '#f3f4f6' : 'linear-gradient(135deg,#7c3aed,#6d28d9)'};
-                           color:${p.suivi ? '#374151' : '#fff'}">
-                    ${p.suivi ? 'Abonné' : 'Suivre'}
-                </button>` : ''}
-            </div>
-        `;
-        document.getElementById('overlay').classList.add('on');
-    } catch {}
-}
-
-async function toggleFollowDepuisProfil(userId, btn) {
-    const user = getUser();
-    try {
-        const r = await fetch(`/api/feed/follow/${userId}`, {
-            method : 'POST',
-            headers: { 'Authorization': `Bearer ${user.token}` }
-        });
-        const d = await r.json();
-        if (!d.success) return;
-        if (d.following) {
-            feedFollowing.push(userId);
-            btn.textContent = 'Abonné';
-            btn.style.background = '#f3f4f6';
-            btn.style.color      = '#374151';
-        } else {
-            feedFollowing = feedFollowing.filter(id => id !== userId);
-            btn.textContent = 'Suivre';
-            btn.style.background = 'linear-gradient(135deg,#7c3aed,#6d28d9)';
-            btn.style.color      = '#fff';
-        }
-        // Sync bouton follow dans le feed
-        const feedBtn = document.querySelector(`.feed-follow-btn[onclick="toggleFollow(${userId}, this)"]`);
-        if (feedBtn) {
-            feedBtn.textContent = d.following ? 'Abonné' : 'Suivre';
-            feedBtn.classList.toggle('following', d.following);
-        }
-    } catch {}
+function ouvrirProfilPublic(userId) {
+    // Sera implémenté lors du chantier Profil public
 }
 
 // ── PHOTO PLEIN ÉCRAN ─────────────────────────────────────────
@@ -227,7 +644,11 @@ async function partagerPost(postId) {
     if (navigator.share) {
         try {
             const shareData = { title: 'MyDaily', text };
-            shareData.url   = photoUrl || location.origin;
+            if (photoUrl) {
+                shareData.url = photoUrl;
+            } else {
+                shareData.url = location.origin;
+            }
             await navigator.share(shareData);
         } catch (e) {
             if (e.name !== 'AbortError') console.error(e);

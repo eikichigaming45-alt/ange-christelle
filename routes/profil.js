@@ -1,7 +1,8 @@
 // ============================================================
 // routes/profil.js
 // Gestion du profil utilisateur : lecture, écriture, mot de passe,
-// suppression photo, préférences widgets, profil public.
+// suppression photo, et préférences widgets (opt-out).
+// signe_zodiaque : saisi manuellement si pas de date_naissance.
 // ============================================================
 
 const express    = require('express');
@@ -27,31 +28,6 @@ router.get('/', authenticateToken, async (req, res) => {
         res.json({ success: true, profil: result.rows[0] });
     } catch (err) {
         console.error('[PROFIL] GET /', err.message);
-        res.status(500).json({ success: false, message: 'Erreur serveur.' });
-    }
-});
-
-// ── GET /api/profil/public/:id ────────────────────────────────
-router.get('/public/:id', authenticateToken, async (req, res) => {
-    const cibleId  = parseInt(req.params.id);
-    const userId   = req.user.id;
-    try {
-        const { rows } = await pool.query(`
-            SELECT
-                u.id, u.username,
-                pr.prenom, pr.nom, pr.photo, pr.signe_zodiaque,
-                (SELECT COUNT(*) FROM posts       WHERE user_id = u.id)::int AS nb_posts,
-                (SELECT COUNT(*) FROM follows     WHERE following_id = u.id)::int AS nb_abonnes,
-                (SELECT COUNT(*) FROM follows     WHERE follower_id  = u.id)::int AS nb_abonnements,
-                EXISTS(SELECT 1 FROM follows WHERE follower_id = \$2 AND following_id = u.id) AS suivi
-            FROM users u
-            LEFT JOIN profiles pr ON pr.user_id = u.id
-            WHERE u.id = \$1
-        `, [cibleId, userId]);
-        if (!rows.length) return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
-        res.json({ success: true, profil: rows[0] });
-    } catch (err) {
-        console.error('[PROFIL] GET /public/:id :', err.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
