@@ -518,3 +518,10 @@ input:focus{border-color:#7C3AED}
 @media(max-width:700px){
   .accueil-feed{padding-bottom:80px}
 }
+/* ===================== WIDGET TÂCHES — MÉTA ===================== */
+.tache-widget-info{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.tache-widget-meta{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.tache-meta-date{font-size:11px;color:#9ca3af}
+.tache-meta-heure{font-size:11px;color:#7c3aed;font-weight:600}
+.tache-meta-rappel{font-size:11px;color:#f59e0b;font-weight:600}
+.tache-meta-recur{font-size:11px;color:#059669;font-weight:600}

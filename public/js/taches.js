@@ -56,31 +56,40 @@ async function chargerWidgetTaches() {
             el.innerHTML = '<p class="rdv-empty">Aucune tâche à venir</p>';
             return;
         }
+        const recuLabels = { daily: 'Quotidien', weekly: 'Hebdo', monthly: 'Mensuel' };
+
+        function renderWidgetTache(t, showDate = false) {
+            const heureStr  = t.heure ? t.heure.slice(0, 5) : '';
+            const rappel    = t.rappel_avant > 0 ? _formatRappelTache(t.rappel_avant) : '';
+            const recur     = t.recurrence && t.recurrence !== 'none' ? recuLabels[t.recurrence] : '';
+            const dateStr   = t.date ? t.date.split('T')[0] : null;
+            return `
+                <div class="tache-widget-item">
+                    <span class="tache-widget-dot ${showDate ? 'tache-dot-futur' : (dateStr ? 'tache-dot-today' : 'tache-dot-flott')}"></span>
+                    <div class="tache-widget-info">
+                        <span class="tache-widget-titre">${t.titre}</span>
+                        <div class="tache-widget-meta">
+                            ${showDate ? `<span class="tache-meta-date">${_formatDateTache(dateStr)}</span>` : ''}
+                            ${heureStr ? `<span class="tache-meta-heure">à ${heureStr}</span>` : ''}
+                            ${rappel   ? `<span class="tache-meta-rappel">⏰ ${rappel}</span>` : ''}
+                            ${recur    ? `<span class="tache-meta-recur">${recur}</span>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+        }
+
         let html = '<div class="tache-widget-liste">';
         if (duJour.length) {
             html += `<div class="tache-widget-section">Aujourd'hui (${duJour.length})</div>`;
-            html += duJour.map(t => `
-                <div class="tache-widget-item">
-                    <span class="tache-widget-dot tache-dot-today"></span>
-                    <span class="tache-widget-titre">${t.titre}</span>
-                </div>`).join('');
+            html += duJour.map(t => renderWidgetTache(t, false)).join('');
         }
         if (avenir.length) {
             html += `<div class="tache-widget-section">À venir</div>`;
-            html += avenir.map(t => `
-                <div class="tache-widget-item">
-                    <span class="tache-widget-dot tache-dot-futur"></span>
-                    <span class="tache-widget-titre">${t.titre}</span>
-                    <span class="tache-widget-date">${_formatDateTache(t.date?.split('T')[0])}</span>
-                </div>`).join('');
+            html += avenir.map(t => renderWidgetTache(t, true)).join('');
         }
         if (flottantes.length) {
             html += `<div class="tache-widget-section">Sans date</div>`;
-            html += flottantes.map(t => `
-                <div class="tache-widget-item">
-                    <span class="tache-widget-dot tache-dot-flott"></span>
-                    <span class="tache-widget-titre">${t.titre}</span>
-                </div>`).join('');
+            html += flottantes.map(t => renderWidgetTache(t, false)).join('');
         }
         html += '</div>';
         el.innerHTML = html;
