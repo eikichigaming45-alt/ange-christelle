@@ -62,12 +62,14 @@
                 overflow:hidden;
                 border:1px solid #f0f0f0;
             ">
-                <button class="user-menu-item disabled" disabled style="
+                <button class="user-menu-item" onclick="ouvrirChangelog()" style="
                     display:flex;align-items:center;gap:10px;
                     width:100%;padding:12px 16px;border:none;
                     background:none;text-align:left;font-size:14px;
-                    color:#d1d5db;cursor:not-allowed;
-                ">📋 Changelog</button>
+                    color:#1f2937;cursor:pointer;
+                " onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='none'">
+                    📋 Changelog
+                </button>
 
                 <button class="user-menu-item disabled" disabled style="
                     display:flex;align-items:center;gap:10px;
@@ -185,5 +187,6 @@
 <script src="/js/astrologie.js"    defer></script>
 <script src="/js/feed.js"          defer></script>
 <script src="/js/social.js"        defer></script>
+<script src="/js/changelog.js"     defer></script>
 </body>
 </html>

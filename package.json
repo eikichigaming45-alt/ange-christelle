@@ -10,6 +10,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": "24.x"
+  },
   "dependencies": {
     "@simplewebauthn/server": "^10.0.0",
     "@supabase/supabase-js": "^2.112.3",

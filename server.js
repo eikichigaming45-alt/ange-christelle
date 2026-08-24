@@ -46,6 +46,7 @@ if (!process.env.VAPID_MAILTO || !process.env.VAPID_PUBLIC_KEY || !process.env.V
 
 // ── Routes ────────────────────────────────────────────────────
 app.use('/api',                require('./routes/auth').router);
+app.use('/api',                require('./routes/changelog'));
 app.use('/api/profil',         require('./routes/profil'));
 app.use('/api/widget-order',   require('./routes/widgets'));
 app.use('/api/taches',         require('./routes/taches'));
