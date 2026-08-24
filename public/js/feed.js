@@ -339,6 +339,7 @@ async function chargerCommentaires(postId) {
     }
 }
 
+// ── Correction : auteur commentaire cliquable → ouvrirProfilPublic ─
 function renderComment(c, postId) {
     const user    = getUser();
     const isOwner = user.username === c.username;
@@ -349,7 +350,12 @@ function renderComment(c, postId) {
     return `
         <div class="feed-comment" id="comment-${c.id}" data-comment-id="${c.id}">
             <div class="feed-comment-meta">
-                <span class="feed-comment-author">${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')} <span class="feed-handle">@${escapeHtml(c.username)}</span></span>
+                <span class="feed-comment-author"
+                      style="cursor:pointer"
+                      onclick="ouvrirProfilPublic(${c.user_id})">
+                    ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
+                    <span class="feed-handle">@${escapeHtml(c.username)}</span>
+                </span>
                 <span class="feed-comment-date">${date}</span>
                 <div class="feed-comment-actions">
                     ${isOwner || isAdmin ? `
@@ -631,14 +637,12 @@ async function ouvrirProfilPublic(userId) {
         if (!d.success) return;
         const p = d.profil;
 
-        // FIX v4.48 : user.userId (et non user.id) correspond au champ stocké en localStorage
         const isSelf = String(user.userId) === String(p.id);
 
         const avatar = p.photo
             ? `<img src="${p.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed">`
             : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
 
-        // Abonnés : cliquable uniquement sur son propre profil
         const abonnesEl = isSelf
             ? `<div style="cursor:pointer" onclick="voirAbonnes(${p.id})">
                    <div style="font-size:20px;font-weight:800;color:#7c3aed">${p.nb_abonnes}</div>

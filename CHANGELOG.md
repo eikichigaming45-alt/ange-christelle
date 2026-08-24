@@ -1,5 +1,5 @@
-## v1.05 — 25-08-2026
-- MODULE CLOCHE : panel notifications style Facebook + badge rouge + onglets Tout/Non lu + sections Aujourd'hui/Plus tôt + polling badge 60s
+## v1.06 — 25-08-2026
+- MODULE CLOCHE : panel notifications + badge rouge + onglets Tout/Non lu + sections Aujourd'hui/Plus tôt + polling badge 60s
 - feed.js : notifs cloche + push pour like / commentaire / follow
 - social.js : GET /notifications — prenom/nom du sender + limite 10
 - planning.js : purge anciens enregistrements déplacée au démarrage serveur (hors GET)
@@ -8,6 +8,7 @@
 - MODULE CHANGELOG : route GET /api/changelog + modale + bouton menu activé
 - .gitignore : ajout .env et uploads/
 - package.json : engines node 24.x
+- auteur commentaire cliquable profil public
 
 ## v1.00 — 24-08-2026
 - Version stable initiale

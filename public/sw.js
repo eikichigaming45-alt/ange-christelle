@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mydaily-cache-v1.05';
+const CACHE_NAME = 'mydaily-cache-v1.06';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
