@@ -1,8 +1,5 @@
 // ============================================================
 // routes/social.js
-// Partages, messages privés, notifications, conseil cycle,
-// données partagées (rdv, taches, planning).
-// Auth via JWT Bearer — sécurité gérée par Express.
 // ============================================================
 
 const express  = require('express');
@@ -23,9 +20,6 @@ router.use(authenticateToken);
 // RECHERCHE UTILISATEURS
 // ============================================================
 
-// GET /api/social/users/search?q=username
-// Retourne les utilisateurs dont le username commence par q,
-// triés alphabétiquement, soi-même exclu.
 router.get('/users/search', async (req, res) => {
     const q = (req.query.q || '').trim();
     if (q.length < 2) {
@@ -36,8 +30,8 @@ router.get('/users/search', async (req, res) => {
             SELECT u.id, u.username, p.prenom, p.nom, p.photo
             FROM users u
             LEFT JOIN profiles p ON p.user_id = u.id
-            WHERE u.id != \\$1
-              AND u.username ILIKE \\$2
+            WHERE u.id != \$1
+              AND u.username ILIKE \$2
             ORDER BY u.username ASC
             LIMIT 20
         `, [req.user.id, `${q}%`]);
@@ -60,7 +54,7 @@ router.get('/partages/miens', async (req, res) => {
             FROM shares s
             JOIN users u ON u.id = s.viewer_id
             LEFT JOIN profiles p ON p.user_id = s.viewer_id
-            WHERE s.owner_id = \\$1
+            WHERE s.owner_id = \$1
             ORDER BY u.username ASC, s.resource_type ASC
         `, [req.user.id]);
         res.json({ success: true, partages: rows });
@@ -78,7 +72,7 @@ router.get('/partages/recus', async (req, res) => {
             FROM shares s
             JOIN users u ON u.id = s.owner_id
             LEFT JOIN profiles p ON p.user_id = s.owner_id
-            WHERE s.viewer_id = \\$1 AND s.active = TRUE
+            WHERE s.viewer_id = \$1 AND s.active = TRUE
             ORDER BY s.created_at DESC
         `, [req.user.id]);
         res.json({ success: true, partages: rows });
@@ -99,7 +93,7 @@ router.post('/partages', async (req, res) => {
     }
     if (resource_type === 'cycle') {
         const { rows } = await pool.query(
-            'SELECT sexe FROM profiles WHERE user_id = \\$1', [req.user.id]
+            'SELECT sexe FROM profiles WHERE user_id = \$1', [req.user.id]
         );
         const sexe = rows[0]?.sexe ?? null;
         if (sexe !== 'femme' && sexe !== 'intersexe') {
@@ -112,13 +106,13 @@ router.post('/partages', async (req, res) => {
     try {
         const { rows } = await pool.query(`
             INSERT INTO shares (owner_id, viewer_id, resource_type, active)
-            VALUES (\\$1, \\$2, \\$3, TRUE)
+            VALUES (\$1, \$2, \$3, TRUE)
             ON CONFLICT (owner_id, viewer_id, resource_type) DO UPDATE SET active = TRUE
             RETURNING *
         `, [req.user.id, viewer_id, resource_type]);
         await pool.query(`
             INSERT INTO notifications (user_id, type, ref_id)
-            VALUES (\\$1, 'share_request', \\$2)
+            VALUES (\$1, 'share_request', \$2)
         `, [viewer_id, rows[0].id]);
         res.json({ success: true, partage: rows[0] });
     } catch (err) {
@@ -134,8 +128,8 @@ router.patch('/partages/:id', async (req, res) => {
     }
     try {
         const { rowCount } = await pool.query(`
-            UPDATE shares SET active = \\$1
-            WHERE id = \\$2 AND owner_id = \\$3
+            UPDATE shares SET active = \$1
+            WHERE id = \$2 AND owner_id = \$3
         `, [active, req.params.id, req.user.id]);
         if (rowCount === 0) {
             return res.status(404).json({ success: false, message: 'Partage introuvable.' });
@@ -150,7 +144,7 @@ router.patch('/partages/:id', async (req, res) => {
 router.delete('/partages/:id', async (req, res) => {
     try {
         const { rowCount } = await pool.query(
-            'DELETE FROM shares WHERE id = \\$1 AND owner_id = \\$2',
+            'DELETE FROM shares WHERE id = \$1 AND owner_id = \$2',
             [req.params.id, req.user.id]
         );
         if (rowCount === 0) {
@@ -178,8 +172,8 @@ router.get('/data/:ownerId/:type', async (req, res) => {
     try {
         const partage = await pool.query(`
             SELECT id FROM shares
-            WHERE owner_id = \\$1 AND viewer_id = \\$2
-              AND resource_type = \\$3 AND active = TRUE
+            WHERE owner_id = \$1 AND viewer_id = \$2
+              AND resource_type = \$3 AND active = TRUE
         `, [ownerId, req.user.id, type]);
 
         if (!partage.rows.length) {
@@ -193,7 +187,7 @@ router.get('/data/:ownerId/:type', async (req, res) => {
             const { rows } = await pool.query(`
                 SELECT id, titre, date_rdv, praticien, lieu, type_rdv
                 FROM rendezvous
-                WHERE user_id = \\$1 AND date_rdv >= NOW()
+                WHERE user_id = \$1 AND date_rdv >= NOW()
                 ORDER BY date_rdv ASC
                 LIMIT 5
             `, [ownerId]);
@@ -204,9 +198,9 @@ router.get('/data/:ownerId/:type', async (req, res) => {
             const { rows } = await pool.query(`
                 SELECT id, titre, date, heure, faite, recurrence
                 FROM taches
-                WHERE user_id = \\$1
+                WHERE user_id = \$1
                   AND faite = FALSE
-                  AND date = \\$2
+                  AND date = \$2
                 ORDER BY heure ASC NULLS LAST
             `, [ownerId, today]);
             data = rows;
@@ -216,11 +210,11 @@ router.get('/data/:ownerId/:type', async (req, res) => {
             const { rows } = await pool.query(`
                 SELECT id, categorie, libelle_personnalise, heure_debut, heure_fin, employeur
                 FROM planning
-                WHERE user_id = \\$1
+                WHERE user_id = \$1
                   AND (
-                    (date_fin IS NULL AND COALESCE(date_debut, date) = \\$2)
+                    (date_fin IS NULL AND COALESCE(date_debut, date) = \$2)
                     OR
-                    (date_fin IS NOT NULL AND date_debut <= \\$2 AND date_fin >= \\$2)
+                    (date_fin IS NOT NULL AND date_debut <= \$2 AND date_fin >= \$2)
                   )
                 ORDER BY heure_debut ASC NULLS LAST
             `, [ownerId, today]);
@@ -247,19 +241,19 @@ router.post('/coucou/:userId', async (req, res) => {
     try {
         const { rows } = await pool.query(`
             INSERT INTO private_messages (sender_id, receiver_id, content)
-            VALUES (\\$1, \\$2, \\$3)
+            VALUES (\$1, \$2, \$3)
             RETURNING id
         `, [req.user.id, receiverId, content]);
         await pool.query(`
             INSERT INTO notifications (user_id, type, ref_id)
-            VALUES (\\$1, 'coucou', \\$2)
+            VALUES (\$1, 'coucou', \$2)
         `, [receiverId, rows[0].id]);
         const sub = await pool.query(
-            'SELECT subscription FROM push_subscriptions WHERE user_id = \\$1', [receiverId]
+            'SELECT subscription FROM push_subscriptions WHERE user_id = \$1', [receiverId]
         );
         if (sub.rows.length) {
             const senderProfil = await pool.query(
-                'SELECT prenom FROM profiles WHERE user_id = \\$1', [req.user.id]
+                'SELECT prenom FROM profiles WHERE user_id = \$1', [req.user.id]
             );
             const prenom = senderProfil.rows[0]?.prenom || 'Quelqu\'un';
             try {
@@ -274,7 +268,7 @@ router.post('/coucou/:userId', async (req, res) => {
                 );
             } catch (pushErr) {
                 if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
-                    await pool.query('DELETE FROM push_subscriptions WHERE user_id = \\$1', [receiverId]);
+                    await pool.query('DELETE FROM push_subscriptions WHERE user_id = \$1', [receiverId]);
                 }
             }
         }
@@ -298,7 +292,7 @@ router.get('/messages', async (req, res) => {
             FROM private_messages pm
             LEFT JOIN profiles ps ON ps.user_id = pm.sender_id
             LEFT JOIN profiles pr ON pr.user_id = pm.receiver_id
-            WHERE pm.sender_id = \\$1 OR pm.receiver_id = \\$1
+            WHERE pm.sender_id = \$1 OR pm.receiver_id = \$1
             ORDER BY pm.created_at DESC
         `, [req.user.id]);
         res.json({ success: true, messages: rows });
@@ -311,7 +305,7 @@ router.get('/messages', async (req, res) => {
 router.patch('/messages/:id/vu', async (req, res) => {
     try {
         await pool.query(
-            'UPDATE private_messages SET seen = TRUE WHERE id = \\$1 AND receiver_id = \\$2',
+            'UPDATE private_messages SET seen = TRUE WHERE id = \$1 AND receiver_id = \$2',
             [req.params.id, req.user.id]
         );
         res.json({ success: true });
@@ -328,7 +322,7 @@ router.patch('/messages/:id/vu', async (req, res) => {
 router.get('/notifications/count', async (req, res) => {
     try {
         const { rows } = await pool.query(
-            'SELECT COUNT(*) FROM notifications WHERE user_id = \\$1 AND seen = FALSE',
+            'SELECT COUNT(*) FROM notifications WHERE user_id = \$1 AND seen = FALSE',
             [req.user.id]
         );
         res.json({ success: true, count: parseInt(rows[0].count) });
@@ -343,7 +337,7 @@ router.get('/notifications', async (req, res) => {
         const { rows } = await pool.query(`
             SELECT id, type, ref_id, seen, created_at
             FROM notifications
-            WHERE user_id = \\$1
+            WHERE user_id = \$1
             ORDER BY created_at DESC
             LIMIT 50
         `, [req.user.id]);
@@ -357,7 +351,7 @@ router.get('/notifications', async (req, res) => {
 router.patch('/notifications/tout-vu', async (req, res) => {
     try {
         await pool.query(
-            'UPDATE notifications SET seen = TRUE WHERE user_id = \\$1',
+            'UPDATE notifications SET seen = TRUE WHERE user_id = \$1',
             [req.user.id]
         );
         res.json({ success: true });
@@ -370,7 +364,7 @@ router.patch('/notifications/tout-vu', async (req, res) => {
 router.patch('/notifications/:id/vu', async (req, res) => {
     try {
         await pool.query(
-            'UPDATE notifications SET seen = TRUE WHERE id = \\$1 AND user_id = \\$2',
+            'UPDATE notifications SET seen = TRUE WHERE id = \$1 AND user_id = \$2',
             [req.params.id, req.user.id]
         );
         res.json({ success: true });
@@ -389,7 +383,7 @@ router.get('/conseil/:ownerId', async (req, res) => {
     try {
         const partage = await pool.query(`
             SELECT id FROM shares
-            WHERE owner_id = \\$1 AND viewer_id = \\$2
+            WHERE owner_id = \$1 AND viewer_id = \$2
               AND resource_type = 'cycle' AND active = TRUE
         `, [ownerId, req.user.id]);
         if (!partage.rows.length) {
@@ -397,7 +391,7 @@ router.get('/conseil/:ownerId', async (req, res) => {
         }
         const today   = new Date().toISOString().split('T')[0];
         const moodRes = await pool.query(
-            'SELECT moods FROM cycle_mood WHERE user_id = \\$1 AND date = \\$2',
+            'SELECT moods FROM cycle_mood WHERE user_id = \$1 AND date = \$2',
             [ownerId, today]
         );
         if (!moodRes.rows.length || !moodRes.rows[0].moods) {
@@ -405,7 +399,7 @@ router.get('/conseil/:ownerId', async (req, res) => {
         }
         const moodsCoches = moodRes.rows[0].moods.split(',').filter(Boolean);
         const cycleRes = await pool.query(
-            'SELECT date_debut, duree_regles, duree_cycle FROM cycles WHERE user_id = \\$1 ORDER BY date_debut DESC LIMIT 1',
+            'SELECT date_debut, duree_regles, duree_cycle FROM cycles WHERE user_id = \$1 ORDER BY date_debut DESC LIMIT 1',
             [ownerId]
         );
         let phase = 'luteale';
@@ -422,7 +416,7 @@ router.get('/conseil/:ownerId', async (req, res) => {
             else                                                                phase = 'luteale';
         }
         const conseilsRes = await pool.query(
-            'SELECT conseil, mood_tags FROM cycle_advice WHERE phase = \\$1',
+            'SELECT conseil, mood_tags FROM cycle_advice WHERE phase = \$1',
             [phase]
         );
         const conseilsMatches = conseilsRes.rows.filter(r =>
