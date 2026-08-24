@@ -90,7 +90,7 @@ async function chargerWidgetSocial() {
     }
 }
 
-// ── Section par owner ─────────────────────────────────────────
+// ── Section par owner — cycle toujours en premier ─────────────
 async function _renderOwnerSection(owner, token) {
     const nom    = [owner.prenom, owner.nom].filter(Boolean).join(' ') || owner.username;
     const avatar = owner.photo
@@ -101,8 +101,14 @@ async function _renderOwnerSection(owner, token) {
                ${(owner.prenom?.[0] || owner.username[0]).toUpperCase()}
            </div>`;
 
+    // cycle en premier, puis le reste dans l'ordre reçu
+    const typesTries = [
+        ...owner.types.filter(t => t === 'cycle'),
+        ...owner.types.filter(t => t !== 'cycle')
+    ];
+
     const blocs = await Promise.all(
-        owner.types.map(type => _renderCategorieBloc(owner.owner_id, type, token))
+        typesTries.map(type => _renderCategorieBloc(owner.owner_id, type, token))
     );
 
     return `
@@ -137,13 +143,75 @@ async function _renderBlocCycle(ownerId, token) {
     const d = await r.json();
     if (!d.success) return '';
 
+    const ci = d.cycleInfo;
+
+    // ── Carte infos cycle (toujours affichée si cycleInfo existe) ──
+    let carteInfos = '';
+    if (ci) {
+        const lignes = [];
+
+        if (ci.enRegles && ci.finRegles) {
+            lignes.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6">
+                <span style="font-size:12px;color:#6b7280">Fin des règles estimée</span>
+                <span style="font-size:12px;font-weight:600;color:#ef4444">${ci.finRegles}</span>
+            </div>`);
+        }
+
+        lignes.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6">
+            <span style="font-size:12px;color:#6b7280">${ci.labelOvulation}</span>
+            <span style="font-size:12px;font-weight:600;color:#7c3aed">${ci.valeurOvulation}</span>
+        </div>`);
+
+        lignes.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6">
+            <span style="font-size:12px;color:#6b7280">${ci.labelFenetre}</span>
+            <span style="font-size:12px;font-weight:600;color:#7c3aed">${ci.valeurFenetre}</span>
+        </div>`);
+
+        lignes.push(`<div style="display:flex;justify-content:space-between;padding:5px 0">
+            <span style="font-size:12px;color:#6b7280">Prochaines règles</span>
+            <span style="font-size:12px;font-weight:600;color:#6b7280">
+                ${ci.prochainDebut}
+                ${ci.joursAvantRegles > 0
+                    ? `<span style="font-size:11px;color:#9ca3af;margin-left:4px">(dans ${ci.joursAvantRegles}j)</span>`
+                    : ''}
+            </span>
+        </div>`);
+
+        carteInfos = `
+            <div style="background:#fff;border-radius:10px;padding:10px 12px;
+                        border:1px solid #ede9fe;margin-bottom:8px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <span style="font-size:12px;font-weight:700;color:#7c3aed">${ci.phaseLabel}</span>
+                    <span style="font-size:11px;color:#9ca3af">Jour ${ci.jourCycle} / ${ci.dureeCycle}</span>
+                </div>
+                ${lignes.join('')}
+                ${ci.enFenetre
+                    ? `<div style="margin-top:8px;padding:6px 10px;background:#fdf4ff;border-radius:8px;
+                                   font-size:12px;color:#7c3aed;font-weight:600;text-align:center">
+                           🌸 Fenêtre fertile en cours
+                       </div>`
+                    : ''}
+                ${ci.estOvulation
+                    ? `<div style="margin-top:8px;padding:6px 10px;background:#fdf4ff;border-radius:8px;
+                                   font-size:12px;color:#7c3aed;font-weight:600;text-align:center">
+                           🌟 Jour d'ovulation
+                       </div>`
+                    : ''}
+            </div>`;
+    }
+
+    const titre = `
+        <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;
+                    letter-spacing:.5px;margin-bottom:6px">Suivi du cycle</div>`;
+
+    // ── Mood non rempli ───────────────────────────────────────
     if (!d.moodRempli) {
         return `
             <div style="margin-bottom:10px">
-                <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;
-                            letter-spacing:.5px;margin-bottom:6px">Suivi du cycle</div>
-                <div style="background:#fff;border-radius:10px;padding:12px;border:1px solid #ede9fe;
-                            font-size:13px;color:#6b7280;margin-bottom:8px">
+                ${titre}
+                ${carteInfos}
+                <div style="background:#fff;border-radius:10px;padding:10px 12px;
+                            border:1px solid #ede9fe;font-size:13px;color:#6b7280;margin-bottom:8px">
                     Elle n'a pas encore renseigné son humeur aujourd'hui.
                 </div>
                 <button data-owner-id="${ownerId}"
@@ -156,19 +224,27 @@ async function _renderBlocCycle(ownerId, token) {
             </div>`;
     }
 
+    // ── Mood rempli + conseil ─────────────────────────────────
+    const moodBadges = (d.moods || []).map(m =>
+        `<span style="background:#ede9fe;color:#7c3aed;border-radius:20px;
+                      padding:3px 8px;font-size:11px;font-weight:600">${m}</span>`
+    ).join('');
+
+    const conseilBloc = d.conseil ? `
+        <div style="margin-top:8px;padding:10px 12px;background:#fdf4ff;border-radius:10px;
+                    border-left:3px solid #7c3aed;font-size:13px;color:#374151;line-height:1.6">
+            ${d.conseil}
+        </div>` : '';
+
     return `
         <div style="margin-bottom:10px">
-            <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;
-                        letter-spacing:.5px;margin-bottom:6px">Suivi du cycle</div>
-            <div style="background:#fff;border-radius:10px;padding:12px;
-                        border-left:3px solid #7c3aed;border:1px solid #ede9fe">
-                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
-                    ${(d.moods || []).map(m =>
-                        `<span style="background:#ede9fe;color:#7c3aed;border-radius:20px;
-                                      padding:3px 8px;font-size:11px;font-weight:600">${m}</span>`
-                    ).join('')}
+            ${titre}
+            ${carteInfos}
+            <div style="background:#fff;border-radius:10px;padding:12px;border:1px solid #ede9fe">
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+                    ${moodBadges}
                 </div>
-                <div style="font-size:13px;color:#374151;line-height:1.6">${d.conseil || ''}</div>
+                ${conseilBloc}
             </div>
         </div>`;
 }
@@ -497,8 +573,7 @@ function _supprimerPartage(id) {
     overlay.querySelector('[data-action="confirmer-supprimer"]').addEventListener('click', async () => {
         const { token } = _socialAuth();
         overlay.remove();
-        try {
-            await fetch(`/api/social/partages/${id}`, {
+        try {        await fetch(`/api/social/partages/${id}`, {
                 method : 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -590,7 +665,7 @@ async function _socialRechercherUser(q) {
                        ${(u.prenom?.[0] || u.username[0]).toUpperCase()}
                    </div>`;
             return `
-                                <div data-action="select-user"
+                <div data-action="select-user"
                      data-user-id="${u.id}"
                      data-username="${u.username}"
                      data-prenom="${u.prenom || ''}"
@@ -657,7 +732,6 @@ async function _socialSelectionnerUser(el) {
 
     document.getElementById('social-share-msg').textContent = '';
 
-    // ── Partages déjà actifs vers cet utilisateur ─────────────
     let dejaPartages = [];
     try {
         const r = await fetch('/api/social/partages/miens', {
@@ -671,7 +745,6 @@ async function _socialSelectionnerUser(el) {
         }
     } catch { /* silencieux */ }
 
-    // ── RÈGLE UNIQUE : homme = pas de cycle, femme/intersexe = tout ──
     const sexe = await _getSexeCourant();
     const typesDisponibles = sexe === 'homme'
         ? _SHARE_LABELS_LIST.filter(l => l.type !== 'cycle')
@@ -756,3 +829,4 @@ async function _envoyerPartages() {
         msg.style.color = '#ef4444';
     }
 }
+
