@@ -1,6 +1,7 @@
 // ============================================================
 // public/js/feed.js
 // Fil social — onglet Accueil.
+// Liste abonnés : cliquable sur son propre profil uniquement.
 // Dépend de : app.js (getUser)
 // ============================================================
 
@@ -442,7 +443,7 @@ async function sauvegarderEditionCommentaire(commentId, postId) {
     } catch {}
 }
 
-// ── SUPPRIMER COMMENTAIRE — modale custom ─────────────────────
+// ── SUPPRIMER COMMENTAIRE ─────────────────────────────────────
 function supprimerCommentaire(commentId, postId) {
     document.getElementById('modal-title').textContent = 'Confirmation';
     document.getElementById('modal-body').innerHTML = `
@@ -491,7 +492,7 @@ async function toggleLikeCommentaire(commentId, btn) {
     } catch {}
 }
 
-// ── SUPPRIMER POST — modale custom ────────────────────────────
+// ── SUPPRIMER POST ────────────────────────────────────────────
 function supprimerPost(postId) {
     document.getElementById('modal-title').textContent = 'Confirmation';
     document.getElementById('modal-body').innerHTML = `
@@ -629,10 +630,21 @@ async function ouvrirProfilPublic(userId) {
         const d = await r.json();
         if (!d.success) return;
         const p      = d.profil;
-        const isSelf = user.username === p.username;
+        const isSelf = user.id === p.id;
         const avatar = p.photo
             ? `<img src="${p.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed">`
             : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
+
+        // Abonnés : cliquable uniquement sur son propre profil
+        const abonnesEl = isSelf
+            ? `<div style="cursor:pointer" onclick="voirAbonnes(${p.id})">
+                   <div style="font-size:20px;font-weight:800;color:#7c3aed">${p.nb_abonnes}</div>
+                   <div style="font-size:11px;color:#7c3aed;font-weight:600;text-transform:uppercase;text-decoration:underline">Abonnés</div>
+               </div>`
+            : `<div>
+                   <div style="font-size:20px;font-weight:800;color:#111">${p.nb_abonnes}</div>
+                   <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Abonnés</div>
+               </div>`;
 
         document.getElementById('modal-title').textContent = '';
         document.getElementById('modal-body').innerHTML = `
@@ -648,10 +660,7 @@ async function ouvrirProfilPublic(userId) {
                         <div style="font-size:20px;font-weight:800;color:#111">${p.nb_posts}</div>
                         <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Posts</div>
                     </div>
-                    <div>
-                        <div style="font-size:20px;font-weight:800;color:#111">${p.nb_abonnes}</div>
-                        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Abonnés</div>
-                    </div>
+                    ${abonnesEl}
                     <div>
                         <div style="font-size:20px;font-weight:800;color:#111">${p.nb_abonnements}</div>
                         <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Abonnements</div>
@@ -671,6 +680,36 @@ async function ouvrirProfilPublic(userId) {
                 </div>` : ''}
             </div>
         `;
+        document.getElementById('overlay').classList.add('on');
+    } catch {}
+}
+
+// ── LISTE ABONNÉS (soi uniquement) ────────────────────────────
+async function voirAbonnes(userId) {
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/profil/abonnes/${userId}`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        document.getElementById('modal-title').textContent = 'Mes abonnés';
+        document.getElementById('modal-body').innerHTML = d.abonnes.length
+            ? d.abonnes.map(a => {
+                const av = a.photo
+                    ? `<img src="${a.photo}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
+                    : `<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0">${(a.prenom?.[0] || a.username[0]).toUpperCase()}</div>`;
+                return `
+                    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f3f4f6;cursor:pointer"
+                         onclick="ouvrirProfilPublic(${a.id})">
+                        ${av}
+                        <div>
+                            <div style="font-size:14px;font-weight:700;color:#111">${escapeHtml(a.prenom || '')} ${escapeHtml(a.nom || '')}</div>
+                            <div style="font-size:12px;color:#9ca3af">@${escapeHtml(a.username)}</div>
+                        </div>
+                    </div>`;
+            }).join('')
+            : '<p style="text-align:center;color:#9ca3af;padding:24px 0">Aucun abonné pour l\'instant.</p>';
         document.getElementById('overlay').classList.add('on');
     } catch {}
 }

@@ -5,6 +5,7 @@
 // signe_zodiaque : saisi manuellement si pas de date_naissance.
 // Nouveaux champs : heure_naissance, lieu_naissance, taille,
 // poids, groupe_sanguin, niveau_activite, naissance_lat, naissance_lon.
+// Route abonnés : GET /api/profil/abonnes/:userId — soi uniquement.
 // ============================================================
 
 const express    = require('express');
@@ -173,6 +174,32 @@ router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error('[PROFIL] PATCH /widgets-visibles :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── GET /api/profil/abonnes/:userId ──────────────────────────
+// Retourne la liste des abonnés uniquement si userId === req.user.id
+router.get('/abonnes/:userId', authenticateToken, async (req, res) => {
+    const cibleId = parseInt(req.params.userId);
+    if (isNaN(cibleId)) {
+        return res.status(400).json({ success: false, message: 'ID invalide.' });
+    }
+    if (cibleId !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Accès refusé.' });
+    }
+    try {
+        const { rows } = await pool.query(`
+            SELECT u.id, u.username, p.prenom, p.nom, p.photo
+            FROM follows f
+            JOIN users u ON u.id = f.follower_id
+            LEFT JOIN profiles p ON p.user_id = f.follower_id
+            WHERE f.following_id = \$1
+            ORDER BY u.username ASC
+        `, [cibleId]);
+        res.json({ success: true, abonnes: rows });
+    } catch (err) {
+        console.error('[PROFIL] GET /abonnes/:userId :', err.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
