@@ -9,25 +9,36 @@ const webpush  = require('web-push');
 const { pool } = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
-// ── Fonction utilitaire : envoyer un push à un user ──────────
+// ── Fonction utilitaire : envoyer un push à tous les appareils d'un user ──
 async function envoyerPush(userId, titre, corps, tag = 'mydaily') {
     try {
         const { rows } = await pool.query(
             `SELECT subscription FROM push_subscriptions WHERE user_id = \$1`, [userId]
         );
         if (!rows.length) return;
-        const subscription = JSON.parse(rows[0].subscription);
-        await webpush.sendNotification(subscription, JSON.stringify({
-            titre, corps, tag, url: '/'
-        }));
-        console.log(`[PUSH] Envoyé user ${userId} — ${tag}`);
-    } catch (e) {
-        if (e.statusCode === 410 || e.statusCode === 404) {
-            await pool.query(`DELETE FROM push_subscriptions WHERE user_id = \$1`, [userId]);
-            console.warn(`[PUSH] Subscription expirée supprimée user ${userId}`);
-        } else {
-            console.warn(`[PUSH] envoyerPush user ${userId} :`, e.message);
+
+        // Envoi à tous les appareils enregistrés
+        for (const row of rows) {
+            try {
+                const subscription = JSON.parse(row.subscription);
+                await webpush.sendNotification(subscription, JSON.stringify({
+                    titre, corps, tag, url: '/'
+                }));
+                console.log(`[PUSH] Envoyé user ${userId} — ${tag}`);
+            } catch (e) {
+                if (e.statusCode === 410 || e.statusCode === 404) {
+                    await pool.query(
+                        `DELETE FROM push_subscriptions WHERE user_id = \$1 AND subscription = \$2`,
+                        [userId, row.subscription]
+                    );
+                    console.warn(`[PUSH] Subscription expirée supprimée user ${userId}`);
+                } else {
+                    console.warn(`[PUSH] envoyerPush user ${userId} :`, e.message);
+                }
+            }
         }
+    } catch (e) {
+        console.warn(`[PUSH] envoyerPush user ${userId} :`, e.message);
     }
 }
 
@@ -75,16 +86,16 @@ router.post('/check', authenticateToken, async (req, res) => {
         `, [user_id]);
 
         for (const t of taches) {
-            const dateTache  = t.date.toISOString().split('T')[0];
-            const heureTache = t.heure.substring(0, 5);
-            const rappel     = t.rappel_avant || 0;
-            const [th, tm]   = heureTache.split(':').map(Number);
+            const dateTache    = t.date.toISOString().split('T')[0];
+            const heureTache   = t.heure.substring(0, 5);
+            const rappel       = t.rappel_avant || 0;
+            const [th, tm]     = heureTache.split(':').map(Number);
             const [yd, ym, yj] = dateTache.split('-').map(Number);
-            const tacheMin   = yd * 525600 + ym * 43800 + yj * 1440 + th * 60 + tm;
-            const notifMin   = tacheMin - rappel;
+            const tacheMin     = yd * 525600 + ym * 43800 + yj * 1440 + th * 60 + tm;
+            const notifMin     = tacheMin - rappel;
             const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
             const [ah, aminute] = heureActuelle.split(':').map(Number);
-            const actuelMin  = ad * 525600 + am * 43800 + aj * 1440 + ah * 60 + aminute;
+            const actuelMin    = ad * 525600 + am * 43800 + aj * 1440 + ah * 60 + aminute;
             if (notifMin !== actuelMin) continue;
             const label = rappel >= 60 ? `${rappel/60}h` : `${rappel}min`;
             await envoyerPush(user_id, '✅ Rappel de tâche', `${t.titre} — dans ${label}`, `tache-${t.id}`);
@@ -98,36 +109,35 @@ router.post('/check', authenticateToken, async (req, res) => {
         `, [user_id]);
 
         for (const rdv of rdvs) {
-            const rappel     = rdv.rappel_avant || 0;
-            const rdvDate    = new Date(rdv.date_rdv);
-            const notifDate  = new Date(rdvDate.getTime() - rappel * 60 * 1000);
-            const nd = `${notifDate.getUTCFullYear()}-${String(notifDate.getUTCMonth()+1).padStart(2,'0')}-${String(notifDate.getUTCDate()).padStart(2,'0')}`;
-            const nh = `${String(notifDate.getUTCHours()).padStart(2,'0')}:${String(notifDate.getUTCMinutes()).padStart(2,'0')}`;
+            const rappel      = rdv.rappel_avant || 0;
+            const rdvDate     = new Date(rdv.date_rdv);
+            const notifDate   = new Date(rdvDate.getTime() - rappel * 60 * 1000);
             const [cad, cam, caj] = dateAujourdhui.split('-').map(Number);
             const [cah, cam2]     = heureActuelle.split(':').map(Number);
-            const clientTs = Date.UTC(cad, cam - 1, caj, cah, cam2);
-            const notifTs  = rdvDate.getTime() - rappel * 60 * 1000;
+            const clientTs    = Date.UTC(cad, cam - 1, caj, cah, cam2);
+            const notifTs     = rdvDate.getTime() - rappel * 60 * 1000;
             if (Math.abs(clientTs - notifTs) > 60000) continue;
             const label = rappel >= 1440 ? 'demain' : rappel >= 60 ? `dans ${rappel/60}h` : `dans ${rappel}min`;
             await envoyerPush(user_id, '🩺 Rappel rendez-vous', `${rdv.titre} — ${label}`, `rdv-${rdv.id}`);
         }
 
         // ── Planning ──────────────────────────────────────
+        // Correction bug #1 : rappel_avant → rappel_avant_shift
         const { rows: shifts } = await pool.query(`
-            SELECT id, type, heure_debut, rappel_avant, employeur
+            SELECT id, type, heure_debut, rappel_avant_shift, employeur
             FROM planning
-            WHERE user_id = \$1 AND date = \$2 AND heure_debut IS NOT NULL AND rappel_avant > 0
+            WHERE user_id = \$1 AND date = \$2 AND heure_debut IS NOT NULL AND rappel_avant_shift > 0
         `, [user_id, dateAujourdhui]);
 
         for (const p of shifts) {
-            const [ph, pm]   = p.heure_debut.substring(0,5).split(':').map(Number);
-            const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
+            const [ph, pm]      = p.heure_debut.substring(0, 5).split(':').map(Number);
+            const [ad, am, aj]  = dateAujourdhui.split('-').map(Number);
             const [ah, aminute] = heureActuelle.split(':').map(Number);
-            const debutMin   = aj * 1440 + ph * 60 + pm;
-            const notifMin   = debutMin - p.rappel_avant;
-            const actuelMin  = aj * 1440 + ah * 60 + aminute;
+            const debutMin      = aj * 1440 + ph * 60 + pm;
+            const notifMin      = debutMin - p.rappel_avant_shift;
+            const actuelMin     = aj * 1440 + ah * 60 + aminute;
             if (notifMin !== actuelMin) continue;
-            const label = p.rappel_avant >= 60 ? `${p.rappel_avant/60}h` : `${p.rappel_avant}min`;
+            const label = p.rappel_avant_shift >= 60 ? `${p.rappel_avant_shift/60}h` : `${p.rappel_avant_shift}min`;
             const corps = `${p.type || ''} — dans ${label} (${p.heure_debut.slice(0,5)})${p.employeur ? ' — '+p.employeur : ''}`;
             await envoyerPush(user_id, '📋 Rappel Planning', corps, `planning-${p.id}`);
         }
@@ -141,7 +151,7 @@ router.post('/check', authenticateToken, async (req, res) => {
             `, [user_id]);
 
             const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
-            const demainJ = new Date(Date.UTC(ad, am - 1, aj + 1));
+            const demainJ      = new Date(Date.UTC(ad, am - 1, aj + 1));
 
             for (const a of annivs) {
                 const nom = `${a.prenom}${a.nom ? ' '+a.nom : ''}`;
@@ -162,4 +172,4 @@ router.post('/check', authenticateToken, async (req, res) => {
     }
 });
 
-module.exports = router;
+module.exports = { router, envoyerPush };
