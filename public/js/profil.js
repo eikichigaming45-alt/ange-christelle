@@ -6,6 +6,7 @@
 // Onglet Santé : sexe, taille, poids, groupe sanguin,
 // niveau d'activité, signe zodiaque, IMC, TDEE.
 // Géocodage Nominatim : lieu de naissance → lat/lon (onblur).
+// Widget Mon Profil : signe astrologique à la place de l'IMC.
 // Dépend de : app.js (getUser, profilCache, cropperInstance, TOUS_WIDGETS)
 //             widgets.js (appliquerWidgetsVisibles)
 // ============================================================
@@ -52,9 +53,59 @@ function calculerTDEE(poids, taille, age, sexe, niveau_activite) {
     return Math.round(MB * facteur);
 }
 
+// ===================== SIGNE ASTROLOGIQUE ====================
+// Calculé depuis la date de naissance, ou pris depuis signe_zodiaque
+// si renseigné manuellement.
+
+const _SIGNES_ZODIAQUE = [
+    { signe:'Capricorne', emoji:'♑', mois:1,  jour:20 },
+    { signe:'Verseau',    emoji:'♒', mois:2,  jour:19 },
+    { signe:'Poissons',   emoji:'♓', mois:3,  jour:20 },
+    { signe:'Bélier',     emoji:'♈', mois:4,  jour:20 },
+    { signe:'Taureau',    emoji:'♉', mois:5,  jour:21 },
+    { signe:'Gémeaux',    emoji:'♊', mois:6,  jour:21 },
+    { signe:'Cancer',     emoji:'♋', mois:7,  jour:23 },
+    { signe:'Lion',       emoji:'♌', mois:8,  jour:23 },
+    { signe:'Vierge',     emoji:'♍', mois:9,  jour:23 },
+    { signe:'Balance',    emoji:'♎', mois:10, jour:23 },
+    { signe:'Scorpion',   emoji:'♏', mois:11, jour:22 },
+    { signe:'Sagittaire', emoji:'♐', mois:12, jour:22 },
+    { signe:'Capricorne', emoji:'♑', mois:12, jour:31 },
+];
+
+const _SIGNES_LABELS = {
+    belier    : { signe:'Bélier',     emoji:'♈' },
+    taureau   : { signe:'Taureau',    emoji:'♉' },
+    gemeaux   : { signe:'Gémeaux',    emoji:'♊' },
+    cancer    : { signe:'Cancer',     emoji:'♋' },
+    lion      : { signe:'Lion',       emoji:'♌' },
+    vierge    : { signe:'Vierge',     emoji:'♍' },
+    balance   : { signe:'Balance',    emoji:'♎' },
+    scorpion  : { signe:'Scorpion',   emoji:'♏' },
+    sagittaire: { signe:'Sagittaire', emoji:'♐' },
+    capricorne: { signe:'Capricorne', emoji:'♑' },
+    verseau   : { signe:'Verseau',    emoji:'♒' },
+    poissons  : { signe:'Poissons',   emoji:'♓' },
+};
+
+function _signeDepuisDate(dateStr) {
+    if (!dateStr) return null;
+    const d    = new Date(dateStr);
+    const mois = d.getMonth() + 1;
+    const jour = d.getDate();
+    const found = _SIGNES_ZODIAQUE.find(s => mois < s.mois || (mois === s.mois && jour <= s.jour));
+    return found || null;
+}
+
+function obtenirSigne(p) {
+    // Priorité : signe manuel → calcul depuis date de naissance
+    if (p.signe_zodiaque && _SIGNES_LABELS[p.signe_zodiaque]) {
+        return _SIGNES_LABELS[p.signe_zodiaque];
+    }
+    return _signeDepuisDate(p.date_naissance);
+}
+
 // ===================== GÉOCODAGE NOMINATIM ===================
-// Appelé en onblur sur le champ lieu de naissance.
-// Stocke le résultat dans des champs cachés naissance_lat/lon.
 
 async function geocoderLieuNaissance() {
     const input  = document.getElementById('p-lieu-naissance');
@@ -147,8 +198,8 @@ async function chargerProfilHeader() {
             return a;
         })() : null;
 
-        const imc      = calculerIMC(p.poids, p.taille);
-        const imcInfos = interpreterIMC(imc);
+        // Signe astrologique pour le widget
+        const signe = obtenirSigne(p);
 
         wc.innerHTML = `
             <div class="profil-widget">
@@ -160,12 +211,8 @@ async function chargerProfilHeader() {
                 ${age          ? `<div class="profil-widget-info">${age} ans</div>`          : ''}
                 ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
                 ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>`  : ''}
-                ${imc && imcInfos
-                    ? `<div class="profil-widget-info" style="color:${imcInfos.color};font-weight:600">
-                           IMC ${imc} — ${imcInfos.label}
-                       </div>`
-                    : ''}
-                ${p.note ? `<div class="profil-widget-bio">${p.note}</div>` : ''}
+                ${signe        ? `<div class="profil-widget-info">${signe.emoji} ${signe.signe}</div>` : ''}
+                ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>`           : ''}
             </div>
         `;
     } catch { /* silencieux */ }
@@ -334,7 +381,6 @@ async function sauvegarderProfil() {
     const photo   = photoEl?.src?.startsWith('data:') ? photoEl.src : (profilCache?.photo || null);
 
     const body = {
-        // Onglet Profil
         prenom          : document.getElementById('p-prenom')?.value           || '',
         nom             : document.getElementById('p-nom')?.value              || '',
         date_naissance  : document.getElementById('p-naissance')?.value        || null,
@@ -347,7 +393,6 @@ async function sauvegarderProfil() {
         profession      : document.getElementById('p-prof')?.value             || '',
         note            : document.getElementById('p-note')?.value             || '',
         photo,
-        // Onglet Santé
         sexe            : document.getElementById('p-sexe')?.value             || null,
         taille          : document.getElementById('p-taille')?.value           ? parseInt(document.getElementById('p-taille').value)           : null,
         poids           : document.getElementById('p-poids')?.value            ? parseFloat(document.getElementById('p-poids').value)           : null,
