@@ -34,6 +34,32 @@ async function _getSexeCourant() {
     }
 }
 
+// ── Modale conseil complet ────────────────────────────────────
+function _ouvrirModaleConseil(texte) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;
+        display:flex;align-items:center;justify-content:center;padding:20px`;
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:24px;
+                    max-width:340px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.18)">
+            <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:12px">
+                Conseil du jour
+            </div>
+            <p style="font-size:14px;color:#374151;line-height:1.7;margin:0 0 20px">
+                ${texte}
+            </p>
+            <button style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                           color:#fff;border:none;border-radius:10px;font-size:14px;
+                           font-weight:600;cursor:pointer">
+                Fermer
+            </button>
+        </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('button').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
 // ============================================================
 // WIDGET SOCIAL (contenu reçu — affiché dans l'onglet Quotidien)
 // ============================================================
@@ -101,7 +127,6 @@ async function _renderOwnerSection(owner, token) {
                ${(owner.prenom?.[0] || owner.username[0]).toUpperCase()}
            </div>`;
 
-    // cycle en premier, puis le reste dans l'ordre reçu
     const typesTries = [
         ...owner.types.filter(t => t === 'cycle'),
         ...owner.types.filter(t => t !== 'cycle')
@@ -145,37 +170,43 @@ async function _renderBlocCycle(ownerId, token) {
 
     const ci = d.cycleInfo;
 
-    // ── Carte infos cycle (toujours affichée si cycleInfo existe) ──
     let carteInfos = '';
     if (ci) {
         const lignes = [];
 
         if (ci.enRegles && ci.finRegles) {
-            lignes.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6">
-                <span style="font-size:12px;color:#6b7280">Fin des règles estimée</span>
-                <span style="font-size:12px;font-weight:600;color:#ef4444">${ci.finRegles}</span>
-            </div>`);
+            lignes.push(`
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;
+                            padding:5px 0;border-bottom:1px solid #f3f4f6">
+                    <span style="font-size:12px;color:#6b7280;flex:1">Fin des règles estimée</span>
+                    <span style="font-size:12px;font-weight:600;color:#ef4444;text-align:right">${ci.finRegles}</span>
+                </div>`);
         }
 
-        lignes.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6">
-            <span style="font-size:12px;color:#6b7280">${ci.labelOvulation}</span>
-            <span style="font-size:12px;font-weight:600;color:#7c3aed">${ci.valeurOvulation}</span>
-        </div>`);
+        lignes.push(`
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;
+                        padding:5px 0;border-bottom:1px solid #f3f4f6">
+                <span style="font-size:12px;color:#6b7280;flex:1">${ci.labelOvulation}</span>
+                <span style="font-size:12px;font-weight:600;color:#7c3aed;text-align:right">${ci.valeurOvulation}</span>
+            </div>`);
 
-        lignes.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6">
-            <span style="font-size:12px;color:#6b7280">${ci.labelFenetre}</span>
-            <span style="font-size:12px;font-weight:600;color:#7c3aed">${ci.valeurFenetre}</span>
-        </div>`);
+        lignes.push(`
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;
+                        padding:5px 0;border-bottom:1px solid #f3f4f6">
+                <span style="font-size:12px;color:#6b7280;flex:1;padding-right:8px">${ci.labelFenetre}</span>
+                <span style="font-size:12px;font-weight:600;color:#7c3aed;text-align:right;white-space:nowrap">${ci.valeurFenetre}</span>
+            </div>`);
 
-        lignes.push(`<div style="display:flex;justify-content:space-between;padding:5px 0">
-            <span style="font-size:12px;color:#6b7280">Prochaines règles</span>
-            <span style="font-size:12px;font-weight:600;color:#6b7280">
-                ${ci.prochainDebut}
-                ${ci.joursAvantRegles > 0
-                    ? `<span style="font-size:11px;color:#9ca3af;margin-left:4px">(dans ${ci.joursAvantRegles}j)</span>`
-                    : ''}
-            </span>
-        </div>`);
+        lignes.push(`
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0">
+                <span style="font-size:12px;color:#6b7280;flex:1">Prochaines règles</span>
+                <span style="font-size:12px;font-weight:600;color:#6b7280;text-align:right">
+                    ${ci.prochainDebut}
+                    ${ci.joursAvantRegles > 0
+                        ? `<span style="font-size:11px;color:#9ca3af;margin-left:4px">(dans ${ci.joursAvantRegles}j)</span>`
+                        : ''}
+                </span>
+            </div>`);
 
         carteInfos = `
             <div style="background:#fff;border-radius:10px;padding:10px 12px;
@@ -204,7 +235,6 @@ async function _renderBlocCycle(ownerId, token) {
         <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;
                     letter-spacing:.5px;margin-bottom:6px">Suivi du cycle</div>`;
 
-    // ── Mood non rempli ───────────────────────────────────────
     if (!d.moodRempli) {
         return `
             <div style="margin-bottom:10px">
@@ -224,17 +254,31 @@ async function _renderBlocCycle(ownerId, token) {
             </div>`;
     }
 
-    // ── Mood rempli + conseil ─────────────────────────────────
     const moodBadges = (d.moods || []).map(m =>
         `<span style="background:#ede9fe;color:#7c3aed;border-radius:20px;
                       padding:3px 8px;font-size:11px;font-weight:600">${m}</span>`
     ).join('');
 
-    const conseilBloc = d.conseil ? `
-        <div style="margin-top:8px;padding:10px 12px;background:#fdf4ff;border-radius:10px;
-                    border-left:3px solid #7c3aed;font-size:13px;color:#374151;line-height:1.6">
-            ${d.conseil}
-        </div>` : '';
+    let conseilBloc = '';
+    if (d.conseil) {
+        const texteComplet = d.conseil;
+        const court        = texteComplet.length > 80
+            ? texteComplet.slice(0, 80).trimEnd() + '…'
+            : texteComplet;
+        const avecLien     = texteComplet.length > 80
+            ? `${court} <span data-conseil-complet="${encodeURIComponent(texteComplet)}"
+                              data-action="lire-conseil"
+                              style="color:#7c3aed;font-weight:600;cursor:pointer;white-space:nowrap">
+                   Lire la suite
+               </span>`
+            : court;
+
+        conseilBloc = `
+            <div style="margin-top:8px;padding:10px 12px;background:#fdf4ff;border-radius:10px;
+                        border-left:3px solid #7c3aed;font-size:13px;color:#374151;line-height:1.6">
+                ${avecLien}
+            </div>`;
+    }
 
     return `
         <div style="margin-bottom:10px">
@@ -248,6 +292,13 @@ async function _renderBlocCycle(ownerId, token) {
             </div>
         </div>`;
 }
+
+// ── Délégation "Lire la suite" ────────────────────────────────
+document.addEventListener('click', e => {
+    const btn = e.target.closest('[data-action="lire-conseil"]');
+    if (!btn) return;
+    _ouvrirModaleConseil(decodeURIComponent(btn.dataset.conseilComplet));
+});
 
 // ── Bloc RDV ──────────────────────────────────────────────────
 async function _renderBlocRdv(ownerId, token) {
@@ -525,7 +576,7 @@ document.addEventListener('change', async e => {
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body   : JSON.stringify({ active })
         });
-    } catch {
+        } catch {
         cb.checked = !active;
         if (track) track.style.background = !active ? '#7c3aed' : '#d1d5db';
         if (thumb) thumb.style.left       = !active ? '19px'    : '3px';
@@ -573,7 +624,8 @@ function _supprimerPartage(id) {
     overlay.querySelector('[data-action="confirmer-supprimer"]').addEventListener('click', async () => {
         const { token } = _socialAuth();
         overlay.remove();
-        try {        await fetch(`/api/social/partages/${id}`, {
+        try {
+            await fetch(`/api/social/partages/${id}`, {
                 method : 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -829,4 +881,3 @@ async function _envoyerPartages() {
         msg.style.color = '#ef4444';
     }
 }
-
