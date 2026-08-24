@@ -446,7 +446,7 @@ ${conseilsTextes.join('\n')}
 Rédige un seul conseil synthétique, bienveillant, naturel et pratique en français (3-4 phrases max) à destination de son proche, en intégrant tous les éléments pertinents. Ne commence pas par "Bien sûr" ou une formule de politesse. Va droit au but.`;
 
         const completion = await groq.chat.completions.create({
-            model: 'llama-3.1-8b-instant',
+            model: 'openai/gpt-oss-20b',
             messages  : [{ role: 'user', content: prompt }],
             max_tokens: 200
         });
