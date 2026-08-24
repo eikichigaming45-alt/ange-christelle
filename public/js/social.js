@@ -8,13 +8,19 @@ function _socialAuth() {
     return { user, token: user?.token };
 }
 
-// ── Labels lisibles par type ──────────────────────────────────
-const _SHARE_LABELS = {
-    cycle   : '🌙 Cycle',
-    rdv     : '📅 Rendez-vous',
-    taches  : '✅ Tâches',
-    planning: '📋 Planning'
-};
+// ── Labels triés alphabétiquement ────────────────────────────
+// Utilisé partout comme tableau pour garantir l'ordre
+const _SHARE_LABELS_LIST = [
+    { type: 'cycle',    label: 'Cycle menstruel' },
+    { type: 'planning', label: 'Planning'         },
+    { type: 'rdv',      label: 'Rendez-vous'      },
+    { type: 'taches',   label: 'Tâches'           },
+];
+
+// Accès rapide label par type (compatibilité avec le reste du code)
+const _SHARE_LABELS = Object.fromEntries(
+    _SHARE_LABELS_LIST.map(l => [l.type, l.label])
+);
 
 // ============================================================
 // WIDGET SOCIAL (contenu reçu — affiché dans l'onglet Quotidien)
@@ -25,6 +31,10 @@ async function chargerWidgetSocial() {
     if (!el) return;
     const { token } = _socialAuth();
     if (!token) return;
+
+    // Aucun listener de clic — le widget est en lecture seule
+    el.style.cursor = 'default';
+    el.style.pointerEvents = 'none';
 
     try {
         const r = await fetch('/api/social/partages/recus', {
@@ -44,6 +54,8 @@ async function chargerWidgetSocial() {
                         Quand quelqu'un partage quelque chose, tu le verras ici.
                     </div>
                 </div>`;
+            // Rétablir pointer-events pour le contenu interne si besoin
+            el.style.pointerEvents = 'auto';
             return;
         }
 
@@ -66,9 +78,11 @@ async function chargerWidgetSocial() {
             Object.values(parOwner).map(owner => _renderOwnerSection(owner, token))
         );
         el.innerHTML = sections.join('');
+        el.style.pointerEvents = 'auto';
 
     } catch {
         el.innerHTML = '<p style="color:#9ca3af;font-size:13px;text-align:center">Erreur de chargement.</p>';
+        el.style.pointerEvents = 'auto';
     }
 }
 
@@ -129,7 +143,7 @@ async function _renderBlocCycle(ownerId, token) {
                     Elle n'a pas encore renseigné son humeur aujourd'hui.
                 </div>
                 <button data-owner-id="${ownerId}"
-                    onclick="_envoyerCoucou(${ownerId})"
+                    data-action="envoyer-coucou"
                     style="width:100%;padding:10px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
                            color:#fff;border:none;border-radius:10px;font-size:13px;
                            font-weight:600;cursor:pointer">
@@ -267,34 +281,37 @@ async function _renderBlocPlanning(ownerId, token) {
         </div>`;
 }
 
-// ── Envoyer un coucou ─────────────────────────────────────────
-async function _envoyerCoucou(ownerId) {
+// ── Envoyer un coucou (listener via délégation) ───────────────
+document.addEventListener('click', async e => {
+    const btn = e.target.closest('[data-action="envoyer-coucou"]');
+    if (!btn) return;
+    const ownerId = btn.dataset.ownerId;
     const { token } = _socialAuth();
-    const btn = document.querySelector(`button[data-owner-id="${ownerId}"]`);
-    if (btn) { btn.disabled = true; btn.textContent = 'Envoi...'; }
+    btn.disabled    = true;
+    btn.textContent = 'Envoi...';
     try {
         const r = await fetch(`/api/social/coucou/${ownerId}`, {
             method : 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const d = await r.json();
-        if (d.success && btn) {
+        if (d.success) {
             btn.textContent      = 'Coucou envoyé 💕';
             btn.style.background = '#10b981';
-        } else if (btn) {
+        } else {
             btn.disabled    = false;
             btn.textContent = 'Envoyer un coucou 💕';
         }
     } catch {
-        if (btn) { btn.disabled = false; btn.textContent = 'Envoyer un coucou 💕'; }
+        btn.disabled    = false;
+        btn.textContent = 'Envoyer un coucou 💕';
     }
-}
+});
 
 // ============================================================
 // GESTION DES PARTAGES — intégrée dans l'onglet Social du profil
 // ============================================================
 
-// ── Switcher d'onglet ─────────────────────────────────────────
 async function _socialOnglet(tab) {
     ['miens', 'nouveau'].forEach(t => {
         const btn = document.getElementById(`social-tab-${t}`);
@@ -303,7 +320,7 @@ async function _socialOnglet(tab) {
         btn.style.color      = t === tab ? '#fff'    : '#7c3aed';
     });
     if (tab === 'miens')   await _renderOngletMiens();
-    if (tab === 'nouveau') _renderOngletNouveau();
+    if (tab === 'nouveau') await _renderOngletNouveau();
 }
 
 // ============================================================
@@ -379,7 +396,8 @@ function _htmlBlocViewer(v) {
                 <label style="position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0">
                     <input type="checkbox" ${p.active ? 'checked' : ''}
                         data-share-id="${p.id}"
-                        onchange="_togglePartage(${p.id}, this.checked)"
+                        data-action="toggle-partage"
+                        data-active="${p.active}"
                         style="opacity:0;width:0;height:0;position:absolute">
                     <span style="position:absolute;inset:0;border-radius:22px;cursor:pointer;
                                  background:${p.active ? '#7c3aed' : '#d1d5db'};transition:background .2s">
@@ -388,10 +406,10 @@ function _htmlBlocViewer(v) {
                                      transition:left .2s;display:block"></span>
                     </span>
                 </label>
-                <button data-del-id="${p.id}"
-                    onclick="_supprimerPartage(${p.id})"
-                    style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;
-                           padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">
+                <button data-action="supprimer-partage"
+                        data-del-id="${p.id}"
+                        style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;
+                               padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">
                     Supprimer
                 </button>
             </div>
@@ -407,32 +425,37 @@ function _htmlBlocViewer(v) {
         </div>`;
 }
 
-// ── Toggle actif/inactif ──────────────────────────────────────
-async function _togglePartage(id, active) {
+// ── Délégation pour toggle & suppression ─────────────────────
+document.addEventListener('change', async e => {
+    const cb = e.target.closest('[data-action="toggle-partage"]');
+    if (!cb) return;
+    const id     = cb.dataset.shareId;
+    const active = cb.checked;
     const { token } = _socialAuth();
-    const cb    = document.querySelector(`input[data-share-id="${id}"]`);
-    const track = cb?.nextElementSibling;
-    const thumb = track?.querySelector('span');
+    const track  = cb.nextElementSibling;
+    const thumb  = track?.querySelector('span');
     if (track) track.style.background = active ? '#7c3aed' : '#d1d5db';
     if (thumb) thumb.style.left       = active ? '19px'   : '3px';
-
     try {
         await fetch(`/api/social/partages/${id}`, {
             method : 'PATCH',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type' : 'application/json'
-            },
-            body: JSON.stringify({ active })
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ active })
         });
     } catch {
-        if (cb)    cb.checked             = !active;
+        cb.checked = !active;
         if (track) track.style.background = !active ? '#7c3aed' : '#d1d5db';
         if (thumb) thumb.style.left       = !active ? '19px'    : '3px';
     }
-}
+});
 
-// ── Supprimer un partage — modale de confirmation ─────────────
+document.addEventListener('click', e => {
+    const btn = e.target.closest('[data-action="supprimer-partage"]');
+    if (!btn) return;
+    _supprimerPartage(btn.dataset.delId);
+});
+
+// ── Supprimer un partage — confirmation inline ────────────────
 function _supprimerPartage(id) {
     const overlay = document.createElement('div');
     overlay.id    = 'social-confirm-overlay';
@@ -449,12 +472,12 @@ function _supprimerPartage(id) {
                 La personne ne pourra plus voir ce contenu.
             </p>
             <div style="display:flex;gap:10px">
-                <button onclick="_confirmerSupprimerPartage(${id})"
+                <button data-action="confirmer-supprimer" data-id="${id}"
                     style="flex:1;padding:11px;background:#ef4444;color:#fff;border:none;
                            border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">
                     Supprimer
                 </button>
-                <button onclick="document.getElementById('social-confirm-overlay').remove()"
+                <button data-action="annuler-supprimer"
                     style="flex:1;padding:11px;background:#f3f4f6;color:#374151;border:none;
                            border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">
                     Annuler
@@ -462,25 +485,29 @@ function _supprimerPartage(id) {
             </div>
         </div>`;
     document.body.appendChild(overlay);
-}
 
-async function _confirmerSupprimerPartage(id) {
-    const { token } = _socialAuth();
-    document.getElementById('social-confirm-overlay')?.remove();
-    try {
-        await fetch(`/api/social/partages/${id}`, {
-            method : 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-    } catch { /* silencieux */ }
-    await _renderOngletMiens();
+    overlay.querySelector('[data-action="confirmer-supprimer"]').addEventListener('click', async () => {
+        const { token } = _socialAuth();
+        overlay.remove();
+        try {
+            await fetch(`/api/social/partages/${id}`, {
+                method : 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        } catch { /* silencieux */ }
+        await _renderOngletMiens();
+    });
+
+    overlay.querySelector('[data-action="annuler-supprimer"]').addEventListener('click', () => {
+        overlay.remove();
+    });
 }
 
 // ============================================================
 // ONGLET — PARTAGER AVEC QUELQU'UN
 // ============================================================
 
-function _renderOngletNouveau() {
+async function _renderOngletNouveau() {
     const container = document.getElementById('social-tab-content');
     if (!container) return;
     container.innerHTML = `
@@ -488,7 +515,6 @@ function _renderOngletNouveau() {
             <input id="social-search-input"
                 type="text"
                 placeholder="Rechercher par nom d'utilisateur…"
-                oninput="_socialRechercherUser(this.value)"
                 style="width:100%;box-sizing:border-box;padding:10px 12px;
                        border:1px solid #ede9fe;border-radius:10px;font-size:14px;
                        outline:none;background:#faf5ff;color:#1f2937">
@@ -501,19 +527,10 @@ function _renderOngletNouveau() {
                             text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
                     Que souhaites-tu partager ?
                 </div>
-                <div style="display:flex;flex-direction:column;gap:8px">
-                    ${['cycle','rdv','taches','planning'].map(t => `
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;
-                                      background:#fff;border-radius:8px;padding:10px 12px;
-                                      border:1px solid #f3f4f6">
-                            <input type="checkbox" value="${t}" id="share-type-${t}"
-                                style="width:16px;height:16px;accent-color:#7c3aed;cursor:pointer">
-                            <span style="font-size:13px;color:#374151">${_SHARE_LABELS[t]}</span>
-                        </label>`).join('')}
-                </div>
+                <div id="social-types-list" style="display:flex;flex-direction:column;gap:8px"></div>
                 <div id="social-share-msg"
                     style="font-size:12px;min-height:16px;margin-top:10px;text-align:center"></div>
-                <button onclick="_envoyerPartages()"
+                <button data-action="envoyer-partages"
                     style="width:100%;margin-top:14px;padding:12px;
                            background:linear-gradient(135deg,#7c3aed,#6d28d9);
                            color:#fff;border:none;border-radius:10px;
@@ -522,81 +539,94 @@ function _renderOngletNouveau() {
                 </button>
             </div>
         </div>`;
+
+    // Listener recherche
+    let _timer = null;
+    document.getElementById('social-search-input').addEventListener('input', e => {
+        clearTimeout(_timer);
+        const q = e.target.value.trim();
+        if (q.length < 2) {
+            document.getElementById('social-search-results').innerHTML = '';
+            return;
+        }
+        _timer = setTimeout(() => _socialRechercherUser(q), 350);
+    });
+
+    // Listener bouton Partager
+    document.querySelector('[data-action="envoyer-partages"]').addEventListener('click', _envoyerPartages);
 }
 
 // ── Recherche utilisateur ─────────────────────────────────────
-let _socialSearchTimer = null;
 async function _socialRechercherUser(q) {
-    clearTimeout(_socialSearchTimer);
     const results = document.getElementById('social-search-results');
     if (!results) return;
-    if (q.trim().length < 2) { results.innerHTML = ''; return; }
+    const { token } = _socialAuth();
+    try {
+        const r = await fetch(`/api/social/users/search?q=${encodeURIComponent(q)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
 
-    _socialSearchTimer = setTimeout(async () => {
-        const { token } = _socialAuth();
-        try {
-            const r = await fetch(`/api/social/users/search?q=${encodeURIComponent(q.trim())}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const d = await r.json();
-            if (!d.success) return;
+        if (!d.users.length) {
+            results.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:8px 4px">Aucun utilisateur trouvé.</div>';
+            return;
+        }
 
-            if (!d.users.length) {
-                results.innerHTML = `
-                    <div style="font-size:13px;color:#9ca3af;padding:8px 4px">
-                        Aucun utilisateur trouvé.
-                    </div>`;
-                return;
-            }
+                results.innerHTML = d.users.map(u => {
+            const nom    = [u.prenom, u.nom].filter(Boolean).join(' ') || u.username;
+            const avatar = u.photo
+                ? `<img src="${u.photo}" style="width:30px;height:30px;border-radius:50%;object-fit:cover" alt="">`
+                : `<div style="width:30px;height:30px;border-radius:50%;background:#7c3aed;
+                               color:#fff;font-size:12px;font-weight:700;display:flex;
+                               align-items:center;justify-content:center">
+                       ${(u.prenom?.[0] || u.username[0]).toUpperCase()}
+                   </div>`;
+            return `
+                <div data-action="select-user"
+                     data-user-id="${u.id}"
+                     data-username="${u.username}"
+                     data-prenom="${u.prenom || ''}"
+                     data-nom="${u.nom || ''}"
+                     data-photo="${u.photo || ''}"
+                     style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+                            background:#fff;border-radius:10px;border:1px solid #ede9fe;
+                            margin-bottom:6px;cursor:pointer">
+                    ${avatar}
+                    <div>
+                        <div style="font-size:13px;font-weight:600;color:#1f2937">${nom}</div>
+                        <div style="font-size:11px;color:#9ca3af">@${u.username}</div>
+                    </div>
+                </div>`;
+        }).join('');
 
-            results.innerHTML = d.users.map(u => {
-                const nom    = [u.prenom, u.nom].filter(Boolean).join(' ') || u.username;
-                const avatar = u.photo
-                    ? `<img src="${u.photo}" style="width:30px;height:30px;border-radius:50%;object-fit:cover" alt="">`
-                    : `<div style="width:30px;height:30px;border-radius:50%;background:#7c3aed;
-                                   color:#fff;font-size:12px;font-weight:700;display:flex;
-                                   align-items:center;justify-content:center">
-                           ${(u.prenom?.[0] || u.username[0]).toUpperCase()}
-                       </div>`;
-                return `
-                    <div data-user-id="${u.id}"
-                        data-username="${u.username}"
-                        data-prenom="${u.prenom || ''}"
-                        data-nom="${u.nom || ''}"
-                        data-photo="${u.photo || ''}"
-                        onclick="_socialSelectionnerUser(this)"
-                        style="display:flex;align-items:center;gap:10px;padding:10px 12px;
-                               background:#fff;border-radius:10px;border:1px solid #ede9fe;
-                               margin-bottom:6px;cursor:pointer">
-                        ${avatar}
-                        <div>
-                            <div style="font-size:13px;font-weight:600;color:#1f2937">${nom}</div>
-                            <div style="font-size:11px;color:#9ca3af">@${u.username}</div>
-                        </div>
-                    </div>`;
-            }).join('');
+        // Listeners sélection utilisateur
+        results.querySelectorAll('[data-action="select-user"]').forEach(el => {
+            el.addEventListener('click', () => _socialSelectionnerUser(el));
+        });
 
-        } catch { /* silencieux */ }
-    }, 350);
+    } catch { /* silencieux */ }
 }
 
 // ── Sélectionner un utilisateur ───────────────────────────────
-function _socialSelectionnerUser(el) {
+async function _socialSelectionnerUser(el) {
     const userId   = el.dataset.userId;
     const username = el.dataset.username;
     const prenom   = el.dataset.prenom;
     const nom      = el.dataset.nom;
     const photo    = el.dataset.photo;
+    const { token } = _socialAuth();
 
-    document.getElementById('social-nouveau-form').dataset.viewerId = userId;
-    document.getElementById('social-search-input').value            = '';
-    document.getElementById('social-search-results').innerHTML      = '';
+    document.getElementById('social-search-input').value       = '';
+    document.getElementById('social-search-results').innerHTML = '';
 
     const form = document.getElementById('social-nouveau-form');
-    form.style.display = 'block';
+    form.style.display    = 'block';
+    form.dataset.viewerId = userId;
 
+    // Avatar
     const nomAffiche = [prenom, nom].filter(Boolean).join(' ') || username;
-    const avatar = photo
+    const avatar     = photo
         ? `<img src="${photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
         : `<div style="width:36px;height:36px;border-radius:50%;background:#7c3aed;
                        color:#fff;font-size:14px;font-weight:700;display:flex;
@@ -612,27 +642,61 @@ function _socialSelectionnerUser(el) {
                 <div style="font-size:14px;font-weight:700;color:#1f2937">${nomAffiche}</div>
                 <div style="font-size:12px;color:#9ca3af">@${username}</div>
             </div>
-            <button onclick="_socialAnnulerSelection()"
+            <button data-action="annuler-selection"
                 style="margin-left:auto;background:none;border:none;
                        color:#9ca3af;font-size:18px;cursor:pointer;line-height:1">×</button>
         </div>`;
 
+    document.querySelector('[data-action="annuler-selection"]')
+        .addEventListener('click', _socialAnnulerSelection);
+
     document.getElementById('social-share-msg').textContent = '';
+
+    // Récupérer les partages déjà actifs vers cet utilisateur
+    let dejaPartages = [];
+    try {
+        const r = await fetch('/api/social/partages/miens', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const d = await r.json();
+        if (d.success) {
+            dejaPartages = d.partages
+                .filter(p => String(p.viewer_id) === String(userId) && p.active)
+                .map(p => p.resource_type);
+        }
+    } catch { /* silencieux */ }
+
+    // Sexe du user courant — seuls les hommes ne peuvent pas partager le cycle
+    const sexe            = (typeof profilCache !== 'undefined' && profilCache?.sexe) || '';
+    const peutPartagerCycle = sexe !== 'homme';
+
+    // Construire la liste des types disponibles (déjà triée alphabétiquement)
+    const typesDisponibles = _SHARE_LABELS_LIST.filter(l => l.type !== 'cycle' || peutPartagerCycle);
+
+    document.getElementById('social-types-list').innerHTML = typesDisponibles.map(l => `
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;
+                      background:#fff;border-radius:8px;padding:10px 12px;
+                      border:1px solid ${dejaPartages.includes(l.type) ? '#a78bfa' : '#f3f4f6'}">
+            <input type="checkbox"
+                   value="${l.type}"
+                   id="share-type-${l.type}"
+                   ${dejaPartages.includes(l.type) ? 'checked' : ''}
+                   style="width:16px;height:16px;accent-color:#7c3aed;cursor:pointer">
+            <span style="font-size:13px;color:#374151;flex:1">${l.label}</span>
+            ${dejaPartages.includes(l.type)
+                ? '<span style="font-size:11px;color:#7c3aed;font-weight:600">Déjà partagé</span>'
+                : ''}
+        </label>`).join('');
 }
 
 // ── Annuler la sélection ──────────────────────────────────────
 function _socialAnnulerSelection() {
     const form = document.getElementById('social-nouveau-form');
-    if (form) {
-        form.style.display    = 'none';
-        form.dataset.viewerId = '';
-    }
+    if (form) { form.style.display = 'none'; form.dataset.viewerId = ''; }
     const sel = document.getElementById('social-user-selectionne');
     if (sel) sel.innerHTML = '';
-    ['cycle','rdv','taches','planning'].forEach(t => {
-        const cb = document.getElementById(`share-type-${t}`);
-        if (cb) cb.checked = false;
-    });
+    const liste = document.getElementById('social-types-list');
+    if (liste) liste.innerHTML = '';
     const msg = document.getElementById('social-share-msg');
     if (msg) msg.textContent = '';
 }
@@ -645,9 +709,9 @@ async function _envoyerPartages() {
     const msg      = document.getElementById('social-share-msg');
     if (!viewerId) return;
 
-    const types = ['cycle','rdv','taches','planning'].filter(t =>
-        document.getElementById(`share-type-${t}`)?.checked
-    );
+    const types = _SHARE_LABELS_LIST
+        .map(l => l.type)
+        .filter(t => document.getElementById(`share-type-${t}`)?.checked);
 
     if (types.length === 0) {
         msg.textContent = 'Sélectionne au moins un type de contenu.';
@@ -677,10 +741,13 @@ async function _envoyerPartages() {
 
     const echecs = resultats.filter(r => !r.success);
     if (echecs.length === 0) {
-        msg.textContent = '✅ Partages envoyés !';
+        msg.textContent = '✅ Partages mis à jour !';
         msg.style.color = '#10b981';
-        setTimeout(() => {
-            _socialAnnulerSelection();
+        // Rafraîchir les coches pour refléter le nouvel état
+        setTimeout(async () => {
+            const el = document.querySelector(`[data-user-id="${viewerId}"]`);
+            if (el) await _socialSelectionnerUser(el);
+            else    _socialAnnulerSelection();
             chargerWidgetSocial();
         }, 1200);
     } else {

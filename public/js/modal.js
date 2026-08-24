@@ -374,10 +374,10 @@ async function openModal(type) {
                                 <div style="font-size:12px;color:#9ca3af;margin-top:2px">Choisis ce qui s'affiche sur ton tableau de bord</div>
                             </div>
                         </div>
-                        <div id="widgets-choix" class="widgets-choix-grid">
+                                                <div id="widgets-choix" class="widgets-choix-grid">
                             <p style="color:#9ca3af;font-size:13px">Chargement...</p>
                         </div>
-                                                <button onclick="sauvegarderWidgetsVisibles()"
+                        <button onclick="sauvegarderWidgetsVisibles()"
                             style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);
                                    color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;
                                    cursor:pointer;margin-top:16px;box-shadow:0 4px 10px rgba(16,185,129,0.3)">
@@ -391,15 +391,17 @@ async function openModal(type) {
                     <div style="display:flex;gap:0;margin-bottom:16px;border-radius:10px;
                                 overflow:hidden;border:1px solid #ede9fe">
                         <button data-social-tab="miens"
-                            onclick="_socialOnglet('miens')"
                             id="social-tab-miens"
+                            data-action="social-onglet"
+                            data-onglet="miens"
                             style="flex:1;padding:10px;border:none;background:#7c3aed;
                                    color:#fff;font-size:13px;font-weight:600;cursor:pointer">
                             Ce que je partage
                         </button>
                         <button data-social-tab="nouveau"
-                            onclick="_socialOnglet('nouveau')"
                             id="social-tab-nouveau"
+                            data-action="social-onglet"
+                            data-onglet="nouveau"
                             style="flex:1;padding:10px;border:none;background:#f5f3ff;
                                    color:#7c3aed;font-size:13px;font-weight:600;cursor:pointer">
                             Partager avec…
@@ -409,6 +411,7 @@ async function openModal(type) {
                 </div>
             `;
 
+            // ── Listeners onglets profil ───────────────────────────
             document.querySelectorAll('.profil-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     document.querySelectorAll('.profil-tab').forEach(t => {
@@ -423,6 +426,11 @@ async function openModal(type) {
                     if (tab.dataset.tab === 'widgets') afficherSectionWidgets();
                     if (tab.dataset.tab === 'social')  _socialOnglet('miens');
                 });
+            });
+
+            // ── Listeners onglets social (data-action) ────────────
+            document.querySelectorAll('[data-action="social-onglet"]').forEach(btn => {
+                btn.addEventListener('click', () => _socialOnglet(btn.dataset.onglet));
             });
 
             await afficherSectionWidgets();
@@ -508,4 +516,340 @@ function closeModal() {
 
 function closeOutside(e) {
     if (e.target === document.getElementById('overlay')) closeModal();
+}
+
+// ===================== ONGLETS SOCIAL ========================
+
+// Labels triés alphabétiquement par libellé affiché
+const _SHARE_LABELS = [
+    { type: 'cycle',    label: 'Cycle menstruel' },
+    { type: 'planning', label: 'Planning'         },
+    { type: 'rdv',      label: 'Rendez-vous'      },
+    { type: 'taches',   label: 'Tâches'           },
+];
+
+async function _socialOnglet(onglet) {
+    // Mettre à jour l'apparence des boutons d'onglet
+    ['miens', 'nouveau'].forEach(o => {
+        const btn = document.getElementById(`social-tab-${o}`);
+        if (!btn) return;
+        if (o === onglet) {
+            btn.style.background = '#7c3aed';
+            btn.style.color      = '#fff';
+        } else {
+            btn.style.background = '#f5f3ff';
+            btn.style.color      = '#7c3aed';
+        }
+    });
+
+    const container = document.getElementById('social-tab-content');
+    if (!container) return;
+    container.innerHTML = '<p style="color:#9ca3af;font-size:13px">Chargement...</p>';
+
+    const user = getUser();
+
+    if (onglet === 'miens') {
+        try {
+            const r = await fetch('/api/social/partages/miens', {
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+            const d = await r.json();
+            if (!d.success) throw new Error();
+
+            const partages = d.partages;
+            if (!partages.length) {
+                container.innerHTML = '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:20px 0">Vous ne partagez rien pour l\'instant.</p>';
+                return;
+            }
+
+            // Grouper par viewer
+            const parViewer = {};
+            partages.forEach(p => {
+                if (!parViewer[p.viewer_id]) {
+                    parViewer[p.viewer_id] = {
+                        username: p.username,
+                        prenom  : p.prenom,
+                        nom     : p.nom,
+                        photo   : p.photo,
+                        items   : []
+                    };
+                }
+                parViewer[p.viewer_id].items.push(p);
+            });
+
+            container.innerHTML = Object.entries(parViewer).map(([vid, v]) => {
+                const initiales = construireTrigramme(v.prenom, v.nom) || v.username?.slice(0,2).toUpperCase() || '?';
+                const avatar    = v.photo
+                    ? `<img src="${v.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #ede9fe">`
+                    : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);
+                                   display:flex;align-items:center;justify-content:center;
+                                   font-size:12px;font-weight:700;color:#fff;flex-shrink:0">${initiales}</div>`;
+
+                const lignes = v.items.map(item => {
+                    const labelObj = _SHARE_LABELS.find(l => l.type === item.resource_type);
+                    const label    = labelObj ? labelObj.label : item.resource_type;
+                    const actif    = item.active;
+                    return `
+                        <div style="display:flex;align-items:center;justify-content:space-between;
+                                    padding:8px 0;border-bottom:1px solid #f3f4f6">
+                            <span style="font-size:13px;color:#374151">${label}</span>
+                            <div style="display:flex;gap:8px;align-items:center">
+                                <span style="font-size:11px;color:${actif ? '#10b981' : '#f59e0b'};font-weight:600">
+                                    ${actif ? 'Actif' : 'Pausé'}
+                                </span>
+                                <button data-action="toggle-partage"
+                                        data-id="${item.id}"
+                                        data-active="${actif ? 'true' : 'false'}"
+                                        style="background:${actif ? '#fef3c7' : '#d1fae5'};
+                                               color:${actif ? '#d97706' : '#059669'};
+                                               border:none;border-radius:6px;padding:4px 10px;
+                                               font-size:11px;font-weight:600;cursor:pointer">
+                                    ${actif ? 'Pause' : 'Réactiver'}
+                                </button>
+                                <button data-action="delete-partage"
+                                        data-id="${item.id}"
+                                        style="background:#fee2e2;color:#ef4444;border:none;
+                                               border-radius:6px;padding:4px 10px;
+                                               font-size:11px;font-weight:600;cursor:pointer">
+                                    Supprimer
+                                </button>
+                            </div>
+                        </div>`;
+                }).join('');
+
+                return `
+                    <div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                            ${avatar}
+                            <div>
+                                <div style="font-weight:700;font-size:14px;color:#111">
+                                    ${v.prenom ? `${v.prenom} ${v.nom || ''}`.trim() : v.username}
+                                </div>
+                                <div style="font-size:11px;color:#9ca3af">@${v.username}</div>
+                            </div>
+                        </div>
+                        ${lignes}
+                    </div>`;
+            }).join('');
+
+            // Listeners toggle & delete
+            container.querySelectorAll('[data-action="toggle-partage"]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id     = btn.dataset.id;
+                    const actif  = btn.dataset.active === 'true';
+                    await fetch(`/api/social/partages/${id}`, {
+                        method : 'PATCH',
+                        headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+                        body   : JSON.stringify({ active: !actif })
+                    });
+                    _socialOnglet('miens');
+                });
+            });
+
+            container.querySelectorAll('[data-action="delete-partage"]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.id;
+                    await fetch(`/api/social/partages/${id}`, {
+                        method : 'DELETE',
+                        headers: { 'Authorization': `Bearer ${user.token}` }
+                    });
+                    _socialOnglet('miens');
+                });
+            });
+
+        } catch {
+            container.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement.</p>';
+        }
+
+    } else {
+        // ── Onglet "Partager avec…" ────────────────────────────
+        container.innerHTML = `
+            <div style="margin-bottom:12px">
+                <input id="social-search-input" placeholder="Rechercher un utilisateur…"
+                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                           font-size:14px;box-sizing:border-box;outline:none">
+            </div>
+            <div id="social-search-results"></div>
+            <div id="social-share-form" style="display:none"></div>
+        `;
+
+        let searchTimer = null;
+        document.getElementById('social-search-input').addEventListener('input', e => {
+            clearTimeout(searchTimer);
+            const q = e.target.value.trim();
+            if (q.length < 2) {
+                document.getElementById('social-search-results').innerHTML = '';
+                return;
+            }
+            searchTimer = setTimeout(() => _socialSearchUsers(q, user), 350);
+        });
+    }
+}
+
+async function _socialSearchUsers(q, user) {
+    const results = document.getElementById('social-search-results');
+    results.innerHTML = '<p style="color:#9ca3af;font-size:13px">Recherche...</p>';
+    try {
+        const r = await fetch(`/api/social/users/search?q=${encodeURIComponent(q)}`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success || !d.users.length) {
+            results.innerHTML = '<p style="color:#9ca3af;font-size:13px">Aucun utilisateur trouvé.</p>';
+            return;
+        }
+        results.innerHTML = d.users.map(u => {
+            const initiales = construireTrigramme(u.prenom, u.nom) || u.username?.slice(0,2).toUpperCase() || '?';
+            const avatar    = u.photo
+                ? `<img src="${u.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #ede9fe">`
+                : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);
+                               display:flex;align-items:center;justify-content:center;
+                               font-size:12px;font-weight:700;color:#fff;flex-shrink:0">${initiales}</div>`;
+            return `
+                <div data-action="select-user"
+                     data-user-id="${u.id}"
+                     data-username="${u.username}"
+                     data-prenom="${u.prenom || ''}"
+                     data-nom="${u.nom || ''}"
+                     data-photo="${u.photo || ''}"
+                     style="display:flex;align-items:center;gap:10px;padding:10px;
+                            border-radius:10px;cursor:pointer;margin-bottom:6px;
+                            background:#f8fafc;border:1px solid #ede9fe">
+                    ${avatar}
+                    <div>
+                        <div style="font-weight:600;font-size:14px;color:#111">
+                            ${u.prenom ? `${u.prenom} ${u.nom || ''}`.trim() : u.username}
+                        </div>
+                        <div style="font-size:11px;color:#9ca3af">@${u.username}</div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        results.querySelectorAll('[data-action="select-user"]').forEach(el => {
+            el.addEventListener('click', () => {
+                _socialSelectionnerUser({
+                    id      : parseInt(el.dataset.userId),
+                    username: el.dataset.username,
+                    prenom  : el.dataset.prenom,
+                    nom     : el.dataset.nom,
+                    photo   : el.dataset.photo
+                }, user);
+            });
+        });
+    } catch {
+        results.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de recherche.</p>';
+    }
+}
+
+async function _socialSelectionnerUser(cible, user) {
+    document.getElementById('social-search-results').innerHTML = '';
+    document.getElementById('social-search-input').value = '';
+
+    const form = document.getElementById('social-share-form');
+    form.style.display = 'block';
+    form.innerHTML     = '<p style="color:#9ca3af;font-size:13px">Chargement...</p>';
+
+    // Récupérer les partages existants vers cette personne
+    let dejaPartages = [];
+    try {
+        const r = await fetch('/api/social/partages/miens', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (d.success) {
+            dejaPartages = d.partages
+                .filter(p => p.viewer_id === cible.id && p.active)
+                .map(p => p.resource_type);
+        }
+    } catch { /* silencieux */ }
+
+    // Déterminer le sexe du user courant pour filtrer le cycle
+    const sexe = profilCache?.sexe || '';
+    // Seuls les hommes ne peuvent pas partager leur cycle
+    const peutPartagerCycle = sexe !== 'homme';
+
+    const initiales = construireTrigramme(cible.prenom, cible.nom) || cible.username?.slice(0,2).toUpperCase() || '?';
+    const avatar    = cible.photo
+        ? `<img src="${cible.photo}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #ede9fe">`
+        : `<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);
+                       display:flex;align-items:center;justify-content:center;
+                       font-size:13px;font-weight:700;color:#fff;flex-shrink:0">${initiales}</div>`;
+
+    // Types disponibles triés alphabétiquement, cycle filtré si homme
+    const typesDisponibles = _SHARE_LABELS.filter(l => l.type !== 'cycle' || peutPartagerCycle);
+
+    form.innerHTML = `
+        <div style="background:#f5f3ff;border-radius:12px;padding:14px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                ${avatar}
+                <div>
+                    <div style="font-weight:700;font-size:14px;color:#111">
+                        ${cible.prenom ? `${cible.prenom} ${cible.nom || ''}`.trim() : cible.username}
+                    </div>
+                    <div style="font-size:11px;color:#9ca3af">@${cible.username}</div>
+                </div>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:#6b7280;
+                        text-transform:uppercase;margin-bottom:8px">
+                Que souhaitez-vous partager ?
+            </div>
+            ${typesDisponibles.map(l => `
+                <label style="display:flex;align-items:center;gap:10px;padding:8px 0;
+                              border-bottom:1px solid #ede9fe;cursor:pointer">
+                    <input type="checkbox"
+                           data-share-type="${l.type}"
+                           ${dejaPartages.includes(l.type) ? 'checked' : ''}
+                           style="width:16px;height:16px;accent-color:#7c3aed;cursor:pointer">
+                    <span style="font-size:13px;color:#374151;font-weight:${dejaPartages.includes(l.type) ? '700' : '400'}">
+                        ${l.label}${dejaPartages.includes(l.type) ? ' <span style="color:#10b981;font-size:11px">(déjà partagé)</span>' : ''}
+                    </span>
+                </label>`).join('')}
+            <button data-action="envoyer-partages"
+                    style="width:100%;margin-top:14px;padding:12px;
+                           background:linear-gradient(135deg,#7c3aed,#4f46e5);
+                           color:#fff;border:none;border-radius:10px;
+                           font-size:14px;font-weight:600;cursor:pointer">
+                Valider
+            </button>
+            <div id="social-share-msg" style="text-align:center;margin-top:8px;font-size:13px;min-height:16px"></div>
+        </div>
+    `;
+
+    form.querySelector('[data-action="envoyer-partages"]').addEventListener('click', async () => {
+        const cases    = form.querySelectorAll('[data-share-type]');
+        const cochees  = [...cases].filter(c => c.checked).map(c => c.dataset.shareType);
+        const msg      = document.getElementById('social-share-msg');
+
+        if (!cochees.length) {
+            msg.style.color   = '#f59e0b';
+            msg.textContent   = 'Sélectionnez au moins un élément.';
+            return;
+        }
+
+        msg.style.color = '#9ca3af';
+        msg.textContent = 'Envoi en cours…';
+
+        let ok = 0, err = 0;
+        for (const type of cochees) {
+            try {
+                const r = await fetch('/api/social/partages', {
+                    method : 'POST',
+                    headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+                    body   : JSON.stringify({ viewer_id: cible.id, resource_type: type })
+                });
+                const d = await r.json();
+                if (d.success) ok++; else err++;
+            } catch { err++; }
+        }
+
+        if (err === 0) {
+            msg.style.color = '#10b981';
+            msg.textContent = `${ok} partage(s) activé(s) avec succès.`;
+            // Rafraîchir les checkboxes pour refléter le nouvel état
+            setTimeout(() => _socialSelectionnerUser(cible, user), 1200);
+        } else {
+            msg.style.color = '#ef4444';
+            msg.textContent = `${ok} réussi(s), ${err} erreur(s).`;
+        }
+    });
 }
