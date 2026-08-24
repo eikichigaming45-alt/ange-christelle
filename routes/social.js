@@ -91,18 +91,28 @@ router.post('/partages', async (req, res) => {
     if (parseInt(viewer_id) === req.user.id) {
         return res.status(400).json({ success: false, message: 'Impossible de partager avec soi-même.' });
     }
+
+    // ── RÈGLE UNIQUE : seul un homme ne peut pas partager son cycle ──
+    // femme, intersexe, null => autorisé
+    // homme => bloqué
     if (resource_type === 'cycle') {
-        const { rows } = await pool.query(
-            'SELECT sexe FROM profiles WHERE user_id = \$1', [req.user.id]
-        );
-        const sexe = rows[0]?.sexe ?? null;
-        if (sexe !== 'femme' && sexe !== 'intersexe') {
-            return res.status(403).json({
-                success: false,
-                message: 'Le partage du cycle est réservé aux femmes et aux personnes intersexes.'
-            });
+        try {
+            const { rows } = await pool.query(
+                'SELECT sexe FROM profiles WHERE user_id = \$1', [req.user.id]
+            );
+            const sexe = rows[0]?.sexe ?? null;
+            if (sexe === 'homme') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Le partage du cycle est réservé aux femmes et aux personnes intersexes.'
+                });
+            }
+        } catch (err) {
+            console.error('[SOCIAL] Guard cycle :', err.message);
+            return res.status(500).json({ success: false, message: 'Erreur serveur.' });
         }
     }
+
     try {
         const { rows } = await pool.query(`
             INSERT INTO shares (owner_id, viewer_id, resource_type, active)
