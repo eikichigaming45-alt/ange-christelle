@@ -382,7 +382,7 @@ router.patch('/notifications/:id/vu', async (req, res) => {
 });
 
 // ============================================================
-// CONSEIL CYCLE (Groq) — v4.29
+// CONSEIL CYCLE (Groq)
 // ============================================================
 
 router.get('/conseil/:ownerId', async (req, res) => {

@@ -259,7 +259,7 @@ async function _renderBlocCycle(ownerId, token) {
                       padding:3px 8px;font-size:11px;font-weight:600">${m}</span>`
     ).join('');
 
-            let conseilBloc = '';
+    let conseilBloc = '';
     if (d.conseil) {
         const texteComplet = d.conseil;
         const court        = texteComplet.length > 120
@@ -417,6 +417,7 @@ async function _renderBlocPlanning(ownerId, token) {
 }
 
 // ── Envoyer un coucou (délégation) ───────────────────────────
+// Fix bug mineur : le bouton repasse à son état initial après 3s
 document.addEventListener('click', async e => {
     const btn = e.target.closest('[data-action="envoyer-coucou"]');
     if (!btn) return;
@@ -433,6 +434,11 @@ document.addEventListener('click', async e => {
         if (d.success) {
             btn.textContent      = 'Coucou envoyé 💕';
             btn.style.background = '#10b981';
+            setTimeout(() => {
+                btn.disabled         = false;
+                btn.textContent      = 'Envoyer un coucou 💕';
+                btn.style.background = 'linear-gradient(135deg,#7c3aed,#6d28d9)';
+            }, 3000);
         } else {
             btn.disabled    = false;
             btn.textContent = 'Envoyer un coucou 💕';

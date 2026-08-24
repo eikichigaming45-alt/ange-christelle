@@ -63,103 +63,94 @@ router.post('/check', authenticateToken, async (req, res) => {
         const dateAujourdhui = dateLocale;
         const heureActuelle  = heureLocale.substring(0, 5);
         const annee          = parseInt(dateLocale.split('-')[0]);
+        const user_id        = req.user.id;
 
         console.log(`[PUSH] /check — local ${dateAujourdhui} ${heureActuelle}`);
 
-        const { rows: abonnes } = await pool.query(
-            `SELECT user_id FROM push_subscriptions`
-        );
+        // ── Tâches ────────────────────────────────────────
+        const { rows: taches } = await pool.query(`
+            SELECT id, titre, date, heure, rappel_avant
+            FROM taches
+            WHERE user_id = \$1 AND faite = FALSE AND heure IS NOT NULL AND date IS NOT NULL AND rappel_avant > 0
+        `, [user_id]);
 
-        for (const { user_id } of abonnes) {
+        for (const t of taches) {
+            const dateTache  = t.date.toISOString().split('T')[0];
+            const heureTache = t.heure.substring(0, 5);
+            const rappel     = t.rappel_avant || 0;
+            const [th, tm]   = heureTache.split(':').map(Number);
+            const [yd, ym, yj] = dateTache.split('-').map(Number);
+            const tacheMin   = yd * 525600 + ym * 43800 + yj * 1440 + th * 60 + tm;
+            const notifMin   = tacheMin - rappel;
+            const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
+            const [ah, aminute] = heureActuelle.split(':').map(Number);
+            const actuelMin  = ad * 525600 + am * 43800 + aj * 1440 + ah * 60 + aminute;
+            if (notifMin !== actuelMin) continue;
+            const label = rappel >= 60 ? `${rappel/60}h` : `${rappel}min`;
+            await envoyerPush(user_id, '✅ Rappel de tâche', `${t.titre} — dans ${label}`, `tache-${t.id}`);
+        }
 
-            // ── Tâches ────────────────────────────────────────
-            const { rows: taches } = await pool.query(`
-                SELECT id, titre, date, heure, rappel_avant
-                FROM taches
-                WHERE user_id = \$1 AND faite = FALSE AND heure IS NOT NULL AND date IS NOT NULL AND rappel_avant > 0
+        // ── Rendez-vous ───────────────────────────────────
+        const { rows: rdvs } = await pool.query(`
+            SELECT id, titre, date_rdv, rappel_avant
+            FROM rendezvous
+            WHERE user_id = \$1 AND date_rdv IS NOT NULL AND rappel_avant > 0
+        `, [user_id]);
+
+        for (const rdv of rdvs) {
+            const rappel     = rdv.rappel_avant || 0;
+            const rdvDate    = new Date(rdv.date_rdv);
+            const notifDate  = new Date(rdvDate.getTime() - rappel * 60 * 1000);
+            const nd = `${notifDate.getUTCFullYear()}-${String(notifDate.getUTCMonth()+1).padStart(2,'0')}-${String(notifDate.getUTCDate()).padStart(2,'0')}`;
+            const nh = `${String(notifDate.getUTCHours()).padStart(2,'0')}:${String(notifDate.getUTCMinutes()).padStart(2,'0')}`;
+            const [cad, cam, caj] = dateAujourdhui.split('-').map(Number);
+            const [cah, cam2]     = heureActuelle.split(':').map(Number);
+            const clientTs = Date.UTC(cad, cam - 1, caj, cah, cam2);
+            const notifTs  = rdvDate.getTime() - rappel * 60 * 1000;
+            if (Math.abs(clientTs - notifTs) > 60000) continue;
+            const label = rappel >= 1440 ? 'demain' : rappel >= 60 ? `dans ${rappel/60}h` : `dans ${rappel}min`;
+            await envoyerPush(user_id, '🩺 Rappel rendez-vous', `${rdv.titre} — ${label}`, `rdv-${rdv.id}`);
+        }
+
+        // ── Planning ──────────────────────────────────────
+        const { rows: shifts } = await pool.query(`
+            SELECT id, type, heure_debut, rappel_avant, employeur
+            FROM planning
+            WHERE user_id = \$1 AND date = \$2 AND heure_debut IS NOT NULL AND rappel_avant > 0
+        `, [user_id, dateAujourdhui]);
+
+        for (const p of shifts) {
+            const [ph, pm]   = p.heure_debut.substring(0,5).split(':').map(Number);
+            const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
+            const [ah, aminute] = heureActuelle.split(':').map(Number);
+            const debutMin   = aj * 1440 + ph * 60 + pm;
+            const notifMin   = debutMin - p.rappel_avant;
+            const actuelMin  = aj * 1440 + ah * 60 + aminute;
+            if (notifMin !== actuelMin) continue;
+            const label = p.rappel_avant >= 60 ? `${p.rappel_avant/60}h` : `${p.rappel_avant}min`;
+            const corps = `${p.type || ''} — dans ${label} (${p.heure_debut.slice(0,5)})${p.employeur ? ' — '+p.employeur : ''}`;
+            await envoyerPush(user_id, '📋 Rappel Planning', corps, `planning-${p.id}`);
+        }
+
+        // ── Anniversaires (08:00 locale uniquement) ───────
+        if (heureActuelle === '08:00') {
+            const { rows: annivs } = await pool.query(`
+                SELECT id, prenom, nom, jour, mois, annee
+                FROM anniversaires
+                WHERE user_id = \$1
             `, [user_id]);
 
-            for (const t of taches) {
-                const dateTache  = t.date.toISOString().split('T')[0];
-                const heureTache = t.heure.substring(0, 5);
-                const rappel     = t.rappel_avant || 0;
-                const [th, tm]   = heureTache.split(':').map(Number);
-                const [yd, ym, yj] = dateTache.split('-').map(Number);
-                const tacheMin   = yd * 525600 + ym * 43800 + yj * 1440 + th * 60 + tm;
-                const notifMin   = tacheMin - rappel;
-                const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
-                const [ah, aminute] = heureActuelle.split(':').map(Number);
-                const actuelMin  = ad * 525600 + am * 43800 + aj * 1440 + ah * 60 + aminute;
-                if (notifMin !== actuelMin) continue;
-                const label = rappel >= 60 ? `${rappel/60}h` : `${rappel}min`;
-                await envoyerPush(user_id, '✅ Rappel de tâche', `${t.titre} — dans ${label}`, `tache-${t.id}`);
-            }
+            const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
+            const demainJ = new Date(Date.UTC(ad, am - 1, aj + 1));
 
-            // ── Rendez-vous ───────────────────────────────────
-            const { rows: rdvs } = await pool.query(`
-                SELECT id, titre, date_rdv, rappel_avant
-                FROM rendezvous
-                WHERE user_id = \$1 AND date_rdv IS NOT NULL AND rappel_avant > 0
-            `, [user_id]);
-
-            for (const rdv of rdvs) {
-                const rappel     = rdv.rappel_avant || 0;
-                const rdvDate    = new Date(rdv.date_rdv);
-                const notifDate  = new Date(rdvDate.getTime() - rappel * 60 * 1000);
-                const nd = `${notifDate.getUTCFullYear()}-${String(notifDate.getUTCMonth()+1).padStart(2,'0')}-${String(notifDate.getUTCDate()).padStart(2,'0')}`;
-                const nh = `${String(notifDate.getUTCHours()).padStart(2,'0')}:${String(notifDate.getUTCMinutes()).padStart(2,'0')}`;
-                // RDV stocké en UTC → le client envoie son heure locale → on compare via offset
-                // On recalcule en utilisant l'offset du client implicitement via date_rdv
-                // Approche : comparer timestamp client vs timestamp notif
-                const [cad, cam, caj] = dateAujourdhui.split('-').map(Number);
-                const [cah, cam2]     = heureActuelle.split(':').map(Number);
-                const clientTs = Date.UTC(cad, cam - 1, caj, cah, cam2);
-                const notifTs  = rdvDate.getTime() - rappel * 60 * 1000;
-                if (Math.abs(clientTs - notifTs) > 60000) continue;
-                const label = rappel >= 1440 ? 'demain' : rappel >= 60 ? `dans ${rappel/60}h` : `dans ${rappel}min`;
-                await envoyerPush(user_id, '🩺 Rappel rendez-vous', `${rdv.titre} — ${label}`, `rdv-${rdv.id}`);
-            }
-
-            // ── Planning ──────────────────────────────────────
-            const { rows: shifts } = await pool.query(`
-                SELECT id, type, heure_debut, rappel_avant, employeur
-                FROM planning
-                WHERE user_id = \$1 AND date = \$2 AND heure_debut IS NOT NULL AND rappel_avant > 0
-            `, [user_id, dateAujourdhui]);
-
-            for (const p of shifts) {
-                const [ph, pm]   = p.heure_debut.substring(0,5).split(':').map(Number);
-                const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
-                const [ah, aminute] = heureActuelle.split(':').map(Number);
-                const debutMin   = aj * 1440 + ph * 60 + pm;
-                const notifMin   = debutMin - p.rappel_avant;
-                const actuelMin  = aj * 1440 + ah * 60 + aminute;
-                if (notifMin !== actuelMin) continue;
-                const label = p.rappel_avant >= 60 ? `${p.rappel_avant/60}h` : `${p.rappel_avant}min`;
-                const corps = `${p.type || ''} — dans ${label} (${p.heure_debut.slice(0,5)})${p.employeur ? ' — '+p.employeur : ''}`;
-                await envoyerPush(user_id, '📋 Rappel Planning', corps, `planning-${p.id}`);
-            }
-
-            // ── Anniversaires (08:00 locale uniquement) ───────
-            if (heureActuelle === '08:00') {
-                const { rows: annivs } = await pool.query(`
-                    SELECT id, prenom, nom, jour, mois, annee
-                    FROM anniversaires
-                    WHERE user_id = \$1
-                `, [user_id]);
-
-                const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
-                const demainJ = new Date(Date.UTC(ad, am - 1, aj + 1));
-
-                for (const a of annivs) {
-                    const nom = `${a.prenom}${a.nom ? ' '+a.nom : ''}`;
-                    if (a.jour === aj && a.mois === am) {
-                        const age = a.annee ? ` — ${annee - a.annee} ans` : '';
-                        await envoyerPush(user_id, "🎂 Anniversaire aujourd'hui !", `${nom}${age}`, `anniv-${a.id}`);
-                    } else if (a.jour === demainJ.getUTCDate() && a.mois === demainJ.getUTCMonth() + 1) {
-                        const ageDemain = a.annee ? ` — ${annee - a.annee} ans demain` : '';
-                        await envoyerPush(user_id, '🎂 Anniversaire demain !', `${nom}${ageDemain}`, `anniv-veille-${a.id}`);
-                    }
+            for (const a of annivs) {
+                const nom = `${a.prenom}${a.nom ? ' '+a.nom : ''}`;
+                if (a.jour === aj && a.mois === am) {
+                    const age = a.annee ? ` — ${annee - a.annee} ans` : '';
+                    await envoyerPush(user_id, "🎂 Anniversaire aujourd'hui !", `${nom}${age}`, `anniv-${a.id}`);
+                } else if (a.jour === demainJ.getUTCDate() && a.mois === demainJ.getUTCMonth() + 1) {
+                    const ageDemain = a.annee ? ` — ${annee - a.annee} ans demain` : '';
+                    await envoyerPush(user_id, '🎂 Anniversaire demain !', `${nom}${ageDemain}`, `anniv-veille-${a.id}`);
                 }
             }
         }
