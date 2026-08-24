@@ -417,7 +417,7 @@ async function _renderBlocPlanning(ownerId, token) {
 }
 
 // ── Envoyer un coucou (délégation) ───────────────────────────
-// Fix bug mineur : le bouton repasse à son état initial après 3s
+// Le bouton repasse à son état initial après 3s
 document.addEventListener('click', async e => {
     const btn = e.target.closest('[data-action="envoyer-coucou"]');
     if (!btn) return;
@@ -466,6 +466,10 @@ async function _socialOnglet(tab) {
 
 // ============================================================
 // ONGLET — CE QUE JE PARTAGE
+// Affiche tous les types pour chaque viewer, avec toggle on/off.
+// Toggle OFF sur un type non partagé → création du partage.
+// Toggle ON/OFF sur un partage existant → activation/désactivation.
+// Bouton Supprimer uniquement si le partage existe en base.
 // ============================================================
 
 async function _renderOngletMiens() {
@@ -475,13 +479,17 @@ async function _renderOngletMiens() {
     container.innerHTML = '<p style="color:#9ca3af;font-size:13px;text-align:center">Chargement…</p>';
 
     try {
-        const r = await fetch('/api/social/partages/miens', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const d = await r.json();
-        if (!d.success) throw new Error();
+        const [resMiens, sexe] = await Promise.all([
+            fetch('/api/social/partages/miens', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).then(r => r.json()),
+            _getSexeCourant()
+        ]);
 
-        const partages = d.partages || [];
+        if (!resMiens.success) throw new Error();
+
+        const partages = resMiens.partages || [];
+
         if (partages.length === 0) {
             container.innerHTML = `
                 <div style="text-align:center;padding:24px 8px;color:#9ca3af">
@@ -509,7 +517,13 @@ async function _renderOngletMiens() {
             parViewer[p.viewer_id].partages.push(p);
         });
 
-        const blocs = Object.values(parViewer).map(v => _htmlBlocViewer(v)).join('');
+        const typesDisponibles = sexe === 'homme'
+            ? _SHARE_LABELS_LIST.filter(l => l.type !== 'cycle')
+            : _SHARE_LABELS_LIST;
+
+        const blocs = Object.values(parViewer)
+            .map(v => _htmlBlocViewer(v, typesDisponibles))
+            .join('');
         container.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px">${blocs}</div>`;
 
     } catch {
@@ -517,8 +531,8 @@ async function _renderOngletMiens() {
     }
 }
 
-// ── Bloc viewer ───────────────────────────────────────────────
-function _htmlBlocViewer(v) {
+// ── Bloc viewer — affiche tous les types disponibles ──────────
+function _htmlBlocViewer(v, typesDisponibles) {
     const nom    = [v.prenom, v.nom].filter(Boolean).join(' ') || v.username;
     const avatar = v.photo
         ? `<img src="${v.photo}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
@@ -528,32 +542,45 @@ function _htmlBlocViewer(v) {
                ${(v.prenom?.[0] || v.username[0]).toUpperCase()}
            </div>`;
 
-    const lignes = v.partages.map(p => `
+    const lignes = typesDisponibles.map(l => {
+        const partage  = v.partages.find(p => p.resource_type === l.type);
+        const existe   = !!partage;
+        const actif    = partage?.active ?? false;
+        const shareId  = partage?.id ?? '';
+
+        return `
         <div style="display:flex;align-items:center;justify-content:space-between;
                     padding:8px 10px;background:#fff;border-radius:8px;
                     border:1px solid #f3f4f6;margin-bottom:4px">
-            <span style="font-size:13px;color:#374151">${_SHARE_LABELS[p.resource_type] || p.resource_type}</span>
+            <span style="font-size:13px;color:#374151">${_SHARE_LABELS[l.type]}</span>
             <div style="display:flex;align-items:center;gap:8px">
                 <label style="position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0">
-                    <input type="checkbox" ${p.active ? 'checked' : ''}
-                        data-share-id="${p.id}"
+                    <input type="checkbox" ${actif ? 'checked' : ''}
+                        data-share-id="${shareId}"
+                        data-viewer-id="${v.viewer_id}"
+                        data-resource-type="${l.type}"
+                        data-existe="${existe}"
                         data-action="toggle-partage"
                         style="opacity:0;width:0;height:0;position:absolute">
                     <span style="position:absolute;inset:0;border-radius:22px;cursor:pointer;
-                                 background:${p.active ? '#7c3aed' : '#d1d5db'};transition:background .2s">
-                        <span style="position:absolute;top:3px;left:${p.active ? '19px' : '3px'};
+                                 background:${actif ? '#7c3aed' : '#d1d5db'};transition:background .2s">
+                        <span style="position:absolute;top:3px;left:${actif ? '19px' : '3px'};
                                      width:16px;height:16px;border-radius:50%;background:#fff;
                                      transition:left .2s;display:block"></span>
                     </span>
                 </label>
-                <button data-action="supprimer-partage"
-                        data-del-id="${p.id}"
-                        style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;
-                               padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">
-                    Supprimer
-                </button>
+                                ${existe
+                    ? `<button data-action="supprimer-partage"
+                               data-del-id="${shareId}"
+                               style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;
+                                      padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">
+                           Supprimer
+                       </button>`
+                    : `<span style="width:57px;display:inline-block"></span>`
+                }
             </div>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 
     return `
         <div style="background:#faf5ff;border-radius:12px;padding:12px 14px;border:1px solid #ede9fe">
@@ -565,24 +592,38 @@ function _htmlBlocViewer(v) {
         </div>`;
 }
 
-// ── Délégation toggle ─────────────────────────────────────────
+// ── Délégation toggle — création si partage inexistant ────────
 document.addEventListener('change', async e => {
     const cb = e.target.closest('[data-action="toggle-partage"]');
     if (!cb) return;
-    const id     = cb.dataset.shareId;
-    const active = cb.checked;
-    const { token } = _socialAuth();
-    const track  = cb.nextElementSibling;
-    const thumb  = track?.querySelector('span');
+    const id           = cb.dataset.shareId;
+    const active       = cb.checked;
+    const existe       = cb.dataset.existe === 'true';
+    const viewerId     = cb.dataset.viewerId;
+    const resourceType = cb.dataset.resourceType;
+    const { token }    = _socialAuth();
+    const track        = cb.nextElementSibling;
+    const thumb        = track?.querySelector('span');
     if (track) track.style.background = active ? '#7c3aed' : '#d1d5db';
     if (thumb) thumb.style.left       = active ? '19px'   : '3px';
+
     try {
-        await fetch(`/api/social/partages/${id}`, {
-            method : 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body   : JSON.stringify({ active })
-        });
-        } catch {
+        if (!existe) {
+            // Partage inexistant → création puis rechargement pour afficher Supprimer
+            await fetch('/api/social/partages', {
+                method : 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body   : JSON.stringify({ viewer_id: parseInt(viewerId), resource_type: resourceType })
+            });
+            await _renderOngletMiens();
+        } else {
+            await fetch(`/api/social/partages/${id}`, {
+                method : 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body   : JSON.stringify({ active })
+            });
+        }
+    } catch {
         cb.checked = !active;
         if (track) track.style.background = !active ? '#7c3aed' : '#d1d5db';
         if (thumb) thumb.style.left       = !active ? '19px'    : '3px';
