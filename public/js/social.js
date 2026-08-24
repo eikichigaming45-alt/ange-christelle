@@ -28,9 +28,9 @@ async function _getSexeCourant() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const d = await r.json();
-        return d?.profil?.sexe || d?.sexe || '';
+        return d?.profil?.sexe ?? null;
     } catch {
-        return '';
+        return null;
     }
 }
 
@@ -43,9 +43,6 @@ async function chargerWidgetSocial() {
     if (!el) return;
     const { token } = _socialAuth();
     if (!token) return;
-
-    // Pas de manipulation de pointer-events ici —
-    // le widget card dans widgets.js gère son propre comportement au clic
 
     try {
         const r = await fetch('/api/social/partages/recus', {
@@ -674,9 +671,9 @@ async function _socialSelectionnerUser(el) {
         }
     } catch { /* silencieux */ }
 
-    // ── Sexe via API — seuls les hommes ne peuvent pas partager cycle ──
-    const sexe             = await _getSexeCourant();
-    const peutPartagerCycle = sexe !== 'homme';
+    // ── Sexe via API — seules femme et intersexe peuvent partager cycle ──
+    const sexe              = await _getSexeCourant();
+    const peutPartagerCycle = sexe === 'femme' || sexe === 'intersexe';
 
     const typesDisponibles = _SHARE_LABELS_LIST.filter(l => l.type !== 'cycle' || peutPartagerCycle);
 
@@ -751,25 +748,7 @@ async function _envoyerPartages() {
         msg.textContent = '✅ Partages mis à jour !';
         msg.style.color = '#10b981';
         setTimeout(async () => {
-            // Re-sélectionner le même user pour rafraîchir les coches
-            const formEl = document.getElementById('social-nouveau-form');
-            if (formEl) {
-                // Reconstruire un élément minimal pour repasser dans _socialSelectionnerUser
-                const fakeEl = {
-                    dataset: {
-                        userId  : viewerId,
-                        username: document.querySelector('#social-user-selectionne [data-action="annuler-selection"]')
-                                    ?.closest('div')
-                                    ?.querySelector('[style*="9ca3af"]')
-                                    ?.textContent?.replace('@','') || '',
-                        prenom  : '',
-                        nom     : '',
-                        photo   : ''
-                    }
-                };
-                // Plus simple : recharger directement l'onglet
-                await _renderOngletNouveau();
-            }
+            await _renderOngletNouveau();
             chargerWidgetSocial();
         }, 1200);
     } else {
