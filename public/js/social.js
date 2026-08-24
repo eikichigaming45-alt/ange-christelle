@@ -580,7 +580,7 @@ async function _socialRechercherUser(q) {
             return;
         }
 
-                results.innerHTML = d.users.map(u => {
+        results.innerHTML = d.users.map(u => {
             const nom    = [u.prenom, u.nom].filter(Boolean).join(' ') || u.username;
             const avatar = u.photo
                 ? `<img src="${u.photo}" style="width:30px;height:30px;border-radius:50%;object-fit:cover" alt="">`
@@ -590,7 +590,7 @@ async function _socialRechercherUser(q) {
                        ${(u.prenom?.[0] || u.username[0]).toUpperCase()}
                    </div>`;
             return `
-                <div data-action="select-user"
+                                <div data-action="select-user"
                      data-user-id="${u.id}"
                      data-username="${u.username}"
                      data-prenom="${u.prenom || ''}"
@@ -671,11 +671,11 @@ async function _socialSelectionnerUser(el) {
         }
     } catch { /* silencieux */ }
 
-    // ── Sexe via API — seules femme et intersexe peuvent partager cycle ──
-    const sexe              = await _getSexeCourant();
-    const peutPartagerCycle = sexe === 'femme' || sexe === 'intersexe';
-
-    const typesDisponibles = _SHARE_LABELS_LIST.filter(l => l.type !== 'cycle' || peutPartagerCycle);
+    // ── RÈGLE UNIQUE : homme = pas de cycle, femme/intersexe = tout ──
+    const sexe = await _getSexeCourant();
+    const typesDisponibles = sexe === 'homme'
+        ? _SHARE_LABELS_LIST.filter(l => l.type !== 'cycle')
+        : _SHARE_LABELS_LIST;
 
     document.getElementById('social-types-list').innerHTML = typesDisponibles.map(l => `
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;
