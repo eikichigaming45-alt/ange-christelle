@@ -119,7 +119,7 @@ async function chargerWidgetSocial() {
     }
 }
 
-// ── Section par owner — cycle en premier, reste trié alphabétiquement ─
+// ── Section par owner — cycle en premier, reste trié, blocs séparés par un trait
 async function _renderOwnerSection(owner, token) {
     const nom    = [owner.prenom, owner.nom].filter(Boolean).join(' ') || owner.username;
     const avatar = owner.photo
@@ -130,12 +130,18 @@ async function _renderOwnerSection(owner, token) {
                ${(owner.prenom?.[0] || owner.username[0]).toUpperCase()}
            </div>`;
 
-    // Cycle en premier, puis le reste trié selon _SHARE_ORDER (alphabétique)
     const typesTries = _SHARE_ORDER.filter(t => owner.types.includes(t));
 
     const blocs = await Promise.all(
         typesTries.map(type => _renderCategorieBloc(owner.owner_id, type, token))
     );
+
+    // Séparateur entre chaque bloc
+    const blocsAvecSeparateur = blocs.map((bloc, i) =>
+        i === 0
+            ? bloc
+            : `<div style="border-top:1px solid #ede9fe;margin-top:2px;padding-top:10px">${bloc}</div>`
+    ).join('');
 
     return `
         <div style="margin-bottom:16px;background:#faf5ff;border-radius:14px;
@@ -144,7 +150,7 @@ async function _renderOwnerSection(owner, token) {
                 ${avatar}
                 <div style="font-size:14px;font-weight:700;color:#1f2937">${nom}</div>
             </div>
-            ${blocs.join('')}
+            ${blocsAvecSeparateur}
         </div>`;
 }
 
@@ -565,9 +571,9 @@ function _htmlBlocViewer(v, typesDisponibles) {
                         <span style="position:absolute;top:3px;left:${actif ? '19px' : '3px'};
                                      width:16px;height:16px;border-radius:50%;background:#fff;
                                      transition:left .2s;display:block"></span>
-                    </span>
+                                    </span>
                 </label>
-                                <div style="width:65px;display:flex;justify-content:flex-end">
+                <div style="width:65px;display:flex;justify-content:flex-end">
                     ${existe
                         ? `<button data-action="supprimer-partage"
                                    data-del-id="${shareId}"
