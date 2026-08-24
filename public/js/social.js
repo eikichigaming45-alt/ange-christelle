@@ -20,6 +20,9 @@ const _SHARE_LABELS = Object.fromEntries(
     _SHARE_LABELS_LIST.map(l => [l.type, l.label])
 );
 
+// ── Ordre d'affichage widget social : cycle en premier, reste alphabétique
+const _SHARE_ORDER = ['cycle', 'planning', 'rdv', 'taches'];
+
 // ── Lire le sexe de l'utilisateur courant via l'API ──────────
 async function _getSexeCourant() {
     try {
@@ -116,7 +119,7 @@ async function chargerWidgetSocial() {
     }
 }
 
-// ── Section par owner — cycle toujours en premier ─────────────
+// ── Section par owner — cycle en premier, reste trié alphabétiquement ─
 async function _renderOwnerSection(owner, token) {
     const nom    = [owner.prenom, owner.nom].filter(Boolean).join(' ') || owner.username;
     const avatar = owner.photo
@@ -127,10 +130,8 @@ async function _renderOwnerSection(owner, token) {
                ${(owner.prenom?.[0] || owner.username[0]).toUpperCase()}
            </div>`;
 
-    const typesTries = [
-        ...owner.types.filter(t => t === 'cycle'),
-        ...owner.types.filter(t => t !== 'cycle')
-    ];
+    // Cycle en premier, puis le reste trié selon _SHARE_ORDER (alphabétique)
+    const typesTries = _SHARE_ORDER.filter(t => owner.types.includes(t));
 
     const blocs = await Promise.all(
         typesTries.map(type => _renderCategorieBloc(owner.owner_id, type, token))
@@ -466,10 +467,6 @@ async function _socialOnglet(tab) {
 
 // ============================================================
 // ONGLET — CE QUE JE PARTAGE
-// Affiche tous les types pour chaque viewer, avec toggle on/off.
-// Toggle OFF sur un type non partagé → création du partage.
-// Toggle ON/OFF sur un partage existant → activation/désactivation.
-// Bouton Supprimer uniquement si le partage existe en base.
 // ============================================================
 
 async function _renderOngletMiens() {
@@ -531,7 +528,7 @@ async function _renderOngletMiens() {
     }
 }
 
-// ── Bloc viewer — affiche tous les types disponibles ──────────
+// ── Bloc viewer — affiche tous les types, toggle aligné ───────
 function _htmlBlocViewer(v, typesDisponibles) {
     const nom    = [v.prenom, v.nom].filter(Boolean).join(' ') || v.username;
     const avatar = v.photo
@@ -543,18 +540,19 @@ function _htmlBlocViewer(v, typesDisponibles) {
            </div>`;
 
     const lignes = typesDisponibles.map(l => {
-        const partage  = v.partages.find(p => p.resource_type === l.type);
-        const existe   = !!partage;
-        const actif    = partage?.active ?? false;
-        const shareId  = partage?.id ?? '';
+        const partage = v.partages.find(p => p.resource_type === l.type);
+        const existe  = !!partage;
+        const actif   = partage?.active ?? false;
+        const shareId = partage?.id ?? '';
 
         return `
         <div style="display:flex;align-items:center;justify-content:space-between;
                     padding:8px 10px;background:#fff;border-radius:8px;
-                    border:1px solid #f3f4f6;margin-bottom:4px">
-            <span style="font-size:13px;color:#374151">${_SHARE_LABELS[l.type]}</span>
-            <div style="display:flex;align-items:center;gap:8px">
-                <label style="position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0;vertical-align:middle">
+                    border:1px solid #f3f4f6;margin-bottom:4px;min-height:40px">
+            <span style="font-size:13px;color:#374151;flex:1">${_SHARE_LABELS[l.type]}</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                <label style="position:relative;display:inline-flex;align-items:center;
+                              width:38px;height:22px;flex-shrink:0;cursor:pointer">
                     <input type="checkbox" ${actif ? 'checked' : ''}
                         data-share-id="${shareId}"
                         data-viewer-id="${v.viewer_id}"
@@ -569,15 +567,17 @@ function _htmlBlocViewer(v, typesDisponibles) {
                                      transition:left .2s;display:block"></span>
                     </span>
                 </label>
-                                ${existe
-                    ? `<button data-action="supprimer-partage"
-                               data-del-id="${shareId}"
-                               style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;
-                                      padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">
-                           Supprimer
-                       </button>`
-                    : `<span style="width:57px;display:inline-block"></span>`
-                }
+                                <div style="width:65px;display:flex;justify-content:flex-end">
+                    ${existe
+                        ? `<button data-action="supprimer-partage"
+                                   data-del-id="${shareId}"
+                                   style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;
+                                          padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">
+                               Supprimer
+                           </button>`
+                        : ''
+                    }
+                </div>
             </div>
         </div>`;
     }).join('');
@@ -609,7 +609,6 @@ document.addEventListener('change', async e => {
 
     try {
         if (!existe) {
-            // Partage inexistant → création puis rechargement pour afficher Supprimer
             await fetch('/api/social/partages', {
                 method : 'POST',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -857,7 +856,7 @@ async function _socialSelectionnerUser(el) {
                    value="${l.type}"
                    id="share-type-${l.type}"
                    ${dejaPartages.includes(l.type) ? 'checked' : ''}
-                   style="width:16px;height:16px;accent-color:#7c3aed;cursor:pointer">
+                   style="width:16px;height:16px;accent-color:#7c3aed;cursor:pointer;flex-shrink:0;margin:0">
             <span style="font-size:13px;color:#374151;flex:1">${l.label}</span>
             ${dejaPartages.includes(l.type)
                 ? '<span style="font-size:11px;color:#7c3aed;font-weight:600">Déjà partagé</span>'
