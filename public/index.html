@@ -45,9 +45,57 @@
             <span class="date-badge" id="date-display"></span>
             <span id="topbar-version" style="font-size:10px;opacity:.5;font-weight:500;margin-left:6px;color:#fff"></span>
         </div>
-        <div class="topbar-right">
-            <button class="icon-btn" id="btn-profil-header" onclick="openModal('profil')" title="Mon Profil">👤</button>
-            <button class="icon-btn" onclick="logout()" title="Se déconnecter">🔓</button>
+        <div class="topbar-right" style="position:relative">
+            <button class="icon-btn" id="btn-profil-header" onclick="toggleUserMenu(event)" title="Mon compte">👤</button>
+
+            <!-- Menu déroulant utilisateur -->
+            <div id="user-menu" style="
+                display:none;
+                position:absolute;
+                top:calc(100% + 8px);
+                right:0;
+                background:#fff;
+                border-radius:12px;
+                box-shadow:0 8px 24px rgba(0,0,0,0.15);
+                min-width:180px;
+                z-index:1000;
+                overflow:hidden;
+                border:1px solid #f0f0f0;
+            ">
+                <button class="user-menu-item disabled" disabled style="
+                    display:flex;align-items:center;gap:10px;
+                    width:100%;padding:12px 16px;border:none;
+                    background:none;text-align:left;font-size:14px;
+                    color:#d1d5db;cursor:not-allowed;
+                ">📋 Changelog</button>
+
+                <button class="user-menu-item disabled" disabled style="
+                    display:flex;align-items:center;gap:10px;
+                    width:100%;padding:12px 16px;border:none;
+                    background:none;text-align:left;font-size:14px;
+                    color:#d1d5db;cursor:not-allowed;
+                ">❓ FAQ</button>
+
+                <button class="user-menu-item" onclick="ouvrirMonProfil()" style="
+                    display:flex;align-items:center;gap:10px;
+                    width:100%;padding:12px 16px;border:none;
+                    background:none;text-align:left;font-size:14px;
+                    color:#1f2937;cursor:pointer;
+                " onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='none'">
+                    👤 Mon profil
+                </button>
+
+                <div style="height:1px;background:#f0f0f0;margin:4px 0"></div>
+
+                <button class="user-menu-item" onclick="logout()" style="
+                    display:flex;align-items:center;gap:10px;
+                    width:100%;padding:12px 16px;border:none;
+                    background:none;text-align:left;font-size:14px;
+                    color:#ef4444;cursor:pointer;
+                " onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='none'">
+                    🔓 Se déconnecter
+                </button>
+            </div>
         </div>
     </div>
 
@@ -70,14 +118,14 @@
             <div class="grid" id="grid-bienetre"></div>
         </div>
 
-        <!-- ONGLET 4 — Profil -->
-        <div class="tab-pane" id="tab-profil">
-            <div class="grid" id="grid-profil"></div>
+        <!-- ONGLET 4 — Sport -->
+        <div class="tab-pane" id="tab-sport">
+            <div class="grid" id="grid-sport"></div>
         </div>
 
-        <!-- ONGLET 5 — À propos -->
-        <div class="tab-pane" id="tab-apropos">
-            <div class="grid" id="grid-apropos"></div>
+        <!-- ONGLET 5 — Profil -->
+        <div class="tab-pane" id="tab-profil">
+            <div class="grid" id="grid-profil"></div>
         </div>
 
     </div>
@@ -96,13 +144,13 @@
             <span class="bn-icon">🌸</span>
             <span class="bn-label">Bien-être</span>
         </button>
+        <button class="bn-item" data-tab="sport"     onclick="switchTab('sport')">
+            <span class="bn-icon">🏃</span>
+            <span class="bn-label">Sport</span>
+        </button>
         <button class="bn-item" data-tab="profil"    onclick="switchTab('profil')">
             <span class="bn-icon">👤</span>
             <span class="bn-label">Profil</span>
-        </button>
-        <button class="bn-item" data-tab="apropos"   onclick="switchTab('apropos')">
-            <span class="bn-icon">ℹ️</span>
-            <span class="bn-label">À propos</span>
         </button>
     </nav>
 

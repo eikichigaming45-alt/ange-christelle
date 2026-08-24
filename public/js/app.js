@@ -1,5 +1,3 @@
-// public/js/app.js
-
 // ============================================================
 // public/js/app.js
 // Point d'entrée front : état global, login, logout, init app,
@@ -59,6 +57,34 @@ function getUser() {
         return JSON.parse(localStorage.getItem('myvibe_user')) || null;
     } catch { return null; }
 }
+
+// ===================== MENU UTILISATEUR (header) =============
+function toggleUserMenu(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('user-menu');
+    const isVisible = menu.style.display === 'block';
+    menu.style.display = isVisible ? 'none' : 'block';
+}
+
+function ouvrirMonProfil() {
+    fermerUserMenu();
+    openModal('profil');
+}
+
+function fermerUserMenu() {
+    const menu = document.getElementById('user-menu');
+    if (menu) menu.style.display = 'none';
+}
+
+// Fermeture du menu au clic en dehors
+document.addEventListener('click', function(e) {
+    const menu   = document.getElementById('user-menu');
+    const btn    = document.getElementById('btn-profil-header');
+    if (!menu || !btn) return;
+    if (!menu.contains(e.target) && e.target !== btn) {
+        menu.style.display = 'none';
+    }
+});
 
 // ===================== AFFICHAGE RAPIDE ======================
 (function() {
@@ -166,13 +192,15 @@ const ONGLET_TITRES = {
     accueil  : 'MyDaily',
     quotidien: 'Mon Quotidien',
     bienetre : 'Bien-être',
-    profil   : 'Profil',
-    apropos  : 'À propos'
+    sport    : 'Sport',
+    profil   : 'Profil'
 };
 
 function switchTab(onglet, silent = false) {
     _ongletActif = onglet;
     if (!silent) localStorage.setItem('mydaily_onglet', onglet);
+
+    fermerUserMenu();
 
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     const pane = document.getElementById(`tab-${onglet}`);
@@ -185,16 +213,11 @@ function switchTab(onglet, silent = false) {
     const titleEl = document.getElementById('topbar-title');
     if (titleEl) titleEl.textContent = ONGLET_TITRES[onglet] || 'MyDaily';
 
-    // Refresh silencieux du feed au clic sur l'onglet Accueil —
-    // uniquement si l'utilisateur est connecté et que ce n'est pas
-    // un appel interne (silent = true, ex: logout, init).
     if (onglet === 'accueil' && !silent) {
         const u = getUser();
         if (u?.token && typeof chargerFeed === 'function') chargerFeed();
     }
 
-    // Refresh du widget admin au clic sur l'onglet Profil —
-    // uniquement pour les admins et hors appels internes.
     if (onglet === 'profil' && !silent) {
         const u = getUser();
         if (u?.role === 'admin' && typeof chargerWidgetAdmin === 'function') chargerWidgetAdmin();
@@ -203,6 +226,8 @@ function switchTab(onglet, silent = false) {
 
 // ===================== LOGOUT ================================
 function logout() {
+    fermerUserMenu();
+
     localStorage.removeItem('myvibe_user');
 
     _appInitialisee = false;
@@ -219,7 +244,7 @@ function logout() {
     document.getElementById('username').value           = '';
     document.getElementById('password').value           = '';
 
-    ['quotidien','bienetre','profil','apropos'].forEach(o => {
+    ['quotidien','bienetre','sport','profil'].forEach(o => {
         const g = document.getElementById(`grid-${o}`);
         if (g) g.innerHTML = '';
     });
