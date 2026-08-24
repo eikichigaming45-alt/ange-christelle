@@ -631,8 +631,8 @@ async function ouvrirProfilPublic(userId) {
         if (!d.success) return;
         const p = d.profil;
 
-        // FIX v4.47 : cast string/number pour comparaison fiable
-        const isSelf = String(user.id) === String(p.id);
+        // FIX v4.48 : user.userId (et non user.id) correspond au champ stocké en localStorage
+        const isSelf = String(user.userId) === String(p.id);
 
         const avatar = p.photo
             ? `<img src="${p.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed">`
