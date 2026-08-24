@@ -1,6 +1,5 @@
 // ============================================================
 // routes/push.js
-// Gestion des abonnements et envoi des notifications push.
 // ============================================================
 
 const express  = require('express');
@@ -9,15 +8,26 @@ const webpush  = require('web-push');
 const { pool } = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
-// ── Fonction utilitaire : envoyer un push à tous les appareils d'un user ──
+// ── Utilitaire : convertir date locale "YYYY-MM-DD" + heure "HH:MM"
+// en un timestamp UTC comparable à Date.now()
+function _localToUTC(dateStr, heureStr) {
+    // On construit un Date en supposant que dateStr/heureStr sont locaux au client.
+    // Le /check reçoit dateLocale + heureLocale du navigateur, donc on compare
+    // directement en minutes-of-day sur la même base locale.
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const [h, min]  = heureStr.split(':').map(Number);
+    return { y, m, d, h, min, totalMin: d * 1440 + h * 60 + min };
+}
+
+// ── envoyerPush : multi-device, purge 410/404 ────────────────
 async function envoyerPush(userId, titre, corps, tag = 'mydaily') {
     try {
         const { rows } = await pool.query(
-            `SELECT subscription FROM push_subscriptions WHERE user_id = \$1`, [userId]
+            `SELECT id, subscription FROM push_subscriptions WHERE user_id = \$1`,
+            [userId]
         );
         if (!rows.length) return;
 
-        // Envoi à tous les appareils enregistrés
         for (const row of rows) {
             try {
                 const subscription = JSON.parse(row.subscription);
@@ -28,12 +38,11 @@ async function envoyerPush(userId, titre, corps, tag = 'mydaily') {
             } catch (e) {
                 if (e.statusCode === 410 || e.statusCode === 404) {
                     await pool.query(
-                        `DELETE FROM push_subscriptions WHERE user_id = \$1 AND subscription = \$2`,
-                        [userId, row.subscription]
+                        `DELETE FROM push_subscriptions WHERE id = \$1`, [row.id]
                     );
-                    console.warn(`[PUSH] Subscription expirée supprimée user ${userId}`);
+                    console.warn(`[PUSH] Subscription expirée supprimée (id=${row.id})`);
                 } else {
-                    console.warn(`[PUSH] envoyerPush user ${userId} :`, e.message);
+                    console.warn(`[PUSH] Erreur user ${userId} :`, e.message);
                 }
             }
         }
@@ -48,13 +57,15 @@ router.post('/subscribe', authenticateToken, async (req, res) => {
     if (!subscription) {
         return res.status(400).json({ success: false, message: 'Subscription manquante.' });
     }
+    const subStr = JSON.stringify(subscription);
     try {
+        // Upsert sur (user_id, endpoint) — multi-device correct
         await pool.query(`
             INSERT INTO push_subscriptions (user_id, subscription, updated_at)
             VALUES (\$1, \$2, NOW())
-            ON CONFLICT (user_id) DO UPDATE
-            SET subscription = \$2, updated_at = NOW()
-        `, [req.user.id, JSON.stringify(subscription)]);
+            ON CONFLICT (user_id, (subscription::json->>'endpoint'))
+            DO UPDATE SET subscription = \$2, updated_at = NOW()
+        `, [req.user.id, subStr]);
         res.json({ success: true });
     } catch (err) {
         console.error('[PUSH] POST /subscribe :', err.message);
@@ -63,7 +74,6 @@ router.post('/subscribe', authenticateToken, async (req, res) => {
 });
 
 // ── POST /api/push/check ──────────────────────────────────────
-// Le client envoie dateLocale et heureLocale (heure du navigateur).
 router.post('/check', authenticateToken, async (req, res) => {
     try {
         const { dateLocale, heureLocale } = req.body;
@@ -71,37 +81,45 @@ router.post('/check', authenticateToken, async (req, res) => {
             return res.status(400).json({ success: false, message: 'dateLocale et heureLocale requis.' });
         }
 
-        const dateAujourdhui = dateLocale;
-        const heureActuelle  = heureLocale.substring(0, 5);
-        const annee          = parseInt(dateLocale.split('-')[0]);
-        const user_id        = req.user.id;
+        const heureActuelle = heureLocale.substring(0, 5);
+        const annee         = parseInt(dateLocale.split('-')[0]);
+        const user_id       = req.user.id;
+        const [ah, amin]    = heureActuelle.split(':').map(Number);
 
-        console.log(`[PUSH] /check — local ${dateAujourdhui} ${heureActuelle}`);
+        console.log(`[PUSH] /check — local ${dateLocale} ${heureActuelle}`);
 
-        // ── Tâches ────────────────────────────────────────
+        // ── Tâches — FIX : comparaison via Date réels ─────────
         const { rows: taches } = await pool.query(`
             SELECT id, titre, date, heure, rappel_avant
             FROM taches
-            WHERE user_id = \$1 AND faite = FALSE AND heure IS NOT NULL AND date IS NOT NULL AND rappel_avant > 0
+            WHERE user_id = \$1
+              AND faite = FALSE
+              AND heure IS NOT NULL
+              AND date IS NOT NULL
+              AND rappel_avant > 0
         `, [user_id]);
 
         for (const t of taches) {
-            const dateTache    = t.date.toISOString().split('T')[0];
-            const heureTache   = t.heure.substring(0, 5);
-            const rappel       = t.rappel_avant || 0;
-            const [th, tm]     = heureTache.split(':').map(Number);
-            const [yd, ym, yj] = dateTache.split('-').map(Number);
-            const tacheMin     = yd * 525600 + ym * 43800 + yj * 1440 + th * 60 + tm;
-            const notifMin     = tacheMin - rappel;
-            const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
-            const [ah, aminute] = heureActuelle.split(':').map(Number);
-            const actuelMin    = ad * 525600 + am * 43800 + aj * 1440 + ah * 60 + aminute;
-            if (notifMin !== actuelMin) continue;
-            const label = rappel >= 60 ? `${rappel/60}h` : `${rappel}min`;
+            const dateTache  = t.date.toISOString().split('T')[0];
+            const heureTache = t.heure.substring(0, 5);
+            const [ty, tm, td] = dateTache.split('-').map(Number);
+            const [th, tmin]   = heureTache.split(':').map(Number);
+
+            // Timestamp de la tâche (en minutes depuis epoch UTC approximatif)
+            const tacheTs  = Date.UTC(ty, tm - 1, td, th, tmin);
+            const rappel   = t.rappel_avant || 0;
+            const notifTs  = tacheTs - rappel * 60 * 1000;
+
+            // Timestamp de l'heure locale actuelle
+            const [cy, cm, cd] = dateLocale.split('-').map(Number);
+            const clientTs = Date.UTC(cy, cm - 1, cd, ah, amin);
+
+            if (Math.abs(clientTs - notifTs) > 60000) continue;
+            const label = rappel >= 60 ? `${rappel / 60}h` : `${rappel}min`;
             await envoyerPush(user_id, '✅ Rappel de tâche', `${t.titre} — dans ${label}`, `tache-${t.id}`);
         }
 
-        // ── Rendez-vous ───────────────────────────────────
+        // ── Rendez-vous ───────────────────────────────────────
         const { rows: rdvs } = await pool.query(`
             SELECT id, titre, date_rdv, rappel_avant
             FROM rendezvous
@@ -109,40 +127,41 @@ router.post('/check', authenticateToken, async (req, res) => {
         `, [user_id]);
 
         for (const rdv of rdvs) {
-            const rappel      = rdv.rappel_avant || 0;
-            const rdvDate     = new Date(rdv.date_rdv);
-            const notifDate   = new Date(rdvDate.getTime() - rappel * 60 * 1000);
-            const [cad, cam, caj] = dateAujourdhui.split('-').map(Number);
-            const [cah, cam2]     = heureActuelle.split(':').map(Number);
-            const clientTs    = Date.UTC(cad, cam - 1, caj, cah, cam2);
-            const notifTs     = rdvDate.getTime() - rappel * 60 * 1000;
+            const rappel   = rdv.rappel_avant || 0;
+            const rdvTs    = new Date(rdv.date_rdv).getTime();
+            const notifTs  = rdvTs - rappel * 60 * 1000;
+            const [cy, cm, cd] = dateLocale.split('-').map(Number);
+            const clientTs = Date.UTC(cy, cm - 1, cd, ah, amin);
             if (Math.abs(clientTs - notifTs) > 60000) continue;
-            const label = rappel >= 1440 ? 'demain' : rappel >= 60 ? `dans ${rappel/60}h` : `dans ${rappel}min`;
+            const label = rappel >= 1440 ? 'demain' : rappel >= 60 ? `dans ${rappel / 60}h` : `dans ${rappel}min`;
             await envoyerPush(user_id, '🩺 Rappel rendez-vous', `${rdv.titre} — ${label}`, `rdv-${rdv.id}`);
         }
 
-        // ── Planning ──────────────────────────────────────
-        // Correction bug #1 : rappel_avant → rappel_avant_shift
+        // ── Planning — FIX : comparaison via Date.UTC ─────────
         const { rows: shifts } = await pool.query(`
             SELECT id, type, heure_debut, rappel_avant_shift, employeur
             FROM planning
-            WHERE user_id = \$1 AND date = \$2 AND heure_debut IS NOT NULL AND rappel_avant_shift > 0
-        `, [user_id, dateAujourdhui]);
+            WHERE user_id = \$1
+              AND date = \$2
+              AND heure_debut IS NOT NULL
+              AND rappel_avant_shift > 0
+        `, [user_id, dateLocale]);
 
         for (const p of shifts) {
-            const [ph, pm]      = p.heure_debut.substring(0, 5).split(':').map(Number);
-            const [ad, am, aj]  = dateAujourdhui.split('-').map(Number);
-            const [ah, aminute] = heureActuelle.split(':').map(Number);
-            const debutMin      = aj * 1440 + ph * 60 + pm;
-            const notifMin      = debutMin - p.rappel_avant_shift;
-            const actuelMin     = aj * 1440 + ah * 60 + aminute;
-            if (notifMin !== actuelMin) continue;
-            const label = p.rappel_avant_shift >= 60 ? `${p.rappel_avant_shift/60}h` : `${p.rappel_avant_shift}min`;
-            const corps = `${p.type || ''} — dans ${label} (${p.heure_debut.slice(0,5)})${p.employeur ? ' — '+p.employeur : ''}`;
+            const [ph, pm]     = p.heure_debut.substring(0, 5).split(':').map(Number);
+            const [cy, cm, cd] = dateLocale.split('-').map(Number);
+            const debutTs      = Date.UTC(cy, cm - 1, cd, ph, pm);
+            const notifTs      = debutTs - p.rappel_avant_shift * 60 * 1000;
+            const clientTs     = Date.UTC(cy, cm - 1, cd, ah, amin);
+            if (Math.abs(clientTs - notifTs) > 60000) continue;
+            const label = p.rappel_avant_shift >= 60
+                ? `${p.rappel_avant_shift / 60}h`
+                : `${p.rappel_avant_shift}min`;
+            const corps = `${p.type || ''} — dans ${label} (${p.heure_debut.slice(0, 5)})${p.employeur ? ' — ' + p.employeur : ''}`;
             await envoyerPush(user_id, '📋 Rappel Planning', corps, `planning-${p.id}`);
         }
 
-        // ── Anniversaires (08:00 locale uniquement) ───────
+        // ── Anniversaires (08:00 locale) ──────────────────────
         if (heureActuelle === '08:00') {
             const { rows: annivs } = await pool.query(`
                 SELECT id, prenom, nom, jour, mois, annee
@@ -150,15 +169,15 @@ router.post('/check', authenticateToken, async (req, res) => {
                 WHERE user_id = \$1
             `, [user_id]);
 
-            const [ad, am, aj] = dateAujourdhui.split('-').map(Number);
-            const demainJ      = new Date(Date.UTC(ad, am - 1, aj + 1));
+            const [cy, cm, cd] = dateLocale.split('-').map(Number);
+            const demain       = new Date(Date.UTC(cy, cm - 1, cd + 1));
 
             for (const a of annivs) {
-                const nom = `${a.prenom}${a.nom ? ' '+a.nom : ''}`;
-                if (a.jour === aj && a.mois === am) {
+                const nom = `${a.prenom}${a.nom ? ' ' + a.nom : ''}`;
+                if (a.jour === cd && a.mois === cm) {
                     const age = a.annee ? ` — ${annee - a.annee} ans` : '';
                     await envoyerPush(user_id, "🎂 Anniversaire aujourd'hui !", `${nom}${age}`, `anniv-${a.id}`);
-                } else if (a.jour === demainJ.getUTCDate() && a.mois === demainJ.getUTCMonth() + 1) {
+                } else if (a.jour === demain.getUTCDate() && a.mois === demain.getUTCMonth() + 1) {
                     const ageDemain = a.annee ? ` — ${annee - a.annee} ans demain` : '';
                     await envoyerPush(user_id, '🎂 Anniversaire demain !', `${nom}${ageDemain}`, `anniv-veille-${a.id}`);
                 }

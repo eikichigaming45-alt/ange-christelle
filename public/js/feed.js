@@ -1,7 +1,7 @@
 // ============================================================
 // public/js/feed.js
 // Fil social — onglet Accueil.
-// Liste abonnés : cliquable sur son propre profil uniquement.
+// MODULE @TAG : suggestions temps réel, mentions cliquables.
 // Dépend de : app.js (getUser)
 // ============================================================
 
@@ -75,6 +75,152 @@ async function chargerFeed() {
     }
 }
 
+// ── @MENTION : RENDER CONTENU AVEC TAGS CLIQUABLES ───────────
+function renderContenuAvecMentions(contenu) {
+    if (!contenu) return '';
+    // Escape d'abord, puis on repère les @Prénom NOM dans le texte échappé
+    const escaped = escapeHtml(contenu);
+    return escaped.replace(/@([A-ZÀ-Ÿa-zà-ÿ]+(?:\s+[A-ZÀ-Ÿa-zà-ÿ]+)+)/g, (match, nom) => {
+        return `<span class="mention-tag" data-mention="${escapeHtml(nom)}">${match}</span>`;
+    });
+}
+
+// Résolution côté client : clic sur un .mention-tag → ouvrirProfilPublic
+document.addEventListener('click', async e => {
+    const tag = e.target.closest('.mention-tag');
+    if (!tag) return;
+    e.stopPropagation();
+    const nomComplet = tag.dataset.mention || '';
+    const parts      = nomComplet.trim().split(/\s+/);
+    if (parts.length < 2) return;
+    const prenom = parts[0];
+    const nom    = parts.slice(1).join(' ');
+    const user   = getUser();
+    try {
+        const r = await fetch(`/api/feed/users?q=${encodeURIComponent(prenom)}`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) return;
+        const found = d.users.find(u =>
+            u.prenom?.toLowerCase() === prenom.toLowerCase() &&
+            u.nom?.toLowerCase()    === nom.toLowerCase()
+        );
+        if (found) ouvrirProfilPublic(found.id);
+    } catch {}
+});
+
+// ── @MENTION : AUTOCOMPLETE ───────────────────────────────────
+function initMentions(inputEl, wrapEl) {
+    if (!inputEl || !wrapEl) return;
+
+    let dropEl = wrapEl.querySelector('.mention-dropdown');
+    if (!dropEl) {
+        dropEl = document.createElement('div');
+        dropEl.className = 'mention-dropdown';
+        wrapEl.style.position = 'relative';
+        wrapEl.appendChild(dropEl);
+    }
+
+    let debounceTimer = null;
+
+    inputEl.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => _mentionInput(inputEl, dropEl), 200);
+    });
+
+    inputEl.addEventListener('keydown', e => {
+        if (dropEl.style.display === 'none' || !dropEl.children.length) return;
+        const items = [...dropEl.querySelectorAll('.mention-item')];
+        const cur   = dropEl.querySelector('.mention-item.active');
+        const idx   = items.indexOf(cur);
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const next = items[Math.min(idx + 1, items.length - 1)];
+            if (cur)  cur.classList.remove('active');
+            if (next) next.classList.add('active');
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prev = items[Math.max(idx - 1, 0)];
+            if (cur)  cur.classList.remove('active');
+            if (prev) prev.classList.add('active');
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+            const active = dropEl.querySelector('.mention-item.active');
+            if (active) {
+                e.preventDefault();
+                _insererMention(inputEl, dropEl, active.dataset.prenom, active.dataset.nom);
+            }
+        } else if (e.key === 'Escape') {
+            _fermerDropdown(dropEl);
+        }
+    });
+
+    document.addEventListener('click', e => {
+        if (!wrapEl.contains(e.target)) _fermerDropdown(dropEl);
+    }, { capture: true });
+}
+
+async function _mentionInput(inputEl, dropEl) {
+    const val    = inputEl.value;
+    const cursor = inputEl.selectionStart;
+    const avant  = val.substring(0, cursor);
+    // FIX : \s remplacé par [ \t] — exclut les newlines, limite à 40 chars max
+    const match  = avant.match(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/);
+    if (!match) { _fermerDropdown(dropEl); return; }
+
+    const q = match[1].trim();
+    if (!q) { _fermerDropdown(dropEl); return; }
+
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/feed/users?q=${encodeURIComponent(q)}`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success || !d.users.length) { _fermerDropdown(dropEl); return; }
+
+        dropEl.innerHTML = d.users.map((u, i) => {
+            const av = u.avatar
+                ? `<img src="${u.avatar}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
+                : `<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(u.prenom?.[0] || '?').toUpperCase()}</div>`;
+            return `<div class="mention-item${i === 0 ? ' active' : ''}"
+                        data-prenom="${escapeHtml(u.prenom || '')}"
+                        data-nom="${escapeHtml(u.nom || '')}">
+                        ${av}
+                        <span style="font-size:13px;font-weight:600;color:#111">${escapeHtml(u.prenom || '')} ${escapeHtml(u.nom || '')}</span>
+                    </div>`;
+        }).join('');
+
+        dropEl.style.display = 'block';
+
+        dropEl.querySelectorAll('.mention-item').forEach(item => {
+            item.addEventListener('mousedown', e => {
+                e.preventDefault();
+                _insererMention(inputEl, dropEl, item.dataset.prenom, item.dataset.nom);
+            });
+        });
+    } catch { _fermerDropdown(dropEl); }
+}
+
+function _insererMention(inputEl, dropEl, prenom, nom) {
+    const val      = inputEl.value;
+    const cursor   = inputEl.selectionStart;
+    const avant    = val.substring(0, cursor);
+    const apres    = val.substring(cursor);
+    // FIX : même regex que _mentionInput pour garantir la cohérence
+    const newAvant = avant.replace(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/, `@${prenom} ${nom} `);
+    inputEl.value  = newAvant + apres;
+    const pos      = newAvant.length;
+    inputEl.setSelectionRange(pos, pos);
+    inputEl.focus();
+    _fermerDropdown(dropEl);
+}
+
+function _fermerDropdown(dropEl) {
+    if (dropEl) { dropEl.innerHTML = ''; dropEl.style.display = 'none'; }
+}
+
 // ── RENDER POST ───────────────────────────────────────────────
 function renderPost(p) {
     const user     = getUser();
@@ -116,7 +262,7 @@ function renderPost(p) {
                 </div>
             </div>
             <div class="feed-contenu-text" id="post-contenu-${p.id}" style="display:none">${escapeHtml(p.contenu || '')}</div>
-            ${p.contenu ? `<div class="feed-contenu">${escapeHtml(p.contenu)}</div>` : ''}
+            ${p.contenu ? `<div class="feed-contenu">${renderContenuAvecMentions(p.contenu)}</div>` : ''}
             ${p.photo_url ? `<div class="feed-photo-wrap"><img src="${p.photo_url}" class="feed-photo" alt="" onclick="ouvrirPhoto('${p.photo_url}')"></div>` : ''}
             <div class="feed-footer">
                 <button class="feed-like-btn ${p.liked ? 'liked' : ''}" onclick="toggleLike(${p.id}, this)">
@@ -199,9 +345,11 @@ function editerPost(postId) {
 
     document.getElementById('modal-title').textContent = 'Modifier le post';
     document.getElementById('modal-body').innerHTML = `
-        <textarea id="edit-post-contenu" rows="4"
-            style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
-                   font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
+        <div id="edit-post-wrap" style="position:relative">
+            <textarea id="edit-post-contenu" rows="4"
+                style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
+        </div>
         ${photoActuelle ? `
         <div id="edit-photo-actuelle" style="margin-top:12px">
             <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px">Photo actuelle</div>
@@ -209,7 +357,7 @@ function editerPost(postId) {
             <button id="btn-suppr-photo" onclick="marquerSuppressionPhoto()"
                 style="margin-top:8px;padding:7px 14px;background:#fee2e2;color:#ef4444;border:none;
                        border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
-                🗑️ Supprimer la photo
+                Supprimer la photo
             </button>
         </div>` : ''}
         <div style="margin-top:12px">
@@ -227,7 +375,10 @@ function editerPost(postId) {
         </button>
         <div id="edit-post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
-    document.getElementById('edit-post-contenu').value = contenuActuel;
+    const ta   = document.getElementById('edit-post-contenu');
+    const wrap = document.getElementById('edit-post-wrap');
+    ta.value   = contenuActuel;
+    initMentions(ta, wrap);
 
     document.getElementById('edit-post-photo').addEventListener('change', e => {
         const file    = e.target.files[0];
@@ -262,7 +413,6 @@ async function sauvegarderEditionPost(postId) {
         msg.textContent = 'Le post ne peut pas être vide (texte ou photo requis).';
         return;
     }
-
     try {
         let photoB64 = null;
         let mime     = null;
@@ -275,11 +425,7 @@ async function sauvegarderEditionPost(postId) {
                 reader.readAsDataURL(photo);
             });
         }
-
-        const body = {
-            contenu,
-            supprimer_photo: window._editSupprimerPhoto
-        };
+        const body = { contenu, supprimer_photo: window._editSupprimerPhoto };
         if (photoB64) { body.photo = photoB64; body.mime = mime; }
 
         const r = await fetch(`/api/feed/${postId}`, {
@@ -326,20 +472,23 @@ async function chargerCommentaires(postId) {
         if (!d.success) throw new Error();
         zone.innerHTML = `
             ${d.comments.map(c => renderComment(c, postId)).join('')}
-            <div class="feed-comment-form">
+            <div class="feed-comment-form" id="comment-form-${postId}" style="position:relative">
                 <input type="text" id="comment-input-${postId}"
-                    placeholder="Écrire un commentaire..."
+                    placeholder="Écrire un commentaire... (@Prénom NOM)"
                     class="feed-comment-input"
-                    onkeydown="if(event.key==='Enter') envoyerCommentaire(${postId})">
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey) envoyerCommentaire(${postId})">
                 <button onclick="envoyerCommentaire(${postId})" class="feed-comment-send">Envoyer</button>
             </div>
         `;
+        const inputEl = document.getElementById(`comment-input-${postId}`);
+        const wrapEl  = document.getElementById(`comment-form-${postId}`);
+        initMentions(inputEl, wrapEl);
     } catch {
         zone.innerHTML = '<div class="feed-empty">Erreur.</div>';
     }
 }
 
-// ── Correction : auteur commentaire cliquable → ouvrirProfilPublic ─
+// ── RENDER COMMENT ────────────────────────────────────────────
 function renderComment(c, postId) {
     const user    = getUser();
     const isOwner = user.username === c.username;
@@ -355,7 +504,7 @@ function renderComment(c, postId) {
                       onclick="ouvrirProfilPublic(${c.user_id})">
                     ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
                     <span class="feed-handle">@${escapeHtml(c.username)}</span>
-                </span>
+                                </span>
                 <span class="feed-comment-date">${date}</span>
                 <div class="feed-comment-actions">
                     ${isOwner || isAdmin ? `
@@ -380,7 +529,7 @@ function renderComment(c, postId) {
                     </button>
                 </div>
             </div>
-            <div class="feed-comment-contenu" id="comment-text-${c.id}">${escapeHtml(c.contenu)}</div>
+            <div class="feed-comment-contenu" id="comment-text-${c.id}">${renderContenuAvecMentions(c.contenu)}</div>
             <div class="feed-comment-raw" id="comment-raw-${c.id}" style="display:none">${escapeHtml(c.contenu)}</div>
         </div>
     `;
@@ -413,7 +562,7 @@ function editerCommentaire(commentId, postId) {
     const textEl = document.getElementById(`comment-text-${commentId}`);
     if (!textEl) return;
     textEl.innerHTML = `
-        <div style="display:flex;gap:6px;margin-top:4px">
+        <div id="edit-comment-wrap-${commentId}" style="display:flex;gap:6px;margin-top:4px;position:relative">
             <input type="text" id="edit-comment-input-${commentId}"
                 style="flex:1;padding:6px 10px;border:1.5px solid #7c3aed;border-radius:20px;
                        font-size:13px;outline:none;font-family:inherit">
@@ -430,7 +579,9 @@ function editerCommentaire(commentId, postId) {
         </div>
     `;
     const input = document.getElementById(`edit-comment-input-${commentId}`);
+    const wrap  = document.getElementById(`edit-comment-wrap-${commentId}`);
     if (input) { input.value = contenuActuel; input.focus(); }
+    initMentions(input, wrap);
 }
 
 async function sauvegarderEditionCommentaire(commentId, postId) {
@@ -555,9 +706,11 @@ function ouvrirModalPost() {
     document.getElementById('overlay').classList.add('on');
     document.getElementById('modal-title').textContent = 'Nouveau post';
     document.getElementById('modal-body').innerHTML = `
-        <textarea id="post-contenu" placeholder="Quoi de neuf ?" rows="4"
-            style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
-                   font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
+        <div id="new-post-wrap" style="position:relative">
+            <textarea id="post-contenu" placeholder="Quoi de neuf ? (@Prénom NOM pour mentionner)" rows="4"
+                style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
+        </div>
         <div style="margin-top:12px">
             <label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">Photo (optionnelle)</label>
             <input type="file" id="post-photo" accept="image/*" capture="environment"
@@ -571,6 +724,10 @@ function ouvrirModalPost() {
         </button>
         <div id="post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
+    const ta   = document.getElementById('post-contenu');
+    const wrap = document.getElementById('new-post-wrap');
+    initMentions(ta, wrap);
+
     document.getElementById('post-photo').addEventListener('change', e => {
         const file    = e.target.files[0];
         const preview = document.getElementById('post-preview');
@@ -691,7 +848,7 @@ async function ouvrirProfilPublic(userId) {
     } catch {}
 }
 
-// ── LISTE ABONNÉS (soi uniquement) ────────────────────────────
+// ── LISTE ABONNÉS ─────────────────────────────────────────────
 async function voirAbonnes(userId) {
     const user = getUser();
     try {
@@ -769,11 +926,7 @@ async function partagerPost(postId) {
     if (navigator.share) {
         try {
             const shareData = { title: 'MyDaily', text };
-            if (photoUrl) {
-                shareData.url = photoUrl;
-            } else {
-                shareData.url = location.origin;
-            }
+            if (photoUrl) { shareData.url = photoUrl; } else { shareData.url = location.origin; }
             await navigator.share(shareData);
         } catch (e) {
             if (e.name !== 'AbortError') console.error(e);
@@ -788,9 +941,7 @@ async function partagerPost(postId) {
                 <button onclick="closeModal()" style="width:100%;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">OK</button>
             `;
             document.getElementById('overlay').classList.add('on');
-        } catch (e) {
-            console.error('clipboard', e);
-        }
+        } catch (e) { console.error('clipboard', e); }
     }
 }
 

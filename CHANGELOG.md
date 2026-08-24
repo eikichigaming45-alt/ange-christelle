@@ -1,3 +1,19 @@
+# CHANGELOG — MyDaily
+
+---
+
+## v1.07 — 24-08-2026
+- MODULE @TAG : suggestions utilisateurs temps réel à la saisie de `@` (posts + commentaires + édition)
+- feed.js : `initMentions()` — dropdown clavier/souris, insertion `@Prénom NOM`, debounce 200ms
+- feed.js : `renderContenuAvecMentions()` — rendu des mentions en `<span class="mention-tag">` cliquables
+- feed.js : délégation clic `.mention-tag` → résolution user via `/api/feed/users` → `ouvrirProfilPublic()`
+- feed.js : `initMentions()` branché sur champ nouveau post, édition post, commentaire, édition commentaire
+- feed.css : `.mention-tag` — chip violet cliquable avec hover
+- feed.css : `.mention-dropdown` / `.mention-item` — liste déroulante positionnée (au-dessus champ, en dessous modale)
+- sw.js : CACHE_NAME bumped → `mydaily-cache-v1.07`
+
+---
+
 ## v1.06 — 25-08-2026
 - MODULE CLOCHE : panel notifications + badge rouge + onglets Tout/Non lu + sections Aujourd'hui/Plus tôt + polling badge 60s
 - feed.js : notifs cloche + push pour like / commentaire / follow
@@ -9,6 +25,8 @@
 - .gitignore : ajout .env et uploads/
 - package.json : engines node 24.x
 - auteur commentaire cliquable profil public
+
+---
 
 ## v1.00 — 24-08-2026
 - Version stable initiale

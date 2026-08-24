@@ -950,7 +950,8 @@ const _NOTIF_ICONES = {
     follow        : { icone: '👤',  texte: 'a commencé à te suivre'          },
     coucou        : { icone: '💕',  texte: 't\'a envoyé un coucou'           },
     share_request : { icone: '🤝',  texte: 'a partagé des données avec toi'  },
-    mention       : { icone: '🔔',  texte: 't\'a mentionné dans une publication' },
+    mention_post    : { icone: '🏷️', texte: 't\'a mentionné(e) dans un post' },
+	mention_comment : { icone: '🏷️', texte: 't\'a mentionné(e) dans un commentaire' },
 };
 
 // ── Temps écoulé ─────────────────────────────────────────────

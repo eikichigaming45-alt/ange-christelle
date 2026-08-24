@@ -1,6 +1,6 @@
 // ============================================================
 // routes/feed.js
-// Fil social : posts, likes, commentaires, follows
+// Fil social : posts, likes, commentaires, follows, @mentions
 // ============================================================
 
 const express               = require('express');
@@ -15,6 +15,85 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_KEY
 );
 
+// ── Utilitaire : extraire et résoudre les @mentions ──────────
+async function resoudreMentions(contenu, auteurId) {
+    const matches = [...contenu.matchAll(/@([a-zA-ZÀ-ÿ]+(?:\s+[a-zA-ZÀ-ÿ]+)*)/g)];
+    if (!matches.length) return [];
+
+    const mentions = new Set();
+    for (const m of matches) {
+        const token = m[1].trim();
+        const parts = token.split(/\s+/);
+        if (parts.length < 2) continue;
+
+        const prenom = parts[0];
+        const nom    = parts.slice(1).join(' ');
+
+        const { rows } = await pool.query(
+            `SELECT user_id FROM profiles
+             WHERE LOWER(prenom) = LOWER(\$1) AND LOWER(nom) = LOWER(\$2)
+             LIMIT 1`,
+            [prenom, nom]
+        );
+        if (rows.length && rows[0].user_id !== auteurId) {
+            mentions.add(rows[0].user_id);
+        }
+    }
+    return [...mentions];
+}
+
+// ── Utilitaire : envoyer notif + push à chaque personne taguée
+async function notifierMentions(mentionIds, auteurId, refId, type, prenomAuteur, nomAuteur) {
+    for (const targetId of mentionIds) {
+        await pool.query(
+            `INSERT INTO notifications (user_id, type, ref_id, sender_id)
+             VALUES (\$1, \$2, \$3, \$4)
+             ON CONFLICT DO NOTHING`,
+            [targetId, type === 'post' ? 'mention_post' : 'mention_comment', refId, auteurId]
+        );
+        await envoyerPush(
+            targetId,
+            '🏷️ Tu as été mentionné(e)',
+            `${prenomAuteur}${nomAuteur ? ' ' + nomAuteur : ''} t'a mentionné(e) dans un ${type === 'post' ? 'post' : 'commentaire'}`,
+            `mention-${type}-${refId}`
+        );
+    }
+}
+
+// ── Utilitaire : récupérer prenom/nom de l'auteur connecté ───
+async function getProfilAuteur(userId) {
+    const { rows } = await pool.query(
+        `SELECT prenom, nom FROM profiles WHERE user_id = \$1`, [userId]
+    );
+    return {
+        prenom: rows[0]?.prenom || 'Quelqu\'un',
+        nom:    rows[0]?.nom    || ''
+    };
+}
+
+// ── GET /api/feed/users (autocomplete @mention) ──────────────
+router.get('/users', authenticateToken, async (req, res) => {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json({ success: true, users: [] });
+    try {
+        const { rows } = await pool.query(
+            `SELECT u.id, pr.prenom, pr.nom, pr.photo AS avatar
+             FROM users u
+             LEFT JOIN profiles pr ON pr.user_id = u.id
+             WHERE LOWER(pr.prenom) LIKE LOWER(\$1)
+                OR LOWER(pr.nom)    LIKE LOWER(\$1)
+                OR LOWER(CONCAT(pr.prenom, ' ', pr.nom)) LIKE LOWER(\$1)
+             ORDER BY pr.prenom, pr.nom
+             LIMIT 8`,
+            [`${q}%`]
+        );
+        res.json({ success: true, users: rows });
+    } catch (e) {
+        console.error('[FEED USERS SEARCH]', e.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
 // ── GET /api/feed ─────────────────────────────────────────────
 router.get('/', authenticateToken, async (req, res) => {
     const userId = req.user.id;
@@ -23,6 +102,7 @@ router.get('/', authenticateToken, async (req, res) => {
         let query = `
             SELECT
                 p.id, p.contenu, p.photo_url, p.created_at,
+                p.mentions,
                 pr.prenom, pr.nom, pr.photo AS avatar,
                 u.username,
                 u.id AS user_id,
@@ -68,12 +148,23 @@ router.post('/', authenticateToken, async (req, res) => {
             const { data } = supabase.storage.from('posts-photos').getPublicUrl(filename);
             photo_url = data.publicUrl;
         }
+
+        const mentionIds = contenu ? await resoudreMentions(contenu, userId) : [];
+
         const { rows } = await pool.query(
-            `INSERT INTO posts (user_id, contenu, photo_url) VALUES (\$1, \$2, \$3)
-             RETURNING id, contenu, photo_url, created_at`,
-            [userId, contenu || null, photo_url]
+            `INSERT INTO posts (user_id, contenu, photo_url, mentions)
+             VALUES (\$1, \$2, \$3, \$4)
+             RETURNING id, contenu, photo_url, created_at, mentions`,
+            [userId, contenu || null, photo_url, mentionIds]
         );
-        res.json({ success: true, post: rows[0] });
+        const post = rows[0];
+
+        if (mentionIds.length) {
+            const { prenom, nom } = await getProfilAuteur(userId);
+            await notifierMentions(mentionIds, userId, post.id, 'post', prenom, nom);
+        }
+
+        res.json({ success: true, post });
     } catch (e) {
         console.error('[FEED POST]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
@@ -107,50 +198,37 @@ router.post('/follow/:id', authenticateToken, async (req, res) => {
             [followerId, followingId]
         );
         if (rows.length) {
-            // Unfollow — pas de notif
             await pool.query(
                 `DELETE FROM follows WHERE follower_id = \$1 AND following_id = \$2`,
                 [followerId, followingId]
             );
-            res.json({ success: true, following: false });
-        } else {
-            // Follow — notif + push
-            await pool.query(
-                `INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`,
-                [followerId, followingId]
-            );
-
-            // Récupérer prenom du follower pour le push
-            const { rows: profil } = await pool.query(
-                `SELECT prenom, nom FROM profiles WHERE user_id = \$1`, [followerId]
-            );
-            const prenom = profil[0]?.prenom || 'Quelqu\'un';
-            const nom    = profil[0]?.nom    || '';
-
-            // Notif cloche
-            await pool.query(
-                `INSERT INTO notifications (user_id, type, ref_id, sender_id)
-                 VALUES (\$1, 'follow', \$2, \$3)`,
-                [followingId, followerId, followerId]
-            );
-
-            // Push
-            await envoyerPush(
-                followingId,
-                '👤 Nouvel abonné',
-                `${prenom}${nom ? ' ' + nom : ''} a commencé à te suivre`,
-                `follow-${followerId}`
-            );
-
-            res.json({ success: true, following: true });
+            return res.json({ success: true, following: false });
         }
+
+        await pool.query(
+            `INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`,
+            [followerId, followingId]
+        );
+        const { prenom, nom } = await getProfilAuteur(followerId);
+        await pool.query(
+            `INSERT INTO notifications (user_id, type, ref_id, sender_id)
+             VALUES (\$1, 'follow', \$2, \$3)`,
+            [followingId, followerId, followerId]
+        );
+        await envoyerPush(
+            followingId,
+            '👤 Nouvel abonné',
+            `${prenom}${nom ? ' ' + nom : ''} a commencé à te suivre`,
+            `follow-${followerId}`
+        );
+        res.json({ success: true, following: true });
     } catch (e) {
         console.error('[FEED FOLLOW]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// ── PUT /api/feed/comments/:id (édition commentaire) ─────────
+// ── PUT /api/feed/comments/:id ────────────────────────────────
 router.put('/comments/:id', authenticateToken, async (req, res) => {
     const userId    = req.user.id;
     const commentId = parseInt(req.params.id);
@@ -164,7 +242,20 @@ router.put('/comments/:id', authenticateToken, async (req, res) => {
         if (rows[0].user_id !== userId && req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Interdit.' });
         }
-        await pool.query(`UPDATE post_comments SET contenu = \$1 WHERE id = \$2`, [contenu, commentId]);
+
+        // Recalcul des mentions à l'édition
+        const mentionIds = await resoudreMentions(contenu, userId);
+
+        await pool.query(
+            `UPDATE post_comments SET contenu = \$1, mentions = \$2 WHERE id = \$3`,
+            [contenu, mentionIds, commentId]
+        );
+
+        if (mentionIds.length) {
+            const { prenom, nom } = await getProfilAuteur(userId);
+            await notifierMentions(mentionIds, userId, commentId, 'comment', prenom, nom);
+        }
+
         res.json({ success: true });
     } catch (e) {
         console.error('[FEED COMMENT PUT]', e.message);
@@ -206,14 +297,13 @@ router.post('/comments/:id/like', authenticateToken, async (req, res) => {
                 `DELETE FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`,
                 [commentId, userId]
             );
-            res.json({ success: true, liked: false });
-        } else {
-            await pool.query(
-                `INSERT INTO comment_likes (comment_id, user_id) VALUES (\$1, \$2)`,
-                [commentId, userId]
-            );
-            res.json({ success: true, liked: true });
+            return res.json({ success: true, liked: false });
         }
+        await pool.query(
+            `INSERT INTO comment_likes (comment_id, user_id) VALUES (\$1, \$2)`,
+            [commentId, userId]
+        );
+        res.json({ success: true, liked: true });
     } catch (e) {
         console.error('[COMMENT LIKE]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
@@ -230,58 +320,43 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
             [postId, userId]
         );
         if (rows.length) {
-            // Unlike — pas de notif
             await pool.query(
                 `DELETE FROM post_likes WHERE post_id = \$1 AND user_id = \$2`,
                 [postId, userId]
             );
-            res.json({ success: true, liked: false });
-        } else {
-            // Like — notif + push si pas son propre post
-            await pool.query(
-                `INSERT INTO post_likes (post_id, user_id) VALUES (\$1, \$2)`,
-                [postId, userId]
-            );
-
-            // Récupérer propriétaire du post
-            const { rows: postRows } = await pool.query(
-                `SELECT user_id FROM posts WHERE id = \$1`, [postId]
-            );
-            const ownerId = postRows[0]?.user_id;
-
-            if (ownerId && ownerId !== userId) {
-                // Récupérer prenom du liker
-                const { rows: profil } = await pool.query(
-                    `SELECT prenom, nom FROM profiles WHERE user_id = \$1`, [userId]
-                );
-                const prenom = profil[0]?.prenom || 'Quelqu\'un';
-                const nom    = profil[0]?.nom    || '';
-
-                // Notif cloche
-                await pool.query(
-                    `INSERT INTO notifications (user_id, type, ref_id, sender_id)
-                     VALUES (\$1, 'like', \$2, \$3)`,
-                    [ownerId, postId, userId]
-                );
-
-                // Push
-                await envoyerPush(
-                    ownerId,
-                    '❤️ Nouveau like',
-                    `${prenom}${nom ? ' ' + nom : ''} a aimé ta publication`,
-                    `like-${postId}-${userId}`
-                );
-            }
-
-            res.json({ success: true, liked: true });
+            return res.json({ success: true, liked: false });
         }
+
+        await pool.query(
+            `INSERT INTO post_likes (post_id, user_id) VALUES (\$1, \$2)`,
+            [postId, userId]
+        );
+        const { rows: postRows } = await pool.query(
+            `SELECT user_id FROM posts WHERE id = \$1`, [postId]
+        );
+        const ownerId = postRows[0]?.user_id;
+        if (ownerId && ownerId !== userId) {
+            const { prenom, nom } = await getProfilAuteur(userId);
+            await pool.query(
+                `INSERT INTO notifications (user_id, type, ref_id, sender_id)
+                 VALUES (\$1, 'like', \$2, \$3)`,
+                [ownerId, postId, userId]
+            );
+            await envoyerPush(
+                ownerId,
+                '❤️ Nouveau like',
+                `${prenom}${nom ? ' ' + nom : ''} a aimé ta publication`,
+                `like-${postId}-${userId}`
+            );
+        }
+        res.json({ success: true, liked: true });
     } catch (e) {
         console.error('[FEED LIKE]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// ── GET /api/feed/:id/likes (liste likers) ────────────────────
+// ── GET /api/feed/:id/likes ───────────────────────────────────
 router.get('/:id/likes', authenticateToken, async (req, res) => {
     const postId = parseInt(req.params.id);
     try {
@@ -307,6 +382,7 @@ router.get('/:id/comments', authenticateToken, async (req, res) => {
     try {
         const { rows } = await pool.query(`
             SELECT c.id, c.contenu, c.created_at,
+                   c.mentions,
                    pr.prenom, pr.nom, pr.photo AS avatar,
                    u.username, u.id AS user_id,
                    (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id)::int AS likes,
@@ -331,50 +407,49 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
     const contenu = (req.body.contenu || '').trim();
     if (!contenu) return res.status(400).json({ success: false, message: 'Commentaire vide.' });
     try {
-        const { rows } = await pool.query(
-            `INSERT INTO post_comments (post_id, user_id, contenu) VALUES (\$1, \$2, \$3)
-             RETURNING id, contenu, created_at`,
-            [postId, userId, contenu]
-        );
+        const mentionIds = await resoudreMentions(contenu, userId);
 
-        // Récupérer propriétaire du post
+        const { rows } = await pool.query(
+            `INSERT INTO post_comments (post_id, user_id, contenu, mentions)
+             VALUES (\$1, \$2, \$3, \$4)
+             RETURNING id, contenu, created_at, mentions`,
+            [postId, userId, contenu, mentionIds]
+        );
+        const comment = rows[0];
+
+        const { prenom, nom } = await getProfilAuteur(userId);
+
         const { rows: postRows } = await pool.query(
             `SELECT user_id FROM posts WHERE id = \$1`, [postId]
         );
         const ownerId = postRows[0]?.user_id;
-
         if (ownerId && ownerId !== userId) {
-            // Récupérer prenom du commentateur
-            const { rows: profil } = await pool.query(
-                `SELECT prenom, nom FROM profiles WHERE user_id = \$1`, [userId]
-            );
-            const prenom = profil[0]?.prenom || 'Quelqu\'un';
-            const nom    = profil[0]?.nom    || '';
-
-            // Notif cloche
             await pool.query(
                 `INSERT INTO notifications (user_id, type, ref_id, sender_id)
                  VALUES (\$1, 'comment', \$2, \$3)`,
-                [ownerId, rows[0].id, userId]
+                [ownerId, comment.id, userId]
             );
-
-            // Push
             await envoyerPush(
                 ownerId,
                 '💬 Nouveau commentaire',
                 `${prenom}${nom ? ' ' + nom : ''} a commenté ta publication`,
-                `comment-${rows[0].id}`
+                `comment-${comment.id}`
             );
         }
 
-        res.json({ success: true, comment: rows[0] });
+        const mentionsFiltered = mentionIds.filter(id => id !== ownerId);
+        if (mentionsFiltered.length) {
+            await notifierMentions(mentionsFiltered, userId, comment.id, 'comment', prenom, nom);
+        }
+
+        res.json({ success: true, comment });
     } catch (e) {
         console.error('[FEED COMMENT POST]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
 
-// ── PUT /api/feed/:id (édition post — contenu + photo) ───────
+// ── PUT /api/feed/:id ─────────────────────────────────────────
 router.put('/:id', authenticateToken, async (req, res) => {
     const userId    = req.user.id;
     const postId    = parseInt(req.params.id);
@@ -394,13 +469,11 @@ router.put('/:id', authenticateToken, async (req, res) => {
         }
 
         let photo_url = post.photo_url;
-
         if ((suppPhoto || photoB64) && post.photo_url) {
             const filename = post.photo_url.split('/').pop();
             await supabase.storage.from('posts-photos').remove([filename]);
             photo_url = null;
         }
-
         if (photoB64) {
             const buffer   = Buffer.from(photoB64, 'base64');
             const ext      = photoMime.split('/')[1] || 'jpg';
@@ -413,10 +486,19 @@ router.put('/:id', authenticateToken, async (req, res) => {
             photo_url = data.publicUrl;
         }
 
+        // Recalcul des mentions à l'édition du post
+        const mentionIds = contenu ? await resoudreMentions(contenu, userId) : [];
+
         await pool.query(
-            `UPDATE posts SET contenu = \$1, photo_url = \$2 WHERE id = \$3`,
-            [contenu || null, photo_url, postId]
+            `UPDATE posts SET contenu = \$1, photo_url = \$2, mentions = \$3 WHERE id = \$4`,
+            [contenu || null, photo_url, mentionIds, postId]
         );
+
+        if (mentionIds.length) {
+            const { prenom, nom } = await getProfilAuteur(userId);
+            await notifierMentions(mentionIds, userId, postId, 'post', prenom, nom);
+        }
+
         res.json({ success: true, photo_url });
     } catch (e) {
         console.error('[FEED PUT]', e.message);

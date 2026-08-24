@@ -1,6 +1,5 @@
 // ============================================================
 // db/pool.js
-// Connexion PostgreSQL via Supabase + initialisation des tables.
 // ============================================================
 
 const { Pool } = require('pg');
@@ -16,7 +15,6 @@ const pool = new Pool({
 async function initDB() {
     try {
 
-        // ── Utilisateurs ──────────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id                   SERIAL PRIMARY KEY,
@@ -28,7 +26,6 @@ async function initDB() {
             );
         `);
 
-        // ── Profils ───────────────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS profiles (
                 id               SERIAL PRIMARY KEY,
@@ -47,7 +44,6 @@ async function initDB() {
             );
         `);
 
-        // ── Ordre des widgets ─────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS widget_order (
                 id         SERIAL PRIMARY KEY,
@@ -57,7 +53,6 @@ async function initDB() {
             );
         `);
 
-        // ── Tâches ────────────────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS taches (
                 id           SERIAL PRIMARY KEY,
@@ -72,7 +67,6 @@ async function initDB() {
             );
         `);
 
-        // ── Anniversaires ─────────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS anniversaires (
                 id         SERIAL PRIMARY KEY,
@@ -86,17 +80,21 @@ async function initDB() {
             );
         `);
 
-        // ── Abonnements push ──────────────────────────────────
+        // FIX multi-device : UNIQUE sur (user_id, endpoint), pas sur user_id seul
         await pool.query(`
             CREATE TABLE IF NOT EXISTS push_subscriptions (
                 id           SERIAL PRIMARY KEY,
-                user_id      INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+                user_id      INTEGER   NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 subscription TEXT      NOT NULL,
                 updated_at   TIMESTAMP DEFAULT NOW()
             );
         `);
+        // Index unique sur l'endpoint extrait du JSON — garantit 1 ligne par appareil
+        await pool.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_push_sub_user_endpoint
+            ON push_subscriptions (user_id, (subscription::json->>'endpoint'));
+        `);
 
-        // ── Cycles menstruels ─────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS cycles (
                 id           SERIAL PRIMARY KEY,
@@ -109,7 +107,6 @@ async function initDB() {
             );
         `);
 
-        // ── Journal de cycle ──────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS cycle_journal (
                 id         SERIAL PRIMARY KEY,
@@ -123,7 +120,6 @@ async function initDB() {
             );
         `);
 
-        // ── Mood quotidien ────────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS cycle_mood (
                 id         SERIAL PRIMARY KEY,
@@ -135,7 +131,6 @@ async function initDB() {
             );
         `);
 
-        // ── Rendez-vous ───────────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS rendezvous (
                 id           SERIAL PRIMARY KEY,
@@ -151,7 +146,6 @@ async function initDB() {
             );
         `);
 
-        // ── Planning ──────────────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS planning (
                 id                  SERIAL PRIMARY KEY,
@@ -169,7 +163,6 @@ async function initDB() {
             );
         `);
 
-        // ── Employeurs ────────────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS planning_employeurs (
                 id         SERIAL PRIMARY KEY,
@@ -190,21 +183,28 @@ async function initDB() {
         await pool.query(`ALTER TABLE rendezvous ADD COLUMN IF NOT EXISTS rappel_avant           INTEGER      DEFAULT 0;`);
         await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS widgets_visibles       TEXT[];`);
         await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS signe_zodiaque         VARCHAR(20);`);
-        // Migrations planning — nouveau modèle métier
         await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS categorie              VARCHAR(50);`);
         await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS libelle_personnalise   TEXT;`);
         await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS date_debut             DATE;`);
         await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS date_fin               DATE;`);
         await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS rappel_avant_shift     INTEGER      DEFAULT 0;`);
+        await pool.query(`ALTER TABLE posts         ADD COLUMN IF NOT EXISTS mentions INTEGER[] DEFAULT '{}';`);
+        await pool.query(`ALTER TABLE post_comments ADD COLUMN IF NOT EXISTS mentions INTEGER[] DEFAULT '{}';`);
 
-        // ── Purge planning > 6 mois (au démarrage uniquement) ─
+        // FIX multi-device : supprimer l'ancienne contrainte UNIQUE sur user_id seule si elle existe
+        await pool.query(`
+            ALTER TABLE push_subscriptions
+            DROP CONSTRAINT IF EXISTS push_subscriptions_user_id_key;
+        `);
+
+        // ── Purge planning > 6 mois ───────────────────────────
         await pool.query(`
             DELETE FROM planning
             WHERE COALESCE(date_fin, date_debut, date) < NOW() - INTERVAL '6 months'
         `);
-        console.log('[DB] Purge planning anciens enregistrements effectuée.');
-
+        console.log('[DB] Purge planning effectuée.');
         console.log('[DB] Tables initialisées.');
+
     } catch (err) {
         console.error('[DB] Erreur initialisation :', err.message);
     }
