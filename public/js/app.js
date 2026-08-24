@@ -1,3 +1,5 @@
+// public/js/app.js
+
 // ============================================================
 // public/js/app.js
 // Point d'entrée front : état global, login, logout, init app,
@@ -189,6 +191,13 @@ function switchTab(onglet, silent = false) {
     if (onglet === 'accueil' && !silent) {
         const u = getUser();
         if (u?.token && typeof chargerFeed === 'function') chargerFeed();
+    }
+
+    // Refresh du widget admin au clic sur l'onglet Profil —
+    // uniquement pour les admins et hors appels internes.
+    if (onglet === 'profil' && !silent) {
+        const u = getUser();
+        if (u?.role === 'admin' && typeof chargerWidgetAdmin === 'function') chargerWidgetAdmin();
     }
 }
 
