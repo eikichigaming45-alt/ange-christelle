@@ -8,6 +8,7 @@ const router                = express.Router();
 const { pool }              = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 const { createClient }      = require('@supabase/supabase-js');
+const { envoyerPush }       = require('./push');
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -106,10 +107,41 @@ router.post('/follow/:id', authenticateToken, async (req, res) => {
             [followerId, followingId]
         );
         if (rows.length) {
-            await pool.query(`DELETE FROM follows WHERE follower_id = \$1 AND following_id = \$2`, [followerId, followingId]);
+            // Unfollow — pas de notif
+            await pool.query(
+                `DELETE FROM follows WHERE follower_id = \$1 AND following_id = \$2`,
+                [followerId, followingId]
+            );
             res.json({ success: true, following: false });
         } else {
-            await pool.query(`INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`, [followerId, followingId]);
+            // Follow — notif + push
+            await pool.query(
+                `INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`,
+                [followerId, followingId]
+            );
+
+            // Récupérer prenom du follower pour le push
+            const { rows: profil } = await pool.query(
+                `SELECT prenom, nom FROM profiles WHERE user_id = \$1`, [followerId]
+            );
+            const prenom = profil[0]?.prenom || 'Quelqu\'un';
+            const nom    = profil[0]?.nom    || '';
+
+            // Notif cloche
+            await pool.query(
+                `INSERT INTO notifications (user_id, type, ref_id, sender_id)
+                 VALUES (\$1, 'follow', \$2, \$3)`,
+                [followingId, followerId, followerId]
+            );
+
+            // Push
+            await envoyerPush(
+                followingId,
+                '👤 Nouvel abonné',
+                `${prenom}${nom ? ' ' + nom : ''} a commencé à te suivre`,
+                `follow-${followerId}`
+            );
+
             res.json({ success: true, following: true });
         }
     } catch (e) {
@@ -170,10 +202,16 @@ router.post('/comments/:id/like', authenticateToken, async (req, res) => {
             [commentId, userId]
         );
         if (rows.length) {
-            await pool.query(`DELETE FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`, [commentId, userId]);
+            await pool.query(
+                `DELETE FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`,
+                [commentId, userId]
+            );
             res.json({ success: true, liked: false });
         } else {
-            await pool.query(`INSERT INTO comment_likes (comment_id, user_id) VALUES (\$1, \$2)`, [commentId, userId]);
+            await pool.query(
+                `INSERT INTO comment_likes (comment_id, user_id) VALUES (\$1, \$2)`,
+                [commentId, userId]
+            );
             res.json({ success: true, liked: true });
         }
     } catch (e) {
@@ -192,10 +230,49 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
             [postId, userId]
         );
         if (rows.length) {
-            await pool.query(`DELETE FROM post_likes WHERE post_id = \$1 AND user_id = \$2`, [postId, userId]);
+            // Unlike — pas de notif
+            await pool.query(
+                `DELETE FROM post_likes WHERE post_id = \$1 AND user_id = \$2`,
+                [postId, userId]
+            );
             res.json({ success: true, liked: false });
         } else {
-            await pool.query(`INSERT INTO post_likes (post_id, user_id) VALUES (\$1, \$2)`, [postId, userId]);
+            // Like — notif + push si pas son propre post
+            await pool.query(
+                `INSERT INTO post_likes (post_id, user_id) VALUES (\$1, \$2)`,
+                [postId, userId]
+            );
+
+            // Récupérer propriétaire du post
+            const { rows: postRows } = await pool.query(
+                `SELECT user_id FROM posts WHERE id = \$1`, [postId]
+            );
+            const ownerId = postRows[0]?.user_id;
+
+            if (ownerId && ownerId !== userId) {
+                // Récupérer prenom du liker
+                const { rows: profil } = await pool.query(
+                    `SELECT prenom, nom FROM profiles WHERE user_id = \$1`, [userId]
+                );
+                const prenom = profil[0]?.prenom || 'Quelqu\'un';
+                const nom    = profil[0]?.nom    || '';
+
+                // Notif cloche
+                await pool.query(
+                    `INSERT INTO notifications (user_id, type, ref_id, sender_id)
+                     VALUES (\$1, 'like', \$2, \$3)`,
+                    [ownerId, postId, userId]
+                );
+
+                // Push
+                await envoyerPush(
+                    ownerId,
+                    '❤️ Nouveau like',
+                    `${prenom}${nom ? ' ' + nom : ''} a aimé ta publication`,
+                    `like-${postId}-${userId}`
+                );
+            }
+
             res.json({ success: true, liked: true });
         }
     } catch (e) {
@@ -259,6 +336,37 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
              RETURNING id, contenu, created_at`,
             [postId, userId, contenu]
         );
+
+        // Récupérer propriétaire du post
+        const { rows: postRows } = await pool.query(
+            `SELECT user_id FROM posts WHERE id = \$1`, [postId]
+        );
+        const ownerId = postRows[0]?.user_id;
+
+        if (ownerId && ownerId !== userId) {
+            // Récupérer prenom du commentateur
+            const { rows: profil } = await pool.query(
+                `SELECT prenom, nom FROM profiles WHERE user_id = \$1`, [userId]
+            );
+            const prenom = profil[0]?.prenom || 'Quelqu\'un';
+            const nom    = profil[0]?.nom    || '';
+
+            // Notif cloche
+            await pool.query(
+                `INSERT INTO notifications (user_id, type, ref_id, sender_id)
+                 VALUES (\$1, 'comment', \$2, \$3)`,
+                [ownerId, rows[0].id, userId]
+            );
+
+            // Push
+            await envoyerPush(
+                ownerId,
+                '💬 Nouveau commentaire',
+                `${prenom}${nom ? ' ' + nom : ''} a commenté ta publication`,
+                `comment-${rows[0].id}`
+            );
+        }
+
         res.json({ success: true, comment: rows[0] });
     } catch (e) {
         console.error('[FEED COMMENT POST]', e.message);
@@ -287,14 +395,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
         let photo_url = post.photo_url;
 
-        // Suppression photo existante
         if ((suppPhoto || photoB64) && post.photo_url) {
             const filename = post.photo_url.split('/').pop();
             await supabase.storage.from('posts-photos').remove([filename]);
             photo_url = null;
         }
 
-        // Upload nouvelle photo
         if (photoB64) {
             const buffer   = Buffer.from(photoB64, 'base64');
             const ext      = photoMime.split('/')[1] || 'jpg';
