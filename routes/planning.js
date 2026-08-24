@@ -1,3 +1,7 @@
+// ============================================================
+// routes/planning.js
+// ============================================================
+
 const express  = require('express');
 const router   = express.Router();
 const { pool } = require('../db/pool');
@@ -62,16 +66,7 @@ router.get('/', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Mois et année requis.' });
     }
     try {
-        // Purge lazy — utilise date (toujours renseignée) plutôt que date_debut
-        await pool.query(
-            `DELETE FROM planning
-             WHERE user_id = \$1
-               AND COALESCE(date_fin, date_debut, date) < NOW() - INTERVAL '6 months'`,
-            [req.user.id]
-        );
-
         const debutMois = `${annee}-${String(mois).padStart(2, '0')}-01`;
-        // Calcul dynamique du dernier jour du mois
         const finMois   = new Date(annee, mois, 0).toISOString().slice(0, 10);
 
         const result = await pool.query(`

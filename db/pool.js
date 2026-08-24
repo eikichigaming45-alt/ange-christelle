@@ -154,18 +154,18 @@ async function initDB() {
         // ── Planning ──────────────────────────────────────────
         await pool.query(`
             CREATE TABLE IF NOT EXISTS planning (
-                id           SERIAL PRIMARY KEY,
-                user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                date         DATE    NOT NULL,
-                type         VARCHAR(50) NOT NULL,
-                heure_debut  TIME,
-                heure_fin    TIME,
-                employeur    VARCHAR(255),
-                adresse      VARCHAR(255),
-                telephone    VARCHAR(50),
-                notes        TEXT,
-                rappel_avant INTEGER   DEFAULT 120,
-                created_at   TIMESTAMP DEFAULT NOW()
+                id                  SERIAL PRIMARY KEY,
+                user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                date                DATE    NOT NULL,
+                type                VARCHAR(50) NOT NULL,
+                heure_debut         TIME,
+                heure_fin           TIME,
+                employeur           VARCHAR(255),
+                adresse             VARCHAR(255),
+                telephone           VARCHAR(50),
+                notes               TEXT,
+                rappel_avant        INTEGER   DEFAULT 120,
+                created_at          TIMESTAMP DEFAULT NOW()
             );
         `);
 
@@ -183,12 +183,26 @@ async function initDB() {
         `);
 
         // ── Migrations ────────────────────────────────────────
-        await pool.query(`ALTER TABLE users      ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN   DEFAULT FALSE;`);
-        await pool.query(`ALTER TABLE users      ADD COLUMN IF NOT EXISTS last_login           TIMESTAMP;`);
-        await pool.query(`ALTER TABLE taches     ADD COLUMN IF NOT EXISTS rappel_avant         INTEGER   DEFAULT 0;`);
-        await pool.query(`ALTER TABLE rendezvous ADD COLUMN IF NOT EXISTS rappel_avant         INTEGER   DEFAULT 0;`);
-        await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS widgets_visibles     TEXT[];`);
-        await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS signe_zodiaque       VARCHAR(20);`);
+        await pool.query(`ALTER TABLE users      ADD COLUMN IF NOT EXISTS must_change_password  BOOLEAN      DEFAULT FALSE;`);
+        await pool.query(`ALTER TABLE users      ADD COLUMN IF NOT EXISTS last_login             TIMESTAMP;`);
+        await pool.query(`ALTER TABLE users      ADD COLUMN IF NOT EXISTS created_at             TIMESTAMPTZ  DEFAULT NOW();`);
+        await pool.query(`ALTER TABLE taches     ADD COLUMN IF NOT EXISTS rappel_avant           INTEGER      DEFAULT 0;`);
+        await pool.query(`ALTER TABLE rendezvous ADD COLUMN IF NOT EXISTS rappel_avant           INTEGER      DEFAULT 0;`);
+        await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS widgets_visibles       TEXT[];`);
+        await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS signe_zodiaque         VARCHAR(20);`);
+        // Migrations planning — nouveau modèle métier
+        await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS categorie              VARCHAR(50);`);
+        await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS libelle_personnalise   TEXT;`);
+        await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS date_debut             DATE;`);
+        await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS date_fin               DATE;`);
+        await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS rappel_avant_shift     INTEGER      DEFAULT 0;`);
+
+        // ── Purge planning > 6 mois (au démarrage uniquement) ─
+        await pool.query(`
+            DELETE FROM planning
+            WHERE COALESCE(date_fin, date_debut, date) < NOW() - INTERVAL '6 months'
+        `);
+        console.log('[DB] Purge planning anciens enregistrements effectuée.');
 
         console.log('[DB] Tables initialisées.');
     } catch (err) {
