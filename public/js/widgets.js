@@ -68,7 +68,8 @@ async function buildGrid() {
         });
     }
 
-    if (sexe === 'homme' || sexe === 'intersexe') {
+    // Seuls les hommes ne peuvent pas voir le widget cycle
+    if (sexe === 'homme') {
         defs = defs.filter(w => w.id !== 'cycle');
     }
 
@@ -169,6 +170,7 @@ function creerWidget(def, gridId) {
         if (e.target.classList.contains('drag-handle')) return;
         if (e.target.closest('button'))                 return;
         if (e.target.closest('.rdv-card'))              return;
+        if (def.id === 'social')                        return; // widget lecture seule, pas de modal
         openModal(def.id);
     });
 

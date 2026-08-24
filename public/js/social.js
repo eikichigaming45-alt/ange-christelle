@@ -9,7 +9,6 @@ function _socialAuth() {
 }
 
 // ── Labels triés alphabétiquement ────────────────────────────
-// Utilisé partout comme tableau pour garantir l'ordre
 const _SHARE_LABELS_LIST = [
     { type: 'cycle',    label: 'Cycle menstruel' },
     { type: 'planning', label: 'Planning'         },
@@ -17,10 +16,23 @@ const _SHARE_LABELS_LIST = [
     { type: 'taches',   label: 'Tâches'           },
 ];
 
-// Accès rapide label par type (compatibilité avec le reste du code)
 const _SHARE_LABELS = Object.fromEntries(
     _SHARE_LABELS_LIST.map(l => [l.type, l.label])
 );
+
+// ── Lire le sexe de l'utilisateur courant via l'API ──────────
+async function _getSexeCourant() {
+    try {
+        const { token } = _socialAuth();
+        const r = await fetch('/api/profil', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const d = await r.json();
+        return d?.profil?.sexe || d?.sexe || '';
+    } catch {
+        return '';
+    }
+}
 
 // ============================================================
 // WIDGET SOCIAL (contenu reçu — affiché dans l'onglet Quotidien)
@@ -32,9 +44,8 @@ async function chargerWidgetSocial() {
     const { token } = _socialAuth();
     if (!token) return;
 
-    // Aucun listener de clic — le widget est en lecture seule
-    el.style.cursor = 'default';
-    el.style.pointerEvents = 'none';
+    // Pas de manipulation de pointer-events ici —
+    // le widget card dans widgets.js gère son propre comportement au clic
 
     try {
         const r = await fetch('/api/social/partages/recus', {
@@ -54,8 +65,6 @@ async function chargerWidgetSocial() {
                         Quand quelqu'un partage quelque chose, tu le verras ici.
                     </div>
                 </div>`;
-            // Rétablir pointer-events pour le contenu interne si besoin
-            el.style.pointerEvents = 'auto';
             return;
         }
 
@@ -78,11 +87,9 @@ async function chargerWidgetSocial() {
             Object.values(parOwner).map(owner => _renderOwnerSection(owner, token))
         );
         el.innerHTML = sections.join('');
-        el.style.pointerEvents = 'auto';
 
     } catch {
         el.innerHTML = '<p style="color:#9ca3af;font-size:13px;text-align:center">Erreur de chargement.</p>';
-        el.style.pointerEvents = 'auto';
     }
 }
 
@@ -192,7 +199,9 @@ async function _renderBlocRdv(ownerId, token) {
                         margin-bottom:4px;border:1px solid #f3f4f6;font-size:13px">
                 <div style="font-weight:600;color:#1f2937">${rdv.titre}</div>
                 <div style="color:#6b7280;font-size:12px">📅 ${date}</div>
-                ${rdv.praticien ? `<div style="color:#9ca3af;font-size:11px">Dr. ${rdv.praticien}</div>` : ''}
+                ${rdv.praticien
+                    ? `<div style="color:#9ca3af;font-size:11px">Dr. ${rdv.praticien}</div>`
+                    : ''}
             </div>`;
     }).join('');
     return `
@@ -227,7 +236,9 @@ async function _renderBlocTaches(ownerId, token) {
             <span style="color:#1f2937;${t.faite ? 'text-decoration:line-through;color:#9ca3af' : ''}">
                 ${t.titre}
             </span>
-            ${t.heure ? `<span style="color:#9ca3af;font-size:11px;margin-left:auto">${t.heure.slice(0,5)}</span>` : ''}
+            ${t.heure
+                ? `<span style="color:#9ca3af;font-size:11px;margin-left:auto">${t.heure.slice(0,5)}</span>`
+                : ''}
         </div>`).join('');
     return `
         <div style="margin-bottom:10px">
@@ -281,7 +292,7 @@ async function _renderBlocPlanning(ownerId, token) {
         </div>`;
 }
 
-// ── Envoyer un coucou (listener via délégation) ───────────────
+// ── Envoyer un coucou (délégation) ───────────────────────────
 document.addEventListener('click', async e => {
     const btn = e.target.closest('[data-action="envoyer-coucou"]');
     if (!btn) return;
@@ -309,7 +320,7 @@ document.addEventListener('click', async e => {
 });
 
 // ============================================================
-// GESTION DES PARTAGES — intégrée dans l'onglet Social du profil
+// GESTION DES PARTAGES — onglet Social du profil
 // ============================================================
 
 async function _socialOnglet(tab) {
@@ -376,7 +387,7 @@ async function _renderOngletMiens() {
     }
 }
 
-// ── Bloc d'un viewer avec ses partages ────────────────────────
+// ── Bloc viewer ───────────────────────────────────────────────
 function _htmlBlocViewer(v) {
     const nom    = [v.prenom, v.nom].filter(Boolean).join(' ') || v.username;
     const avatar = v.photo
@@ -397,7 +408,6 @@ function _htmlBlocViewer(v) {
                     <input type="checkbox" ${p.active ? 'checked' : ''}
                         data-share-id="${p.id}"
                         data-action="toggle-partage"
-                        data-active="${p.active}"
                         style="opacity:0;width:0;height:0;position:absolute">
                     <span style="position:absolute;inset:0;border-radius:22px;cursor:pointer;
                                  background:${p.active ? '#7c3aed' : '#d1d5db'};transition:background .2s">
@@ -425,7 +435,7 @@ function _htmlBlocViewer(v) {
         </div>`;
 }
 
-// ── Délégation pour toggle & suppression ─────────────────────
+// ── Délégation toggle ─────────────────────────────────────────
 document.addEventListener('change', async e => {
     const cb = e.target.closest('[data-action="toggle-partage"]');
     if (!cb) return;
@@ -449,13 +459,14 @@ document.addEventListener('change', async e => {
     }
 });
 
+// ── Délégation suppression ────────────────────────────────────
 document.addEventListener('click', e => {
     const btn = e.target.closest('[data-action="supprimer-partage"]');
     if (!btn) return;
     _supprimerPartage(btn.dataset.delId);
 });
 
-// ── Supprimer un partage — confirmation inline ────────────────
+// ── Confirmation suppression ──────────────────────────────────
 function _supprimerPartage(id) {
     const overlay = document.createElement('div');
     overlay.id    = 'social-confirm-overlay';
@@ -540,7 +551,6 @@ async function _renderOngletNouveau() {
             </div>
         </div>`;
 
-    // Listener recherche
     let _timer = null;
     document.getElementById('social-search-input').addEventListener('input', e => {
         clearTimeout(_timer);
@@ -552,8 +562,8 @@ async function _renderOngletNouveau() {
         _timer = setTimeout(() => _socialRechercherUser(q), 350);
     });
 
-    // Listener bouton Partager
-    document.querySelector('[data-action="envoyer-partages"]').addEventListener('click', _envoyerPartages);
+    document.querySelector('[data-action="envoyer-partages"]')
+        .addEventListener('click', _envoyerPartages);
 }
 
 // ── Recherche utilisateur ─────────────────────────────────────
@@ -600,7 +610,6 @@ async function _socialRechercherUser(q) {
                 </div>`;
         }).join('');
 
-        // Listeners sélection utilisateur
         results.querySelectorAll('[data-action="select-user"]').forEach(el => {
             el.addEventListener('click', () => _socialSelectionnerUser(el));
         });
@@ -624,7 +633,6 @@ async function _socialSelectionnerUser(el) {
     form.style.display    = 'block';
     form.dataset.viewerId = userId;
 
-    // Avatar
     const nomAffiche = [prenom, nom].filter(Boolean).join(' ') || username;
     const avatar     = photo
         ? `<img src="${photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
@@ -652,7 +660,7 @@ async function _socialSelectionnerUser(el) {
 
     document.getElementById('social-share-msg').textContent = '';
 
-    // Récupérer les partages déjà actifs vers cet utilisateur
+    // ── Partages déjà actifs vers cet utilisateur ─────────────
     let dejaPartages = [];
     try {
         const r = await fetch('/api/social/partages/miens', {
@@ -666,11 +674,10 @@ async function _socialSelectionnerUser(el) {
         }
     } catch { /* silencieux */ }
 
-    // Sexe du user courant — seuls les hommes ne peuvent pas partager le cycle
-    const sexe            = (typeof profilCache !== 'undefined' && profilCache?.sexe) || '';
+    // ── Sexe via API — seuls les hommes ne peuvent pas partager cycle ──
+    const sexe             = await _getSexeCourant();
     const peutPartagerCycle = sexe !== 'homme';
 
-    // Construire la liste des types disponibles (déjà triée alphabétiquement)
     const typesDisponibles = _SHARE_LABELS_LIST.filter(l => l.type !== 'cycle' || peutPartagerCycle);
 
     document.getElementById('social-types-list').innerHTML = typesDisponibles.map(l => `
@@ -743,11 +750,26 @@ async function _envoyerPartages() {
     if (echecs.length === 0) {
         msg.textContent = '✅ Partages mis à jour !';
         msg.style.color = '#10b981';
-        // Rafraîchir les coches pour refléter le nouvel état
         setTimeout(async () => {
-            const el = document.querySelector(`[data-user-id="${viewerId}"]`);
-            if (el) await _socialSelectionnerUser(el);
-            else    _socialAnnulerSelection();
+            // Re-sélectionner le même user pour rafraîchir les coches
+            const formEl = document.getElementById('social-nouveau-form');
+            if (formEl) {
+                // Reconstruire un élément minimal pour repasser dans _socialSelectionnerUser
+                const fakeEl = {
+                    dataset: {
+                        userId  : viewerId,
+                        username: document.querySelector('#social-user-selectionne [data-action="annuler-selection"]')
+                                    ?.closest('div')
+                                    ?.querySelector('[style*="9ca3af"]')
+                                    ?.textContent?.replace('@','') || '',
+                        prenom  : '',
+                        nom     : '',
+                        photo   : ''
+                    }
+                };
+                // Plus simple : recharger directement l'onglet
+                await _renderOngletNouveau();
+            }
             chargerWidgetSocial();
         }, 1200);
     } else {
