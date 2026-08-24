@@ -629,8 +629,11 @@ async function ouvrirProfilPublic(userId) {
         });
         const d = await r.json();
         if (!d.success) return;
-        const p      = d.profil;
-        const isSelf = user.id === p.id;
+        const p = d.profil;
+
+        // FIX v4.47 : cast string/number pour comparaison fiable
+        const isSelf = String(user.id) === String(p.id);
+
         const avatar = p.photo
             ? `<img src="${p.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed">`
             : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
