@@ -27,6 +27,8 @@ function getDateHeureLocale() {
 }
 
 // ── Initialisation push ───────────────────────────────────────
+// Force unsubscribe + resubscribe à chaque login pour garantir
+// que la subscription FCM est bien liée au compte connecté.
 async function initPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     if (!('Notification' in window)) return;
@@ -38,14 +40,15 @@ async function initPush() {
 
     try {
         const reg = await navigator.serviceWorker.ready;
-        let subscription = await reg.pushManager.getSubscription();
 
-        if (!subscription) {
-            subscription = await reg.pushManager.subscribe({
-                userVisibleOnly     : true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-            });
-        }
+        // Supprimer toute subscription existante avant d'en créer une nouvelle
+        const existante = await reg.pushManager.getSubscription();
+        if (existante) await existante.unsubscribe();
+
+        const subscription = await reg.pushManager.subscribe({
+            userVisibleOnly     : true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
 
         await fetch('/api/push/subscribe', {
             method : 'POST',
