@@ -18,7 +18,6 @@ router.use(authenticateToken);
 
 // ============================================================
 // RECHERCHE UTILISATEURS
-// Recherche sur username, prenom et nom avec support des accents
 // ============================================================
 
 router.get('/users/search', async (req, res) => {
@@ -344,14 +343,17 @@ router.get('/notifications/count', async (req, res) => {
     }
 });
 
+// Correction bug #4 : ajout prenom/nom du sender + limite 10 au lieu de 50
 router.get('/notifications', async (req, res) => {
     try {
         const { rows } = await pool.query(`
-            SELECT id, type, ref_id, seen, created_at
-            FROM notifications
-            WHERE user_id = \$1
-            ORDER BY created_at DESC
-            LIMIT 50
+            SELECT n.id, n.type, n.ref_id, n.seen, n.created_at, n.sender_id,
+                   p.prenom AS sender_prenom, p.nom AS sender_nom, p.photo AS sender_photo
+            FROM notifications n
+            LEFT JOIN profiles p ON p.user_id = n.sender_id
+            WHERE n.user_id = \$1
+            ORDER BY n.created_at DESC
+            LIMIT 10
         `, [req.user.id]);
         res.json({ success: true, notifications: rows });
     } catch (err) {
