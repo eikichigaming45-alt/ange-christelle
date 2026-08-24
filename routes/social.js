@@ -18,6 +18,7 @@ router.use(authenticateToken);
 
 // ============================================================
 // RECHERCHE UTILISATEURS
+// Recherche sur username, prenom et nom avec support des accents
 // ============================================================
 
 router.get('/users/search', async (req, res) => {
@@ -31,10 +32,14 @@ router.get('/users/search', async (req, res) => {
             FROM users u
             LEFT JOIN profiles p ON p.user_id = u.id
             WHERE u.id != \$1
-              AND u.username ILIKE \$2
+              AND (
+                u.username            ILIKE \$2
+                OR unaccent(p.prenom) ILIKE unaccent(\$2)
+                OR unaccent(p.nom)    ILIKE unaccent(\$2)
+              )
             ORDER BY u.username ASC
             LIMIT 20
-        `, [req.user.id, `${q}%`]);
+        `, [req.user.id, `%${q}%`]);
         res.json({ success: true, users: rows });
     } catch (err) {
         console.error('[SOCIAL] GET /users/search :', err.message);
