@@ -5,6 +5,7 @@
 // Onglet Profil : infos + heure/lieu naissance + géocodage.
 // Onglet Santé  : sexe, taille, poids, groupe sanguin,
 //                 niveau activité, signe zodiaque, IMC, TDEE.
+// Mobile : onglets profil en icônes seules.
 // ============================================================
 
 const JOURS_MODAL = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -216,27 +217,42 @@ async function openModal(type) {
             const tdee     = calculerTDEE(p.poids, p.taille, age, p.sexe, p.niveau_activite);
 
             document.getElementById('modal-body').innerHTML = `
+                <style>
+                    @media (max-width: 480px) {
+                        .profil-tab-label { display: none; }
+                    }
+                </style>
                 <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f3f4f6;">
                     <button class="profil-tab active" data-tab="infos"
                         style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
                                font-size:12px;font-weight:600;color:#4f46e5;
-                               border-bottom:2px solid #4f46e5;margin-bottom:-2px">👤 Profil</button>
+                               border-bottom:2px solid #4f46e5;margin-bottom:-2px">
+                        👤 <span class="profil-tab-label">Profil</span>
+                    </button>
                     <button class="profil-tab" data-tab="sante"
                         style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
                                font-size:12px;font-weight:600;color:#9ca3af;
-                               border-bottom:2px solid transparent;margin-bottom:-2px">🏥 Santé</button>
+                               border-bottom:2px solid transparent;margin-bottom:-2px">
+                        🏥 <span class="profil-tab-label">Santé</span>
+                    </button>
                     <button class="profil-tab" data-tab="securite"
                         style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
                                font-size:12px;font-weight:600;color:#9ca3af;
-                               border-bottom:2px solid transparent;margin-bottom:-2px">🔑 Sécurité</button>
+                               border-bottom:2px solid transparent;margin-bottom:-2px">
+                        🔑 <span class="profil-tab-label">Sécurité</span>
+                    </button>
                     <button class="profil-tab" data-tab="widgets"
                         style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
                                font-size:12px;font-weight:600;color:#9ca3af;
-                               border-bottom:2px solid transparent;margin-bottom:-2px">📱 Widgets</button>
+                               border-bottom:2px solid transparent;margin-bottom:-2px">
+                        📱 <span class="profil-tab-label">Widgets</span>
+                    </button>
                     <button class="profil-tab" data-tab="social"
                         style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
                                font-size:12px;font-weight:600;color:#9ca3af;
-                               border-bottom:2px solid transparent;margin-bottom:-2px">🤝 Social</button>
+                               border-bottom:2px solid transparent;margin-bottom:-2px">
+                        🤝 <span class="profil-tab-label">Social</span>
+                    </button>
                 </div>
 
                 <!-- ── ONGLET PROFIL ── -->
@@ -296,12 +312,11 @@ async function openModal(type) {
                             value="${p.lieu_naissance||''}"
                             onblur="geocoderLieuNaissance()"
                             style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
-                        <!-- Champs cachés lat/lon remplis par le géocodage -->
                         <input type="hidden" id="p-naissance-lat" value="${p.naissance_lat||''}">
                         <input type="hidden" id="p-naissance-lon" value="${p.naissance_lon||''}">
                         <div id="p-lieu-naissance-msg" style="font-size:12px;margin-top:4px;min-height:16px;
                             ${p.naissance_lat ? 'color:#10b981' : 'color:#9ca3af'}">
-                            ${p.naissance_lat ? `✅ Coordonnées enregistrées` : ''}
+                            ${p.naissance_lat ? '✅ Coordonnées enregistrées' : ''}
                         </div>
                     </div>
                     <div style="margin-bottom:10px">
@@ -339,7 +354,6 @@ async function openModal(type) {
                 <!-- ── ONGLET SANTÉ ── -->
                 <div id="profil-tab-sante" class="profil-tab-content" style="display:none">
                     <div style="background:#f8fafc;border-radius:16px;padding:20px">
-
                         <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
                                     letter-spacing:.5px;margin-bottom:10px">Identité biologique</div>
                         <div style="margin-bottom:10px">
@@ -376,12 +390,11 @@ async function openModal(type) {
                                 ).join('')}
                             </select>
                         </div>
-
-                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
                                     letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Activité</div>
                         <div style="margin-bottom:16px">
                             <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Niveau d'activité</label>
-                                                        <select id="p-niveau-activite"
+                            <select id="p-niveau-activite"
                                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
                                 <option value="">— Non renseigné —</option>
                                 <option value="sedentaire"       ${p.niveau_activite === 'sedentaire'       ? 'selected' : ''}>Sédentaire</option>
