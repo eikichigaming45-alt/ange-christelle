@@ -259,13 +259,13 @@ async function _renderBlocCycle(ownerId, token) {
                       padding:3px 8px;font-size:11px;font-weight:600">${m}</span>`
     ).join('');
 
-    let conseilBloc = '';
+            let conseilBloc = '';
     if (d.conseil) {
         const texteComplet = d.conseil;
-        const court        = texteComplet.length > 80
-            ? texteComplet.slice(0, 80).trimEnd() + '…'
+        const court        = texteComplet.length > 120
+            ? texteComplet.slice(0, 120).trimEnd() + '…'
             : texteComplet;
-        const avecLien     = texteComplet.length > 80
+        const avecLien     = texteComplet.length > 120
             ? `${court} <span data-conseil-complet="${encodeURIComponent(texteComplet)}"
                               data-action="lire-conseil"
                               style="color:#7c3aed;font-weight:600;cursor:pointer;white-space:nowrap">

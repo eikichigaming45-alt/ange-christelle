@@ -517,7 +517,7 @@ Rédige un seul conseil synthétique, bienveillant, naturel et pratique en fran�
         const completion = await groq.chat.completions.create({
             model     : 'openai/gpt-oss-20b',
             messages  : [{ role: 'user', content: prompt }],
-            max_tokens: 200
+            max_tokens: 400
         });
         const conseil = completion.choices[0]?.message?.content?.trim() || null;
         res.json({ success: true, conseil, moodRempli: true, moods: moodsCoches, phase, cycleInfo });
