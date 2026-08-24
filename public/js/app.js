@@ -184,6 +184,9 @@ async function showApp() {
 
     enregistrerServiceWorker();
     initPush();
+
+    // Chargement initial du badge notifications
+    if (typeof chargerBadgeNotifs === 'function') chargerBadgeNotifs();
 }
 
 // ===================== NAVIGATION ONGLETS ====================
@@ -257,6 +260,12 @@ function logout() {
     const errEl = document.getElementById('error-msg');
     if (errEl) errEl.textContent = '';
 
+    // Masquer le panel notifs et reset badge
+    const panel = document.getElementById('panel-notifs');
+    if (panel) panel.style.display = 'none';
+    const badge = document.getElementById('notif-badge');
+    if (badge) badge.style.display = 'none';
+
     switchTab('accueil', true);
 }
 
@@ -275,6 +284,7 @@ function actualiser() {
     chargerWidgetPlanning();
     if (typeof Cycle      !== 'undefined') Cycle.charger();
     if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
+    if (typeof chargerBadgeNotifs === 'function') chargerBadgeNotifs();
     const user = getUser();
     if (user?.role === 'admin') chargerWidgetAdmin();
 }

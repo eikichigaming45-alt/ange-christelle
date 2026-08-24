@@ -119,7 +119,7 @@ async function chargerWidgetSocial() {
     }
 }
 
-// ── Section par owner — cycle en premier, reste trié, blocs séparés par un trait
+// ── Section par owner ─────────────────────────────────────────
 async function _renderOwnerSection(owner, token) {
     const nom    = [owner.prenom, owner.nom].filter(Boolean).join(' ') || owner.username;
     const avatar = owner.photo
@@ -136,7 +136,6 @@ async function _renderOwnerSection(owner, token) {
         typesTries.map(type => _renderCategorieBloc(owner.owner_id, type, token))
     );
 
-    // Séparateur entre chaque bloc
     const blocsAvecSeparateur = blocs.map((bloc, i) =>
         i === 0
             ? bloc
@@ -424,7 +423,6 @@ async function _renderBlocPlanning(ownerId, token) {
 }
 
 // ── Envoyer un coucou (délégation) ───────────────────────────
-// Le bouton repasse à son état initial après 3s
 document.addEventListener('click', async e => {
     const btn = e.target.closest('[data-action="envoyer-coucou"]');
     if (!btn) return;
@@ -534,7 +532,7 @@ async function _renderOngletMiens() {
     }
 }
 
-// ── Bloc viewer — affiche tous les types, toggle aligné ───────
+// ── Bloc viewer ───────────────────────────────────────────────
 function _htmlBlocViewer(v, typesDisponibles) {
     const nom    = [v.prenom, v.nom].filter(Boolean).join(' ') || v.username;
     const avatar = v.photo
@@ -571,7 +569,7 @@ function _htmlBlocViewer(v, typesDisponibles) {
                         <span style="position:absolute;top:3px;left:${actif ? '19px' : '3px'};
                                      width:16px;height:16px;border-radius:50%;background:#fff;
                                      transition:left .2s;display:block"></span>
-                                    </span>
+                    </span>
                 </label>
                 <div style="width:65px;display:flex;justify-content:flex-end">
                     ${existe
@@ -588,7 +586,7 @@ function _htmlBlocViewer(v, typesDisponibles) {
         </div>`;
     }).join('');
 
-    return `
+        return `
         <div style="background:#faf5ff;border-radius:12px;padding:12px 14px;border:1px solid #ede9fe">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
                 ${avatar}
@@ -598,7 +596,7 @@ function _htmlBlocViewer(v, typesDisponibles) {
         </div>`;
 }
 
-// ── Délégation toggle — création si partage inexistant ────────
+// ── Délégation toggle ─────────────────────────────────────────
 document.addEventListener('change', async e => {
     const cb = e.target.closest('[data-action="toggle-partage"]');
     if (!cb) return;
@@ -933,3 +931,297 @@ async function _envoyerPartages() {
         msg.style.color = '#ef4444';
     }
 }
+
+// ============================================================
+// CLOCHE — NOTIFICATIONS
+// ============================================================
+
+// État global notifs
+let _notifsData        = [];
+let _notifsTab         = 'tout';
+let _notifsOffset      = 0;
+const _NOTIFS_PAR_PAGE = 10;
+let _panelNotifOuvert  = false;
+
+// ── Icônes par type de notif ──────────────────────────────────
+const _NOTIF_ICONES = {
+    like          : { icone: '❤️',  texte: 'a aimé ta publication'          },
+    comment       : { icone: '💬',  texte: 'a commenté ta publication'       },
+    follow        : { icone: '👤',  texte: 'a commencé à te suivre'          },
+    coucou        : { icone: '💕',  texte: 't\'a envoyé un coucou'           },
+    share_request : { icone: '🤝',  texte: 'a partagé des données avec toi'  },
+    mention       : { icone: '🔔',  texte: 't\'a mentionné dans une publication' },
+};
+
+// ── Temps écoulé ─────────────────────────────────────────────
+function _tempsEcoule(dateStr) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const min  = Math.floor(diff / 60000);
+    const h    = Math.floor(diff / 3600000);
+    const j    = Math.floor(diff / 86400000);
+    if (min < 1)  return 'À l\'instant';
+    if (min < 60) return `${min} min`;
+    if (h < 24)   return `${h} h`;
+    if (j < 7)    return `${j} j`;
+    return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+}
+
+// ── Est aujourd'hui ───────────────────────────────────────────
+function _estAujourdhui(dateStr) {
+    const d     = new Date(dateStr);
+    const today = new Date();
+    return d.getDate()     === today.getDate()
+        && d.getMonth()    === today.getMonth()
+        && d.getFullYear() === today.getFullYear();
+}
+
+// ── Charger le badge (count non lues) ────────────────────────
+async function chargerBadgeNotifs() {
+    const { token } = _socialAuth();
+    if (!token) return;
+    try {
+        const r = await fetch('/api/social/notifications/count', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const d = await r.json();
+        const badge = document.getElementById('notif-badge');
+        if (!badge) return;
+        if (d.success && d.count > 0) {
+            badge.textContent    = d.count > 99 ? '99+' : d.count;
+            badge.style.display  = 'flex';
+        } else {
+            badge.style.display  = 'none';
+        }
+    } catch { /* silencieux */ }
+}
+
+// ── Toggle panel ──────────────────────────────────────────────
+async function togglePanelNotifs(e) {
+    e.stopPropagation();
+    fermerUserMenu();
+    const panel = document.getElementById('panel-notifs');
+    if (!panel) return;
+
+    _panelNotifOuvert = !_panelNotifOuvert;
+    panel.style.display = _panelNotifOuvert ? 'flex' : 'none';
+
+    if (_panelNotifOuvert) {
+        _notifsOffset = 0;
+        await _chargerNotifs();
+    }
+}
+
+// ── Fermer panel au clic en dehors ────────────────────────────
+document.addEventListener('click', e => {
+    const panel = document.getElementById('panel-notifs');
+    const btn   = document.getElementById('btn-cloche');
+    if (!panel || !btn) return;
+    if (_panelNotifOuvert && !panel.contains(e.target) && e.target !== btn) {
+        panel.style.display = 'none';
+        _panelNotifOuvert   = false;
+    }
+});
+
+// ── Chargement des notifs ─────────────────────────────────────
+async function _chargerNotifs() {
+    const { token } = _socialAuth();
+    const liste     = document.getElementById('notif-liste');
+    if (!liste) return;
+
+    liste.innerHTML = '<p style="text-align:center;color:#9ca3af;padding:20px;font-size:13px">Chargement…</p>';
+
+    try {
+        const r = await fetch('/api/social/notifications', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error();
+
+        _notifsData = d.notifications || [];
+        _renderNotifs();
+
+    } catch {
+        liste.innerHTML = '<p style="text-align:center;color:#ef4444;padding:20px;font-size:13px">Erreur de chargement.</p>';
+    }
+}
+
+// ── Rendu des notifs ──────────────────────────────────────────
+function _renderNotifs() {
+    const liste = document.getElementById('notif-liste');
+    if (!liste) return;
+
+    // Filtrage selon onglet actif
+    const filtrees = _notifsTab === 'nonlu'
+        ? _notifsData.filter(n => !n.seen)
+        : _notifsData;
+
+    // Pagination
+    const visibles = filtrees.slice(0, _notifsOffset + _NOTIFS_PAR_PAGE);
+
+    // Bouton voir plus
+    const btnVoir = document.getElementById('btn-voir-plus-notifs');
+    if (btnVoir) {
+        btnVoir.style.display = filtrees.length > visibles.length ? 'block' : 'none';
+    }
+
+    if (visibles.length === 0) {
+        liste.innerHTML = `
+            <div style="text-align:center;padding:32px 16px;color:#9ca3af">
+                <div style="font-size:32px;margin-bottom:8px">🔔</div>
+                <div style="font-size:13px">Aucune notification</div>
+            </div>`;
+        return;
+    }
+
+    // Séparer aujourd'hui / plus tôt
+    const aujourdhui = visibles.filter(n => _estAujourdhui(n.created_at));
+    const plusTot    = visibles.filter(n => !_estAujourdhui(n.created_at));
+
+    let html = '';
+
+    if (aujourdhui.length) {
+        html += `<div style="padding:8px 16px 4px;font-size:12px;font-weight:700;color:#6b7280;
+                             text-transform:uppercase;letter-spacing:.5px">Aujourd'hui</div>`;
+        html += aujourdhui.map(n => _htmlNotif(n)).join('');
+    }
+
+    if (plusTot.length) {
+        html += `
+            <div style="display:flex;align-items:center;justify-content:space-between;
+                        padding:8px 16px 4px">
+                <span style="font-size:12px;font-weight:700;color:#6b7280;
+                             text-transform:uppercase;letter-spacing:.5px">Plus tôt</span>
+            </div>`;
+        html += plusTot.map(n => _htmlNotif(n)).join('');
+    }
+
+    liste.innerHTML = html;
+
+    // Listener clic sur chaque notif → marquer vue
+    liste.querySelectorAll('[data-notif-id]').forEach(el => {
+        el.addEventListener('click', async () => {
+            const id = el.dataset.notifId;
+            const { token } = _socialAuth();
+            try {
+                await fetch(`/api/social/notifications/${id}/vu`, {
+                    method : 'PATCH',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                // Mettre à jour localement
+                const notif = _notifsData.find(n => String(n.id) === String(id));
+                if (notif) notif.seen = true;
+                _renderNotifs();
+                chargerBadgeNotifs();
+            } catch { /* silencieux */ }
+        });
+    });
+}
+
+// ── HTML d'une notif ──────────────────────────────────────────
+function _htmlNotif(n) {
+    const infos   = _NOTIF_ICONES[n.type] || { icone: '🔔', texte: 'nouvelle notification' };
+    const prenom  = n.sender_prenom || '';
+    const nom     = n.sender_nom    || '';
+    const nomComp = [prenom, nom].filter(Boolean).join(' ') || 'Quelqu\'un';
+    const temps   = _tempsEcoule(n.created_at);
+    const nonLu   = !n.seen;
+
+    // Avatar
+    const avatar = n.sender_photo
+        ? `<img src="${n.sender_photo}"
+               style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
+        : `<div style="width:44px;height:44px;border-radius:50%;
+                       background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                       color:#fff;font-size:16px;font-weight:700;
+                       display:flex;align-items:center;justify-content:center;flex-shrink:0">
+               ${(prenom?.[0] || '?').toUpperCase()}
+           </div>`;
+
+    return `
+        <div data-notif-id="${n.id}" style="
+            display:flex;align-items:center;gap:12px;
+            padding:10px 16px;cursor:pointer;
+            background:${nonLu ? '#f5f3ff' : '#fff'};
+            border-bottom:1px solid #f3f4f6;
+            transition:background .15s;
+        " onmouseover="this.style.background='${nonLu ? '#ede9fe' : '#f9fafb'}'"
+           onmouseout="this.style.background='${nonLu ? '#f5f3ff' : '#fff'}'">
+
+            <!-- Avatar + icône action -->
+            <div style="position:relative;flex-shrink:0">
+                ${avatar}
+                <div style="
+                    position:absolute;bottom:-2px;right:-2px;
+                    width:20px;height:20px;border-radius:50%;
+                    background:#fff;border:2px solid #fff;
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:11px;line-height:1;
+                    box-shadow:0 1px 4px rgba(0,0,0,.15)">
+                    ${infos.icone}
+                </div>
+            </div>
+
+            <!-- Texte -->
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13px;color:#1f2937;line-height:1.4">
+                    <span style="font-weight:700">${nomComp}</span>
+                    <span style="font-weight:400"> ${infos.texte}</span>
+                </div>
+                <div style="font-size:11px;color:${nonLu ? '#7c3aed' : '#9ca3af'};
+                            margin-top:3px;font-weight:${nonLu ? '600' : '400'}">
+                    ${temps}
+                </div>
+            </div>
+
+            <!-- Point non lu -->
+            ${nonLu
+                ? `<div style="width:10px;height:10px;border-radius:50%;
+                               background:#7c3aed;flex-shrink:0"></div>`
+                : ''}
+        </div>`;
+}
+
+// ── Switch onglet Tout / Non lu ───────────────────────────────
+function switchNotifTab(tab) {
+    _notifsTab    = tab;
+    _notifsOffset = 0;
+
+    const btnTout  = document.getElementById('notif-tab-tout');
+    const btnNonlu = document.getElementById('notif-tab-nonlu');
+
+    if (btnTout) {
+        btnTout.style.color            = tab === 'tout'  ? '#7c3aed' : '#9ca3af';
+        btnTout.style.borderBottomColor = tab === 'tout'  ? '#7c3aed' : 'transparent';
+        btnTout.style.fontWeight        = tab === 'tout'  ? '700'     : '600';
+    }
+    if (btnNonlu) {
+        btnNonlu.style.color            = tab === 'nonlu' ? '#7c3aed' : '#9ca3af';
+        btnNonlu.style.borderBottomColor = tab === 'nonlu' ? '#7c3aed' : 'transparent';
+        btnNonlu.style.fontWeight        = tab === 'nonlu' ? '700'     : '600';
+    }
+
+    _renderNotifs();
+}
+
+// ── Voir plus ─────────────────────────────────────────────────
+function voirPlusNotifs() {
+    _notifsOffset += _NOTIFS_PAR_PAGE;
+    _renderNotifs();
+}
+
+// ── Tout marquer lu ───────────────────────────────────────────
+async function toutMarquerVu() {
+    const { token } = _socialAuth();
+    try {
+        await fetch('/api/social/notifications/tout-vu', {
+            method : 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        _notifsData.forEach(n => n.seen = true);
+        _renderNotifs();
+        chargerBadgeNotifs();
+    } catch { /* silencieux */ }
+}
+
+// ── Polling badge toutes les 60s ──────────────────────────────
+setInterval(chargerBadgeNotifs, 60000);
