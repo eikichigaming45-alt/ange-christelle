@@ -3,6 +3,8 @@
 // Gestion du profil utilisateur : lecture, écriture, mot de passe,
 // suppression photo, et préférences widgets (opt-out).
 // signe_zodiaque : saisi manuellement si pas de date_naissance.
+// Nouveaux champs : heure_naissance, lieu_naissance, taille,
+// poids, groupe_sanguin, niveau_activite.
 // ============================================================
 
 const express    = require('express');
@@ -16,9 +18,10 @@ const { validerMotDePasse } = require('../utils/validations');
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT prenom, nom, date_naissance, email, telephone,
-                    profession, note, photo, widgets_visibles,
-                    signe_zodiaque, sexe, meteo_lat, meteo_lon, meteo_ville
+            `SELECT prenom, nom, date_naissance, heure_naissance, lieu_naissance,
+                    email, telephone, profession, note, photo, widgets_visibles,
+                    signe_zodiaque, sexe, taille, poids, groupe_sanguin,
+                    niveau_activite, meteo_lat, meteo_lon, meteo_ville
              FROM profiles WHERE user_id = \$1`,
             [req.user.id]
         );
@@ -34,21 +37,35 @@ router.get('/', authenticateToken, async (req, res) => {
 
 // ── POST /api/profil ──────────────────────────────────────────
 router.post('/', authenticateToken, async (req, res) => {
-    const { prenom, nom, date_naissance, email, telephone,
-            profession, note, photo, signe_zodiaque, sexe } = req.body;
+    const { prenom, nom, date_naissance, heure_naissance, lieu_naissance,
+            email, telephone, profession, note, photo,
+            signe_zodiaque, sexe, taille, poids, groupe_sanguin,
+            niveau_activite } = req.body;
     try {
         await pool.query(`
             INSERT INTO profiles
-                (user_id, prenom, nom, date_naissance, email, telephone,
-                 profession, note, photo, signe_zodiaque, sexe, updated_at)
-            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10, \$11, NOW())
+                (user_id, prenom, nom, date_naissance, heure_naissance, lieu_naissance,
+                 email, telephone, profession, note, photo,
+                 signe_zodiaque, sexe, taille, poids, groupe_sanguin,
+                 niveau_activite, updated_at)
+            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15, \$16, \$17, NOW())
             ON CONFLICT (user_id) DO UPDATE SET
-                prenom=\$2, nom=\$3, date_naissance=\$4, email=\$5,
-                telephone=\$6, profession=\$7, note=\$8, photo=\$9,
-                signe_zodiaque=\$10, sexe=\$11, updated_at=NOW()
-        `, [req.user.id, prenom, nom, date_naissance || null,
+                prenom=\$2, nom=\$3, date_naissance=\$4, heure_naissance=\$5,
+                lieu_naissance=\$6, email=\$7, telephone=\$8, profession=\$9,
+                note=\$10, photo=\$11, signe_zodiaque=\$12, sexe=\$13,
+                taille=\$14, poids=\$15, groupe_sanguin=\$16,
+                niveau_activite=\$17, updated_at=NOW()
+        `, [req.user.id, prenom, nom,
+            date_naissance   || null,
+            heure_naissance  || null,
+            lieu_naissance   || null,
             email, telephone, profession, note, photo,
-            signe_zodiaque || null, sexe || null]);
+            signe_zodiaque   || null,
+            sexe             || null,
+            taille           || null,
+            poids            || null,
+            groupe_sanguin   || null,
+            niveau_activite  || null]);
         res.json({ success: true });
     } catch (err) {
         console.error('[PROFIL] POST /', err.message);
@@ -157,13 +174,12 @@ router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
 
 // ── GET /api/profil/public/:userId ───────────────────────────
 router.get('/public/:userId', authenticateToken, async (req, res) => {
-    const cibleId  = parseInt(req.params.userId);
-    const moi      = req.user.id;
+    const cibleId = parseInt(req.params.userId);
+    const moi     = req.user.id;
     if (isNaN(cibleId)) {
         return res.status(400).json({ success: false, message: 'ID invalide.' });
     }
     try {
-        // Infos profil + username
         const profilRes = await pool.query(
             `SELECT u.id, u.username, p.prenom, p.nom, p.photo,
                     p.signe_zodiaque, p.note
@@ -177,7 +193,6 @@ router.get('/public/:userId', authenticateToken, async (req, res) => {
         }
         const profil = profilRes.rows[0];
 
-        // Statistiques
         const [[postsRes], [abonnesRes], [abonnementsRes], [suiviRes]] = await Promise.all([
             pool.query('SELECT COUNT(*) FROM posts WHERE user_id = \$1', [cibleId]),
             pool.query('SELECT COUNT(*) FROM follows WHERE following_id = \$1', [cibleId]),

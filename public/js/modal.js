@@ -1,5 +1,10 @@
 // ============================================================
 // public/js/modal.js
+// Modales : météo, prière, islam, tâches, anniversaires,
+// cycle, rendez-vous, planning, profil, admin, astrologie.
+// Onglet Profil : infos + heure/lieu naissance.
+// Onglet Santé  : sexe, taille, poids, groupe sanguin,
+//                 niveau activité, signe zodiaque, IMC, TDEE.
 // ============================================================
 
 const JOURS_MODAL = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -47,7 +52,6 @@ async function openModal(type) {
                         🔊
                     </button>
                 </div>
-
                 ${priere.evangile ? `
                 <div style="margin-bottom:14px">
                     <div class="islam-modal-titre-section">Évangile du jour</div>
@@ -65,7 +69,6 @@ async function openModal(type) {
                         "${priere.texte}"<br><br><em>— ${priere.ref}</em>
                     </div>
                 </div>`}
-
                 ${priere.lecture1 ? `
                 <div style="margin-bottom:14px">
                     <div class="islam-modal-titre-section">Première lecture</div>
@@ -200,12 +203,29 @@ async function openModal(type) {
             const photoSrc  = p.photo || '';
             const initiales = construireTrigramme(p.prenom, p.nom) || '👤';
 
+            // Calcul âge pour TDEE
+            const age = p.date_naissance ? (() => {
+                const n     = new Date(p.date_naissance);
+                const today = new Date();
+                let a       = today.getFullYear() - n.getFullYear();
+                if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
+                return a;
+            })() : null;
+
+            const imc      = calculerIMC(p.poids, p.taille);
+            const imcInfos = interpreterIMC(imc);
+            const tdee     = calculerTDEE(p.poids, p.taille, age, p.sexe, p.niveau_activite);
+
             document.getElementById('modal-body').innerHTML = `
                 <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f3f4f6;">
                     <button class="profil-tab active" data-tab="infos"
                         style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
                                font-size:12px;font-weight:600;color:#4f46e5;
                                border-bottom:2px solid #4f46e5;margin-bottom:-2px">👤 Profil</button>
+                    <button class="profil-tab" data-tab="sante"
+                        style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
+                               font-size:12px;font-weight:600;color:#9ca3af;
+                               border-bottom:2px solid transparent;margin-bottom:-2px">🏥 Santé</button>
                     <button class="profil-tab" data-tab="securite"
                         style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
                                font-size:12px;font-weight:600;color:#9ca3af;
@@ -220,6 +240,7 @@ async function openModal(type) {
                                border-bottom:2px solid transparent;margin-bottom:-2px">🤝 Social</button>
                 </div>
 
+                <!-- ── ONGLET PROFIL ── -->
                 <div id="profil-tab-infos" class="profil-tab-content">
                     <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:20px">
                         ${photoSrc
@@ -258,20 +279,22 @@ async function openModal(type) {
                                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
                         </div>
                     </div>
-                    <div style="margin-bottom:10px">
-                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Date de naissance</label>
-                        <input id="p-naissance" type="date" value="${p.date_naissance ? p.date_naissance.split('T')[0] : ''}"
-                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Date de naissance</label>
+                            <input id="p-naissance" type="date" value="${p.date_naissance ? p.date_naissance.split('T')[0] : ''}"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Heure de naissance</label>
+                            <input id="p-heure-naissance" type="time" value="${p.heure_naissance ? p.heure_naissance.slice(0,5) : ''}"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
                     </div>
                     <div style="margin-bottom:10px">
-                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Sexe</label>
-                        <select id="p-sexe"
-                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
-                            <option value="">— Non renseigné —</option>
-                            <option value="femme"     ${p.sexe === 'femme'     ? 'selected' : ''}>Femme</option>
-                            <option value="homme"     ${p.sexe === 'homme'     ? 'selected' : ''}>Homme</option>
-                            <option value="intersexe" ${p.sexe === 'intersexe' ? 'selected' : ''}>Intersexe</option>
-                        </select>
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Lieu de naissance</label>
+                        <input id="p-lieu-naissance" type="text" placeholder="Ville de naissance" value="${p.lieu_naissance||''}"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
                     </div>
                     <div style="margin-bottom:10px">
                         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Email</label>
@@ -290,28 +313,6 @@ async function openModal(type) {
                                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
                         </div>
                     </div>
-                    <div style="margin-bottom:10px">
-                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Signe du zodiaque</label>
-                        <select id="p-signe"
-                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
-                            <option value="">— Laisser calculer depuis la date de naissance —</option>
-                            <option value="belier"     ${p.signe_zodiaque==='belier'     ? 'selected':''}>♈ Bélier</option>
-                            <option value="taureau"    ${p.signe_zodiaque==='taureau'    ? 'selected':''}>♉ Taureau</option>
-                            <option value="gemeaux"    ${p.signe_zodiaque==='gemeaux'    ? 'selected':''}>♊ Gémeaux</option>
-                            <option value="cancer"     ${p.signe_zodiaque==='cancer'     ? 'selected':''}>♋ Cancer</option>
-                            <option value="lion"       ${p.signe_zodiaque==='lion'       ? 'selected':''}>♌ Lion</option>
-                            <option value="vierge"     ${p.signe_zodiaque==='vierge'     ? 'selected':''}>♍ Vierge</option>
-                            <option value="balance"    ${p.signe_zodiaque==='balance'    ? 'selected':''}>♎ Balance</option>
-                            <option value="scorpion"   ${p.signe_zodiaque==='scorpion'   ? 'selected':''}>♏ Scorpion</option>
-                            <option value="sagittaire" ${p.signe_zodiaque==='sagittaire' ? 'selected':''}>♐ Sagittaire</option>
-                            <option value="capricorne" ${p.signe_zodiaque==='capricorne' ? 'selected':''}>♑ Capricorne</option>
-                            <option value="verseau"    ${p.signe_zodiaque==='verseau'    ? 'selected':''}>♒ Verseau</option>
-                            <option value="poissons"   ${p.signe_zodiaque==='poissons'   ? 'selected':''}>♓ Poissons</option>
-                        </select>
-                        <div style="font-size:11px;color:#9ca3af;margin-top:4px">
-                            Utile uniquement si vous n'avez pas renseigné de date de naissance.
-                        </div>
-                    </div>
                     <div style="margin-bottom:16px">
                         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Note personnelle</label>
                         <textarea id="p-note" placeholder="Note personnelle..." rows="3"
@@ -327,6 +328,126 @@ async function openModal(type) {
                     <div id="profil-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
                 </div>
 
+                <!-- ── ONGLET SANTÉ ── -->
+                <div id="profil-tab-sante" class="profil-tab-content" style="display:none">
+                    <div style="background:#f8fafc;border-radius:16px;padding:20px">
+
+                        <!-- Identité biologique -->
+                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                    letter-spacing:.5px;margin-bottom:10px">Identité biologique</div>
+                        <div style="margin-bottom:10px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Sexe</label>
+                            <select id="p-sexe"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                                <option value="">— Non renseigné —</option>
+                                <option value="femme"     ${p.sexe === 'femme'     ? 'selected' : ''}>Femme</option>
+                                <option value="homme"     ${p.sexe === 'homme'     ? 'selected' : ''}>Homme</option>
+                                <option value="intersexe" ${p.sexe === 'intersexe' ? 'selected' : ''}>Intersexe</option>
+                            </select>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                            <div>
+                                <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Taille (cm)</label>
+                                <input id="p-taille" type="number" min="50" max="250" placeholder="170"
+                                    value="${p.taille||''}"
+                                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                            </div>
+                            <div>
+                                <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Poids (kg)</label>
+                                <input id="p-poids" type="number" min="20" max="300" step="0.1" placeholder="65"
+                                    value="${p.poids||''}"
+                                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                            </div>
+                        </div>
+                        <div style="margin-bottom:16px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Groupe sanguin</label>
+                            <select id="p-groupe-sanguin"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                                <option value="">— Non renseigné —</option>
+                                ${['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(g =>
+                                    `<option value="${g}" ${p.groupe_sanguin === g ? 'selected' : ''}>${g}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+
+                        <!-- Activité -->
+                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                    letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Activité</div>
+                        <div style="margin-bottom:16px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Niveau d'activité</label>
+                            <select id="p-niveau-activite"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                                <option value="">— Non renseigné —</option>
+                                <option value="sedentaire"        ${p.niveau_activite === 'sedentaire'        ? 'selected' : ''}>Sédentaire</option>
+                                <option value="légèrement actif"  ${p.niveau_activite === 'légèrement actif'  ? 'selected' : ''}>Légèrement actif</option>
+                                <option value="modérément actif"  ${p.niveau_activite === 'modérément actif'  ? 'selected' : ''}>Modérément actif</option>
+                                <option value="très actif"        ${p.niveau_activite === 'très actif'        ? 'selected' : ''}>Très actif</option>
+                            </select>
+                        </div>
+
+                                                <!-- Calculs automatiques -->
+                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                    letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Calculs automatiques</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+                            <div style="background:#fff;border-radius:12px;padding:14px;border:1.5px solid #e5e7eb;text-align:center">
+                                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:8px">IMC</div>
+                                <div id="sante-imc-result">
+                                    ${imc && imcInfos
+                                        ? `<span style="font-size:22px;font-weight:700;color:${imcInfos.color}">${imc}</span>
+                                           <span style="font-size:12px;color:${imcInfos.color};display:block;margin-top:2px">${imcInfos.label}</span>`
+                                        : '<span style="color:#9ca3af;font-size:12px">Renseigne taille et poids</span>'
+                                    }
+                                </div>
+                            </div>
+                            <div style="background:#fff;border-radius:12px;padding:14px;border:1.5px solid #e5e7eb;text-align:center">
+                                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:8px">TDEE</div>
+                                <div id="sante-tdee-result">
+                                    ${tdee
+                                        ? `<span style="font-size:22px;font-weight:700;color:#7c3aed">${tdee}</span>
+                                           <span style="font-size:12px;color:#9ca3af;display:block;margin-top:2px">kcal / jour</span>`
+                                        : '<span style="color:#9ca3af;font-size:12px">Renseigne taille, poids, âge et sexe</span>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Signe du zodiaque -->
+                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                    letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Astrologie</div>
+                        <div style="margin-bottom:16px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Signe du zodiaque</label>
+                            <select id="p-signe"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                                <option value="">— Laisser calculer depuis la date de naissance —</option>
+                                <option value="belier"     ${p.signe_zodiaque==='belier'     ? 'selected':''}>♈ Bélier</option>
+                                <option value="taureau"    ${p.signe_zodiaque==='taureau'    ? 'selected':''}>♉ Taureau</option>
+                                <option value="gemeaux"    ${p.signe_zodiaque==='gemeaux'    ? 'selected':''}>♊ Gémeaux</option>
+                                <option value="cancer"     ${p.signe_zodiaque==='cancer'     ? 'selected':''}>♋ Cancer</option>
+                                <option value="lion"       ${p.signe_zodiaque==='lion'       ? 'selected':''}>♌ Lion</option>
+                                <option value="vierge"     ${p.signe_zodiaque==='vierge'     ? 'selected':''}>♍ Vierge</option>
+                                <option value="balance"    ${p.signe_zodiaque==='balance'    ? 'selected':''}>♎ Balance</option>
+                                <option value="scorpion"   ${p.signe_zodiaque==='scorpion'   ? 'selected':''}>♏ Scorpion</option>
+                                <option value="sagittaire" ${p.signe_zodiaque==='sagittaire' ? 'selected':''}>♐ Sagittaire</option>
+                                <option value="capricorne" ${p.signe_zodiaque==='capricorne' ? 'selected':''}>♑ Capricorne</option>
+                                <option value="verseau"    ${p.signe_zodiaque==='verseau'    ? 'selected':''}>♒ Verseau</option>
+                                <option value="poissons"   ${p.signe_zodiaque==='poissons'   ? 'selected':''}>♓ Poissons</option>
+                            </select>
+                            <div style="font-size:11px;color:#9ca3af;margin-top:4px">
+                                Utile uniquement si vous n'avez pas renseigné de date de naissance.
+                            </div>
+                        </div>
+
+                        <button onclick="sauvegarderProfil()"
+                            style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);
+                                   color:white;border:none;border-radius:12px;font-size:15px;
+                                   font-weight:600;cursor:pointer;box-shadow:0 4px 10px rgba(16,185,129,0.3)">
+                            💾 Sauvegarder la santé
+                        </button>
+                        <div id="profil-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+                    </div>
+                </div>
+
+                <!-- ── ONGLET SÉCURITÉ ── -->
                 <div id="profil-tab-securite" class="profil-tab-content" style="display:none">
                     <div style="background:#f8fafc;border-radius:16px;padding:20px">
                         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
@@ -363,6 +484,7 @@ async function openModal(type) {
                     </div>
                 </div>
 
+                <!-- ── ONGLET WIDGETS ── -->
                 <div id="profil-tab-widgets" class="profil-tab-content" style="display:none">
                     <div style="background:#f8fafc;border-radius:16px;padding:20px">
                         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
@@ -377,7 +499,7 @@ async function openModal(type) {
                         <div id="widgets-choix" class="widgets-choix-grid">
                             <p style="color:#9ca3af;font-size:13px">Chargement...</p>
                         </div>
-                                                <button onclick="sauvegarderWidgetsVisibles()"
+                        <button onclick="sauvegarderWidgetsVisibles()"
                             style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);
                                    color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;
                                    cursor:pointer;margin-top:16px;box-shadow:0 4px 10px rgba(16,185,129,0.3)">
@@ -387,6 +509,7 @@ async function openModal(type) {
                     </div>
                 </div>
 
+                <!-- ── ONGLET SOCIAL ── -->
                 <div id="profil-tab-social" class="profil-tab-content" style="display:none">
                     <div style="display:flex;gap:0;margin-bottom:16px;border-radius:10px;
                                 overflow:hidden;border:1px solid #ede9fe">
@@ -426,7 +549,7 @@ async function openModal(type) {
                 });
             });
 
-            // ── Listeners onglets social (data-action) ────────────
+            // ── Listeners onglets social ──────────────────────────
             document.querySelectorAll('[data-action="social-onglet"]').forEach(btn => {
                 btn.addEventListener('click', () => _socialOnglet(btn.dataset.onglet));
             });

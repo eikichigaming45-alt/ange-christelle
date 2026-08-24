@@ -3,6 +3,8 @@
 // Profil utilisateur : affichage, édition, photo (cropper),
 // suppression photo, trigramme 3 lettres, changement de mot
 // de passe, préférences widgets (opt-out).
+// Onglet Santé : sexe, taille, poids, groupe sanguin,
+// niveau d'activité, signe zodiaque, IMC, TDEE.
 // Dépend de : app.js (getUser, profilCache, cropperInstance, TOUS_WIDGETS)
 //             widgets.js (appliquerWidgetsVisibles)
 // ============================================================
@@ -13,6 +15,45 @@ function construireTrigramme(prenom, nom) {
         .map(m => m.trim())
         .filter(Boolean);
     return mots.slice(0, 3).map(m => m[0].toUpperCase()).join('');
+}
+
+// ===================== CALCULS SANTÉ =========================
+
+// IMC : poids (kg) / taille (m)²
+function calculerIMC(poids, taille) {
+    if (!poids || !taille) return null;
+    return (poids / Math.pow(taille / 100, 2)).toFixed(1);
+}
+
+// Interprétation IMC
+function interpreterIMC(imc) {
+    if (!imc) return null;
+    const v = parseFloat(imc);
+    if (v < 18.5) return { label: 'Insuffisance pondérale', color: '#3b82f6' };
+    if (v < 25)   return { label: 'Poids normal',           color: '#10b981' };
+    if (v < 30)   return { label: 'Surpoids',               color: '#f59e0b' };
+    return             { label: 'Obésité',                  color: '#ef4444' };
+}
+
+// TDEE Harris-Benedict révisé (Mifflin-St Jeor)
+// Nécessite : poids (kg), taille (cm), age (ans), sexe, niveau_activite
+function calculerTDEE(poids, taille, age, sexe, niveau_activite) {
+    if (!poids || !taille || !age || !sexe) return null;
+    let MB;
+    if (sexe === 'homme') {
+        MB = 10 * poids + 6.25 * taille - 5 * age + 5;
+    } else {
+        // femme + intersexe → formule femme par défaut
+        MB = 10 * poids + 6.25 * taille - 5 * age - 161;
+    }
+    const facteurs = {
+        'sedentaire'          : 1.2,
+        'legèrement actif'    : 1.375,
+        'modérément actif'    : 1.55,
+        'très actif'          : 1.725
+    };
+    const facteur = facteurs[niveau_activite] || 1.2;
+    return Math.round(MB * facteur);
 }
 
 // ===================== PROFIL HEADER =========================
@@ -54,13 +95,19 @@ async function chargerProfilHeader() {
         const wc = document.getElementById('wc-profil');
         if (!wc) return;
         const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
+
+        // Calcul de l'âge
         const age = p.date_naissance ? (() => {
             const n     = new Date(p.date_naissance);
             const today = new Date();
             let a       = today.getFullYear() - n.getFullYear();
             if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
-            return `${a} ans`;
-        })() : '';
+            return a;
+        })() : null;
+
+        // Calcul IMC pour le widget
+        const imc      = calculerIMC(p.poids, p.taille);
+        const imcInfos = interpreterIMC(imc);
 
         wc.innerHTML = `
             <div class="profil-widget">
@@ -69,9 +116,13 @@ async function chargerProfilHeader() {
                     : `<div class="profil-widget-initiales">${trigramme || '👤'}</div>`
                 }
                 <div class="profil-widget-nom">${nom}</div>
-                ${age          ? `<div class="profil-widget-info">${age}</div>`             : ''}
+                ${age          ? `<div class="profil-widget-info">${age} ans</div>`          : ''}
                 ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
                 ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>`  : ''}
+                ${imc && imcInfos ? `
+                    <div class="profil-widget-info" style="color:${imcInfos.color};font-weight:600">
+                        IMC ${imc} — ${imcInfos.label}
+                    </div>` : ''}
                 ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>`           : ''}
             </div>
         `;
@@ -241,15 +292,24 @@ async function sauvegarderProfil() {
     const photo   = photoEl?.src?.startsWith('data:') ? photoEl.src : (profilCache?.photo || null);
 
     const body = {
-        prenom        : document.getElementById('p-prenom').value,
-        nom           : document.getElementById('p-nom').value,
-        date_naissance: document.getElementById('p-naissance').value || null,
-        email         : document.getElementById('p-email').value,
-        telephone     : document.getElementById('p-tel').value,
-        profession    : document.getElementById('p-prof').value,
-        note          : document.getElementById('p-note').value,
-        sexe          : document.getElementById('p-sexe').value || null,
-        photo
+        // Onglet Profil
+        prenom          : document.getElementById('p-prenom')?.value        || '',
+        nom             : document.getElementById('p-nom')?.value           || '',
+        date_naissance  : document.getElementById('p-naissance')?.value     || null,
+        heure_naissance : document.getElementById('p-heure-naissance')?.value || null,
+        lieu_naissance  : document.getElementById('p-lieu-naissance')?.value  || null,
+        email           : document.getElementById('p-email')?.value         || '',
+        telephone       : document.getElementById('p-tel')?.value           || '',
+        profession      : document.getElementById('p-prof')?.value          || '',
+        note            : document.getElementById('p-note')?.value          || '',
+        photo,
+        // Onglet Santé
+        sexe            : document.getElementById('p-sexe')?.value          || null,
+        taille          : document.getElementById('p-taille')?.value        ? parseInt(document.getElementById('p-taille').value) : null,
+        poids           : document.getElementById('p-poids')?.value         ? parseFloat(document.getElementById('p-poids').value) : null,
+        groupe_sanguin  : document.getElementById('p-groupe-sanguin')?.value || null,
+        niveau_activite : document.getElementById('p-niveau-activite')?.value || null,
+        signe_zodiaque  : document.getElementById('p-signe')?.value         || null,
     };
 
     try {
@@ -267,8 +327,9 @@ async function sauvegarderProfil() {
             msg.style.color = '#10b981';
             profilCache     = { ...profilCache, ...body };
             chargerProfilHeader();
-            // Applique immédiatement la visibilité du widget cycle
             _appliquerVisibiliteCycle(body.sexe);
+            // Rafraîchir les calculs IMC/TDEE affichés dans l'onglet Santé
+            _rafraichirCalculsSante(body);
         } else {
             msg.textContent = '❌ ' + (d.message || 'Erreur.');
             msg.style.color = '#ef4444';
@@ -276,6 +337,37 @@ async function sauvegarderProfil() {
     } catch {
         msg.textContent = '❌ Erreur réseau.';
         msg.style.color = '#ef4444';
+    }
+}
+
+// ── Rafraîchit les blocs IMC/TDEE après sauvegarde ───────────
+function _rafraichirCalculsSante(p) {
+    const age = p.date_naissance ? (() => {
+        const n     = new Date(p.date_naissance);
+        const today = new Date();
+        let a       = today.getFullYear() - n.getFullYear();
+        if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
+        return a;
+    })() : null;
+
+    const imc      = calculerIMC(p.poids, p.taille);
+    const imcInfos = interpreterIMC(imc);
+    const tdee     = calculerTDEE(p.poids, p.taille, age, p.sexe, p.niveau_activite);
+
+    const elIMC  = document.getElementById('sante-imc-result');
+    const elTDEE = document.getElementById('sante-tdee-result');
+
+    if (elIMC) {
+        elIMC.innerHTML = imc && imcInfos
+            ? `<span style="font-size:22px;font-weight:700;color:${imcInfos.color}">${imc}</span>
+               <span style="font-size:12px;color:${imcInfos.color};margin-left:6px">${imcInfos.label}</span>`
+            : '<span style="color:#9ca3af;font-size:13px">Renseigne taille et poids</span>';
+    }
+    if (elTDEE) {
+        elTDEE.innerHTML = tdee
+            ? `<span style="font-size:22px;font-weight:700;color:#7c3aed">${tdee}</span>
+               <span style="font-size:12px;color:#9ca3af;margin-left:6px">kcal / jour</span>`
+            : '<span style="color:#9ca3af;font-size:13px">Renseigne taille, poids, âge et sexe</span>';
     }
 }
 
