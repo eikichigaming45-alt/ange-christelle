@@ -554,7 +554,7 @@ function _htmlBlocViewer(v, typesDisponibles) {
                     border:1px solid #f3f4f6;margin-bottom:4px">
             <span style="font-size:13px;color:#374151">${_SHARE_LABELS[l.type]}</span>
             <div style="display:flex;align-items:center;gap:8px">
-                <label style="position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0">
+                <label style="position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0;vertical-align:middle">
                     <input type="checkbox" ${actif ? 'checked' : ''}
                         data-share-id="${shareId}"
                         data-viewer-id="${v.viewer_id}"
