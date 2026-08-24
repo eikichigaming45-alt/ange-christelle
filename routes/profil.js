@@ -4,7 +4,7 @@
 // suppression photo, et préférences widgets (opt-out).
 // signe_zodiaque : saisi manuellement si pas de date_naissance.
 // Nouveaux champs : heure_naissance, lieu_naissance, taille,
-// poids, groupe_sanguin, niveau_activite.
+// poids, groupe_sanguin, niveau_activite, naissance_lat, naissance_lon.
 // ============================================================
 
 const express    = require('express');
@@ -19,6 +19,7 @@ router.get('/', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT prenom, nom, date_naissance, heure_naissance, lieu_naissance,
+                    naissance_lat, naissance_lon,
                     email, telephone, profession, note, photo, widgets_visibles,
                     signe_zodiaque, sexe, taille, poids, groupe_sanguin,
                     niveau_activite, meteo_lat, meteo_lon, meteo_ville
@@ -38,6 +39,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // ── POST /api/profil ──────────────────────────────────────────
 router.post('/', authenticateToken, async (req, res) => {
     const { prenom, nom, date_naissance, heure_naissance, lieu_naissance,
+            naissance_lat, naissance_lon,
             email, telephone, profession, note, photo,
             signe_zodiaque, sexe, taille, poids, groupe_sanguin,
             niveau_activite } = req.body;
@@ -45,20 +47,23 @@ router.post('/', authenticateToken, async (req, res) => {
         await pool.query(`
             INSERT INTO profiles
                 (user_id, prenom, nom, date_naissance, heure_naissance, lieu_naissance,
+                 naissance_lat, naissance_lon,
                  email, telephone, profession, note, photo,
                  signe_zodiaque, sexe, taille, poids, groupe_sanguin,
                  niveau_activite, updated_at)
-            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15, \$16, \$17, NOW())
+            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15, \$16, \$17, \$18, \$19, NOW())
             ON CONFLICT (user_id) DO UPDATE SET
                 prenom=\$2, nom=\$3, date_naissance=\$4, heure_naissance=\$5,
-                lieu_naissance=\$6, email=\$7, telephone=\$8, profession=\$9,
-                note=\$10, photo=\$11, signe_zodiaque=\$12, sexe=\$13,
-                taille=\$14, poids=\$15, groupe_sanguin=\$16,
-                niveau_activite=\$17, updated_at=NOW()
+                lieu_naissance=\$6, naissance_lat=\$7, naissance_lon=\$8,
+                email=\$9, telephone=\$10, profession=\$11, note=\$12, photo=\$13,
+                signe_zodiaque=\$14, sexe=\$15, taille=\$16, poids=\$17,
+                groupe_sanguin=\$18, niveau_activite=\$19, updated_at=NOW()
         `, [req.user.id, prenom, nom,
             date_naissance   || null,
             heure_naissance  || null,
             lieu_naissance   || null,
+            naissance_lat    || null,
+            naissance_lon    || null,
             email, telephone, profession, note, photo,
             signe_zodiaque   || null,
             sexe             || null,

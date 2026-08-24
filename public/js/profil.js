@@ -5,6 +5,7 @@
 // de passe, préférences widgets (opt-out).
 // Onglet Santé : sexe, taille, poids, groupe sanguin,
 // niveau d'activité, signe zodiaque, IMC, TDEE.
+// Géocodage Nominatim : lieu de naissance → lat/lon (onblur).
 // Dépend de : app.js (getUser, profilCache, cropperInstance, TOUS_WIDGETS)
 //             widgets.js (appliquerWidgetsVisibles)
 // ============================================================
@@ -19,13 +20,11 @@ function construireTrigramme(prenom, nom) {
 
 // ===================== CALCULS SANTÉ =========================
 
-// IMC : poids (kg) / taille (m)²
 function calculerIMC(poids, taille) {
     if (!poids || !taille) return null;
     return (poids / Math.pow(taille / 100, 2)).toFixed(1);
 }
 
-// Interprétation IMC
 function interpreterIMC(imc) {
     if (!imc) return null;
     const v = parseFloat(imc);
@@ -35,25 +34,70 @@ function interpreterIMC(imc) {
     return             { label: 'Obésité',                  color: '#ef4444' };
 }
 
-// TDEE Harris-Benedict révisé (Mifflin-St Jeor)
-// Nécessite : poids (kg), taille (cm), age (ans), sexe, niveau_activite
 function calculerTDEE(poids, taille, age, sexe, niveau_activite) {
     if (!poids || !taille || !age || !sexe) return null;
     let MB;
     if (sexe === 'homme') {
         MB = 10 * poids + 6.25 * taille - 5 * age + 5;
     } else {
-        // femme + intersexe → formule femme par défaut
         MB = 10 * poids + 6.25 * taille - 5 * age - 161;
     }
     const facteurs = {
-        'sedentaire'          : 1.2,
-        'legèrement actif'    : 1.375,
-        'modérément actif'    : 1.55,
-        'très actif'          : 1.725
+        'sedentaire'        : 1.2,
+        'légèrement actif'  : 1.375,
+        'modérément actif'  : 1.55,
+        'très actif'        : 1.725
     };
     const facteur = facteurs[niveau_activite] || 1.2;
     return Math.round(MB * facteur);
+}
+
+// ===================== GÉOCODAGE NOMINATIM ===================
+// Appelé en onblur sur le champ lieu de naissance.
+// Stocke le résultat dans des champs cachés naissance_lat/lon.
+
+async function geocoderLieuNaissance() {
+    const input  = document.getElementById('p-lieu-naissance');
+    const msg    = document.getElementById('p-lieu-naissance-msg');
+    const latEl  = document.getElementById('p-naissance-lat');
+    const lonEl  = document.getElementById('p-naissance-lon');
+    if (!input || !msg || !latEl || !lonEl) return;
+
+    const q = input.value.trim();
+    if (!q) {
+        msg.textContent = '';
+        latEl.value     = '';
+        lonEl.value     = '';
+        return;
+    }
+
+    msg.textContent = '🔍 Recherche en cours...';
+    msg.style.color = '#9ca3af';
+
+    try {
+        const r = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`,
+            { headers: { 'Accept-Language': 'fr' } }
+        );
+        const data = await r.json();
+        if (!data.length) {
+            msg.textContent = '❌ Lieu non trouvé — vérifie le nom de la ville.';
+            msg.style.color = '#ef4444';
+            latEl.value     = '';
+            lonEl.value     = '';
+            return;
+        }
+        const lieu      = data[0];
+        latEl.value     = lieu.lat;
+        lonEl.value     = lieu.lon;
+        msg.textContent = `✅ ${lieu.display_name.split(',').slice(0, 2).join(',')}`;
+        msg.style.color = '#10b981';
+    } catch {
+        msg.textContent = '❌ Erreur réseau lors du géocodage.';
+        msg.style.color = '#ef4444';
+        latEl.value     = '';
+        lonEl.value     = '';
+    }
 }
 
 // ===================== PROFIL HEADER =========================
@@ -89,14 +133,12 @@ async function chargerProfilHeader() {
             btn.style.fontWeight   = '';
         }
 
-        // Masquer/afficher widget cycle selon sexe
         _appliquerVisibiliteCycle(p.sexe);
 
         const wc = document.getElementById('wc-profil');
         if (!wc) return;
         const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
 
-        // Calcul de l'âge
         const age = p.date_naissance ? (() => {
             const n     = new Date(p.date_naissance);
             const today = new Date();
@@ -105,7 +147,6 @@ async function chargerProfilHeader() {
             return a;
         })() : null;
 
-        // Calcul IMC pour le widget
         const imc      = calculerIMC(p.poids, p.taille);
         const imcInfos = interpreterIMC(imc);
 
@@ -119,11 +160,12 @@ async function chargerProfilHeader() {
                 ${age          ? `<div class="profil-widget-info">${age} ans</div>`          : ''}
                 ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
                 ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>`  : ''}
-                ${imc && imcInfos ? `
-                    <div class="profil-widget-info" style="color:${imcInfos.color};font-weight:600">
-                        IMC ${imc} — ${imcInfos.label}
-                    </div>` : ''}
-                ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>`           : ''}
+                ${imc && imcInfos
+                    ? `<div class="profil-widget-info" style="color:${imcInfos.color};font-weight:600">
+                           IMC ${imc} — ${imcInfos.label}
+                       </div>`
+                    : ''}
+                ${p.note ? `<div class="profil-widget-bio">${p.note}</div>` : ''}
             </div>
         `;
     } catch { /* silencieux */ }
@@ -293,23 +335,25 @@ async function sauvegarderProfil() {
 
     const body = {
         // Onglet Profil
-        prenom          : document.getElementById('p-prenom')?.value        || '',
-        nom             : document.getElementById('p-nom')?.value           || '',
-        date_naissance  : document.getElementById('p-naissance')?.value     || null,
-        heure_naissance : document.getElementById('p-heure-naissance')?.value || null,
-        lieu_naissance  : document.getElementById('p-lieu-naissance')?.value  || null,
-        email           : document.getElementById('p-email')?.value         || '',
-        telephone       : document.getElementById('p-tel')?.value           || '',
-        profession      : document.getElementById('p-prof')?.value          || '',
-        note            : document.getElementById('p-note')?.value          || '',
+        prenom          : document.getElementById('p-prenom')?.value           || '',
+        nom             : document.getElementById('p-nom')?.value              || '',
+        date_naissance  : document.getElementById('p-naissance')?.value        || null,
+        heure_naissance : document.getElementById('p-heure-naissance')?.value  || null,
+        lieu_naissance  : document.getElementById('p-lieu-naissance')?.value   || null,
+        naissance_lat   : document.getElementById('p-naissance-lat')?.value    ? parseFloat(document.getElementById('p-naissance-lat').value)  : null,
+        naissance_lon   : document.getElementById('p-naissance-lon')?.value    ? parseFloat(document.getElementById('p-naissance-lon').value)  : null,
+        email           : document.getElementById('p-email')?.value            || '',
+        telephone       : document.getElementById('p-tel')?.value              || '',
+        profession      : document.getElementById('p-prof')?.value             || '',
+        note            : document.getElementById('p-note')?.value             || '',
         photo,
         // Onglet Santé
-        sexe            : document.getElementById('p-sexe')?.value          || null,
-        taille          : document.getElementById('p-taille')?.value        ? parseInt(document.getElementById('p-taille').value) : null,
-        poids           : document.getElementById('p-poids')?.value         ? parseFloat(document.getElementById('p-poids').value) : null,
-        groupe_sanguin  : document.getElementById('p-groupe-sanguin')?.value || null,
-        niveau_activite : document.getElementById('p-niveau-activite')?.value || null,
-        signe_zodiaque  : document.getElementById('p-signe')?.value         || null,
+        sexe            : document.getElementById('p-sexe')?.value             || null,
+        taille          : document.getElementById('p-taille')?.value           ? parseInt(document.getElementById('p-taille').value)           : null,
+        poids           : document.getElementById('p-poids')?.value            ? parseFloat(document.getElementById('p-poids').value)           : null,
+        groupe_sanguin  : document.getElementById('p-groupe-sanguin')?.value   || null,
+        niveau_activite : document.getElementById('p-niveau-activite')?.value  || null,
+        signe_zodiaque  : document.getElementById('p-signe')?.value            || null,
     };
 
     try {
@@ -328,7 +372,6 @@ async function sauvegarderProfil() {
             profilCache     = { ...profilCache, ...body };
             chargerProfilHeader();
             _appliquerVisibiliteCycle(body.sexe);
-            // Rafraîchir les calculs IMC/TDEE affichés dans l'onglet Santé
             _rafraichirCalculsSante(body);
         } else {
             msg.textContent = '❌ ' + (d.message || 'Erreur.');
@@ -360,13 +403,13 @@ function _rafraichirCalculsSante(p) {
     if (elIMC) {
         elIMC.innerHTML = imc && imcInfos
             ? `<span style="font-size:22px;font-weight:700;color:${imcInfos.color}">${imc}</span>
-               <span style="font-size:12px;color:${imcInfos.color};margin-left:6px">${imcInfos.label}</span>`
+               <span style="font-size:12px;color:${imcInfos.color};display:block;margin-top:2px">${imcInfos.label}</span>`
             : '<span style="color:#9ca3af;font-size:13px">Renseigne taille et poids</span>';
     }
     if (elTDEE) {
         elTDEE.innerHTML = tdee
             ? `<span style="font-size:22px;font-weight:700;color:#7c3aed">${tdee}</span>
-               <span style="font-size:12px;color:#9ca3af;margin-left:6px">kcal / jour</span>`
+               <span style="font-size:12px;color:#9ca3af;display:block;margin-top:2px">kcal / jour</span>`
             : '<span style="color:#9ca3af;font-size:13px">Renseigne taille, poids, âge et sexe</span>';
     }
 }

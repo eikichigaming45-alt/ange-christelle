@@ -2,7 +2,7 @@
 // public/js/modal.js
 // Modales : météo, prière, islam, tâches, anniversaires,
 // cycle, rendez-vous, planning, profil, admin, astrologie.
-// Onglet Profil : infos + heure/lieu naissance.
+// Onglet Profil : infos + heure/lieu naissance + géocodage.
 // Onglet Santé  : sexe, taille, poids, groupe sanguin,
 //                 niveau activité, signe zodiaque, IMC, TDEE.
 // ============================================================
@@ -95,9 +95,9 @@ async function openModal(type) {
                 }, 200);
             });
         }
-        const d    = window._islamData;
+        const d     = window._islamData;
         const toMin = hhmm => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
-        const now  = new Date().getHours() * 60 + new Date().getMinutes();
+        const now   = new Date().getHours() * 60 + new Date().getMinutes();
         const listePrieres = [
             { nom:'Fajr',    label:'Fajr (Aube)',       heure: d?.fajr    },
             { nom:'Dhuhr',   label:'Dhuhr (Midi)',      heure: d?.dhuhr   },
@@ -203,7 +203,6 @@ async function openModal(type) {
             const photoSrc  = p.photo || '';
             const initiales = construireTrigramme(p.prenom, p.nom) || '👤';
 
-            // Calcul âge pour TDEE
             const age = p.date_naissance ? (() => {
                 const n     = new Date(p.date_naissance);
                 const today = new Date();
@@ -293,8 +292,17 @@ async function openModal(type) {
                     </div>
                     <div style="margin-bottom:10px">
                         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Lieu de naissance</label>
-                        <input id="p-lieu-naissance" type="text" placeholder="Ville de naissance" value="${p.lieu_naissance||''}"
+                        <input id="p-lieu-naissance" type="text" placeholder="Ville de naissance"
+                            value="${p.lieu_naissance||''}"
+                            onblur="geocoderLieuNaissance()"
                             style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        <!-- Champs cachés lat/lon remplis par le géocodage -->
+                        <input type="hidden" id="p-naissance-lat" value="${p.naissance_lat||''}">
+                        <input type="hidden" id="p-naissance-lon" value="${p.naissance_lon||''}">
+                        <div id="p-lieu-naissance-msg" style="font-size:12px;margin-top:4px;min-height:16px;
+                            ${p.naissance_lat ? 'color:#10b981' : 'color:#9ca3af'}">
+                            ${p.naissance_lat ? `✅ Coordonnées enregistrées` : ''}
+                        </div>
                     </div>
                     <div style="margin-bottom:10px">
                         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Email</label>
@@ -332,7 +340,6 @@ async function openModal(type) {
                 <div id="profil-tab-sante" class="profil-tab-content" style="display:none">
                     <div style="background:#f8fafc;border-radius:16px;padding:20px">
 
-                        <!-- Identité biologique -->
                         <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
                                     letter-spacing:.5px;margin-bottom:10px">Identité biologique</div>
                         <div style="margin-bottom:10px">
@@ -370,22 +377,20 @@ async function openModal(type) {
                             </select>
                         </div>
 
-                        <!-- Activité -->
                         <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
                                     letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Activité</div>
                         <div style="margin-bottom:16px">
                             <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Niveau d'activité</label>
-                            <select id="p-niveau-activite"
+                                                        <select id="p-niveau-activite"
                                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
                                 <option value="">— Non renseigné —</option>
-                                <option value="sedentaire"        ${p.niveau_activite === 'sedentaire'        ? 'selected' : ''}>Sédentaire</option>
-                                <option value="légèrement actif"  ${p.niveau_activite === 'légèrement actif'  ? 'selected' : ''}>Légèrement actif</option>
-                                <option value="modérément actif"  ${p.niveau_activite === 'modérément actif'  ? 'selected' : ''}>Modérément actif</option>
-                                <option value="très actif"        ${p.niveau_activite === 'très actif'        ? 'selected' : ''}>Très actif</option>
+                                <option value="sedentaire"       ${p.niveau_activite === 'sedentaire'       ? 'selected' : ''}>Sédentaire</option>
+                                <option value="légèrement actif" ${p.niveau_activite === 'légèrement actif' ? 'selected' : ''}>Légèrement actif</option>
+                                <option value="modérément actif" ${p.niveau_activite === 'modérément actif' ? 'selected' : ''}>Modérément actif</option>
+                                <option value="très actif"       ${p.niveau_activite === 'très actif'       ? 'selected' : ''}>Très actif</option>
                             </select>
                         </div>
 
-                                                <!-- Calculs automatiques -->
                         <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
                                     letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Calculs automatiques</div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
@@ -411,7 +416,6 @@ async function openModal(type) {
                             </div>
                         </div>
 
-                        <!-- Signe du zodiaque -->
                         <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
                                     letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Astrologie</div>
                         <div style="margin-bottom:16px">
