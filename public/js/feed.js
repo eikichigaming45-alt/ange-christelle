@@ -76,38 +76,33 @@ async function chargerFeed() {
 }
 
 // ── @MENTION : RENDER CONTENU AVEC TAGS CLIQUABLES ───────────
-function renderContenuAvecMentions(contenu) {
+// mentionsData = [{id, prenom, nom}, ...] fourni par l'API — zéro fetch
+function renderContenuAvecMentions(contenu, mentionsData) {
     if (!contenu) return '';
-    // Escape d'abord, puis on repère les @Prénom NOM dans le texte échappé
     const escaped = escapeHtml(contenu);
-    return escaped.replace(/@([A-ZÀ-Ÿa-zà-ÿ]+(?:\s+[A-ZÀ-Ÿa-zà-ÿ]+)+)/g, (match, nom) => {
-        return `<span class="mention-tag" data-mention="${escapeHtml(nom)}">${match}</span>`;
+    if (!mentionsData || !mentionsData.length) return escaped;
+
+    // Map "prenom nom" (lowercase) → {id, display}
+    const map = new Map();
+    for (const m of mentionsData) {
+        const full = `${m.prenom || ''} ${m.nom || ''}`.trim();
+        if (full) map.set(full.toLowerCase(), { id: m.id, display: full });
+    }
+
+    return escaped.replace(/@([A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ ]{1,60}?)(?=\s|[^A-ZÀ-Ÿa-zà-ÿ ]|$)/g, (match, nom) => {
+        const entry = map.get(nom.trim().toLowerCase());
+        if (!entry) return match;
+        return `<span class="mention-tag" data-user-id="${entry.id}" style="color:#7c3aed;font-weight:600;cursor:pointer">@${escapeHtml(entry.display)}</span>`;
     });
 }
 
-// Résolution côté client : clic sur un .mention-tag → ouvrirProfilPublic
-document.addEventListener('click', async e => {
+// Clic sur mention → profil direct (data-user-id, zéro fetch)
+document.addEventListener('click', e => {
     const tag = e.target.closest('.mention-tag');
     if (!tag) return;
     e.stopPropagation();
-    const nomComplet = tag.dataset.mention || '';
-    const parts      = nomComplet.trim().split(/\s+/);
-    if (parts.length < 2) return;
-    const prenom = parts[0];
-    const nom    = parts.slice(1).join(' ');
-    const user   = getUser();
-    try {
-        const r = await fetch(`/api/feed/users?q=${encodeURIComponent(prenom)}`, {
-            headers: { 'Authorization': `Bearer ${user.token}` }
-        });
-        const d = await r.json();
-        if (!d.success) return;
-        const found = d.users.find(u =>
-            u.prenom?.toLowerCase() === prenom.toLowerCase() &&
-            u.nom?.toLowerCase()    === nom.toLowerCase()
-        );
-        if (found) ouvrirProfilPublic(found.id);
-    } catch {}
+    const userId = parseInt(tag.dataset.userId);
+    if (userId) ouvrirProfilPublic(userId);
 });
 
 // ── @MENTION : AUTOCOMPLETE ───────────────────────────────────
@@ -165,7 +160,6 @@ async function _mentionInput(inputEl, dropEl) {
     const val    = inputEl.value;
     const cursor = inputEl.selectionStart;
     const avant  = val.substring(0, cursor);
-    // FIX : \s remplacé par [ \t] — exclut les newlines, limite à 40 chars max
     const match  = avant.match(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/);
     if (!match) { _fermerDropdown(dropEl); return; }
 
@@ -208,7 +202,6 @@ function _insererMention(inputEl, dropEl, prenom, nom) {
     const cursor   = inputEl.selectionStart;
     const avant    = val.substring(0, cursor);
     const apres    = val.substring(cursor);
-    // FIX : même regex que _mentionInput pour garantir la cohérence
     const newAvant = avant.replace(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/, `@${prenom} ${nom} `);
     inputEl.value  = newAvant + apres;
     const pos      = newAvant.length;
@@ -262,7 +255,7 @@ function renderPost(p) {
                 </div>
             </div>
             <div class="feed-contenu-text" id="post-contenu-${p.id}" style="display:none">${escapeHtml(p.contenu || '')}</div>
-            ${p.contenu ? `<div class="feed-contenu">${renderContenuAvecMentions(p.contenu)}</div>` : ''}
+            ${p.contenu ? `<div class="feed-contenu">${renderContenuAvecMentions(p.contenu, p.mentions_data)}</div>` : ''}
             ${p.photo_url ? `<div class="feed-photo-wrap"><img src="${p.photo_url}" class="feed-photo" alt="" onclick="ouvrirPhoto('${p.photo_url}')"></div>` : ''}
             <div class="feed-footer">
                 <button class="feed-like-btn ${p.liked ? 'liked' : ''}" onclick="toggleLike(${p.id}, this)">
@@ -504,7 +497,7 @@ function renderComment(c, postId) {
                       onclick="ouvrirProfilPublic(${c.user_id})">
                     ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
                     <span class="feed-handle">@${escapeHtml(c.username)}</span>
-                                </span>
+                </span>
                 <span class="feed-comment-date">${date}</span>
                 <div class="feed-comment-actions">
                     ${isOwner || isAdmin ? `
@@ -529,7 +522,7 @@ function renderComment(c, postId) {
                     </button>
                 </div>
             </div>
-            <div class="feed-comment-contenu" id="comment-text-${c.id}">${renderContenuAvecMentions(c.contenu)}</div>
+            <div class="feed-comment-contenu" id="comment-text-${c.id}">${renderContenuAvecMentions(c.contenu, c.mentions_data)}</div>
             <div class="feed-comment-raw" id="comment-raw-${c.id}" style="display:none">${escapeHtml(c.contenu)}</div>
         </div>
     `;

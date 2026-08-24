@@ -17,7 +17,7 @@ const supabase = createClient(
 
 // ── Utilitaire : extraire et résoudre les @mentions ──────────
 async function resoudreMentions(contenu, auteurId) {
-    const matches = [...contenu.matchAll(/@([a-zA-ZÀ-ÿ]+(?:\s+[a-zA-ZÀ-ÿ]+)*)/g)];
+    const matches = [...contenu.matchAll(/@([A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ ]{1,60}?)(?=\s{2,}|[^A-ZÀ-Ÿa-zà-ÿ ]|$)/g)];
     if (!matches.length) return [];
 
     const mentions = new Set();
@@ -26,17 +26,20 @@ async function resoudreMentions(contenu, auteurId) {
         const parts = token.split(/\s+/);
         if (parts.length < 2) continue;
 
-        const prenom = parts[0];
-        const nom    = parts.slice(1).join(' ');
-
-        const { rows } = await pool.query(
-            `SELECT user_id FROM profiles
-             WHERE LOWER(prenom) = LOWER(\$1) AND LOWER(nom) = LOWER(\$2)
-             LIMIT 1`,
-            [prenom, nom]
-        );
-        if (rows.length && rows[0].user_id !== auteurId) {
-            mentions.add(rows[0].user_id);
+        // Tester toutes les coupes prénom / nom possibles
+        for (let i = 1; i < parts.length; i++) {
+            const prenom = parts.slice(0, i).join(' ');
+            const nom    = parts.slice(i).join(' ');
+            const { rows } = await pool.query(
+                `SELECT user_id FROM profiles
+                 WHERE LOWER(prenom) = LOWER(\$1) AND LOWER(nom) = LOWER(\$2)
+                 LIMIT 1`,
+                [prenom, nom]
+            );
+            if (rows.length && rows[0].user_id !== auteurId) {
+                mentions.add(rows[0].user_id);
+                break;
+            }
         }
     }
     return [...mentions];
@@ -103,6 +106,12 @@ router.get('/', authenticateToken, async (req, res) => {
             SELECT
                 p.id, p.contenu, p.photo_url, p.created_at,
                 p.mentions,
+                (
+                    SELECT json_agg(json_build_object('id', u2.id, 'prenom', pr2.prenom, 'nom', pr2.nom))
+                    FROM unnest(p.mentions) AS mid
+                    JOIN users u2 ON u2.id = mid
+                    LEFT JOIN profiles pr2 ON pr2.user_id = u2.id
+                ) AS mentions_data,
                 pr.prenom, pr.nom, pr.photo AS avatar,
                 u.username,
                 u.id AS user_id,
@@ -243,7 +252,6 @@ router.put('/comments/:id', authenticateToken, async (req, res) => {
             return res.status(403).json({ success: false, message: 'Interdit.' });
         }
 
-        // Recalcul des mentions à l'édition
         const mentionIds = await resoudreMentions(contenu, userId);
 
         await pool.query(
@@ -383,6 +391,12 @@ router.get('/:id/comments', authenticateToken, async (req, res) => {
         const { rows } = await pool.query(`
             SELECT c.id, c.contenu, c.created_at,
                    c.mentions,
+                   (
+                       SELECT json_agg(json_build_object('id', u2.id, 'prenom', pr2.prenom, 'nom', pr2.nom))
+                       FROM unnest(c.mentions) AS mid
+                       JOIN users u2 ON u2.id = mid
+                       LEFT JOIN profiles pr2 ON pr2.user_id = u2.id
+                   ) AS mentions_data,
                    pr.prenom, pr.nom, pr.photo AS avatar,
                    u.username, u.id AS user_id,
                    (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id)::int AS likes,
@@ -486,7 +500,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
             photo_url = data.publicUrl;
         }
 
-        // Recalcul des mentions à l'édition du post
         const mentionIds = contenu ? await resoudreMentions(contenu, userId) : [];
 
         await pool.query(
