@@ -51,7 +51,7 @@ app.use('/api/profil',         require('./routes/profil'));
 app.use('/api/widget-order',   require('./routes/widgets'));
 app.use('/api/taches',         require('./routes/taches'));
 app.use('/api/anniversaires',  require('./routes/anniversaires'));
-app.use('/api/push',           require('./routes/push'));
+app.use('/api/push',           require('./routes/push').router);
 app.use('/api/priere',         require('./routes/priere'));
 app.use('/api/islam',          require('./routes/islam'));
 app.use('/api/admin',          require('./routes/admin'));
