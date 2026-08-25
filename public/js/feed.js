@@ -76,24 +76,45 @@ async function chargerFeed() {
 }
 
 // ── @MENTION : RENDER CONTENU AVEC TAGS CLIQUABLES ───────────
-// mentionsData = [{id, prenom, nom}, ...] fourni par l'API — zéro fetch
 function renderContenuAvecMentions(contenu, mentionsData) {
     if (!contenu) return '';
-    const escaped = escapeHtml(contenu);
-    if (!mentionsData || !mentionsData.length) return escaped;
+    if (!mentionsData || !mentionsData.length) return escapeHtml(contenu);
 
-    // Map "prenom nom" (lowercase) → {id, display}
-    const map = new Map();
-    for (const m of mentionsData) {
+    let result = contenu;
+
+    // Trier par longueur décroissante pour matcher "Ange Christelle AGUILLON" avant "Ange"
+    const sorted = [...mentionsData].sort((a, b) => {
+        const fa = `${a.prenom || ''} ${a.nom || ''}`.trim();
+        const fb = `${b.prenom || ''} ${b.nom || ''}`.trim();
+        return fb.length - fa.length;
+    });
+
+    const placeholders = [];
+
+    for (const m of sorted) {
+        if (!m || !m.id) continue;
         const full = `${m.prenom || ''} ${m.nom || ''}`.trim();
-        if (full) map.set(full.toLowerCase(), { id: m.id, display: full });
+        if (!full) continue;
+        const tag = `@${full}`;
+        const placeholder = `%%MENTION_${m.id}%%`;
+        if (result.includes(tag)) {
+            result = result.split(tag).join(placeholder);
+            placeholders.push({
+                placeholder,
+                html: `<span class="mention-tag" data-user-id="${m.id}" style="color:#7c3aed;font-weight:600;cursor:pointer">@${escapeHtml(full)}</span>`
+            });
+        }
     }
 
-    return escaped.replace(/@([A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ ]{1,60}?)(?=\s|[^A-ZÀ-Ÿa-zà-ÿ ]|$)/g, (match, nom) => {
-        const entry = map.get(nom.trim().toLowerCase());
-        if (!entry) return match;
-        return `<span class="mention-tag" data-user-id="${entry.id}" style="color:#7c3aed;font-weight:600;cursor:pointer">@${escapeHtml(entry.display)}</span>`;
-    });
+    // Échapper le reste du texte brut
+    result = escapeHtml(result);
+
+    // Réinjecter les tags HTML (les placeholders sont safe, pas de < > dedans)
+    for (const { placeholder, html } of placeholders) {
+        result = result.split(escapeHtml(placeholder)).join(html);
+    }
+
+    return result;
 }
 
 // Clic sur mention → profil direct (data-user-id, zéro fetch)
