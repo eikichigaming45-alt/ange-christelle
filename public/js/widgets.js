@@ -14,8 +14,8 @@ function resetGrid() {
 
 const WIDGETS_PAR_ONGLET = {
     quotidien : ['planning', 'taches', 'priere', 'islam', 'anniversaires', 'astrologie', 'social'],
-    bienetre  : ['rendezvous', 'cycle'],
-    sport     : ['sante'],
+    bienetre  : ['rendezvous', 'cycle', 'sante'],
+    sport     : [],
     profil    : ['profil', 'admin'],
     apropos   : ['faq', 'changelog']
 };
