@@ -2,7 +2,34 @@
 
 ---
 
-## v1.07 — 24-08-2026
+## v1.16 — 26-08-2026
+- fix : conseil cycle IA tronqué sur mobile — seuil porté de 120 à 220 caractères
+- fix : ajout `word-break:break-word;overflow-wrap:anywhere` sur le bloc conseil (social.js)
+- sw.js : CACHE_NAME bumped → `mydaily-cache-v1.16`
+
+---
+
+## v1.15 — 26-08-2026
+- fix : commentaires imbriqués — colonne `parent_id` + CASCADE DELETE (post_comments)
+- fix : `parent_id` string vs number → cast `Number(parent_id)` côté client (feed.js)
+- fix : input réponse prérempli avec texte parent → `inputEl.value = ''` avant focus (feed.js)
+- fix : crash mentions vides → `CASE WHEN array_length > 0` (routes/feed.js)
+- sw.js : CACHE_NAME bumped → `mydaily-cache-v1.15`
+
+---
+
+## v1.13 — 25-08-2026
+- fix : Push muet — `ON CONFLICT` invalide PostgreSQL → SELECT + UPDATE/INSERT explicite (routes/push.js)
+- fix : `sender_id` NULL dans notifications coucou/partage → ajout sender_id + envoyerPush() (routes/social.js)
+- fix : regex `resoudreMentions` trop gourmande + safeguard mentions null (routes/feed.js)
+- fix : `@tag` brut non cliquable → garde client + séparateur double espace (public/js/feed.js)
+- fix : décalage +1 jour la nuit → `_aujourdHuiLocal()` minuit local (public/js/cycle.js)
+- fix : endpoint FCM invalidé à chaque login → suppression `unsubscribe()` forcé (public/js/push.js)
+- sw.js : CACHE_NAME bumped → `mydaily-cache-v1.13`
+
+---
+
+## v1.08 — 24-08-2026
 - MODULE @TAG : suggestions utilisateurs temps réel à la saisie de `@` (posts + commentaires + édition)
 - feed.js : `initMentions()` — dropdown clavier/souris, insertion `@Prénom NOM`, debounce 200ms
 - feed.js : `renderContenuAvecMentions()` — rendu des mentions en `<span class="mention-tag">` cliquables
