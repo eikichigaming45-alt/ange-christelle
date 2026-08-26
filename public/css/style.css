@@ -35,14 +35,9 @@ input:focus{border-color:#7C3AED}
 .tab-pane{display:none;height:100%;overflow-y:auto}
 .tab-pane.active{display:flex;flex-direction:column}
 
-/* ===================== ONGLET ACCUEIL ===================== */
-/* .accueil-meteo-fixed  — SUPPRIMÉ : déclaration complète dans feed.css */
-/* .accueil-feed         — SUPPRIMÉ : déclaration complète dans feed.css */
+/* ===================== ACCUEIL ===================== */
 .meteo-accueil-card{padding:14px 20px;cursor:pointer;transition:background .15s;max-width:600px;margin:0 auto}
 .meteo-accueil-card:hover{background:#f8f5ff;border-radius:12px}
-
-/* ===================== FEED PLACEHOLDER ===================== */
-/* .feed-placeholder     — SUPPRIMÉ : déclaration complète dans feed.css */
 
 /* ===================== BOTTOM NAV ===================== */
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:#fff;border-top:1px solid #e5e7eb;display:flex;align-items:stretch;z-index:300;box-shadow:0 -2px 12px rgba(0,0,0,.08)}
@@ -56,6 +51,7 @@ input:focus{border-color:#7C3AED}
 .grid{flex:1;overflow-y:auto;padding:20px;padding-bottom:80px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-content:start}
 @media(max-width:700px){
   .grid{grid-template-columns:1fr !important;padding:12px;padding-bottom:80px;gap:12px}
+  .date-badge{display:none}
   .widget{min-width:0}
 }
 .widget{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .15s;position:relative;user-select:none;display:flex;flex-direction:column}
@@ -79,7 +75,7 @@ input:focus{border-color:#7C3AED}
 .w-meteo .wi{background:#e0f2fe}
 .w-priere .wi{background:#fef3c7}
 .w-taches .wi{background:#d1fae5}
-.w-rdv .wi{background:#ede9fe}
+.w-rdv .wi,.w-rendezvous .wi{background:#ede9fe}
 .w-planning .wi{background:#fee2e2}
 .w-anniversaires .wi{background:#fce7f3}
 .w-profil .wi{background:#f3f4f6}
@@ -87,9 +83,9 @@ input:focus{border-color:#7C3AED}
 .w-cycle .wi{background:#fce7f3}
 .w-islam .wi{background:#d1fae5}
 .w-profil .wc{width:100%}
-.w-profil .wi img{width:40px;height:40px;object-fit:cover;border-radius:50%}
+.w-profil .wi img,.icon-btn img{width:40px;height:40px;object-fit:cover;border-radius:50%}
 .widget.w-cycle{background:linear-gradient(135deg,#fff0f5 0%,#ffffff 100%)}
-.widget.w-rdv{background:linear-gradient(135deg,#f0f8ff 0%,#ffffff 100%)}
+.widget.w-rdv,.widget.w-rendezvous{background:linear-gradient(135deg,#f0f8ff 0%,#ffffff 100%)}
 .widget.w-anniversaires{background:linear-gradient(135deg,#fff5f9 0%,#ffffff 100%)}
 .widget.w-profil{background:linear-gradient(135deg,#f8f9fa 0%,#ffffff 100%)}
 .widget.w-islam{background:linear-gradient(135deg,#f0fdf4 0%,#ffffff 100%)}
@@ -105,16 +101,16 @@ input:focus{border-color:#7C3AED}
 .modal-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 
 /* ===================== BOUTONS GÉNÉRIQUES ===================== */
-.btn-save,.save-btn{flex:1;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
-.btn-save:hover,.save-btn:hover{background:#6D28D9}
+.btn-save,.save-btn,.add-btn{padding:10px 14px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
+.btn-save,.save-btn{flex:1}
+.add-btn{width:100%;margin-bottom:16px}
+.btn-save:hover,.save-btn:hover,.add-btn:hover{background:#6D28D9}
 .btn-delete,.danger-btn{padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
 .btn-delete:hover,.danger-btn:hover{background:#ef4444;color:#fff}
 .btn-cancel{padding:10px 14px;background:#f3f4f6;color:#666;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}
 .btn-cancel:hover{background:#e5e7eb}
 .btn-edit-small{background:none;border:none;cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;flex-shrink:0}
 .btn-edit-small:hover{background:#f3f4f6}
-.add-btn{width:100%;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px}
-.add-btn:hover{background:#6D28D9}
 
 /* ===================== FORMULAIRES GÉNÉRIQUES ===================== */
 .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
@@ -247,3 +243,9 @@ input:focus{border-color:#7C3AED}
 .cycle-histo-detail{display:block;font-size:11px;color:#666;margin-top:2px}
 .cycle-histo-notes{display:block;font-size:11px;color:#aaa;font-style:italic;margin-top:2px}
 .cycle-error{color:#ef4444}
+
+/* ===================== WIDGET CHOIX (opt-out) ===================== */
+.widget-choix-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6}
+.widget-choix-item:last-child{border-bottom:none}
+.widget-choix-label{display:flex;align-items:center;gap:8px;font-size:14px;color:#333;font-weight:500}
+.widget-choix-item input[type="checkbox"]{width:18px;height:18px;accent-color:#7C3AED;flex-shrink:0;margin:0}
