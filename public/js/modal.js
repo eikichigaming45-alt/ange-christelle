@@ -4,7 +4,8 @@
 // cycle, rendez-vous, planning, profil, admin, astrologie.
 // Onglet Profil : infos + heure/lieu naissance + géocodage.
 // Onglet Santé  : sexe, taille, poids, groupe sanguin,
-//                 niveau activité, signe zodiaque, IMC, TDEE.
+//                 niveau activité, objectif santé, signe zodiaque,
+//                 IMC, TDEE, kcal objectif.
 // Mobile : onglets profil en icônes seules.
 // ============================================================
 
@@ -215,6 +216,7 @@ async function openModal(type) {
             const imc      = calculerIMC(p.poids, p.taille);
             const imcInfos = interpreterIMC(imc);
             const tdee     = calculerTDEE(p.poids, p.taille, age, p.sexe, p.niveau_activite);
+            const kcalObj  = calculerKcalObjectif(tdee, p.objectif_sante);
 
             document.getElementById('modal-body').innerHTML = `
                 <style>
@@ -377,7 +379,7 @@ async function openModal(type) {
                                 <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Poids (kg)</label>
                                 <input id="p-poids" type="number" min="20" max="300" step="0.1" placeholder="65"
                                     value="${p.poids||''}"
-                                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                                                                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
                             </div>
                         </div>
                         <div style="margin-bottom:16px">
@@ -390,23 +392,37 @@ async function openModal(type) {
                                 ).join('')}
                             </select>
                         </div>
-                                                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Activité</div>
-                        <div style="margin-bottom:16px">
+
+                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                    letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Activité & Objectif</div>
+                        <div style="margin-bottom:10px">
                             <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Niveau d'activité</label>
                             <select id="p-niveau-activite"
                                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
                                 <option value="">— Non renseigné —</option>
-                                <option value="sedentaire"       ${p.niveau_activite === 'sedentaire'       ? 'selected' : ''}>Sédentaire</option>
-                                <option value="légèrement actif" ${p.niveau_activite === 'légèrement actif' ? 'selected' : ''}>Légèrement actif</option>
-                                <option value="modérément actif" ${p.niveau_activite === 'modérément actif' ? 'selected' : ''}>Modérément actif</option>
-                                <option value="très actif"       ${p.niveau_activite === 'très actif'       ? 'selected' : ''}>Très actif</option>
+                                <option value="sedentaire"       ${p.niveau_activite === 'sedentaire'       ? 'selected' : ''}>Sédentaire (bureau, peu de sport)</option>
+                                <option value="légèrement actif" ${p.niveau_activite === 'légèrement actif' ? 'selected' : ''}>Légèrement actif (1–3 séances/sem)</option>
+                                <option value="modérément actif" ${p.niveau_activite === 'modérément actif' ? 'selected' : ''}>Modérément actif (3–5 séances/sem)</option>
+                                <option value="très actif"       ${p.niveau_activite === 'très actif'       ? 'selected' : ''}>Très actif (6–7 séances/sem)</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom:16px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Objectif à atteindre</label>
+                            <select id="p-objectif-sante"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                                <option value="">— Non renseigné —</option>
+                                <option value="perte_rapide"   ${p.objectif_sante === 'perte_rapide'   ? 'selected' : ''}>🔥 Perte de poids rapide (−750 kcal/j)</option>
+                                <option value="perte_moderee"  ${p.objectif_sante === 'perte_moderee'  ? 'selected' : ''}>📉 Perte de poids modérée (−500 kcal/j)</option>
+                                <option value="perte_douce"    ${p.objectif_sante === 'perte_douce'    ? 'selected' : ''}>🌿 Perte de poids douce (−250 kcal/j)</option>
+                                <option value="maintien"       ${p.objectif_sante === 'maintien'       ? 'selected' : ''}>⚖️ Maintien du poids (0 kcal)</option>
+                                <option value="prise_douce"    ${p.objectif_sante === 'prise_douce'    ? 'selected' : ''}>💪 Prise de masse douce (+250 kcal/j)</option>
+                                <option value="prise_moderee"  ${p.objectif_sante === 'prise_moderee'  ? 'selected' : ''}>🏋️ Prise de masse modérée (+500 kcal/j)</option>
                             </select>
                         </div>
 
                         <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
                                     letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Calculs automatiques</div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
                             <div style="background:#fff;border-radius:12px;padding:14px;border:1.5px solid #e5e7eb;text-align:center">
                                 <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:8px">IMC</div>
                                 <div id="sante-imc-result">
@@ -422,10 +438,20 @@ async function openModal(type) {
                                 <div id="sante-tdee-result">
                                     ${tdee
                                         ? `<span style="font-size:22px;font-weight:700;color:#7c3aed">${tdee}</span>
-                                           <span style="font-size:12px;color:#9ca3af;display:block;margin-top:2px">kcal / jour</span>`
+                                           <span style="font-size:12px;color:#9ca3af;display:block;margin-top:2px">kcal / jour (maintien)</span>`
                                         : '<span style="color:#9ca3af;font-size:12px">Renseigne taille, poids, âge et sexe</span>'
                                     }
                                 </div>
+                            </div>
+                        </div>
+                        <div style="background:#fff;border-radius:12px;padding:14px;border:1.5px solid #e5e7eb;text-align:center;margin-bottom:16px">
+                            <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:8px">Kcal / jour — Objectif</div>
+                            <div id="sante-kcalobj-result">
+                                ${kcalObj
+                                    ? `<span style="font-size:22px;font-weight:700;color:${kcalObj.color}">${kcalObj.valeur}</span>
+                                       <span style="font-size:12px;color:${kcalObj.color};display:block;margin-top:2px">${kcalObj.label}</span>`
+                                    : '<span style="color:#9ca3af;font-size:12px">Renseigne un objectif et ton TDEE</span>'
+                                }
                             </div>
                         </div>
 
@@ -454,13 +480,13 @@ async function openModal(type) {
                             </div>
                         </div>
 
-                        <button onclick="sauvegarderProfil()"
+                        <button onclick="sauvegarderSante()"
                             style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);
                                    color:white;border:none;border-radius:12px;font-size:15px;
                                    font-weight:600;cursor:pointer;box-shadow:0 4px 10px rgba(16,185,129,0.3)">
                             💾 Sauvegarder la santé
                         </button>
-                        <div id="profil-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+                        <div id="sante-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
                     </div>
                 </div>
 
