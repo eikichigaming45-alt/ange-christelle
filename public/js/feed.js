@@ -486,8 +486,9 @@ async function chargerCommentaires(postId) {
         const racines  = d.comments.filter(c => !c.parent_id);
         const reponses = d.comments.filter(c => !!c.parent_id);
 
+        // FIX : Number() cast — pg retourne parent_id en string, c.id en number
         const html = racines.map(c => {
-            const reps = reponses.filter(r => r.parent_id === c.id);
+            const reps = reponses.filter(r => Number(r.parent_id) === Number(c.id));
             return `
                 ${renderComment(c, postId, false)}
                 ${reps.length ? `
@@ -538,7 +539,7 @@ function renderComment(c, postId, isReponse = false) {
            </div>`;
 
     return `
-        <div class="feed-comment${isReponse ? ' feed-comment-reply' : ''}"
+                <div class="feed-comment${isReponse ? ' feed-comment-reply' : ''}"
              id="comment-${c.id}" data-comment-id="${c.id}"
              style="display:flex;gap:8px;padding:8px 0;align-items:flex-start">
             ${avatar}
@@ -547,7 +548,7 @@ function renderComment(c, postId, isReponse = false) {
                     <span class="feed-comment-author"
                           style="font-size:13px;font-weight:700;color:#111;cursor:pointer"
                           onclick="ouvrirProfilPublic(${c.user_id})">
-                                                ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
+                        ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
                     </span>
                     <span class="feed-comment-date" style="font-size:11px;color:#9ca3af">${date}</span>
                     <div class="feed-comment-actions" style="display:flex;align-items:center;gap:4px;margin-left:auto">
@@ -592,7 +593,6 @@ function renderComment(c, postId, isReponse = false) {
 }
 
 // ── FORMULAIRE RÉPONSE ────────────────────────────────────────
-// FIX : inputEl.value = '' avant focus — évite fuite contenu parent
 function afficherFormulaireReponse(parentId, postId, nomAuteur) {
     document.querySelectorAll('[id^="reply-form-"]').forEach(el => el.innerHTML = '');
 
@@ -622,7 +622,7 @@ function afficherFormulaireReponse(parentId, postId, nomAuteur) {
     const inputEl = document.getElementById(`reply-input-${parentId}`);
     const wrapEl  = document.getElementById(`reply-wrap-${parentId}`);
     if (inputEl) {
-        inputEl.value = '';                          // ← FIX : vider avant focus
+        inputEl.value = ''; // FIX : vider avant focus
         inputEl.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -1053,7 +1053,7 @@ async function partagerPost(postId) {
         }
     } else {
         try {
-                        const urlACopier = photoUrl || location.origin;
+            const urlACopier = photoUrl || location.origin;
             await navigator.clipboard.writeText(`${text}\n${urlACopier}`);
             document.getElementById('modal-title').textContent = 'Lien copié';
             document.getElementById('modal-body').innerHTML = `
