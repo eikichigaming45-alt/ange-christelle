@@ -1,12 +1,5 @@
 // ============================================================
 // routes/profil.js
-// Gestion du profil utilisateur : lecture, écriture, mot de passe,
-// suppression photo, et préférences widgets (opt-out).
-// signe_zodiaque : saisi manuellement si pas de date_naissance.
-// Nouveaux champs : heure_naissance, lieu_naissance, taille,
-// poids, groupe_sanguin, niveau_activite, naissance_lat, naissance_lon,
-// objectif_sante.
-// Route abonnés : GET /api/profil/abonnes/:userId — soi uniquement.
 // ============================================================
 
 const express    = require('express');
