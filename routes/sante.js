@@ -105,6 +105,7 @@ Réponds UNIQUEMENT avec ce JSON, sans texte autour :
     });
 
     const raw = completion.choices[0].message.content.trim();
+console.log('[SANTE] raw Groq :', raw);
 
     // Parsing et validation du JSON retourné par Groq
     let plan;
