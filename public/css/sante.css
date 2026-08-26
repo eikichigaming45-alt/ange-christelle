@@ -165,3 +165,22 @@
     text-align: center;
     padding: 8px 0;
 }
+
+/* ===================== TOGGLE PLAN ======================== */
+.sante-plan-replie { display: none; }
+
+.sante-btn-toggle {
+    width: 100%;
+    padding: 8px;
+    background: none;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: background .15s;
+}
+
+.sante-btn-toggle:hover { background: #f3f4f6; }

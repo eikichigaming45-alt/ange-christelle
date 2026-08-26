@@ -3,8 +3,7 @@
 // Widget Santé — onglet Sport.
 // Calculs locaux : IMC, BMR (Mifflin-St Jeor), TDEE, macros,
 // kcal objectif. Affichage instantané depuis profilCache.
-// Groq : 1 appel/jour max — cache localStorage
-// clé : sante_plan_YYYY-MM-DD_<userId>
+// Groq : 1 appel/jour max — cache serveur (sante_plan_cache + sante_plan_date)
 // Pas de modale — tout est inline dans le widget.
 // Dépend de : app.js (getUser, profilCache)
 // ============================================================
@@ -59,7 +58,6 @@ function _kcalObjectif(tdee, objectif_sante) {
 
 function _macros(kcal, objectif_sante) {
     if (!kcal) return null;
-    // Répartition selon objectif : proteines / glucides / lipides
     const ratios = {
         perte_moderee     : { p: 0.35, g: 0.40, l: 0.25 },
         perte_rapide      : { p: 0.40, g: 0.35, l: 0.25 },
@@ -82,36 +80,6 @@ function _age(date_naissance) {
     let a       = today.getFullYear() - n.getFullYear();
     if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
     return a;
-}
-
-// ===================== CACHE GROQ ============================
-
-function _cacheKey(userId) {
-    const today = new Date().toISOString().split('T')[0];
-    return `sante_plan_${today}_${userId}`;
-}
-
-function _lireCache(userId) {
-    try {
-        const raw = localStorage.getItem(_cacheKey(userId));
-        if (!raw) return null;
-        const data = JSON.parse(raw);
-        // Vérification que la date correspond bien à aujourd'hui
-        const today = new Date().toISOString().split('T')[0];
-        if (data.date !== today) return null;
-        return data;
-    } catch { return null; }
-}
-
-function _ecrireCache(userId, plan, calories_cibles) {
-    try {
-        const today = new Date().toISOString().split('T')[0];
-        localStorage.setItem(_cacheKey(userId), JSON.stringify({
-            date: today,
-            plan,
-            calories_cibles
-        }));
-    } catch { /* silencieux */ }
 }
 
 // ===================== RENDU WIDGET ==========================
@@ -144,15 +112,36 @@ async function chargerWidgetSante() {
     }
 
     // ── Calculs locaux ────────────────────────────────────────
-    const age      = _age(p.date_naissance);
-    const imc      = _imc(p.poids, p.taille);
-    const imcCat   = _imcCategorie(imc);
-    const bmr      = _bmr(p.poids, p.taille, age, p.sexe);
-    const tdee     = _tdee(bmr, p.niveau_activite);
-    const kcal     = _kcalObjectif(tdee, p.objectif_sante);
-    const macros   = _macros(kcal, p.objectif_sante);
+    const age    = _age(p.date_naissance);
+    const imc    = _imc(p.poids, p.taille);
+    const imcCat = _imcCategorie(imc);
+    const bmr    = _bmr(p.poids, p.taille, age, p.sexe);
+    const tdee   = _tdee(bmr, p.niveau_activite);
+    const kcal   = _kcalObjectif(tdee, p.objectif_sante);
+    const macros = _macros(kcal, p.objectif_sante);
 
     const profilComplet = p.taille && p.poids && p.sexe && p.date_naissance && p.niveau_activite && p.objectif_sante;
+
+    // ── Vérification cache serveur ────────────────────────────
+    // Le serveur retourne cached:true si le plan du jour existe déjà en base
+    let planCache      = null;
+    let calesCache     = null;
+    let dejaCacheServeur = false;
+
+    if (profilComplet) {
+        try {
+            const rc = await fetch('/api/sante/plan', {
+                method  : 'POST',
+                headers : { 'Authorization': `Bearer ${user.token}` }
+            });
+            const dc = await rc.json();
+            if (dc.plan) {
+                planCache          = dc.plan;
+                calesCache         = dc.calories_cibles;
+                dejaCacheServeur   = !!dc.cached;
+            }
+        } catch {}
+    }
 
     // ── HTML calculs ──────────────────────────────────────────
     const htmlCalculs = `
@@ -200,15 +189,8 @@ async function chargerWidgetSante() {
         </div>
     `;
 
-    // ── Vérification cache Groq ───────────────────────────────
-    const cached = _lireCache(user.userId);
-
-    const htmlPlan = cached
-        ? _renderPlan(cached.plan, cached.calories_cibles)
-        : '<div id="sante-plan-zone"></div>';
-
-    const btnLabel = cached ? '🔄 Plan généré aujourd\'hui' : '✨ Générer mon plan du jour';
-    const btnDisabled = cached ? 'disabled style="opacity:.6;cursor:not-allowed"' : '';
+    // ── Zone plan — repliée par défaut si déjà générée ────────
+    const planHtml = planCache ? _renderPlan(planCache, calesCache) : '';
 
     el.innerHTML = `
         ${!profilComplet ? `
@@ -216,17 +198,45 @@ async function chargerWidgetSante() {
             ⚠️ Complète ton profil Santé pour activer tous les calculs.
         </div>` : ''}
         ${htmlCalculs}
-        <div id="sante-plan-zone">
-            ${cached ? _renderPlan(cached.plan, cached.calories_cibles) : ''}
-        </div>
         ${profilComplet ? `
-        <button id="btn-sante-groq" onclick="genererPlanSante()" ${btnDisabled}
-            class="sante-btn-groq">
-            ${btnLabel}
+        <button id="btn-sante-groq" onclick="genererPlanSante()"
+            class="sante-btn-groq"
+            ${planCache ? 'data-genere="1"' : ''}>
+            ${planCache ? '🔄 Plan généré aujourd\'hui' : '✨ Générer mon plan du jour'}
         </button>
         <div id="sante-groq-msg" style="font-size:12px;color:#9ca3af;text-align:center;margin-top:6px;min-height:16px"></div>
         ` : ''}
+        <div id="sante-plan-zone" class="sante-plan-replie">${planHtml}</div>
+        ${planCache ? `
+        <button class="sante-btn-toggle" id="btn-sante-toggle" onclick="togglePlanSante()">
+            ▲ Replier le plan
+        </button>` : ''}
     `;
+
+    // Si plan déjà là, déplier au chargement
+    if (planCache) _depilerPlan();
+}
+
+// ===================== TOGGLE PLAN ===========================
+
+function togglePlanSante() {
+    const zone = document.getElementById('sante-plan-zone');
+    const btn  = document.getElementById('btn-sante-toggle');
+    if (!zone || !btn) return;
+    const replie = zone.classList.contains('sante-plan-replie');
+    if (replie) {
+        _depilerPlan();
+    } else {
+        zone.classList.add('sante-plan-replie');
+        btn.textContent = '▼ Voir le plan du jour';
+    }
+}
+
+function _depilerPlan() {
+    const zone = document.getElementById('sante-plan-zone');
+    const btn  = document.getElementById('btn-sante-toggle');
+    if (zone) zone.classList.remove('sante-plan-replie');
+    if (btn)  btn.textContent = '▲ Replier le plan';
 }
 
 // ===================== RENDU PLAN GROQ =======================
@@ -235,7 +245,7 @@ function _renderPlan(plan, calories_cibles) {
     if (!plan) return '';
     return `
         <div class="sante-plan">
-            <div class="sante-plan-titre">🥗 Plan du jour — ${calories_cibles ? calories_cibles + ' kcal cibles' : ''}</div>
+            <div class="sante-plan-titre">🥗 Plan du jour${calories_cibles ? ' — ' + calories_cibles + ' kcal cibles' : ''}</div>
             <div class="sante-plan-section">🌅 Petit-déjeuner</div>
             <div class="sante-plan-contenu">${plan.repas?.petit_dejeuner || '—'}</div>
             <div class="sante-plan-section">🍎 Collation matin</div>
@@ -264,14 +274,17 @@ async function genererPlanSante() {
     const user = getUser();
     if (!user?.token) return;
 
-    // Vérification cache — sécurité supplémentaire côté client
-    const cached = _lireCache(user.userId);
-    if (cached) return;
-
     const btn = document.getElementById('btn-sante-groq');
     const msg = document.getElementById('sante-groq-msg');
+
+    // Si déjà généré aujourd'hui — toggle le plan au lieu de rappeler
+    if (btn?.dataset.genere === '1') {
+        togglePlanSante();
+        return;
+    }
+
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Génération en cours...'; }
-    if (msg) { msg.textContent = ''; }
+    if (msg) msg.textContent = '';
 
     try {
         const r = await fetch('/api/sante/plan', {
@@ -281,14 +294,27 @@ async function genererPlanSante() {
         const d = await r.json();
 
         if (d.plan) {
-            _ecrireCache(user.userId, d.plan, d.calories_cibles);
             const zone = document.getElementById('sante-plan-zone');
             if (zone) zone.innerHTML = _renderPlan(d.plan, d.calories_cibles);
+
+            // Afficher le bouton toggle s'il n'existe pas encore
+            if (!document.getElementById('btn-sante-toggle')) {
+                const toggleBtn       = document.createElement('button');
+                toggleBtn.id          = 'btn-sante-toggle';
+                toggleBtn.className   = 'sante-btn-toggle';
+                toggleBtn.textContent = '▲ Replier le plan';
+                toggleBtn.onclick     = togglePlanSante;
+                zone.insertAdjacentElement('afterend', toggleBtn);
+            }
+
+            _depilerPlan();
+
             if (btn) {
-                btn.textContent = '🔄 Plan généré aujourd\'hui';
-                btn.disabled    = true;
-                btn.style.opacity = '0.6';
-                btn.style.cursor  = 'not-allowed';
+                btn.textContent      = '🔄 Plan généré aujourd\'hui';
+                btn.dataset.genere   = '1';
+                btn.disabled         = false;
+                btn.style.opacity    = '';
+                btn.style.cursor     = '';
             }
         } else {
             if (msg) msg.textContent = '❌ ' + (d.error || 'Erreur lors de la génération.');

@@ -1,26 +1,29 @@
 // routes/sante.js
 // Module Santé — Plan repas + activités + conseil du jour via Groq
 // Endpoint : POST /api/sante/plan
-// Cache 1x/jour géré côté client (sante.js) — ce fichier ne gère pas le cache
+// Cache serveur : sante_plan_cache (jsonb) + sante_plan_date (date) dans profiles
+// 1 seul appel Groq/jour — partagé tous appareils
 
-const express            = require('express');
-const router             = express.Router();
-const { pool }           = require('../db/pool');
+const express               = require('express');
+const router                = express.Router();
+const { pool }              = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
-const Groq               = require('groq-sdk');
+const Groq                  = require('groq-sdk');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // POST /api/sante/plan
-// Récupère le profil de l'utilisateur, calcule BMR/TDEE/calories cibles
-// et génère via Groq un plan repas + activités + conseil du jour
+// Si un plan existe en base pour aujourd'hui, le retourne directement.
+// Sinon, appelle Groq, sauvegarde en base, retourne le plan.
 router.post('/plan', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const today  = new Date().toISOString().split('T')[0];
 
-    // Récupération des données nécessaires depuis profiles
+    // Récupération du profil + cache éventuel
     const result = await pool.query(
-      `SELECT sexe, date_naissance, taille, poids, niveau_activite, objectif_sante, allergies, aliments_exclus
+      `SELECT sexe, date_naissance, taille, poids, niveau_activite, objectif_sante,
+              allergies, aliments_exclus, sante_plan_cache, sante_plan_date
        FROM profiles WHERE user_id = \$1`,
       [userId]
     );
@@ -28,6 +31,14 @@ router.post('/plan', authenticateToken, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Profil introuvable' });
 
     const p = result.rows[0];
+
+    // Retour du cache si le plan du jour existe déjà en base
+    if (p.sante_plan_cache && p.sante_plan_date) {
+      const dateCache = new Date(p.sante_plan_date).toISOString().split('T')[0];
+      if (dateCache === today) {
+        return res.json({ plan: p.sante_plan_cache, calories_cibles: p.sante_plan_cache._calories_cibles || null, cached: true });
+      }
+    }
 
     // Vérification des champs obligatoires pour les calculs
     if (!p.taille || !p.poids || !p.sexe || !p.date_naissance || !p.niveau_activite || !p.objectif_sante) {
@@ -104,8 +115,9 @@ Réponds UNIQUEMENT avec ce JSON, sans texte autour :
       max_tokens : 800
     });
 
-    const raw = completion.choices[0].message.content.trim();
-console.log('[SANTE] raw Groq :', raw);
+    // Nettoyage de la réponse — suppression des blocs markdown éventuels
+    let raw = completion.choices[0].message.content.trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
 
     // Parsing et validation du JSON retourné par Groq
     let plan;
@@ -115,7 +127,15 @@ console.log('[SANTE] raw Groq :', raw);
       return res.status(500).json({ error: 'Réponse Groq invalide', raw });
     }
 
-    // Retourne le plan + les calories cibles pour affichage dans le widget
+    // Stockage des calories cibles dans le cache pour les retours suivants
+    plan._calories_cibles = cibles;
+
+    // Sauvegarde en base — écrase l'ancien cache
+    await pool.query(
+      `UPDATE profiles SET sante_plan_cache = \$1, sante_plan_date = \$2 WHERE user_id = \$3`,
+      [JSON.stringify(plan), today, userId]
+    );
+
     res.json({ plan, calories_cibles: cibles });
 
   } catch (err) {
