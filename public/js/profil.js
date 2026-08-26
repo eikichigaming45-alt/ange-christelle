@@ -538,9 +538,9 @@ async function afficherSectionWidgets() {
 
         container.innerHTML = tries.map(w => `
             <div class="widget-choix-item">
+                <label class="widget-choix-label" for="opt-${w.slug}">${w.icon} ${w.label}</label>
                 <input type="checkbox" id="opt-${w.slug}" value="${w.slug}"
                     ${widgetsCaches.includes(w.slug) ? '' : 'checked'}>
-                <label class="widget-choix-label" for="opt-${w.slug}">${w.icon} ${w.label}</label>
             </div>
         `).join('');
     } catch {
@@ -577,7 +577,7 @@ async function sauvegarderWidgetsVisibles() {
             msg.textContent = '❌ Erreur serveur.';
             msg.style.color = '#ef4444';
         }
-        } catch {
+    } catch {
         msg.textContent = '❌ Erreur réseau.';
         msg.style.color = '#ef4444';
     }
