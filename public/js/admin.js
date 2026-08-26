@@ -1,346 +1,605 @@
-/* ===================== BASE ===================== */
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(180deg,#F3E8FF 0%,#D8B4FE 100%) fixed;min-height:100vh;display:flex;justify-content:center;align-items:center}
+// ============================================================
+// public/js/admin.js
+// Dashboard admin : widget, modale stats/users, CRUD users.
+// Authentification : JWT Bearer uniquement — plus d'adminId.
+// Dépend de : app.js (getUser), profil.js (validerMotDePasse)
+// B.6 — message suppression iso : "Confirmer la suppression ?"
+// ============================================================
 
-/* ===================== LOGIN ===================== */
-.login-card{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);width:100%;max-width:380px;text-align:center;align-self:center;display:flex;flex-direction:column;align-items:center}
-.login-card h1{color:#7C3AED;font-size:24px;margin-bottom:8px}
-.login-card p{color:#888;font-size:14px;margin-bottom:28px}
-input{width:100%;padding:14px;margin-bottom:16px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;outline:none;transition:border-color .2s}
-input:focus{border-color:#7C3AED}
-.btn{width:100%;padding:14px;background:#7C3AED;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
-.btn:hover{background:#6D28D9}
-#error-msg{color:#ef4444;margin-top:14px;font-size:14px;min-height:20px}
+// ===================== WIDGET ADMIN (dashboard) ==============
 
-/* ===================== PASSWORD TOGGLE ===================== */
-.pwd-wrapper{position:relative;width:100%;margin-bottom:16px}
-.pwd-wrapper input{width:100%;margin-bottom:0;padding-right:44px}
-.pwd-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9ca3af;padding:4px;line-height:1;-webkit-tap-highlight-color:transparent}
-.pwd-toggle:hover{color:#7C3AED}
-
-/* ===================== APP LAYOUT ===================== */
-#app{display:none;flex-direction:column;width:100vw;min-height:100vh;background:#f3f4f6;overflow-x:hidden}
-.topbar{background:#7C3AED;color:#fff;padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;position:sticky;top:0;z-index:200}
-.topbar-left{display:flex;align-items:center;gap:12px}
-.topbar-left h2{font-size:18px;font-weight:700;cursor:pointer;user-select:none}
-.topbar-left h2:hover{opacity:.85}
-.date-badge{background:rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px}
-.topbar-right{display:flex;align-items:center;gap:10px}
-.icon-btn{background:rgba(255,255,255,.2);border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s;overflow:hidden;padding:0}
-.icon-btn:hover{background:rgba(255,255,255,.35)}
-.icon-btn img{width:38px;height:38px;object-fit:cover;border-radius:50%}
-
-/* ===================== TAB PANES ===================== */
-.tab-content-wrap{flex:1;overflow:hidden;position:relative}
-.tab-pane{display:none;height:100%;overflow-y:auto}
-.tab-pane.active{display:flex;flex-direction:column}
-
-/* ===================== ONGLET ACCUEIL ===================== */
-.accueil-meteo-fixed{background:#fff;border-bottom:1px solid #e5e7eb;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-.meteo-accueil-card{padding:14px 20px;cursor:pointer;transition:background .15s;max-width:600px;margin:0 auto}
-.meteo-accueil-card:hover{background:#f8f5ff;border-radius:12px}
-.accueil-feed{flex:1;overflow-y:auto;padding:16px;padding-bottom:80px;display:flex;flex-direction:column;gap:16px;background:#f3f4f6}
-
-/* ===================== FEED PLACEHOLDER ===================== */
-.feed-placeholder{display:flex;align-items:center;justify-content:center;min-height:200px;color:#9ca3af;font-size:15px;font-weight:600;background:#fff;border-radius:16px;border:2px dashed #e5e7eb}
-
-/* ===================== BOTTOM NAV ===================== */
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:#fff;border-top:1px solid #e5e7eb;display:flex;align-items:stretch;z-index:300;box-shadow:0 -2px 12px rgba(0,0,0,.08)}
-.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 4px;transition:color .15s;color:#9ca3af;-webkit-tap-highlight-color:transparent;position:relative}
-.bn-item.active{color:#7C3AED}
-.bn-item.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:3px;background:#7C3AED;border-radius:3px 3px 0 0}
-.bn-icon{font-size:20px;line-height:1}
-.bn-label{font-size:10px;font-weight:600;line-height:1}
-
-/* ===================== GRID & WIDGETS ===================== */
-.grid{flex:1;overflow-y:auto;padding:20px;padding-bottom:80px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-content:start}
-@media(max-width:700px){
-  .grid{grid-template-columns:1fr !important;padding:12px;padding-bottom:80px;gap:12px}
-  .widget{min-width:0}
+async function chargerWidgetAdmin() {
+    const user = getUser();
+    if (!user?.token || user.role !== 'admin') return;
+    const el = document.getElementById('wc-admin');
+    if (!el) return;
+    try {
+        const r = await fetch('/api/admin/stats', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) { el.innerHTML = '<p class="wa-error">Erreur serveur</p>'; return; }
+        el.innerHTML = `
+            <div class="wa-stats-row">
+                <div class="wa-stat wa-stat-blue">
+                    <div class="wa-stat-val">${d.totalUsers}</div>
+                    <div class="wa-stat-lbl">Utilisateurs</div>
+                </div>
+                <div class="wa-stat wa-stat-purple">
+                    <div class="wa-stat-val">${d.actifsRecents}</div>
+                    <div class="wa-stat-lbl">Actifs 7j</div>
+                </div>
+                <div class="wa-stat wa-stat-green">
+                    <div class="wa-stat-val">${d.profilsRemplis}</div>
+                    <div class="wa-stat-lbl">Profils</div>
+                </div>
+                <div class="wa-stat wa-stat-orange">
+                    <div class="wa-stat-val">${d.jamaisConnectes}</div>
+                    <div class="wa-stat-lbl">Inactifs</div>
+                </div>
+            </div>
+            <div class="wa-activity-title">Dernières connexions</div>
+            ${(d.lastLogins || []).map(u => {
+                const initiale  = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
+                const affichage = (u.prenom && u.nom)
+                    ? u.prenom + ' ' + u.nom.toUpperCase()
+                    : u.username;
+                return `
+                <div class="wa-activity-row">
+                    <div class="wa-avatar ${u.role === 'admin' ? 'wa-avatar-admin' : 'wa-avatar-user'}">${initiale}</div>
+                    <div class="wa-username">${affichage}</div>
+                    <span class="wa-badge ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>
+                    <div class="wa-date">${u.lastLogin ? _formatDateRelative(u.lastLogin) : '<span style="color:#d1d5db">Jamais</span>'}</div>
+                </div>`;
+            }).join('')}
+        `;
+    } catch {
+        el.innerHTML = '<p class="wa-error">Erreur réseau</p>';
+    }
 }
-.widget{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07);cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .15s;position:relative;user-select:none;display:flex;flex-direction:column}
-.widget:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
-.widget.dragging{opacity:.35;transform:scale(.96);box-shadow:0 2px 8px rgba(0,0,0,.1);cursor:grabbing}
-.widget.drag-over{outline:3px dashed #7C3AED;outline-offset:3px;background:#f5f3ff;transform:translateY(-2px)}
-.drag-handle{position:absolute;top:12px;right:44px;color:#d1d5db;font-size:15px;cursor:grab;padding:4px 6px;border-radius:4px;line-height:1;opacity:0;transition:opacity .15s}
-.widget:hover .drag-handle{opacity:1}
-.drag-handle:hover{color:#6b7280;background:#f3f4f6}
-.wh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.whl{display:flex;align-items:center;gap:10px}
-.wi{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden;flex-shrink:0}
-.wi img{width:40px;height:40px;object-fit:cover;border-radius:50%}
-.wt{font-weight:700;font-size:15px;color:#333}
-.wc{color:#666;font-size:14px;line-height:1.5;flex:1}
-.wf{margin-top:12px;font-size:12px;color:#9ca3af;text-align:right;white-space:normal;word-break:break-word}
-.rbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;border-radius:4px}
-.rbtn:hover{background:#f3f4f6}
 
-/* Widget couleurs */
-.w-meteo .wi{background:#e0f2fe}
-.w-priere .wi{background:#fef3c7}
-.w-taches .wi{background:#d1fae5}
-.w-rdv .wi{background:#ede9fe}
-.w-planning .wi{background:#fee2e2}
-.w-anniversaires .wi{background:#fce7f3}
-.w-profil .wi{background:#f3f4f6}
-.w-admin .wi{background:#fef3c7}
-.w-cycle .wi{background:#fce7f3}
-.w-islam .wi{background:#d1fae5}
-.w-profil .wc{width:100%}
-.w-profil .wi img{width:40px;height:40px;object-fit:cover;border-radius:50%}
-.widget.w-cycle{background:linear-gradient(135deg,#fff0f5 0%,#ffffff 100%)}
-.widget.w-rdv{background:linear-gradient(135deg,#f0f8ff 0%,#ffffff 100%)}
-.widget.w-anniversaires{background:linear-gradient(135deg,#fff5f9 0%,#ffffff 100%)}
-.widget.w-profil{background:linear-gradient(135deg,#f8f9fa 0%,#ffffff 100%)}
-.widget.w-islam{background:linear-gradient(135deg,#f0fdf4 0%,#ffffff 100%)}
+// ===================== UTILITAIRES DATE ======================
 
-/* ===================== OVERLAY & MODAL ===================== */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center}
-.overlay.on{display:flex}
-.modal{background:#fff;border-radius:20px;padding:30px;width:90%;max-width:560px;max-height:88vh;overflow-y:auto;position:relative}
-.modal h3{font-size:20px;color:#333;margin-bottom:16px}
-.modal p{color:#666;font-size:15px;line-height:1.6}
-.mclos{position:absolute;top:16px;right:16px;background:#f3f4f6;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px}
-.mclos:hover{background:#e5e7eb}
-.modal-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+function _formatDateRelative(dateStr) {
+    if (!dateStr) return '—';
+    const date    = new Date(dateStr);
+    const now     = new Date();
+    const diffMs  = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffH   = Math.floor(diffMs / 3600000);
+    const diffJ   = Math.floor(diffMs / 86400000);
+    if (diffMin < 2)  return '<span style="color:#10b981;font-weight:700">À l\'instant</span>';
+    if (diffMin < 60) return `<span style="color:#10b981;font-weight:600">Il y a ${diffMin} min</span>`;
+    if (diffH < 24)   return `<span style="color:#f59e0b;font-weight:600">Il y a ${diffH}h</span>`;
+    if (diffJ === 1)  return '<span style="color:#6b7280">Hier</span>';
+    if (diffJ < 7)    return `<span style="color:#6b7280">Il y a ${diffJ} jours</span>`;
+    return `<span style="color:#9ca3af">${date.toLocaleDateString('fr-FR')}</span>`;
+}
 
-/* ===================== BOUTONS GÉNÉRIQUES ===================== */
-.btn-save,.save-btn{flex:1;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
-.btn-save:hover,.save-btn:hover{background:#6D28D9}
-.btn-delete,.danger-btn{padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
-.btn-delete:hover,.danger-btn:hover{background:#ef4444;color:#fff}
-.btn-cancel{padding:10px 14px;background:#f3f4f6;color:#666;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}
-.btn-cancel:hover{background:#e5e7eb}
-.btn-edit-small{background:none;border:none;cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;flex-shrink:0}
-.btn-edit-small:hover{background:#f3f4f6}
-.add-btn{width:100%;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px}
-.add-btn:hover{background:#6D28D9}
+function _formatDateComplete(dateStr) {
+    if (!dateStr) return 'Jamais';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        + ' à ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
 
-/* ===================== FORMULAIRES GÉNÉRIQUES ===================== */
-.form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-.form-row input,.form-row select{flex:1;min-width:100px;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;margin:0;background:#fff}
-.form-row input:focus,.form-row select:focus{border-color:#7C3AED}
-.section-title{font-size:13px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
-.separateur{border:none;border-top:2px solid #f3f4f6;margin:20px 0}
-.photo-circle{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #7C3AED;cursor:pointer;display:block;margin:0 auto 8px}
-.initiales{width:96px;height:96px;border-radius:50%;background:#7C3AED;color:#fff;font-size:32px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer}
+// ===================== MODALE ADMIN — STATS ==================
 
-/* ===================== LISTE ITEMS GÉNÉRIQUES ===================== */
-.liste-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px}
-.liste-item.faite{opacity:.5}
-.liste-item.faite .item-titre{text-decoration:line-through}
-.item-check{width:20px;height:20px;border-radius:50%;border:2px solid #7C3AED;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff}
-.item-check.checked{background:#7C3AED;border-color:#7C3AED;color:#fff}
-.item-info{flex:1;min-width:0}
-.item-titre{font-weight:600;font-size:14px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item-meta{font-size:12px;color:#9ca3af;margin-top:2px}
-.item-del{background:none;border:none;cursor:pointer;color:#d1d5db;font-size:16px;padding:4px;flex-shrink:0}
-.item-del:hover{color:#ef4444}
-.badge-today{display:inline-block;background:#fef3c7;color:#d97706;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;margin-left:6px}
-.badge-recur{display:inline-block;background:#d1fae5;color:#059669;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;margin-left:4px}
+async function chargerAdminStats() {
+    const user = getUser();
+    const el   = document.getElementById('admin-tab-stats');
+    if (!el) return;
+    el.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
+    try {
+        const r = await fetch('/api/admin/stats', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) { el.innerHTML = `<p style="color:#ef4444">${d.message}</p>`; return; }
 
-/* ===================== CROP PHOTO ===================== */
-.crop-container{width:100%;max-height:300px;overflow:hidden;border-radius:10px;margin-bottom:12px;background:#000}
-.crop-container img{max-width:100%;display:block}
-.crop-actions{display:flex;gap:8px;margin-bottom:12px}
-.crop-actions button{flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}
-.btn-crop-ok{background:#7C3AED;color:#fff}
-.btn-crop-ok:hover{background:#6D28D9}
-.btn-crop-cancel{background:#f3f4f6;color:#666}
-.btn-crop-cancel:hover{background:#e5e7eb}
+        const tauxProfils = d.totalUsers > 0
+            ? Math.round((d.profilsRemplis / d.totalUsers) * 100)
+            : 0;
 
-/* ===================== WIDGET PROFIL ===================== */
-.profil-widget{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;width:100%}
-.profil-widget-photo{width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid #7C3AED;flex-shrink:0}
-.profil-widget-initiales{width:64px;height:64px;border-radius:50%;background:#7C3AED;color:#fff;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.profil-widget-nom{font-size:14px;font-weight:700;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
-.profil-widget-info{font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
-.profil-widget-bio{font-size:12px;color:#9ca3af;line-height:1.4;max-width:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.profil-widget-btn{padding:7px 18px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:4px}
-.profil-widget-btn:hover{background:#6D28D9}
+        el.innerHTML = `
+            <div class="as-section-title">Utilisateurs</div>
+            <div class="as-cards-grid">
+                <div class="as-card as-card-blue">
+                    <div class="as-card-icon">👥</div>
+                    <div class="as-card-val">${d.totalUsers}</div>
+                    <div class="as-card-lbl">Total</div>
+                </div>
+                <div class="as-card as-card-purple">
+                    <div class="as-card-icon">⚙️</div>
+                    <div class="as-card-val">${d.totalAdmins}</div>
+                    <div class="as-card-lbl">Admins</div>
+                </div>
+                <div class="as-card as-card-green">
+                    <div class="as-card-icon">🟢</div>
+                    <div class="as-card-val">${d.actifsRecents}</div>
+                    <div class="as-card-lbl">Actifs 7j</div>
+                </div>
+                <div class="as-card as-card-red">
+                    <div class="as-card-icon">💤</div>
+                    <div class="as-card-val">${d.jamaisConnectes}</div>
+                    <div class="as-card-lbl">Jamais connectés</div>
+                </div>
+            </div>
+            <div class="as-progress-bloc">
+                <div class="as-progress-header">
+                    <span class="as-progress-label">Profils remplis</span>
+                    <span class="as-progress-pct">${d.profilsRemplis}/${d.totalUsers} — ${tauxProfils}%</span>
+                </div>
+                <div class="as-progress-bar">
+                    <div class="as-progress-fill as-fill-blue" style="width:${tauxProfils}%"></div>
+                </div>
+            </div>
+            <div class="as-section-title" style="margin-top:20px">Activité globale</div>
+            <div class="as-activity-bloc">
+                <div class="as-activity-row">
+                    <span class="as-activity-icon">✅</span>
+                    <span class="as-activity-label">Tâches complétées</span>
+                    <span class="as-activity-val">${d.tachesFaites} / ${d.totalTaches}</span>
+                </div>
+                <div class="as-activity-row">
+                    <span class="as-activity-icon">📅</span>
+                    <span class="as-activity-label">Rendez-vous enregistrés</span>
+                    <span class="as-activity-val">${d.totalRdv}</span>
+                </div>
+                <div class="as-activity-row">
+                    <span class="as-activity-icon">🎂</span>
+                    <span class="as-activity-label">Anniversaires enregistrés</span>
+                    <span class="as-activity-val">${d.totalAnniversaires}</span>
+                </div>
+                <div class="as-activity-row">
+                    <span class="as-activity-icon">🌸</span>
+                    <span class="as-activity-label">Entrées journal cycle</span>
+                    <span class="as-activity-val">${d.totalCycles}</span>
+                </div>
+            </div>
+            <div class="as-section-title" style="margin-top:20px">Dernières connexions</div>
+            <div class="as-logins-list">
+                ${(d.lastLogins || []).map(u => {
+                    const initiale  = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
+                    const affichage = (u.prenom && u.nom)
+                        ? u.prenom + ' ' + u.nom.toUpperCase()
+                        : u.username;
+                    return `
+                    <div class="as-login-row">
+                        <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}">${initiale}</div>
+                        <div class="as-login-info">
+                            <div class="as-login-name">${affichage}
+                                <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
+                            </div>
+                            <div class="as-login-date">${u.lastLogin ? _formatDateComplete(u.lastLogin) : 'Jamais connecté'}</div>
+                        </div>
+                        <div class="as-login-relative">${_formatDateRelative(u.lastLogin)}</div>
+                    </div>`;
+                }).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune connexion.</p>'}
+            </div>
+        `;
+    } catch {
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
+    }
+}
 
-/* ===================== WIDGET TÂCHES ===================== */
-.tache-widget-liste{display:flex;flex-direction:column;gap:4px}
-.tache-widget-section{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 2px}
-.tache-widget-item{display:flex;align-items:center;gap:8px;padding:3px 0}
-.tache-widget-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.tache-dot-today{background:#059669}
-.tache-dot-futur{background:#6b7280}
-.tache-dot-flott{background:#d1d5db}
-.tache-widget-titre{font-size:13px;color:#333;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tache-widget-date{font-size:11px;color:#9ca3af;white-space:nowrap;flex-shrink:0}
+// ===================== MODALE ADMIN — UTILISATEURS ===========
 
-/* ===================== WIDGET MÉTÉO ===================== */
-.meteo-badge{background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px}
-.ville-form{display:flex;gap:8px;margin-top:16px}
-.ville-form input{flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin:0}
-.ville-form button{padding:10px 16px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;width:auto}
-.geo-btn{width:100%;margin-top:8px;padding:10px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px}
+async function chargerAdminUsers() {
+    const user = getUser();
+    const el   = document.getElementById('admin-tab-users');
+    if (!el) return;
+    el.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
+    try {
+        const r = await fetch('/api/admin/users', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) { el.innerHTML = `<p style="color:#ef4444">${d.message}</p>`; return; }
+        window._adminUsersCache = d.users || [];
+        _renderAdminUsers();
+    } catch {
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
+    }
+}
 
-/* ===================== WIDGET PRIÈRE ===================== */
-.priere-txt{color:#444;font-size:16px;line-height:1.8;font-style:italic}
-.priere-ref{color:#7C3AED;font-size:14px;font-weight:700;font-style:normal;margin-top:14px;display:block}
-.priere-modal{display:flex;flex-direction:column;gap:12px}
-.priere-titre-jour{font-size:15px;font-weight:700;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:10px;border-left:4px solid #d97706}
-.priere-section-label{font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.5px}
-.priere-texte-complet{font-size:13px;color:#444;line-height:1.7;font-style:italic;max-height:220px;overflow-y:auto;padding-right:4px}
-.priere-texte-complet::-webkit-scrollbar{width:3px}
-.priere-texte-complet::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:2px}
-.priere-lecture1{border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;background:#f9fafb}
-.priere-lecture1 summary{font-weight:600;color:#555;cursor:pointer;font-size:13px}
-.priere-lecture1 .priere-texte-complet{max-height:150px}
-.priere-source{font-size:11px;color:#9ca3af;text-align:right;margin-top:4px}
+function _renderAdminUsers() {
+    const el = document.getElementById('admin-tab-users');
+    if (!el) return;
+    el.innerHTML = `
+        <form autocomplete="off" onsubmit="return false" style="margin-bottom:12px">
+            <input type="text" id="admin-search"
+                placeholder="🔍 Rechercher un utilisateur..."
+                oninput="_filtrerAdminUsers()"
+                autocomplete="off"
+                style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;background:#f8fafc">
+        </form>
+        <button onclick="_toggleCreerForm()" id="btn-creer-user"
+            style="width:100%;padding:11px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+                   color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;
+                   cursor:pointer;margin-bottom:12px;display:flex;align-items:center;
+                   justify-content:center;gap:6px">
+            ➕ Créer un utilisateur
+        </button>
+        <div id="admin-creer-form" style="display:none;background:#f8fafc;border-radius:12px;
+             padding:16px;margin-bottom:12px;border:1.5px solid #e5e7eb">
+            <div style="font-size:13px;font-weight:700;color:#1e1b4b;margin-bottom:12px">Nouveau compte</div>
+            <input type="text" id="new-username" placeholder="Nom d'utilisateur"
+                autocomplete="off" name="new-username-field"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
+            <input type="text" id="new-password-fake"
+                style="display:none;position:absolute;left:-9999px" aria-hidden="true">
+            <input type="password" id="new-password"
+                autocomplete="new-password" name="new-password-field"
+                placeholder="8 car. min · majuscule · minuscule · chiffre · spécial"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
+            <select id="new-role"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;background:#fff">
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+            </select>
+            <button onclick="creerUser()" class="ua-btn ua-btn-blue"
+                style="width:100%;padding:10px;font-size:13px;justify-content:center">
+                ✓ Créer l'utilisateur
+            </button>
+            <div id="create-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+        </div>
+        <div id="admin-users-liste"></div>
+    `;
+    setTimeout(() => {
+        const s = document.getElementById('admin-search');
+        if (s) s.value = '';
+        _filtrerAdminUsers();
+    }, 50);
+}
 
-/* ===================== WIDGET ISLAM ===================== */
-.islam-prochaine{display:flex;flex-direction:column;align-items:center;background:linear-gradient(135deg,#059669,#10b981);border-radius:12px;padding:12px 16px;color:#fff;text-align:center}
-.islam-prochaine-label{font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
-.islam-prochaine-nom{font-size:18px;font-weight:800;margin:2px 0}
-.islam-prochaine-heure{font-size:28px;font-weight:900;line-height:1}
-.islam-prieres-row{display:flex;gap:4px;justify-content:space-between}
-.islam-mini-priere{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:8px;background:#f0fdf4;flex:1;transition:background .2s}
-.islam-mini-actif{background:#d1fae5;outline:2px solid #10b981}
-.islam-mini-nom{font-size:9px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.3px}
-.islam-mini-heure{font-size:11px;font-weight:700;color:#1e3a2f}
-.islam-hadith-apercu{font-size:12px;color:#6b7280;font-style:italic;border-left:3px solid #10b981;padding-left:8px;line-height:1.5}
-.islam-modal{display:flex;flex-direction:column;gap:16px}
-.islam-modal-header{text-align:center}
-.islam-modal-date{font-size:13px;color:#9ca3af;font-weight:600}
-.islam-modal-titre-section{font-size:11px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.islam-modal-prieres{background:#f0fdf4;border-radius:12px;padding:14px}
-.islam-modal-priere-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #d1fae5}
-.islam-modal-priere-row:last-child{border-bottom:none}
-.islam-modal-priere-actif{background:#d1fae5;border-radius:8px;padding:10px 8px;margin:0 -8px}
-.islam-modal-priere-nom{flex:1;font-size:14px;font-weight:600;color:#1e3a2f}
-.islam-modal-priere-heure{font-size:15px;font-weight:800;color:#059669}
-.islam-modal-priere-badge{font-size:10px;background:#059669;color:#fff;padding:2px 8px;border-radius:12px;font-weight:700;margin-left:6px}
-.islam-modal-hadith{background:#fefce8;border-radius:12px;padding:14px;border-left:4px solid #ca8a04}
-.islam-modal-hadith-arabe{font-size:16px;color:#1e3a2f;text-align:right;line-height:2;margin-bottom:8px;font-family:serif}
-.islam-modal-hadith-fr{font-size:13px;color:#555;font-style:italic;line-height:1.6}
-.islam-modal-hadith-ref{font-size:11px;color:#9ca3af;margin-top:6px;text-align:right}
-.islam-modal-doua{background:#f5f3ff;border-radius:12px;padding:14px;border-left:4px solid #7c3aed}
-.islam-modal-doua-arabe{font-size:15px;color:#1e3a2f;text-align:right;line-height:2;margin-bottom:8px;font-family:serif}
-.islam-modal-doua-fr{font-size:13px;color:#555;font-style:italic;line-height:1.6}
+function _toggleCreerForm() {
+    const f = document.getElementById('admin-creer-form');
+    const b = document.getElementById('btn-creer-user');
+    if (!f || !b) return;
+    const visible = f.style.display !== 'none';
+    f.style.display = visible ? 'none' : 'block';
+    b.innerHTML     = visible ? '➕ Créer un utilisateur' : '✕ Fermer';
+    if (!visible) {
+        setTimeout(() => {
+            const u = document.getElementById('new-username');
+            const p = document.getElementById('new-password');
+            const r = document.getElementById('new-role');
+            const m = document.getElementById('create-msg');
+            if (u) u.value = '';
+            if (p) p.value = '';
+            if (r) r.value = 'user';
+            if (m) m.textContent = '';
+            if (u) u.focus();
+        }, 50);
+    }
+}
 
-/* ===================== WIDGET CYCLE ===================== */
-.widget-cycle{display:flex;flex-direction:column;gap:10px}
-.cycle-phase{display:flex;align-items:center;gap:12px;background:#fff;padding:12px 14px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-.cycle-phase-emoji{font-size:24px;flex-shrink:0}
-.cycle-phase-label{font-weight:600;font-size:14px;color:#333}
-.cycle-phase-sub{font-size:12px;color:#666;margin-top:2px}
-.cycle-infos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.cycle-info-item{display:flex;align-items:flex-start;gap:6px;background:#faf5f7;padding:8px 10px;border-radius:8px}
-.cycle-info-icon{font-size:14px;flex-shrink:0;margin-top:2px}
-.cycle-info-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.3px;line-height:1.3;word-break:break-word}
-.cycle-info-value{font-size:11px;font-weight:600;color:#333;margin-top:2px;line-height:1.4}
-.cycle-progress-wrap{background:#fff;padding:10px 12px;border-radius:8px}
-.cycle-progress-label{font-size:11px;color:#666;margin-bottom:6px}
-.cycle-progress-bar{height:6px;background:#f0e0ea;border-radius:3px;overflow:hidden}
-.cycle-progress-fill{height:100%;border-radius:3px;transition:width .4s ease}
-.cycle-actions{display:flex;gap:8px}
-.btn-cycle-primary{flex:1;background:#e83e8c;color:#fff;border:none;padding:9px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;transition:background .2s}
-.btn-cycle-primary:hover{background:#d63384}
-.btn-cycle-secondary{background:#f8f9fa;color:#555;border:1px solid #ddd;padding:9px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;transition:background .2s}
-.btn-cycle-secondary:hover{background:#e9ecef}
-.cycle-historique{display:flex;flex-direction:column;gap:2px}
-.cycle-historique-item{display:flex;justify-content:space-between;align-items:center;padding:10px 6px;border-bottom:1px solid #f3f4f6}
-.cycle-historique-item:last-child{border-bottom:none}
-.cycle-histo-detail{display:block;font-size:11px;color:#666;margin-top:2px}
-.cycle-histo-notes{display:block;font-size:11px;color:#aaa;font-style:italic;margin-top:2px}
-.cycle-error{color:#ef4444}
+function _filtrerAdminUsers() {
+    const q     = (document.getElementById('admin-search')?.value || '').toLowerCase().trim();
+    const users = (window._adminUsersCache || [])
+        .filter(u =>
+            !q
+            || u.username.toLowerCase().includes(q)
+            || (u.prenom && u.prenom.toLowerCase().includes(q))
+            || (u.nom    && u.nom.toLowerCase().includes(q))
+        )
+        .sort((a, b) => {
+            if (a.role === 'admin' && b.role !== 'admin') return -1;
+            if (a.role !== 'admin' && b.role === 'admin') return  1;
+            const nomA    = (a.nom    || a.username).toLowerCase();
+            const nomB    = (b.nom    || b.username).toLowerCase();
+            const prenomA = (a.prenom || '').toLowerCase();
+            const prenomB = (b.prenom || '').toLowerCase();
+            if (nomA !== nomB) return nomA.localeCompare(nomB, 'fr');
+            return prenomA.localeCompare(prenomB, 'fr');
+        });
+    const el = document.getElementById('admin-users-liste');
+    if (!el) return;
+    el.innerHTML = users.length ? users.map(u => {
+        const initiale  = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
+        const affichage = (u.prenom && u.nom)
+            ? u.prenom + ' ' + u.nom.toUpperCase()
+            : u.username;
+        return `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;
+                    border:1px solid #e5e7eb;border-radius:10px;margin-bottom:8px">
+            <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}"
+                 style="width:36px;height:36px;font-size:15px;flex-shrink:0">${initiale}</div>
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;color:#1e1b4b;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    ${affichage}
+                    <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
+                </div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px">
+                    ${u.lastLogin
+                        ? _formatDateComplete(u.lastLogin) + ' — ' + _formatDateRelative(u.lastLogin)
+                        : 'Jamais connecté'}
+                </div>
+            </div>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+                <button class="au-btn au-btn-role" title="${u.role === 'admin' ? 'Passer user' : 'Passer admin'}"
+                    onclick="adminToggleRole(${u.id},'${u.role}')">${u.role === 'admin' ? '↓' : '↑'}</button>
+                <button class="au-btn au-btn-key"  title="Changer MDP"
+                    onclick="adminResetPwd(${u.id},'${u.username}')">🔑</button>
+                <button class="au-btn au-btn-edit" title="Éditer"
+                    onclick="adminEditerProfil(${u.id},'${u.username}')">✏️</button>
+                <button class="au-btn au-btn-del"  title="Supprimer"
+                    onclick="adminSupprimerUser(${u.id},'${u.username}')">🗑️</button>
+            </div>
+        </div>`;
+    }).join('') : '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucun résultat.</p>';
+}
 
-/* ===================== ADMIN — WIDGET DASHBOARD ===================== */
-.wa-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
-.wa-stat{border-radius:12px;padding:12px 8px;text-align:center}
-.wa-stat-blue{background:#eff6ff}
-.wa-stat-purple{background:#f5f3ff}
-.wa-stat-green{background:#f0fdf4}
-.wa-stat-orange{background:#fff7ed}
-.wa-stat-val{font-size:22px;font-weight:800;color:#1e1b4b}
-.wa-stat-lbl{font-size:10px;color:#6b7280;margin-top:2px}
-.wa-activity-title{font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
-.wa-activity-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6}
-.wa-activity-row:last-child{border-bottom:none}
-.wa-avatar{width:30px;height:30px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.wa-avatar-admin{background:linear-gradient(135deg,#7c3aed,#6366f1)}
-.wa-avatar-user{background:linear-gradient(135deg,#0ea5e9,#06b6d4)}
-.wa-username{font-size:13px;font-weight:600;color:#374151;flex:1}
-.wa-date{font-size:11px;color:#9ca3af}
-.wa-badge{font-size:10px;padding:2px 8px;border-radius:999px;font-weight:600}
-.badge-admin{background:#ede9fe;color:#7c3aed}
-.badge-user{background:#e0f2fe;color:#0369a1}
-.wa-btn-acces{width:100%;margin-top:16px;padding:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .2s}
-.wa-btn-acces:hover{opacity:.88}
-.wa-loading{font-size:13px;color:#9ca3af;padding:10px 0}
-.wa-error{font-size:13px;color:#ef4444;padding:10px 0}
+// ===================== ÉDITION PROFIL PAR ADMIN ==============
 
-/* ===================== ADMIN — MODALE STATS ===================== */
-.as-section-title{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px}
-.as-cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
-.as-card{border-radius:12px;padding:14px 8px;text-align:center}
-.as-card-blue{background:#eff6ff}
-.as-card-purple{background:#f5f3ff}
-.as-card-green{background:#f0fdf4}
-.as-card-red{background:#fff1f2}
-.as-card-icon{font-size:18px;margin-bottom:4px}
-.as-card-val{font-size:24px;font-weight:800;color:#1e1b4b;line-height:1}
-.as-card-lbl{font-size:10px;color:#6b7280;margin-top:4px;font-weight:600}
-.as-progress-bloc{background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:16px}
-.as-progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.as-progress-label{font-size:12px;font-weight:600;color:#374151}
-.as-progress-pct{font-size:12px;color:#6b7280;font-weight:600}
-.as-progress-bar{height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden}
-.as-progress-fill{height:100%;border-radius:4px;transition:width .4s ease}
-.as-fill-blue{background:linear-gradient(90deg,#7C3AED,#8b5cf6)}
-.as-fill-green{background:linear-gradient(90deg,#10b981,#059669)}
-.as-activity-bloc{display:flex;flex-direction:column;gap:4px;margin-bottom:16px}
-.as-activity-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6}
-.as-activity-row:last-child{border-bottom:none}
-.as-activity-icon{font-size:16px;flex-shrink:0}
-.as-activity-label{font-size:13px;color:#374151;flex:1}
-.as-activity-val{font-size:13px;font-weight:700;color:#1e1b4b;white-space:nowrap}
-.as-logins-list{display:flex;flex-direction:column;gap:4px}
-.as-login-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6}
-.as-login-row:last-child{border-bottom:none}
-.as-login-avatar{width:34px;height:34px;border-radius:50%;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.as-av-admin{background:linear-gradient(135deg,#7c3aed,#6366f1)}
-.as-av-user{background:linear-gradient(135deg,#0ea5e9,#06b6d4)}
-.as-login-info{flex:1;min-width:0}
-.as-login-name{font-size:13px;font-weight:700;color:#1e1b4b}
-.as-login-date{font-size:11px;color:#9ca3af;margin-top:2px}
-.as-login-relative{font-size:11px;white-space:nowrap;flex-shrink:0}
-.as-badge{font-size:10px;padding:2px 8px;border-radius:999px;font-weight:600;margin-left:6px}
-.as-badge-admin{background:#ede9fe;color:#7c3aed}
-.as-badge-user{background:#e0f2fe;color:#0369a1}
+async function adminEditerProfil(id, username) {
+    const user = getUser();
+    const el   = document.getElementById('admin-tab-users');
+    el.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
+    try {
+        const r = await fetch(`/api/admin/users/${id}/profil`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) { el.innerHTML = `<p style="color:#ef4444">${d.message}</p>`; return; }
+        const p = d.profil || {};
+        const u = d.user;
+        el.innerHTML = `
+            <div class="user-card">
+                <div style="font-size:15px;font-weight:700;color:#1e1b4b;margin-bottom:16px">
+                    ✏️ Éditer — <span style="color:#4f46e5">${u.username}</span>
+                </div>
+                <div class="section-title">Compte</div>
+                <div style="margin-bottom:14px">
+                    <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">Nom d'utilisateur</label>
+                    <input id="edit-username" type="text" value="${u.username}"
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box">
+                </div>
+                <div class="section-title">Profil</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">Prénom</label>
+                        <input id="edit-prenom" type="text" value="${p.prenom||''}"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">Nom</label>
+                        <input id="edit-nom" type="text" value="${p.nom||''}"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">Téléphone</label>
+                        <input id="edit-telephone" type="text" value="${p.telephone||''}"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">Profession</label>
+                        <input id="edit-profession" type="text" value="${p.profession||''}"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box">
+                    </div>
+                </div>
+                <div style="margin-bottom:10px">
+                    <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">Email</label>
+                    <input id="edit-email" type="email" value="${p.email||''}"
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box">
+                </div>
+                <div style="margin-bottom:10px">
+                    <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">Date de naissance</label>
+                    <input id="edit-naissance" type="date" value="${p.date_naissance ? p.date_naissance.split('T')[0] : ''}"
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
+                </div>
+                <div style="margin-bottom:16px">
+                    <label style="font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px">Note</label>
+                    <textarea id="edit-note" rows="3"
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;resize:none;font-family:inherit;box-sizing:border-box">${p.note||''}</textarea>
+                </div>
+                <div style="display:flex;gap:8px">
+                    <button class="ua-btn ua-btn-blue" style="flex:1" onclick="adminSauvegarderProfil(${id})">💾 Sauvegarder</button>
+                    <button class="ua-btn" style="flex:1;background:#f3f4f6;color:#374151" onclick="chargerAdminUsers()">Annuler</button>
+                </div>
+                <div id="edit-msg" style="margin-top:10px;font-size:13px;text-align:center"></div>
+            </div>
+        `;
+    } catch {
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px;text-align:center">Erreur réseau.</p>';
+    }
+}
 
-/* ===================== ADMIN — ONGLETS MODALE ===================== */
-.admin-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f3f4f6}
-.admin-tab{padding:10px 18px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-size:14px;font-weight:600;color:#9ca3af;transition:all .15s}
-.admin-tab.active{color:#7C3AED;border-bottom-color:#7C3AED}
-.admin-tab-content{display:none}
-.admin-tab-content.active{display:block}
+async function adminSauvegarderProfil(id) {
+    const user       = getUser();
+    const msg        = document.getElementById('edit-msg');
+    const username   = document.getElementById('edit-username')?.value?.trim();
+    const prenom     = document.getElementById('edit-prenom')?.value?.trim();
+    const nom        = document.getElementById('edit-nom')?.value?.trim();
+    const telephone  = document.getElementById('edit-telephone')?.value?.trim();
+    const profession = document.getElementById('edit-profession')?.value?.trim();
+    const email      = document.getElementById('edit-email')?.value?.trim();
+    const naissance  = document.getElementById('edit-naissance')?.value;
+    const note       = document.getElementById('edit-note')?.value?.trim();
+    try {
+        const r = await fetch(`/api/admin/users/${id}/profil`, {
+            method : 'PATCH',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ username, prenom, nom, telephone, profession, email, date_naissance: naissance, note })
+        });
+        const d = await r.json();
+        if (msg) {
+            msg.style.color = d.success ? '#16a34a' : '#ef4444';
+            msg.textContent = d.success ? '✅ Profil mis à jour.' : (d.message || 'Erreur.');
+        }
+        if (d.success) setTimeout(() => chargerAdminUsers(), 1200);
+    } catch {
+        if (msg) { msg.style.color = '#ef4444'; msg.textContent = 'Erreur réseau.'; }
+    }
+}
 
-/* ===================== ADMIN — LISTE UTILISATEURS ===================== */
-.user-card{border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:10px}
-.user-card-name{font-weight:700;font-size:15px;color:#333}
-.user-card-meta{font-size:12px;color:#9ca3af;margin-bottom:10px}
-.ua-btn{padding:7px 11px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;transition:opacity .15s}
-.ua-btn:hover{opacity:.8}
-.ua-btn-blue{background:#7C3AED;color:#fff}
-.ua-btn-blue:hover{background:#6D28D9;opacity:1}
-.ua-btn-red{background:#fee2e2;color:#ef4444}
-.ua-btn-red:hover{background:#ef4444;color:#fff;opacity:1}
-.ua-btn-green{background:#d1fae5;color:#059669}
-.ua-btn-green:hover{background:#059669;color:#fff;opacity:1}
-.user-card-actions{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;align-items:center}
-.user-card-actions::-webkit-scrollbar{height:3px}
-.user-card-actions::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:2px}
-.au-btn{width:32px;height:32px;border:none;border-radius:8px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:opacity .15s;flex-shrink:0}
-.au-btn:hover{opacity:.75}
-.au-btn-role{background:#eff6ff;color:#2563eb}
-.au-btn-key{background:#f0fdf4;color:#16a34a}
-.au-btn-edit{background:#e0f2fe;color:#0369a1}
-.au-btn-del{background:#fef2f2;color:#dc2626}
+// ===================== TOGGLE ROLE ===========================
 
-/* ===================== ADMIN — FORMULAIRE CRÉER ===================== */
-.create-form input,.create-form select{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:10px;outline:none;font-family:inherit;background:#fff}
-.create-form input:focus,.create-form select:focus{border-color:#7C3AED}
+async function adminToggleRole(id, roleActuel) {
+    const user    = getUser();
+    const newRole = roleActuel === 'admin' ? 'user' : 'admin';
+    try {
+        const r = await fetch(`/api/admin/users/${id}/role`, {
+            method : 'PATCH',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ role: newRole })
+        });
+        const d = await r.json();
+        if (d.success) chargerAdminUsers();
+        else alert(d.message || 'Erreur.');
+    } catch {
+        alert('Erreur réseau.');
+    }
+}
+
+// ===================== RESET MOT DE PASSE ===================
+
+function adminResetPwd(id, username) {
+    const el = document.getElementById('admin-tab-users');
+    el.innerHTML = `
+        <div class="user-card">
+            <div class="user-card-name" style="margin-bottom:4px">🔑 Nouveau MDP — <strong>${username}</strong></div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">8 car. min · majuscule · minuscule · chiffre · spécial</div>
+            <input type="password" id="admin-new-pwd" placeholder="Nouveau mot de passe"
+                autocomplete="new-password" name="admin-pwd-field"
+                style="width:100%;padding:10px 12px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">
+            <div style="display:flex;gap:8px">
+                <button class="ua-btn ua-btn-blue" style="flex:1" onclick="adminConfirmResetPwd(${id})">✓ Confirmer</button>
+                <button class="ua-btn" style="flex:1;background:#f3f4f6;color:#374151" onclick="chargerAdminUsers()">Annuler</button>
+            </div>
+            <div id="admin-pwd-msg" style="margin-top:8px;font-size:13px;color:#ef4444;text-align:center"></div>
+        </div>
+    `;
+    setTimeout(() => {
+        const f = document.getElementById('admin-new-pwd');
+        if (f) { f.value = ''; f.focus(); }
+    }, 50);
+}
+
+async function adminConfirmResetPwd(id) {
+    const user   = getUser();
+    const pwd    = document.getElementById('admin-new-pwd')?.value;
+    const msg    = document.getElementById('admin-pwd-msg');
+    const erreur = validerMotDePasse(pwd || '');
+    if (erreur) { if (msg) msg.textContent = erreur; return; }
+    try {
+        const r = await fetch(`/api/admin/users/${id}/password`, {
+            method : 'PATCH',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ password: pwd })
+        });
+        const d = await r.json();
+        if (d.success) chargerAdminUsers();
+        else if (msg) msg.textContent = d.message || 'Erreur.';
+        } catch {
+        if (msg) msg.textContent = 'Erreur réseau.';
+    }
+}
+
+// ===================== SUPPRIMER UTILISATEUR =================
+// B.6 — message iso "Confirmer la suppression ?"
+
+function adminSupprimerUser(id, username) {
+    const el = document.getElementById('admin-tab-users');
+    el.innerHTML = `
+        <div class="user-card" style="border-color:#fee2e2;background:#fff5f5">
+            <div style="font-size:32px;text-align:center;margin-bottom:8px">🗑️</div>
+            <div class="user-card-name" style="text-align:center;margin-bottom:16px">
+                Confirmer la suppression ?
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="ua-btn ua-btn-red" style="flex:1" onclick="adminConfirmSupprimer(${id})">Confirmer</button>
+                <button class="ua-btn" style="flex:1;background:#f3f4f6;color:#374151" onclick="chargerAdminUsers()">Annuler</button>
+            </div>
+        </div>
+    `;
+}
+
+async function adminConfirmSupprimer(id) {
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/admin/users/${id}`, {
+            method : 'DELETE',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            }
+        });
+        const d = await r.json();
+        if (d.success) chargerAdminUsers();
+        else alert(d.message || 'Erreur.');
+    } catch {
+        alert('Erreur réseau.');
+    }
+}
+
+// ===================== CRÉER UTILISATEUR =====================
+
+async function creerUser() {
+    const user     = getUser();
+    const username = document.getElementById('new-username')?.value?.trim();
+    const password = document.getElementById('new-password')?.value;
+    const role     = document.getElementById('new-role')?.value;
+    const msg      = document.getElementById('create-msg');
+    if (!username || !password) {
+        if (msg) { msg.style.color = '#ef4444'; msg.textContent = 'Champs requis.'; }
+        return;
+    }
+    const erreur = validerMotDePasse(password);
+    if (erreur) {
+        if (msg) { msg.style.color = '#ef4444'; msg.textContent = erreur; }
+        return;
+    }
+    try {
+        const r = await fetch('/api/admin/users', {
+            method : 'POST',
+            headers: {
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ username, password, role })
+        });
+        const d = await r.json();
+        if (msg) {
+            msg.style.color = d.success ? '#16a34a' : '#ef4444';
+            msg.textContent = d.success
+                ? `✅ "${username}" créé avec succès.`
+                : (d.message || 'Erreur.');
+        }
+        if (d.success) {
+            document.getElementById('new-username').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('new-role').value     = 'user';
+            setTimeout(() => chargerAdminUsers(), 1200);
+        }
+    } catch {
+        if (msg) { msg.style.color = '#ef4444'; msg.textContent = 'Erreur réseau.'; }
+    }
+}
+
+// ===================== SWITCH ONGLETS ========================
+
+function switchAdminTab(tab) {
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.admin-tab[data-tab="${tab}"]`)?.classList.add('active');
+    document.getElementById(`admin-tab-${tab}`)?.classList.add('active');
+    if (tab === 'stats') chargerAdminStats();
+    if (tab === 'users') chargerAdminUsers();
+}
