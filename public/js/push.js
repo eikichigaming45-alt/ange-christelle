@@ -14,12 +14,12 @@ function urlBase64ToUint8Array(base64String) {
 
 // ── Heure locale du navigateur ────────────────────────────────
 function getDateHeureLocale() {
-    const now     = new Date();
-    const annee   = now.getFullYear();
-    const mois    = String(now.getMonth() + 1).padStart(2, '0');
-    const jour    = String(now.getDate()).padStart(2, '0');
-    const heure   = String(now.getHours()).padStart(2, '0');
-    const minute  = String(now.getMinutes()).padStart(2, '0');
+    const now    = new Date();
+    const annee  = now.getFullYear();
+    const mois   = String(now.getMonth() + 1).padStart(2, '0');
+    const jour   = String(now.getDate()).padStart(2, '0');
+    const heure  = String(now.getHours()).padStart(2, '0');
+    const minute = String(now.getMinutes()).padStart(2, '0');
     return {
         dateLocale : `${annee}-${mois}-${jour}`,
         heureLocale: `${heure}:${minute}`
@@ -27,8 +27,10 @@ function getDateHeureLocale() {
 }
 
 // ── Initialisation push ───────────────────────────────────────
-// Force unsubscribe + resubscribe à chaque login pour garantir
-// que la subscription FCM est bien liée au compte connecté.
+// Réutilise la subscription existante si valide.
+// Ne crée une nouvelle que si aucune n'existe.
+// Envoie toujours la subscription au serveur pour sync
+// (le backend fait UPDATE si déjà connue, INSERT sinon).
 async function initPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     if (!('Notification' in window)) return;
@@ -41,15 +43,18 @@ async function initPush() {
     try {
         const reg = await navigator.serviceWorker.ready;
 
-        // Supprimer toute subscription existante avant d'en créer une nouvelle
-        const existante = await reg.pushManager.getSubscription();
-        if (existante) await existante.unsubscribe();
+        // Récupérer la subscription existante
+        let subscription = await reg.pushManager.getSubscription();
 
-        const subscription = await reg.pushManager.subscribe({
-            userVisibleOnly     : true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
+        if (!subscription) {
+            // Aucune subscription locale — en créer une nouvelle
+            subscription = await reg.pushManager.subscribe({
+                userVisibleOnly     : true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+        }
 
+        // Synchroniser avec le serveur (UPDATE ou INSERT selon le backend)
         await fetch('/api/push/subscribe', {
             method : 'POST',
             headers: {
