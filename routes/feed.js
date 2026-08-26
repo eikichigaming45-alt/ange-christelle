@@ -16,12 +16,12 @@ const supabase = createClient(
 );
 
 // ── Utilitaire : extraire et résoudre les @mentions ──────────
-// FIX : regex remplacée — capture @Prénom NOM jusqu'au premier
-// double espace, espace insécable (\u00A0), ou fin de chaîne.
-// Ne s'arrête plus prématurément sur un espace simple,
-// n'avale plus le mot suivant le nom complet.
+// FIX Bug B : regex accepte espace simple en fin de chaîne
+// après le nom — les navigateurs mobiles convertissent \u00A0
+// en espace simple. La boucle de coupes en base garantit
+// qu'on ne matche jamais un nom inexistant.
 async function resoudreMentions(contenu, auteurId) {
-    const matches = [...contenu.matchAll(/@([A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ]*(?:\s[A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ]*)*)(?:\u00A0|\s{2,}|$)/g)];
+    const matches = [...contenu.matchAll(/@([A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ]*(?:\s[A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ]*)*)(?:\u00A0|\s{2,}|\s|$)/g)];
     if (!matches.length) return [];
 
     const mentions = new Set();
@@ -31,6 +31,7 @@ async function resoudreMentions(contenu, auteurId) {
         if (parts.length < 2) continue;
 
         // Tester toutes les coupes prénom / nom possibles
+        // La validation en base garantit que seuls les vrais utilisateurs sont matchés
         for (let i = 1; i < parts.length; i++) {
             const prenom = parts.slice(0, i).join(' ');
             const nom    = parts.slice(i).join(' ');
@@ -287,6 +288,7 @@ router.delete('/comments/:id', authenticateToken, async (req, res) => {
         if (rows[0].user_id !== userId && req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Interdit.' });
         }
+        // Les réponses sont supprimées automatiquement via ON DELETE CASCADE
         await pool.query(`DELETE FROM post_comments WHERE id = \$1`, [commentId]);
         res.json({ success: true });
     } catch (e) {
@@ -388,12 +390,13 @@ router.get('/:id/likes', authenticateToken, async (req, res) => {
 });
 
 // ── GET /api/feed/:id/comments ────────────────────────────────
+// Retourne commentaires racine + leurs réponses imbriquées
 router.get('/:id/comments', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const postId = parseInt(req.params.id);
     try {
         const { rows } = await pool.query(`
-            SELECT c.id, c.contenu, c.created_at,
+            SELECT c.id, c.contenu, c.created_at, c.parent_id,
                    c.mentions,
                    (
                        SELECT json_agg(json_build_object('id', u2.id, 'prenom', pr2.prenom, 'nom', pr2.nom))
@@ -409,7 +412,7 @@ router.get('/:id/comments', authenticateToken, async (req, res) => {
             JOIN users u ON u.id = c.user_id
             LEFT JOIN profiles pr ON pr.user_id = c.user_id
             WHERE c.post_id = \$1
-            ORDER BY c.created_at ASC
+            ORDER BY COALESCE(c.parent_id, c.id), c.id ASC
         `, [postId, userId]);
         res.json({ success: true, comments: rows });
     } catch (e) {
@@ -419,24 +422,28 @@ router.get('/:id/comments', authenticateToken, async (req, res) => {
 });
 
 // ── POST /api/feed/:id/comments ───────────────────────────────
+// parent_id optionnel — si présent, c'est une réponse à un commentaire
 router.post('/:id/comments', authenticateToken, async (req, res) => {
-    const userId  = req.user.id;
-    const postId  = parseInt(req.params.id);
-    const contenu = (req.body.contenu || '').trim();
+    const userId   = req.user.id;
+    const postId   = parseInt(req.params.id);
+    const contenu  = (req.body.contenu || '').trim();
+    const parentId = req.body.parent_id ? parseInt(req.body.parent_id) : null;
     if (!contenu) return res.status(400).json({ success: false, message: 'Commentaire vide.' });
+
     try {
         const mentionIds = await resoudreMentions(contenu, userId);
 
         const { rows } = await pool.query(
-            `INSERT INTO post_comments (post_id, user_id, contenu, mentions)
-             VALUES (\$1, \$2, \$3, \$4)
-             RETURNING id, contenu, created_at, mentions`,
-            [postId, userId, contenu, mentionIds]
+            `INSERT INTO post_comments (post_id, user_id, contenu, mentions, parent_id)
+             VALUES (\$1, \$2, \$3, \$4, \$5)
+             RETURNING id, contenu, created_at, mentions, parent_id`,
+            [postId, userId, contenu, mentionIds, parentId]
         );
         const comment = rows[0];
 
         const { prenom, nom } = await getProfilAuteur(userId);
 
+        // Notifier l'auteur du post (sauf si c'est soi-même)
         const { rows: postRows } = await pool.query(
             `SELECT user_id FROM posts WHERE id = \$1`, [postId]
         );
@@ -455,7 +462,30 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
             );
         }
 
-        const mentionsFiltered = mentionIds.filter(id => id !== ownerId);
+        // Si c'est une réponse — notifier l'auteur du commentaire parent
+        if (parentId) {
+            const { rows: parentRows } = await pool.query(
+                `SELECT user_id FROM post_comments WHERE id = \$1`, [parentId]
+            );
+            const parentAuteurId = parentRows[0]?.user_id;
+            if (parentAuteurId && parentAuteurId !== userId && parentAuteurId !== ownerId) {
+                await pool.query(
+                    `INSERT INTO notifications (user_id, type, ref_id, sender_id)
+                     VALUES (\$1, 'reply', \$2, \$3)`,
+                    [parentAuteurId, comment.id, userId]
+                );
+                await envoyerPush(
+                    parentAuteurId,
+                    '↩️ Réponse à ton commentaire',
+                    `${prenom}${nom ? ' ' + nom : ''} a répondu à ton commentaire`,
+                    `reply-${comment.id}`
+                );
+            }
+        }
+
+        // Notifier les @mentions (sauf auteur du post et auteur du commentaire parent)
+        const exclus = [ownerId, parentId ? (await pool.query(`SELECT user_id FROM post_comments WHERE id = \$1`, [parentId])).rows[0]?.user_id : null].filter(Boolean);
+        const mentionsFiltered = mentionIds.filter(id => !exclus.includes(id));
         if (mentionsFiltered.length) {
             await notifierMentions(mentionsFiltered, userId, comment.id, 'comment', prenom, nom);
         }

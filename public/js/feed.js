@@ -82,7 +82,6 @@ function renderContenuAvecMentions(contenu, mentionsData) {
 
     let result = contenu;
 
-    // Trier par longueur décroissante pour matcher "Ange Christelle AGUILLON" avant "Ange"
     const sorted = [...mentionsData].sort((a, b) => {
         const fa = `${a.prenom || ''} ${a.nom || ''}`.trim();
         const fb = `${b.prenom || ''} ${b.nom || ''}`.trim();
@@ -95,7 +94,7 @@ function renderContenuAvecMentions(contenu, mentionsData) {
         if (!m || !m.id) continue;
         const full = `${m.prenom || ''} ${m.nom || ''}`.trim();
         if (!full) continue;
-        const tag = `@${full}`;
+        const tag         = `@${full}`;
         const placeholder = `%%MENTION_${m.id}%%`;
         if (result.includes(tag)) {
             result = result.split(tag).join(placeholder);
@@ -106,10 +105,8 @@ function renderContenuAvecMentions(contenu, mentionsData) {
         }
     }
 
-    // Échapper le reste du texte brut
     result = escapeHtml(result);
 
-    // Réinjecter les tags HTML (les placeholders sont safe, pas de < > dedans)
     for (const { placeholder, html } of placeholders) {
         result = result.split(escapeHtml(placeholder)).join(html);
     }
@@ -117,7 +114,7 @@ function renderContenuAvecMentions(contenu, mentionsData) {
     return result;
 }
 
-// Clic sur mention → profil direct (data-user-id, zéro fetch)
+// Clic sur mention → profil direct
 document.addEventListener('click', e => {
     const tag = e.target.closest('.mention-tag');
     if (!tag) return;
@@ -218,15 +215,15 @@ async function _mentionInput(inputEl, dropEl) {
     } catch { _fermerDropdown(dropEl); }
 }
 
-// FIX bug #4 : espace insécable (\u00A0) comme terminateur de mention.
-// La regex serveur attend \u00A0 ou \s{2,} — l'espace simple était ambigu
-// et empêchait la résolution quand du texte suivait directement le tag.
+// FIX Bug B : double espace comme terminateur — survit à tous les
+// navigateurs mobiles contrairement à \u00A0 qui se convertit.
+// La validation en base dans resoudreMentions garantit zéro faux positif.
 function _insererMention(inputEl, dropEl, prenom, nom) {
     const val      = inputEl.value;
     const cursor   = inputEl.selectionStart;
     const avant    = val.substring(0, cursor);
     const apres    = val.substring(cursor);
-    const newAvant = avant.replace(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/, `@${prenom} ${nom}\u00A0`);
+    const newAvant = avant.replace(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/, `@${prenom} ${nom}  `);
     inputEl.value  = newAvant + apres;
     const pos      = newAvant.length;
     inputEl.setSelectionRange(pos, pos);
@@ -477,6 +474,9 @@ async function toggleCommentaires(postId) {
     }
 }
 
+// ── CHARGER COMMENTAIRES ──────────────────────────────────────
+// Structure : commentaires racine (parent_id = null) + réponses
+// imbriquées dessous, indentées visuellement.
 async function chargerCommentaires(postId) {
     const user = getUser();
     const zone = document.getElementById(`comments-${postId}`);
@@ -487,8 +487,25 @@ async function chargerCommentaires(postId) {
         });
         const d = await r.json();
         if (!d.success) throw new Error();
+
+        // Séparer racines et réponses
+        const racines  = d.comments.filter(c => !c.parent_id);
+        const reponses = d.comments.filter(c => !!c.parent_id);
+
+        // Construire le HTML : chaque racine suivie de ses réponses
+        const html = racines.map(c => {
+            const reps = reponses.filter(r => r.parent_id === c.id);
+            return `
+                ${renderComment(c, postId, false)}
+                ${reps.length ? `
+                <div class="feed-replies" style="margin-left:32px;border-left:2px solid #ede9fe;padding-left:10px">
+                    ${reps.map(r => renderComment(r, postId, true)).join('')}
+                </div>` : ''}
+            `;
+        }).join('');
+
         zone.innerHTML = `
-            ${d.comments.map(c => renderComment(c, postId)).join('')}
+            ${html}
             <div class="feed-comment-form" id="comment-form-${postId}" style="position:relative">
                 <input type="text" id="comment-input-${postId}"
                     placeholder="Écrire un commentaire... (@Prénom NOM)"
@@ -506,50 +523,146 @@ async function chargerCommentaires(postId) {
 }
 
 // ── RENDER COMMENT ────────────────────────────────────────────
-function renderComment(c, postId) {
+// isReponse : true = affichage indenté, pas de bouton Répondre
+function renderComment(c, postId, isReponse = false) {
     const user    = getUser();
     const isOwner = user.username === c.username;
     const isAdmin = user.role === 'admin';
     const date    = new Date(c.created_at).toLocaleDateString('fr-FR', {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
     });
-    return `
-        <div class="feed-comment" id="comment-${c.id}" data-comment-id="${c.id}">
-            <div class="feed-comment-meta">
-                <span class="feed-comment-author"
-                      style="cursor:pointer"
-                      onclick="ouvrirProfilPublic(${c.user_id})">
-                    ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
-                    <span class="feed-handle">@${escapeHtml(c.username)}</span>
-                </span>
-                <span class="feed-comment-date">${date}</span>
-                <div class="feed-comment-actions">
-                    ${isOwner || isAdmin ? `
-                    <button class="feed-comment-edit-btn" onclick="editerCommentaire(${c.id}, ${postId})">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                    </button>
-                    <button class="feed-comment-delete" onclick="supprimerCommentaire(${c.id}, ${postId})">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                        </svg>
-                    </button>` : ''}
-                    <button class="feed-comment-like-btn ${c.liked ? 'liked' : ''}" onclick="toggleLikeCommentaire(${c.id}, this)">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="${c.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
-                            <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
-                        </svg>
-                        <span class="comment-like-count">${c.likes}</span>
-                    </button>
+
+    // Avatar cliquable → profil public
+    const avatar = c.avatar
+        ? `<img src="${c.avatar}" onclick="ouvrirProfilPublic(${c.user_id})"
+               style="width:28px;height:28px;border-radius:50%;object-fit:cover;
+                      flex-shrink:0;cursor:pointer" alt="">`
+        : `<div onclick="ouvrirProfilPublic(${c.user_id})"
+               style="width:28px;height:28px;border-radius:50%;
+                      background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                      color:#fff;font-size:11px;font-weight:700;
+                      display:flex;align-items:center;justify-content:center;
+                      flex-shrink:0;cursor:pointer">
+               ${(c.prenom?.[0] || c.username[0]).toUpperCase()}
+           </div>`;
+
+        return `
+        <div class="feed-comment${isReponse ? ' feed-comment-reply' : ''}"
+             id="comment-${c.id}" data-comment-id="${c.id}"
+             style="display:flex;gap:8px;padding:8px 0;align-items:flex-start">
+            ${avatar}
+            <div style="flex:1;min-width:0">
+                <div class="feed-comment-meta" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
+                    <span class="feed-comment-author"
+                          style="font-size:13px;font-weight:700;color:#111;cursor:pointer"
+                          onclick="ouvrirProfilPublic(${c.user_id})">
+                        ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
+                    </span>
+                    <span class="feed-comment-date" style="font-size:11px;color:#9ca3af">${date}</span>
+                    <div class="feed-comment-actions" style="display:flex;align-items:center;gap:4px;margin-left:auto">
+                        ${isOwner || isAdmin ? `
+                        <button class="feed-comment-edit-btn" onclick="editerCommentaire(${c.id}, ${postId})" title="Modifier">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                        <button class="feed-comment-delete" onclick="supprimerCommentaire(${c.id}, ${postId})" title="Supprimer">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                                <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                            </svg>
+                        </button>` : ''}
+                        <button class="feed-comment-like-btn ${c.liked ? 'liked' : ''}" onclick="toggleLikeCommentaire(${c.id}, this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="${c.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+                                <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                            </svg>
+                            <span class="comment-like-count">${c.likes}</span>
+                        </button>
+                        ${!isReponse ? `
+                        <button class="feed-comment-reply-btn"
+                                onclick="afficherFormulaireReponse(${c.id}, ${postId}, '${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}')"
+                                style="font-size:11px;font-weight:600;color:#7c3aed;background:none;
+                                       border:none;cursor:pointer;padding:2px 4px">
+                            Répondre
+                        </button>` : ''}
+                    </div>
                 </div>
+                <div class="feed-comment-contenu" id="comment-text-${c.id}"
+                     style="font-size:13px;color:#374151;margin-top:3px;line-height:1.5">
+                    ${renderContenuAvecMentions(c.contenu, c.mentions_data)}
+                </div>
+                <div class="feed-comment-raw" id="comment-raw-${c.id}" style="display:none">${escapeHtml(c.contenu)}</div>
+                <!-- Zone formulaire réponse injectée dynamiquement -->
+                <div id="reply-form-${c.id}"></div>
             </div>
-            <div class="feed-comment-contenu" id="comment-text-${c.id}">${renderContenuAvecMentions(c.contenu, c.mentions_data)}</div>
-            <div class="feed-comment-raw" id="comment-raw-${c.id}" style="display:none">${escapeHtml(c.contenu)}</div>
         </div>
     `;
+}
+
+// ── FORMULAIRE RÉPONSE ────────────────────────────────────────
+// Injecté sous le commentaire parent, identité de l'auteur en tête
+function afficherFormulaireReponse(parentId, postId, nomAuteur) {
+    // Fermer tout formulaire de réponse ouvert
+    document.querySelectorAll('[id^="reply-form-"]').forEach(el => el.innerHTML = '');
+
+    const zone = document.getElementById(`reply-form-${parentId}`);
+    if (!zone) return;
+
+    zone.innerHTML = `
+        <div id="reply-wrap-${parentId}"
+             style="display:flex;gap:6px;margin-top:6px;align-items:center;position:relative">
+            <input type="text" id="reply-input-${parentId}"
+                   placeholder="Répondre à ${escapeHtml(nomAuteur)}..."
+                   style="flex:1;padding:6px 10px;border:1.5px solid #7c3aed;border-radius:20px;
+                          font-size:13px;outline:none;font-family:inherit">
+            <button onclick="envoyerReponse(${parentId}, ${postId})"
+                    style="padding:6px 12px;background:#7c3aed;color:#fff;border:none;
+                           border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">
+                Envoyer
+            </button>
+            <button onclick="document.getElementById('reply-form-${parentId}').innerHTML=''"
+                    style="padding:6px 10px;background:#f3f4f6;color:#374151;border:none;
+                           border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">
+                ✕
+            </button>
+        </div>
+    `;
+
+    const inputEl = document.getElementById(`reply-input-${parentId}`);
+    const wrapEl  = document.getElementById(`reply-wrap-${parentId}`);
+    if (inputEl) {
+        inputEl.focus();
+        inputEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                envoyerReponse(parentId, postId);
+            }
+        });
+    }
+    initMentions(inputEl, wrapEl);
+}
+
+// ── ENVOYER RÉPONSE ───────────────────────────────────────────
+async function envoyerReponse(parentId, postId) {
+    const user  = getUser();
+    const input = document.getElementById(`reply-input-${parentId}`);
+    const text  = (input?.value || '').trim();
+    if (!text) return;
+    try {
+        const r = await fetch(`/api/feed/${postId}/comments`, {
+            method : 'POST',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ contenu: text, parent_id: parentId })
+        });
+        const d = await r.json();
+        if (d.success) {
+            await chargerCommentaires(postId);
+            const btn = document.querySelector(`#post-${postId} .feed-comment-btn span`);
+            if (btn) btn.textContent = parseInt(btn.textContent) + 1;
+        }
+    } catch {}
 }
 
 async function envoyerCommentaire(postId) {
@@ -940,7 +1053,7 @@ async function partagerPost(postId) {
     const photoUrl  = card?.dataset.photoUrl || '';
     const text      = contenu.substring(0, 100) || 'Regarde ce post sur MyDaily';
 
-    if (navigator.share) {
+        if (navigator.share) {
         try {
             const shareData = { title: 'MyDaily', text };
             if (photoUrl) { shareData.url = photoUrl; } else { shareData.url = location.origin; }
@@ -966,4 +1079,3 @@ async function partagerPost(postId) {
 function escapeHtml(str) {
     return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
