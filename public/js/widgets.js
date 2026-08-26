@@ -14,7 +14,8 @@ function resetGrid() {
 
 const WIDGETS_PAR_ONGLET = {
     quotidien : ['planning', 'taches', 'priere', 'islam', 'anniversaires', 'astrologie', 'social'],
-    bienetre  : ['rendezvous', 'cycle', 'sport'],
+    bienetre  : ['rendezvous', 'cycle'],
+    sport     : ['sante'],
     profil    : ['profil', 'admin'],
     apropos   : ['faq', 'changelog']
 };
@@ -75,6 +76,7 @@ async function buildGrid() {
 
     await buildTabGrid('quotidien', defs, ordre, widgetsCaches, user);
     await buildTabGrid('bienetre',  defs, ordre, widgetsCaches, user);
+    await buildTabGrid('sport',     defs, ordre, widgetsCaches, user);
     await buildTabGrid('profil',    defs, ordre, widgetsCaches, user);
     await buildTabGrid('apropos',   defs, ordre, widgetsCaches, user);
 
@@ -85,6 +87,7 @@ async function buildGrid() {
     if (typeof Rendezvous            !== 'undefined') Rendezvous.charger();
     if (typeof chargerWidgetPlanning === 'function')  chargerWidgetPlanning();
     if (typeof chargerWidgetSocial   === 'function')  chargerWidgetSocial();
+    if (typeof chargerWidgetSante    === 'function')  chargerWidgetSante();
 }
 
 async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
@@ -153,6 +156,7 @@ function creerWidget(def, gridId) {
     if (def.id === 'astrologie') contentHtml = 'Chargement...';
     if (def.id === 'admin')      contentHtml = '<div id="wc-admin">Chargement...</div>';
     if (def.id === 'social')     contentHtml = '<div id="wc-social">Chargement...</div>';
+    if (def.id === 'sante')      contentHtml = '<div id="wc-sante">Chargement...</div>';
 
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
@@ -170,7 +174,8 @@ function creerWidget(def, gridId) {
         if (e.target.classList.contains('drag-handle')) return;
         if (e.target.closest('button'))                 return;
         if (e.target.closest('.rdv-card'))              return;
-        if (def.id === 'social')                        return; // widget lecture seule, pas de modal
+        if (def.id === 'social') return; // widget lecture seule, pas de modal
+        if (def.id === 'sante')  return; // widget inline, pas de modal
         openModal(def.id);
     });
 

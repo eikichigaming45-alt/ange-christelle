@@ -1,8 +1,9 @@
-const CACHE_NAME = 'mydaily-cache-v1.27';
+const CACHE_NAME = 'mydaily-cache-v1.26';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
     '/css/feed.css',
+    '/css/sante.css',
     '/js/app.js',
     '/js/widgets.js',
     '/js/modal.js',
@@ -20,6 +21,8 @@ const ASSETS_TO_CACHE = [
     '/js/astrologie.js',
     '/js/feed.js',
     '/js/social.js',
+    '/js/sante.js',
+    '/js/changelog.js',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png'
@@ -55,7 +58,7 @@ self.addEventListener('fetch', event => {
 
     if (url.pathname.startsWith('/api/')) return;
 
-    const networkFirst = ['/', '/index.html', '/css/style.css', '/css/feed.css'];
+    const networkFirst = ['/', '/index.html', '/css/style.css', '/css/feed.css', '/css/sante.css'];
     if (networkFirst.includes(url.pathname)) {
         event.respondWith(
             fetch(event.request)

@@ -1,0 +1,167 @@
+/* ============================================================
+   public/css/sante.css
+   Styles dédiés au widget Santé — onglet Sport.
+   Ne modifie pas style.css.
+   ============================================================ */
+
+/* ===================== WIDGET COULEUR ===================== */
+.w-sante .wi { background: #d1fae5; }
+.widget.w-sante { background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); }
+
+/* ===================== ALERTE PROFIL INCOMPLET ============ */
+.sante-alerte {
+    background: #fff7ed;
+    border-left: 4px solid #f59e0b;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #92400e;
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+/* ===================== CALCULS LOCAUX ===================== */
+.sante-calculs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.sante-calcul-row {
+    display: flex;
+    gap: 8px;
+}
+
+.sante-calcul-bloc {
+    flex: 1;
+    background: #f8fafc;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sante-calcul-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+.sante-calcul-val {
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.sante-calcul-sub {
+    font-size: 10px;
+    line-height: 1.3;
+    color: #9ca3af;
+}
+
+/* ===================== MACROS ============================= */
+.sante-macros {
+    display: flex;
+    gap: 8px;
+}
+
+.sante-macro-item {
+    flex: 1;
+    background: #f5f3ff;
+    border-radius: 10px;
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.sante-macro-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #7c3aed;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+
+.sante-macro-val {
+    font-size: 14px;
+    font-weight: 800;
+    color: #4c1d95;
+}
+
+/* ===================== BOUTON GROQ ======================== */
+.sante-btn-groq {
+    width: 100%;
+    padding: 11px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 12px;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    transition: opacity .2s;
+}
+
+.sante-btn-groq:hover:not(:disabled) {
+    opacity: .9;
+}
+
+/* ===================== PLAN GROQ ========================== */
+.sante-plan {
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sante-plan-titre {
+    font-size: 13px;
+    font-weight: 800;
+    color: #059669;
+    margin-bottom: 4px;
+}
+
+.sante-plan-section {
+    font-size: 11px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-top: 6px;
+}
+
+.sante-plan-contenu {
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.5;
+    padding-left: 4px;
+    word-break: break-word;
+}
+
+/* ===================== ÉTATS VIDES / ERREUR =============== */
+.sante-empty {
+    color: #9ca3af;
+    font-size: 13px;
+    text-align: center;
+    padding: 12px 0;
+}
+
+.sante-error {
+    color: #ef4444;
+    font-size: 13px;
+    text-align: center;
+    padding: 8px 0;
+}

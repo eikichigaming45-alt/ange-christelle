@@ -40,6 +40,7 @@ if (!process.env.VAPID_MAILTO || !process.env.VAPID_PUBLIC_KEY || !process.env.V
 app.use('/api',               require('./routes/auth').router);
 app.use('/api',               require('./routes/changelog'));
 app.use('/api/profil',        require('./routes/profil'));
+app.use('/api/sante',         require('./routes/sante'));
 app.use('/api/widget-order',  require('./routes/widgets'));
 app.use('/api/taches',        require('./routes/taches'));
 app.use('/api/anniversaires', require('./routes/anniversaires'));

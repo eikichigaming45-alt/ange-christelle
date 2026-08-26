@@ -5,9 +5,9 @@
 // de passe, préférences widgets (opt-out).
 // Onglet Santé  : sexe, taille, poids, groupe sanguin,
 //                 niveau activité, objectif santé, signe zodiaque,
-//                 IMC, TDEE, kcal objectif.
+//                 allergies, aliments exclus.
 // Géocodage Nominatim : lieu de naissance → lat/lon (onblur).
-// Widget Mon Profil : signe astrologique à la place de l'IMC.
+// Widget Mon Profil : signe astrologique.
 // Dépend de : app.js (getUser, profilCache, cropperInstance, TOUS_WIDGETS)
 //             widgets.js (appliquerWidgetsVisibles)
 // ============================================================
@@ -18,56 +18,6 @@ function construireTrigramme(prenom, nom) {
         .map(m => m.trim())
         .filter(Boolean);
     return mots.slice(0, 3).map(m => m[0].toUpperCase()).join('');
-}
-
-// ===================== CALCULS SANTÉ =========================
-
-function calculerIMC(poids, taille) {
-    if (!poids || !taille) return null;
-    return (poids / Math.pow(taille / 100, 2)).toFixed(1);
-}
-
-function interpreterIMC(imc) {
-    if (!imc) return null;
-    const v = parseFloat(imc);
-    if (v < 18.5) return { label: 'Insuffisance pondérale', color: '#3b82f6' };
-    if (v < 25)   return { label: 'Poids normal',           color: '#10b981' };
-    if (v < 30)   return { label: 'Surpoids',               color: '#f59e0b' };
-    return             { label: 'Obésité',                  color: '#ef4444' };
-}
-
-function calculerTDEE(poids, taille, age, sexe, niveau_activite) {
-    if (!poids || !taille || !age || !sexe) return null;
-    let MB;
-    if (sexe === 'homme') {
-        MB = 10 * poids + 6.25 * taille - 5 * age + 5;
-    } else {
-        MB = 10 * poids + 6.25 * taille - 5 * age - 161;
-    }
-    const facteurs = {
-        'sedentaire'        : 1.2,
-        'légèrement actif'  : 1.375,
-        'modérément actif'  : 1.55,
-        'très actif'        : 1.725
-    };
-    const facteur = facteurs[niveau_activite] || 1.2;
-    return Math.round(MB * facteur);
-}
-
-// ── Calcule les kcal cibles selon l'objectif ─────────────────
-function calculerKcalObjectif(tdee, objectif) {
-    if (!tdee || !objectif) return null;
-    const delta = {
-        perte_douce   : { val: -250, label: 'Perte douce',    color: '#3b82f6' },
-        perte_moderee : { val: -500, label: 'Perte modérée',  color: '#f59e0b' },
-        perte_rapide  : { val: -750, label: 'Perte rapide',   color: '#ef4444' },
-        maintien      : { val:    0, label: 'Maintien',       color: '#10b981' },
-        prise_douce   : { val: +250, label: 'Prise douce',    color: '#8b5cf6' },
-        prise_moderee : { val: +500, label: 'Prise modérée',  color: '#7c3aed' },
-    };
-    const d = delta[objectif];
-    if (!d) return null;
-    return { valeur: tdee + d.val, label: d.label, color: d.color };
 }
 
 // ===================== SIGNE ASTROLOGIQUE ====================
@@ -448,6 +398,8 @@ async function sauvegarderProfil() {
 // ===================== SAUVEGARDE SANTÉ ======================
 // Fonction dédiée à l'onglet Santé — id feedback : sante-msg
 // pour éviter le conflit avec profil-msg de l'onglet Profil.
+// allergies et aliments_exclus : lus depuis les inputs texte,
+// splitté sur la virgule pour produire un tableau.
 
 async function sauvegarderSante() {
     const user = getUser();
@@ -455,14 +407,23 @@ async function sauvegarderSante() {
     msg.textContent = 'Sauvegarde...';
     msg.style.color = '#9ca3af';
 
+    // Lecture et normalisation des tableaux allergies / aliments_exclus
+    const allergiesRaw     = document.getElementById('p-allergies')?.value || '';
+    const aliments_exclusRaw = document.getElementById('p-aliments-exclus')?.value || '';
+
+    const allergies       = allergiesRaw.split(',').map(s => s.trim()).filter(Boolean);
+    const aliments_exclus = aliments_exclusRaw.split(',').map(s => s.trim()).filter(Boolean);
+
     const body = {
-        sexe            : document.getElementById('p-sexe')?.value             || null,
-        taille          : document.getElementById('p-taille')?.value           ? parseInt(document.getElementById('p-taille').value)           : null,
-        poids           : document.getElementById('p-poids')?.value            ? parseFloat(document.getElementById('p-poids').value)           : null,
-        groupe_sanguin  : document.getElementById('p-groupe-sanguin')?.value   || null,
-        niveau_activite : document.getElementById('p-niveau-activite')?.value  || null,
+        sexe            : document.getElementById('p-sexe')?.value            || null,
+        taille          : document.getElementById('p-taille')?.value          ? parseInt(document.getElementById('p-taille').value)           : null,
+        poids           : document.getElementById('p-poids')?.value           ? parseFloat(document.getElementById('p-poids').value)          : null,
+        groupe_sanguin  : document.getElementById('p-groupe-sanguin')?.value  || null,
+        niveau_activite : document.getElementById('p-niveau-activite')?.value || null,
         objectif_sante  : document.getElementById('p-objectif-sante')?.value  || null,
-        signe_zodiaque  : document.getElementById('p-signe')?.value            || null,
+        signe_zodiaque  : document.getElementById('p-signe')?.value           || null,
+        allergies,
+        aliments_exclus,
     };
 
     try {
@@ -480,7 +441,6 @@ async function sauvegarderSante() {
             msg.style.color = '#10b981';
             profilCache     = { ...profilCache, ...body };
             _appliquerVisibiliteCycle(body.sexe);
-            _rafraichirCalculsSante(body);
         } else {
             msg.textContent = '❌ ' + (d.message || 'Erreur.');
             msg.style.color = '#ef4444';
@@ -491,48 +451,196 @@ async function sauvegarderSante() {
     }
 }
 
-// ── Rafraîchit IMC, TDEE et kcal objectif après sauvegarde ───
-function _rafraichirCalculsSante(p) {
-    const age = p.date_naissance ? (() => {
-        const n     = new Date(p.date_naissance);
-        const today = new Date();
-        let a       = today.getFullYear() - n.getFullYear();
-        if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
-        return a;
-    })() : (profilCache?.date_naissance ? (() => {
-        const n     = new Date(profilCache.date_naissance);
-        const today = new Date();
-        let a       = today.getFullYear() - n.getFullYear();
-        if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
-        return a;
-    })() : null);
+// ── Injection des champs allergies et aliments_exclus dans l'onglet Santé ──
+// Appelée depuis openModal('profil') après pré-remplissage des autres champs.
+// Injecte les deux champs dans le conteneur #profil-tab-sante,
+// juste avant le bouton de sauvegarde.
 
-    const imc      = calculerIMC(p.poids, p.taille);
-    const imcInfos = interpreterIMC(imc);
-    const tdee     = calculerTDEE(p.poids, p.taille, age, p.sexe, p.niveau_activite);
-    const kcalObj  = calculerKcalObjectif(tdee, p.objectif_sante);
+function _injecterChampsAllergies(p) {
+    const container = document.getElementById('profil-tab-sante');
+    if (!container) return;
 
-    const elIMC     = document.getElementById('sante-imc-result');
-    const elTDEE    = document.getElementById('sante-tdee-result');
-    const elKcalObj = document.getElementById('sante-kcalobj-result');
+    // Éviter la double injection
+    if (document.getElementById('p-allergies')) return;
 
-    if (elIMC) {
-        elIMC.innerHTML = imc && imcInfos
-            ? `<span style="font-size:22px;font-weight:700;color:${imcInfos.color}">${imc}</span>
-               <span style="font-size:12px;color:${imcInfos.color};display:block;margin-top:2px">${imcInfos.label}</span>`
-            : '<span style="color:#9ca3af;font-size:13px">Renseigne taille et poids</span>';
+    const allergiesVal     = Array.isArray(p?.allergies)       ? p.allergies.join(', ')       : '';
+    const aliments_exclusVal = Array.isArray(p?.aliments_exclus) ? p.aliments_exclus.join(', ') : '';
+
+    const bloc = document.createElement('div');
+    bloc.innerHTML = `
+        <div class="form-group">
+            <label for="p-allergies">Allergies <span style="font-size:11px;color:#9ca3af">(séparées par des virgules)</span></label>
+            <input type="text" id="p-allergies" placeholder="ex : gluten, arachides, lactose" value="${allergiesVal}">
+        </div>
+        <div class="form-group">
+            <label for="p-aliments-exclus">Aliments exclus <span style="font-size:11px;color:#9ca3af">(séparés par des virgules)</span></label>
+            <input type="text" id="p-aliments-exclus" placeholder="ex : porc, alcool, café" value="${aliments_exclusVal}">
+        </div>
+    `;
+
+    // Insertion avant le bouton de sauvegarde
+    const btnSave = container.querySelector('button[onclick="sauvegarderSante()"]');
+    if (btnSave) {
+        container.insertBefore(bloc, btnSave);
+    } else {
+        container.appendChild(bloc);
     }
-    if (elTDEE) {
-        elTDEE.innerHTML = tdee
-            ? `<span style="font-size:22px;font-weight:700;color:#7c3aed">${tdee}</span>
-               <span style="font-size:12px;color:#9ca3af;display:block;margin-top:2px">kcal / jour (maintien)</span>`
-            : '<span style="color:#9ca3af;font-size:13px">Renseigne taille, poids, âge et sexe</span>';
+}
+
+// ===================== MOT DE PASSE ==========================
+
+function validerMotDePasse(pwd) {
+    if (!pwd || pwd.length < 8)    return 'Minimum 8 caractères.';
+    if (!/[A-Z]/.test(pwd))        return 'Au moins une majuscule requise.';
+    if (!/[a-z]/.test(pwd))        return 'Au moins une minuscule requise.';
+    if (!/[0-9]/.test(pwd))        return 'Au moins un chiffre requis.';
+    if (!/[^A-Za-z0-9]/.test(pwd)) return 'Au moins un caractère spécial requis.';
+    return null;
+}
+
+async function changerMdp() {
+    const user    = getUser();
+    const ancien  = document.getElementById('mdp-ancien').value;
+    const nouveau = document.getElementById('mdp-nouveau').value;
+    const confirm = document.getElementById('mdp-confirm').value;
+    const msg     = document.getElementById('mdp-msg');
+
+    if (nouveau !== confirm) {
+        msg.textContent = '❌ Les mots de passe ne correspondent pas.';
+        msg.style.color = '#ef4444';
+        return;
     }
-    if (elKcalObj) {
-        elKcalObj.innerHTML = kcalObj
-            ? `<span style="font-size:22px;font-weight:700;color:${kcalObj.color}">${kcalObj.valeur}</span>
-               <span style="font-size:12px;color:${kcalObj.color};display:block;margin-top:2px">${kcalObj.label}</span>`
-            : '<span style="color:#9ca3af;font-size:13px">Renseigne un objectif et ton TDEE</span>';
+    const erreur = validerMotDePasse(nouveau);
+    if (erreur) {
+        msg.textContent = '❌ ' + erreur;
+        msg.style.color = '#ef4444';
+        return;
+    }
+    msg.textContent = 'Sauvegarde...';
+    msg.style.color = '#9ca3af';
+    try {
+        const r = await fetch('/api/profil/changer-mdp', {
+            method  : 'POST',
+            headers : {
+                'Content-Type'  : 'application/json',
+                'Authorization' : `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ ancienMdp: ancien, nouveauMdp: nouveau })
+        });
+        const d = await r.json();
+        if (d.success) {
+            msg.textContent = '✅ Mot de passe changé !';
+            msg.style.color = '#10b981';
+            document.getElementById('mdp-ancien').value  = '';
+            document.getElementById('mdp-nouveau').value = '';
+            document.getElementById('mdp-confirm').value = '';
+        } else {
+            msg.textContent = '❌ ' + (d.message || 'Erreur.');
+            msg.style.color = '#ef4444';
+        }
+    } catch {
+        msg.textContent = '❌ Erreur réseau.';
+        msg.style.color = '#ef4444';
+    }
+}
+
+// ===================== WIDGETS OPT-OUT =======================
+
+async function afficherSectionWidgets() {
+    const user      = getUser();
+    const container = document.getElementById('widgets-choix');
+    if (!container) return;
+    try {
+        const res  = await fetch('/api/profil/widgets-visibles', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const data          = await res.json();
+        const widgetsCaches = data.widgets_caches || [];
+
+        const tries = [...TOUS_WIDGETS].sort((a, b) =>
+            a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' })
+        );
+
+        container.innerHTML = tries.map(w => `
+            <label class="widget-choix-item">
+                <input type="checkbox" value="${w.slug}"
+                    ${widgetsCaches.includes(w.slug) ? '' : 'checked'}>
+                <span>${w.icon} ${w.label}</span>
+            </label>
+        `).join('');
+    } catch {
+        container.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement.</p>';
+    }
+}
+
+async function sauvegarderWidgetsVisibles() {
+    const user       = getUser();
+    const msg        = document.getElementById('widgets-msg');
+    const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
+
+    const widgets_caches = [...checkboxes]
+        .filter(cb => !cb.checked)
+        .map(cb => cb.value);
+
+    msg.textContent = 'Sauvegarde...';
+    msg.style.color = '#9ca3af';
+    try {
+        const res = await fetch('/api/profil/widgets-visibles', {
+            method  : 'PATCH',
+            headers : {
+                'Authorization' : `Bearer ${user.token}`,
+                'Content-Type'  : 'application/json'
+            },
+            body: JSON.stringify({ widgets_caches })
+        });
+        const d = await res.json();
+        if (d.success) {
+            msg.textContent = '✅ Widgets mis à jour !';
+            msg.style.color = '#10b981';
+            appliquerWidgetsVisibles(widgets_caches);
+        } else {
+            msg.textContent = '❌ Erreur serveur.';
+            msg.style.color = '#ef4444';
+        }
+        } catch {
+        msg.textContent = '❌ Erreur réseau.';
+        msg.style.color = '#ef4444';
+    }
+}
+
+// ── Injection des champs allergies et aliments_exclus dans l'onglet Santé ──
+// Appelée depuis openModal('profil') après pré-remplissage des autres champs.
+// Injecte les deux champs dans le conteneur #profil-tab-sante,
+// juste avant le bouton de sauvegarde.
+
+function _injecterChampsAllergies(p) {
+    const container = document.getElementById('profil-tab-sante');
+    if (!container) return;
+
+    // Éviter la double injection
+    if (document.getElementById('p-allergies')) return;
+
+    const allergiesVal       = Array.isArray(p?.allergies)       ? p.allergies.join(', ')       : '';
+    const aliments_exclusVal = Array.isArray(p?.aliments_exclus) ? p.aliments_exclus.join(', ') : '';
+
+    const bloc = document.createElement('div');
+    bloc.innerHTML = `
+        <div class="form-group">
+            <label for="p-allergies">Allergies <span style="font-size:11px;color:#9ca3af">(séparées par des virgules)</span></label>
+            <input type="text" id="p-allergies" placeholder="gluten, arachides, lactose" value="${allergiesVal}">
+        </div>
+        <div class="form-group">
+            <label for="p-aliments-exclus">Aliments exclus <span style="font-size:11px;color:#9ca3af">(séparés par des virgules)</span></label>
+            <input type="text" id="p-aliments-exclus" placeholder="porc, alcool, café" value="${aliments_exclusVal}">
+        </div>
+    `;
+
+    // Insertion avant le bouton de sauvegarde
+    const btnSave = container.querySelector('button[onclick="sauvegarderSante()"]');
+    if (btnSave) {
+        container.insertBefore(bloc, btnSave);
+    } else {
+        container.appendChild(bloc);
     }
 }
 

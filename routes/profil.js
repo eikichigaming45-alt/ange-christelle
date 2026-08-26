@@ -9,6 +9,9 @@ const { pool }   = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 const { validerMotDePasse } = require('../utils/validations');
 
+// GET /api/profil
+// Récupère les données du profil de l'utilisateur connecté
+// Inclut désormais allergies et aliments_exclus (ajoutés v1.26)
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -16,7 +19,7 @@ router.get('/', authenticateToken, async (req, res) => {
                     naissance_lat, naissance_lon,
                     email, telephone, profession, note, photo, widgets_visibles,
                     signe_zodiaque, sexe, taille, poids, groupe_sanguin,
-                    niveau_activite, objectif_sante,
+                    niveau_activite, objectif_sante, allergies, aliments_exclus,
                     meteo_lat, meteo_lon, meteo_ville
              FROM profiles WHERE user_id = \$1`,
             [req.user.id]
@@ -29,13 +32,17 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 });
 
+// POST /api/profil
+// Met à jour les données du profil de l'utilisateur connecté
+// Inclut désormais allergies et aliments_exclus (ajoutés v1.26)
 router.post('/', authenticateToken, async (req, res) => {
     const {
         prenom, nom, date_naissance, heure_naissance, lieu_naissance,
         naissance_lat, naissance_lon,
         email, telephone, profession, note, photo,
         signe_zodiaque, sexe, taille, poids, groupe_sanguin,
-        niveau_activite, objectif_sante
+        niveau_activite, objectif_sante,
+        allergies, aliments_exclus
     } = req.body;
 
     try {
@@ -65,6 +72,8 @@ router.post('/', authenticateToken, async (req, res) => {
                 groupe_sanguin  = CASE WHEN \$18::text IS NOT NULL THEN \$18::text    ELSE groupe_sanguin  END,
                 niveau_activite = CASE WHEN \$19::text IS NOT NULL THEN \$19::text    ELSE niveau_activite END,
                 objectif_sante  = CASE WHEN \$20::text IS NOT NULL THEN \$20::text    ELSE objectif_sante  END,
+                allergies       = CASE WHEN \$21::text IS NOT NULL THEN \$21::text[]  ELSE allergies       END,
+                aliments_exclus = CASE WHEN \$22::text IS NOT NULL THEN \$22::text[]  ELSE aliments_exclus END,
                 updated_at      = NOW()
             WHERE user_id = \$1
         `, [
@@ -88,6 +97,8 @@ router.post('/', authenticateToken, async (req, res) => {
             groupe_sanguin  != null && groupe_sanguin  !== '' ? groupe_sanguin  : null,
             niveau_activite != null && niveau_activite !== '' ? niveau_activite : null,
             objectif_sante  != null && objectif_sante  !== '' ? objectif_sante  : null,
+            Array.isArray(allergies)       && allergies.length       ? allergies       : null,
+            Array.isArray(aliments_exclus) && aliments_exclus.length ? aliments_exclus : null,
         ]);
 
         res.json({ success: true });
@@ -97,6 +108,8 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
+// PATCH /api/profil/meteo-ville
+// Met à jour les coordonnées et le nom de ville météo
 router.patch('/meteo-ville', authenticateToken, async (req, res) => {
     const { lat, lon, ville } = req.body;
     if (!lat || !lon) return res.status(400).json({ success: false, message: 'Coordonnées manquantes.' });
@@ -112,6 +125,8 @@ router.patch('/meteo-ville', authenticateToken, async (req, res) => {
     }
 });
 
+// DELETE /api/profil/photo
+// Supprime la photo de profil
 router.delete('/photo', authenticateToken, async (req, res) => {
     try {
         await pool.query(
@@ -125,6 +140,8 @@ router.delete('/photo', authenticateToken, async (req, res) => {
     }
 });
 
+// POST /api/profil/changer-mdp
+// Changement de mot de passe — vérifie l'ancien avant de hasher le nouveau
 router.post('/changer-mdp', authenticateToken, async (req, res) => {
     const { ancienMdp, nouveauMdp } = req.body;
     if (!ancienMdp || !nouveauMdp) return res.status(400).json({ success: false, message: 'Champs manquants.' });
@@ -150,6 +167,8 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
     }
 });
 
+// GET /api/profil/widgets-visibles
+// Récupère la liste des widgets cachés pour l'utilisateur
 router.get('/widgets-visibles', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -164,6 +183,8 @@ router.get('/widgets-visibles', authenticateToken, async (req, res) => {
     }
 });
 
+// PATCH /api/profil/widgets-visibles
+// Met à jour la liste des widgets cachés
 router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
     const { widgets_caches } = req.body;
     if (!Array.isArray(widgets_caches)) return res.status(400).json({ success: false, message: 'Format invalide.' });
@@ -179,6 +200,8 @@ router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
     }
 });
 
+// GET /api/profil/abonnes/:userId
+// Retourne la liste des abonnés d'un utilisateur (accès limité à soi-même)
 router.get('/abonnes/:userId', authenticateToken, async (req, res) => {
     const cibleId = parseInt(req.params.userId);
     if (isNaN(cibleId)) return res.status(400).json({ success: false, message: 'ID invalide.' });
@@ -199,6 +222,8 @@ router.get('/abonnes/:userId', authenticateToken, async (req, res) => {
     }
 });
 
+// GET /api/profil/public/:userId
+// Retourne le profil public d'un utilisateur avec stats sociales
 router.get('/public/:userId', authenticateToken, async (req, res) => {
     const cibleId = parseInt(req.params.userId);
     const moi     = req.user.id;
