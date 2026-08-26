@@ -215,9 +215,6 @@ async function _mentionInput(inputEl, dropEl) {
     } catch { _fermerDropdown(dropEl); }
 }
 
-// FIX Bug B : double espace comme terminateur — survit à tous les
-// navigateurs mobiles contrairement à \u00A0 qui se convertit.
-// La validation en base dans resoudreMentions garantit zéro faux positif.
 function _insererMention(inputEl, dropEl, prenom, nom) {
     const val      = inputEl.value;
     const cursor   = inputEl.selectionStart;
@@ -475,8 +472,6 @@ async function toggleCommentaires(postId) {
 }
 
 // ── CHARGER COMMENTAIRES ──────────────────────────────────────
-// Structure : commentaires racine (parent_id = null) + réponses
-// imbriquées dessous, indentées visuellement.
 async function chargerCommentaires(postId) {
     const user = getUser();
     const zone = document.getElementById(`comments-${postId}`);
@@ -488,11 +483,9 @@ async function chargerCommentaires(postId) {
         const d = await r.json();
         if (!d.success) throw new Error();
 
-        // Séparer racines et réponses
         const racines  = d.comments.filter(c => !c.parent_id);
         const reponses = d.comments.filter(c => !!c.parent_id);
 
-        // Construire le HTML : chaque racine suivie de ses réponses
         const html = racines.map(c => {
             const reps = reponses.filter(r => r.parent_id === c.id);
             return `
@@ -523,7 +516,6 @@ async function chargerCommentaires(postId) {
 }
 
 // ── RENDER COMMENT ────────────────────────────────────────────
-// isReponse : true = affichage indenté, pas de bouton Répondre
 function renderComment(c, postId, isReponse = false) {
     const user    = getUser();
     const isOwner = user.username === c.username;
@@ -532,7 +524,6 @@ function renderComment(c, postId, isReponse = false) {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
     });
 
-    // Avatar cliquable → profil public
     const avatar = c.avatar
         ? `<img src="${c.avatar}" onclick="ouvrirProfilPublic(${c.user_id})"
                style="width:28px;height:28px;border-radius:50%;object-fit:cover;
@@ -546,7 +537,7 @@ function renderComment(c, postId, isReponse = false) {
                ${(c.prenom?.[0] || c.username[0]).toUpperCase()}
            </div>`;
 
-        return `
+    return `
         <div class="feed-comment${isReponse ? ' feed-comment-reply' : ''}"
              id="comment-${c.id}" data-comment-id="${c.id}"
              style="display:flex;gap:8px;padding:8px 0;align-items:flex-start">
@@ -556,7 +547,7 @@ function renderComment(c, postId, isReponse = false) {
                     <span class="feed-comment-author"
                           style="font-size:13px;font-weight:700;color:#111;cursor:pointer"
                           onclick="ouvrirProfilPublic(${c.user_id})">
-                        ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
+                                                ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
                     </span>
                     <span class="feed-comment-date" style="font-size:11px;color:#9ca3af">${date}</span>
                     <div class="feed-comment-actions" style="display:flex;align-items:center;gap:4px;margin-left:auto">
@@ -594,7 +585,6 @@ function renderComment(c, postId, isReponse = false) {
                     ${renderContenuAvecMentions(c.contenu, c.mentions_data)}
                 </div>
                 <div class="feed-comment-raw" id="comment-raw-${c.id}" style="display:none">${escapeHtml(c.contenu)}</div>
-                <!-- Zone formulaire réponse injectée dynamiquement -->
                 <div id="reply-form-${c.id}"></div>
             </div>
         </div>
@@ -602,9 +592,8 @@ function renderComment(c, postId, isReponse = false) {
 }
 
 // ── FORMULAIRE RÉPONSE ────────────────────────────────────────
-// Injecté sous le commentaire parent, identité de l'auteur en tête
+// FIX : inputEl.value = '' avant focus — évite fuite contenu parent
 function afficherFormulaireReponse(parentId, postId, nomAuteur) {
-    // Fermer tout formulaire de réponse ouvert
     document.querySelectorAll('[id^="reply-form-"]').forEach(el => el.innerHTML = '');
 
     const zone = document.getElementById(`reply-form-${parentId}`);
@@ -633,13 +622,14 @@ function afficherFormulaireReponse(parentId, postId, nomAuteur) {
     const inputEl = document.getElementById(`reply-input-${parentId}`);
     const wrapEl  = document.getElementById(`reply-wrap-${parentId}`);
     if (inputEl) {
-        inputEl.focus();
+        inputEl.value = '';                          // ← FIX : vider avant focus
         inputEl.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 envoyerReponse(parentId, postId);
             }
         });
+        inputEl.focus();
     }
     initMentions(inputEl, wrapEl);
 }
@@ -1053,7 +1043,7 @@ async function partagerPost(postId) {
     const photoUrl  = card?.dataset.photoUrl || '';
     const text      = contenu.substring(0, 100) || 'Regarde ce post sur MyDaily';
 
-        if (navigator.share) {
+    if (navigator.share) {
         try {
             const shareData = { title: 'MyDaily', text };
             if (photoUrl) { shareData.url = photoUrl; } else { shareData.url = location.origin; }
@@ -1063,7 +1053,7 @@ async function partagerPost(postId) {
         }
     } else {
         try {
-            const urlACopier = photoUrl || location.origin;
+                        const urlACopier = photoUrl || location.origin;
             await navigator.clipboard.writeText(`${text}\n${urlACopier}`);
             document.getElementById('modal-title').textContent = 'Lien copié';
             document.getElementById('modal-body').innerHTML = `
