@@ -4,7 +4,8 @@
 // suppression photo, et préférences widgets (opt-out).
 // signe_zodiaque : saisi manuellement si pas de date_naissance.
 // Nouveaux champs : heure_naissance, lieu_naissance, taille,
-// poids, groupe_sanguin, niveau_activite, naissance_lat, naissance_lon.
+// poids, groupe_sanguin, niveau_activite, naissance_lat, naissance_lon,
+// objectif_sante.
 // Route abonnés : GET /api/profil/abonnes/:userId — soi uniquement.
 // ============================================================
 
@@ -23,8 +24,9 @@ router.get('/', authenticateToken, async (req, res) => {
                     naissance_lat, naissance_lon,
                     email, telephone, profession, note, photo, widgets_visibles,
                     signe_zodiaque, sexe, taille, poids, groupe_sanguin,
-                    niveau_activite, meteo_lat, meteo_lon, meteo_ville
-             FROM profiles WHERE user_id = \$1`,
+                    niveau_activite, objectif_sante,
+                    meteo_lat, meteo_lon, meteo_ville
+             FROM profiles WHERE user_id = \\$1`,
             [req.user.id]
         );
         if (result.rows.length === 0) {
@@ -43,7 +45,7 @@ router.post('/', authenticateToken, async (req, res) => {
             naissance_lat, naissance_lon,
             email, telephone, profession, note, photo,
             signe_zodiaque, sexe, taille, poids, groupe_sanguin,
-            niveau_activite } = req.body;
+            niveau_activite, objectif_sante } = req.body;
     try {
         await pool.query(`
             INSERT INTO profiles
@@ -51,27 +53,29 @@ router.post('/', authenticateToken, async (req, res) => {
                  naissance_lat, naissance_lon,
                  email, telephone, profession, note, photo,
                  signe_zodiaque, sexe, taille, poids, groupe_sanguin,
-                 niveau_activite, updated_at)
-            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15, \$16, \$17, \$18, \$19, NOW())
+                 niveau_activite, objectif_sante, updated_at)
+            VALUES (\\$1,\\$2,\\$3,\\$4,\\$5,\\$6,\\$7,\\$8,\\$9,\\$10,\\$11,\\$12,\\$13,\\$14,\\$15,\\$16,\\$17,\\$18,\\$19,\\$20,NOW())
             ON CONFLICT (user_id) DO UPDATE SET
-                prenom=\$2, nom=\$3, date_naissance=\$4, heure_naissance=\$5,
-                lieu_naissance=\$6, naissance_lat=\$7, naissance_lon=\$8,
-                email=\$9, telephone=\$10, profession=\$11, note=\$12, photo=\$13,
-                signe_zodiaque=\$14, sexe=\$15, taille=\$16, poids=\$17,
-                groupe_sanguin=\$18, niveau_activite=\$19, updated_at=NOW()
+                prenom=\\$2, nom=\\$3, date_naissance=\\$4, heure_naissance=\\$5,
+                lieu_naissance=\\$6, naissance_lat=\\$7, naissance_lon=\\$8,
+                email=\\$9, telephone=\\$10, profession=\\$11, note=\\$12, photo=\\$13,
+                signe_zodiaque=\\$14, sexe=\\$15, taille=\\$16, poids=\\$17,
+                groupe_sanguin=\\$18, niveau_activite=\\$19, objectif_sante=\\$20,
+                updated_at=NOW()
         `, [req.user.id, prenom, nom,
-            date_naissance   || null,
-            heure_naissance  || null,
-            lieu_naissance   || null,
-            naissance_lat    || null,
-            naissance_lon    || null,
+            date_naissance  || null,
+            heure_naissance || null,
+            lieu_naissance  || null,
+            naissance_lat   || null,
+            naissance_lon   || null,
             email, telephone, profession, note, photo,
-            signe_zodiaque   || null,
-            sexe             || null,
-            taille           || null,
-            poids            || null,
-            groupe_sanguin   || null,
-            niveau_activite  || null]);
+            signe_zodiaque  || null,
+            sexe            || null,
+            taille          || null,
+            poids           || null,
+            groupe_sanguin  || null,
+            niveau_activite || null,
+            objectif_sante  || null]);
         res.json({ success: true });
     } catch (err) {
         console.error('[PROFIL] POST /', err.message);
@@ -88,8 +92,8 @@ router.patch('/meteo-ville', authenticateToken, async (req, res) => {
     try {
         await pool.query(
             `UPDATE profiles
-             SET meteo_lat = \$1, meteo_lon = \$2, meteo_ville = \$3, updated_at = NOW()
-             WHERE user_id = \$4`,
+             SET meteo_lat = \\$1, meteo_lon = \\$2, meteo_ville = \\$3, updated_at = NOW()
+             WHERE user_id = \\$4`,
             [lat, lon, ville || null, req.user.id]
         );
         res.json({ success: true });
@@ -103,7 +107,7 @@ router.patch('/meteo-ville', authenticateToken, async (req, res) => {
 router.delete('/photo', authenticateToken, async (req, res) => {
     try {
         await pool.query(
-            'UPDATE profiles SET photo = NULL, updated_at = NOW() WHERE user_id = \$1',
+            'UPDATE profiles SET photo = NULL, updated_at = NOW() WHERE user_id = \\$1',
             [req.user.id]
         );
         res.json({ success: true });
@@ -123,7 +127,7 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
     if (erreur) return res.status(400).json({ success: false, message: erreur });
     try {
         const result = await pool.query(
-            'SELECT password FROM users WHERE id = \$1',
+            'SELECT password FROM users WHERE id = \\$1',
             [req.user.id]
         );
         if (result.rows.length === 0) {
@@ -135,7 +139,7 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
         }
         const hash = await bcrypt.hash(nouveauMdp, 10);
         await pool.query(
-            'UPDATE users SET password = \$1, must_change_password = FALSE WHERE id = \$2',
+            'UPDATE users SET password = \\$1, must_change_password = FALSE WHERE id = \\$2',
             [hash, req.user.id]
         );
         res.json({ success: true });
@@ -149,7 +153,7 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
 router.get('/widgets-visibles', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT widgets_visibles FROM profiles WHERE user_id = \$1',
+            'SELECT widgets_visibles FROM profiles WHERE user_id = \\$1',
             [req.user.id]
         );
         const widgets_caches = result.rows[0]?.widgets_visibles || [];
@@ -168,7 +172,7 @@ router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
     }
     try {
         await pool.query(
-            'UPDATE profiles SET widgets_visibles = \$1 WHERE user_id = \$2',
+            'UPDATE profiles SET widgets_visibles = \\$1 WHERE user_id = \\$2',
             [widgets_caches, req.user.id]
         );
         res.json({ success: true });
@@ -194,7 +198,7 @@ router.get('/abonnes/:userId', authenticateToken, async (req, res) => {
             FROM follows f
             JOIN users u ON u.id = f.follower_id
             LEFT JOIN profiles p ON p.user_id = f.follower_id
-            WHERE f.following_id = \$1
+            WHERE f.following_id = \\$1
             ORDER BY u.username ASC
         `, [cibleId]);
         res.json({ success: true, abonnes: rows });
@@ -217,7 +221,7 @@ router.get('/public/:userId', authenticateToken, async (req, res) => {
                     p.signe_zodiaque, p.note
              FROM users u
              LEFT JOIN profiles p ON p.user_id = u.id
-             WHERE u.id = \$1`,
+             WHERE u.id = \\$1`,
             [cibleId]
         );
         if (profilRes.rows.length === 0) {
@@ -226,10 +230,10 @@ router.get('/public/:userId', authenticateToken, async (req, res) => {
         const profil = profilRes.rows[0];
 
         const [[postsRes], [abonnesRes], [abonnementsRes], [suiviRes]] = await Promise.all([
-            pool.query('SELECT COUNT(*) FROM posts WHERE user_id = \$1', [cibleId]),
-            pool.query('SELECT COUNT(*) FROM follows WHERE following_id = \$1', [cibleId]),
-            pool.query('SELECT COUNT(*) FROM follows WHERE follower_id = \$1', [cibleId]),
-            pool.query('SELECT 1 FROM follows WHERE follower_id = \$1 AND following_id = \$2', [moi, cibleId])
+            pool.query('SELECT COUNT(*) FROM posts WHERE user_id = \\$1', [cibleId]),
+            pool.query('SELECT COUNT(*) FROM follows WHERE following_id = \\$1', [cibleId]),
+            pool.query('SELECT COUNT(*) FROM follows WHERE follower_id = \\$1', [cibleId]),
+            pool.query('SELECT 1 FROM follows WHERE follower_id = \\$1 AND following_id = \\$2', [moi, cibleId])
         ].map(p => p.then(r => [r])));
 
         res.json({

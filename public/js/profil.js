@@ -3,8 +3,9 @@
 // Profil utilisateur : affichage, édition, photo (cropper),
 // suppression photo, trigramme 3 lettres, changement de mot
 // de passe, préférences widgets (opt-out).
-// Onglet Santé : sexe, taille, poids, groupe sanguin,
-// niveau d'activité, signe zodiaque, IMC, TDEE.
+// Onglet Santé  : sexe, taille, poids, groupe sanguin,
+//                 niveau activité, objectif santé, signe zodiaque,
+//                 IMC, TDEE, kcal objectif.
 // Géocodage Nominatim : lieu de naissance → lat/lon (onblur).
 // Widget Mon Profil : signe astrologique à la place de l'IMC.
 // Dépend de : app.js (getUser, profilCache, cropperInstance, TOUS_WIDGETS)
@@ -51,6 +52,22 @@ function calculerTDEE(poids, taille, age, sexe, niveau_activite) {
     };
     const facteur = facteurs[niveau_activite] || 1.2;
     return Math.round(MB * facteur);
+}
+
+// ── Calcule les kcal cibles selon l'objectif ─────────────────
+function calculerKcalObjectif(tdee, objectif) {
+    if (!tdee || !objectif) return null;
+    const delta = {
+        perte_douce   : { val: -250, label: 'Perte douce',    color: '#3b82f6' },
+        perte_moderee : { val: -500, label: 'Perte modérée',  color: '#f59e0b' },
+        perte_rapide  : { val: -750, label: 'Perte rapide',   color: '#ef4444' },
+        maintien      : { val:    0, label: 'Maintien',       color: '#10b981' },
+        prise_douce   : { val: +250, label: 'Prise douce',    color: '#8b5cf6' },
+        prise_moderee : { val: +500, label: 'Prise modérée',  color: '#7c3aed' },
+    };
+    const d = delta[objectif];
+    if (!d) return null;
+    return { valeur: tdee + d.val, label: d.label, color: d.color };
 }
 
 // ===================== SIGNE ASTROLOGIQUE ====================
@@ -203,7 +220,6 @@ async function chargerProfilHeader() {
             return a;
         })() : null;
 
-        // Signe astrologique pour le widget
         const signe = obtenirSigne(p);
 
         wc.innerHTML = `
@@ -402,12 +418,6 @@ async function sauvegarderProfil() {
         profession      : document.getElementById('p-prof')?.value             || '',
         note            : document.getElementById('p-note')?.value             || '',
         photo,
-        sexe            : document.getElementById('p-sexe')?.value             || null,
-        taille          : document.getElementById('p-taille')?.value           ? parseInt(document.getElementById('p-taille').value)           : null,
-        poids           : document.getElementById('p-poids')?.value            ? parseFloat(document.getElementById('p-poids').value)           : null,
-        groupe_sanguin  : document.getElementById('p-groupe-sanguin')?.value   || null,
-        niveau_activite : document.getElementById('p-niveau-activite')?.value  || null,
-        signe_zodiaque  : document.getElementById('p-signe')?.value            || null,
     };
 
     try {
@@ -425,6 +435,50 @@ async function sauvegarderProfil() {
             msg.style.color = '#10b981';
             profilCache     = { ...profilCache, ...body };
             chargerProfilHeader();
+        } else {
+            msg.textContent = '❌ ' + (d.message || 'Erreur.');
+            msg.style.color = '#ef4444';
+        }
+    } catch {
+        msg.textContent = '❌ Erreur réseau.';
+        msg.style.color = '#ef4444';
+    }
+}
+
+// ===================== SAUVEGARDE SANTÉ ======================
+// Fonction dédiée à l'onglet Santé — id feedback : sante-msg
+// pour éviter le conflit avec profil-msg de l'onglet Profil.
+
+async function sauvegarderSante() {
+    const user = getUser();
+    const msg  = document.getElementById('sante-msg');
+    msg.textContent = 'Sauvegarde...';
+    msg.style.color = '#9ca3af';
+
+    const body = {
+        sexe            : document.getElementById('p-sexe')?.value             || null,
+        taille          : document.getElementById('p-taille')?.value           ? parseInt(document.getElementById('p-taille').value)           : null,
+        poids           : document.getElementById('p-poids')?.value            ? parseFloat(document.getElementById('p-poids').value)           : null,
+        groupe_sanguin  : document.getElementById('p-groupe-sanguin')?.value   || null,
+        niveau_activite : document.getElementById('p-niveau-activite')?.value  || null,
+        objectif_sante  : document.getElementById('p-objectif-sante')?.value  || null,
+        signe_zodiaque  : document.getElementById('p-signe')?.value            || null,
+    };
+
+    try {
+        const r = await fetch('/api/profil', {
+            method  : 'POST',
+            headers : {
+                'Content-Type'  : 'application/json',
+                'Authorization' : `Bearer ${user.token}`
+            },
+            body: JSON.stringify(body)
+        });
+        const d = await r.json();
+        if (d.success) {
+            msg.textContent = '✅ Santé sauvegardée !';
+            msg.style.color = '#10b981';
+            profilCache     = { ...profilCache, ...body };
             _appliquerVisibiliteCycle(body.sexe);
             _rafraichirCalculsSante(body);
         } else {
@@ -437,7 +491,7 @@ async function sauvegarderProfil() {
     }
 }
 
-// ── Rafraîchit les blocs IMC/TDEE après sauvegarde ───────────
+// ── Rafraîchit IMC, TDEE et kcal objectif après sauvegarde ───
 function _rafraichirCalculsSante(p) {
     const age = p.date_naissance ? (() => {
         const n     = new Date(p.date_naissance);
@@ -445,14 +499,22 @@ function _rafraichirCalculsSante(p) {
         let a       = today.getFullYear() - n.getFullYear();
         if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
         return a;
-    })() : null;
+    })() : (profilCache?.date_naissance ? (() => {
+        const n     = new Date(profilCache.date_naissance);
+        const today = new Date();
+        let a       = today.getFullYear() - n.getFullYear();
+        if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
+        return a;
+    })() : null);
 
     const imc      = calculerIMC(p.poids, p.taille);
     const imcInfos = interpreterIMC(imc);
     const tdee     = calculerTDEE(p.poids, p.taille, age, p.sexe, p.niveau_activite);
+    const kcalObj  = calculerKcalObjectif(tdee, p.objectif_sante);
 
-    const elIMC  = document.getElementById('sante-imc-result');
-    const elTDEE = document.getElementById('sante-tdee-result');
+    const elIMC     = document.getElementById('sante-imc-result');
+    const elTDEE    = document.getElementById('sante-tdee-result');
+    const elKcalObj = document.getElementById('sante-kcalobj-result');
 
     if (elIMC) {
         elIMC.innerHTML = imc && imcInfos
@@ -463,8 +525,14 @@ function _rafraichirCalculsSante(p) {
     if (elTDEE) {
         elTDEE.innerHTML = tdee
             ? `<span style="font-size:22px;font-weight:700;color:#7c3aed">${tdee}</span>
-               <span style="font-size:12px;color:#9ca3af;display:block;margin-top:2px">kcal / jour</span>`
+               <span style="font-size:12px;color:#9ca3af;display:block;margin-top:2px">kcal / jour (maintien)</span>`
             : '<span style="color:#9ca3af;font-size:13px">Renseigne taille, poids, âge et sexe</span>';
+    }
+    if (elKcalObj) {
+        elKcalObj.innerHTML = kcalObj
+            ? `<span style="font-size:22px;font-weight:700;color:${kcalObj.color}">${kcalObj.valeur}</span>
+               <span style="font-size:12px;color:${kcalObj.color};display:block;margin-top:2px">${kcalObj.label}</span>`
+            : '<span style="color:#9ca3af;font-size:13px">Renseigne un objectif et ton TDEE</span>';
     }
 }
 
