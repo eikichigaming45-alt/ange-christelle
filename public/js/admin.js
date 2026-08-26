@@ -459,10 +459,29 @@ async function adminToggleRole(id, roleActuel) {
             body: JSON.stringify({ role: newRole })
         });
         const d = await r.json();
-        if (d.success) chargerAdminUsers();
-        else alert(d.message || 'Erreur.');
+        if (d.success) {
+            chargerAdminUsers();
+        } else {
+                        // CORRIGÉ — plus d'alert() natif
+            const el = document.getElementById('admin-tab-users');
+            if (el) {
+                const p = document.createElement('p');
+                p.style.cssText = 'color:#ef4444;font-size:13px;text-align:center;padding:8px 0';
+                p.textContent   = d.message || 'Erreur lors du changement de rôle.';
+                el.prepend(p);
+                setTimeout(() => p.remove(), 4000);
+            }
+        }
     } catch {
-        alert('Erreur réseau.');
+        // CORRIGÉ — plus d'alert() natif
+        const el = document.getElementById('admin-tab-users');
+        if (el) {
+            const p = document.createElement('p');
+            p.style.cssText = 'color:#ef4444;font-size:13px;text-align:center;padding:8px 0';
+            p.textContent   = 'Erreur réseau.';
+            el.prepend(p);
+            setTimeout(() => p.remove(), 4000);
+        }
     }
 }
 
@@ -476,7 +495,8 @@ function adminResetPwd(id, username) {
             <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">8 car. min · majuscule · minuscule · chiffre · spécial</div>
             <input type="password" id="admin-new-pwd" placeholder="Nouveau mot de passe"
                 autocomplete="new-password" name="admin-pwd-field"
-                style="width:100%;padding:10px 12px                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px">
             <div style="display:flex;gap:8px">
                 <button class="ua-btn ua-btn-blue" style="flex:1" onclick="adminConfirmResetPwd(${id})">✓ Confirmer</button>
                 <button class="ua-btn" style="flex:1;background:#f3f4f6;color:#374151" onclick="chargerAdminUsers()">Annuler</button>
@@ -543,10 +563,29 @@ async function adminConfirmSupprimer(id) {
             }
         });
         const d = await r.json();
-        if (d.success) chargerAdminUsers();
-        else alert(d.message || 'Erreur.');
+        if (d.success) {
+            chargerAdminUsers();
+        } else {
+            // CORRIGÉ — plus d'alert() natif
+            const el = document.getElementById('admin-tab-users');
+            if (el) {
+                const p = document.createElement('p');
+                p.style.cssText = 'color:#ef4444;font-size:13px;text-align:center;padding:8px 0';
+                p.textContent   = d.message || 'Erreur lors de la suppression.';
+                el.prepend(p);
+                setTimeout(() => p.remove(), 4000);
+            }
+        }
     } catch {
-        alert('Erreur réseau.');
+        // CORRIGÉ — plus d'alert() natif
+        const el = document.getElementById('admin-tab-users');
+        if (el) {
+            const p = document.createElement('p');
+            p.style.cssText = 'color:#ef4444;font-size:13px;text-align:center;padding:8px 0';
+            p.textContent   = 'Erreur réseau.';
+            el.prepend(p);
+            setTimeout(() => p.remove(), 4000);
+        }
     }
 }
 
@@ -604,4 +643,3 @@ function switchAdminTab(tab) {
     if (tab === 'stats') chargerAdminStats();
     if (tab === 'users') chargerAdminUsers();
 }
-
