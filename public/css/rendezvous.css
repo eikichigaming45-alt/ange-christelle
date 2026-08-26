@@ -1,0 +1,107 @@
+/* ============================================================
+   public/css/rendezvous.css
+   Styles dédiés au widget et à la modale Rendez-vous.
+   ============================================================ */
+
+/* ===================== WIDGET ============================= */
+.widget-rdv { display: flex; flex-direction: column; gap: 8px; }
+
+.rdv-card {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 10px 14px;
+    border-left: 4px solid #e5e7eb;
+    cursor: pointer;
+    transition: background .15s;
+}
+.rdv-card:hover { background: #f0f4ff; }
+.rdv-card.rdv-today  { border-left-color: #10b981; background: #f0fdf4; }
+.rdv-card.rdv-soon   { border-left-color: #f59e0b; background: #fffbeb; }
+.rdv-card.rdv-futur  { border-left-color: #7c3aed; }
+.rdv-card.rdv-passe  { border-left-color: #d1d5db; opacity: .6; }
+
+.rdv-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.rdv-card-titre { font-size: 13px; font-weight: 700; color: #1f2937; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rdv-card-date  { font-size: 12px; color: #6b7280; margin-bottom: 2px; }
+.rdv-card-sub   { font-size: 11px; color: #9ca3af; }
+
+/* ===================== BADGES ============================ */
+.rdv-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
+.rdv-badge.rdv-today  { background: #d1fae5; color: #065f46; }
+.rdv-badge.rdv-soon   { background: #fef3c7; color: #92400e; }
+.rdv-badge.rdv-futur  { background: #ede9fe; color: #5b21b6; }
+.rdv-badge.rdv-passe  { background: #f3f4f6; color: #9ca3af; }
+.rdv-passe-badge { background: #fee2e2; color: #991b1b; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-left: 4px; }
+
+/* ===================== ACTIONS =========================== */
+.rdv-actions { display: flex; gap: 8px; margin-top: 4px; }
+.btn-rdv-primary {
+    flex: 1; padding: 9px; background: #7c3aed; color: #fff;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background .2s;
+}
+.btn-rdv-primary:hover { background: #6d28d9; }
+.btn-rdv-secondary {
+    flex: 1; padding: 9px; background: #f5f3ff; color: #7c3aed;
+    border: 1.5px solid #ede9fe; border-radius: 8px; font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: background .2s;
+}
+.btn-rdv-secondary:hover { background: #ede9fe; }
+
+/* ===================== ÉTATS ============================= */
+.rdv-empty { color: #9ca3af; font-size: 13px; text-align: center; padding: 8px 0; }
+.rdv-error { color: #ef4444; font-size: 13px; text-align: center; }
+
+/* ===================== LISTE MODALE ====================== */
+.rdv-liste { display: flex; flex-direction: column; gap: 6px; }
+.rdv-section-title {
+    font-size: 11px; font-weight: 700; color: #9ca3af;
+    text-transform: uppercase; letter-spacing: .5px;
+    margin: 12px 0 6px;
+}
+.rdv-passe-title { color: #d1d5db; }
+
+.rdv-liste-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: #f8fafc;
+    border-radius: 10px; border-left: 3px solid #e5e7eb;
+    transition: background .15s;
+}
+.rdv-liste-item:hover { background: #f0f4ff; }
+.rdv-liste-item.rdv-today { border-left-color: #10b981; }
+.rdv-liste-item.rdv-soon  { border-left-color: #f59e0b; }
+.rdv-liste-item.rdv-passe { opacity: .6; }
+
+.rdv-liste-icon { font-size: 20px; flex-shrink: 0; }
+.rdv-liste-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #6b7280; }
+.rdv-liste-body strong { font-size: 13px; color: #1f2937; }
+.rdv-liste-right { flex-shrink: 0; }
+
+/* ===================== PAGINATION ======================== */
+.rdv-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; font-size: 13px; color: #6b7280; }
+
+/* ===================== DÉTAIL ============================ */
+.rdv-detail { display: flex; flex-direction: column; gap: 10px; }
+.rdv-detail-badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 12px; margin-bottom: 4px; }
+.rdv-detail-row { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #374151; }
+.rdv-detail-notes { font-size: 13px; color: #6b7280; background: #f8fafc; border-radius: 10px; padding: 10px 14px; line-height: 1.5; }
+
+/* ===================== FORMULAIRE ======================== */
+.modal-rdv-form { display: flex; flex-direction: column; gap: 8px; }
+.modal-rdv-form label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; }
+.modal-rdv-form input,
+.modal-rdv-form select,
+.modal-rdv-form textarea {
+    width: 100%; padding: 10px 12px; border: 1.5px solid #e5e7eb;
+    border-radius: 10px; font-size: 14px; outline: none;
+    box-sizing: border-box; font-family: inherit; background: #fff;
+}
+.modal-rdv-form input:focus,
+.modal-rdv-form select:focus,
+.modal-rdv-form textarea:focus { border-color: #7c3aed; }

@@ -1,0 +1,38 @@
+/* ============================================================
+   public/css/anniversaires.css
+   Styles dédiés au widget et à la modale Anniversaires.
+   ============================================================ */
+
+/* ===================== WIDGET ============================= */
+.anniv-list { display: flex; flex-direction: column; gap: 6px; }
+
+.anniv-item {
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 8px;
+    padding: 4px 0;
+}
+.anniv-nom   { font-size: 13px; font-weight: 600; color: #1f2937; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anniv-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.anniv-age   { font-size: 11px; color: #9ca3af; }
+
+/* ===================== BADGES ============================ */
+.anniv-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.anniv-today { background: #fce7f3; color: #9d174d; }
+.anniv-soon  { background: #fef3c7; color: #92400e; }
+.anniv-futur { background: #ede9fe; color: #5b21b6; }
+
+/* ===================== MODALE ============================ */
+.anniv-form-bloc { margin-bottom: 16px; }
+
+.anniv-modal-liste { display: flex; flex-direction: column; gap: 8px; }
+
+.anniv-modal-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: #f8fafc;
+    border-radius: 10px; border: 1px solid #e5e7eb;
+}
+.anniv-modal-icon { font-size: 20px; flex-shrink: 0; }
+.anniv-modal-info { flex: 1; min-width: 0; }
+.anniv-modal-nom  { font-size: 13px; font-weight: 700; color: #1f2937; }
+.anniv-modal-meta { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.anniv-modal-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
