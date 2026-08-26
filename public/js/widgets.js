@@ -88,6 +88,10 @@ async function buildGrid() {
     if (typeof chargerWidgetPlanning === 'function')  chargerWidgetPlanning();
     if (typeof chargerWidgetSocial   === 'function')  chargerWidgetSocial();
     if (typeof chargerWidgetSante    === 'function')  chargerWidgetSante();
+	if (typeof chargerWidgetAnniversaires === 'function') chargerWidgetAnniversaires();
+	if (typeof chargerWidgetAdmin         === 'function') chargerWidgetAdmin();
+	if (typeof chargerAstrologie          === 'function') chargerAstrologie();
+
 }
 
 async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
@@ -149,14 +153,15 @@ function creerWidget(def, gridId) {
     div.draggable    = true;
 
     let contentHtml = def.desc || '';
-    if (def.id === 'cycle')      contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
-    if (def.id === 'rendezvous') contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
-    if (def.id === 'planning')   contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
-    if (def.id === 'profil')     contentHtml = '<div id="wc-profil"></div>';
-    if (def.id === 'astrologie') contentHtml = 'Chargement...';
-    if (def.id === 'admin')      contentHtml = '<div id="wc-admin">Chargement...</div>';
-    if (def.id === 'social')     contentHtml = '<div id="wc-social">Chargement...</div>';
-    if (def.id === 'sante')      contentHtml = '<div id="wc-sante">Chargement...</div>';
+    if (def.id === 'cycle')          contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
+	if (def.id === 'rendezvous')     contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
+	if (def.id === 'planning')       contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
+	if (def.id === 'profil')         contentHtml = '<div id="wc-profil"></div>';
+	if (def.id === 'astrologie')     contentHtml = '<div id="wc-astrologie">Chargement...</div>';
+	if (def.id === 'admin')          contentHtml = '<div id="wc-admin">Chargement...</div>';
+	if (def.id === 'social')         contentHtml = '<div id="wc-social">Chargement...</div>';
+	if (def.id === 'sante')          contentHtml = '<div id="wc-sante">Chargement...</div>';
+	if (def.id === 'anniversaires')  contentHtml = '<div id="wc-anniversaires">Chargement...</div>';
 
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
