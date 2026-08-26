@@ -121,10 +121,13 @@ router.post('/partages', async (req, res) => {
             ON CONFLICT (owner_id, viewer_id, resource_type) DO UPDATE SET active = TRUE
             RETURNING *
         `, [req.user.id, viewer_id, resource_type]);
+
+        // FIX : sender_id ajouté — le destinataire verra qui a partagé
         await pool.query(`
-            INSERT INTO notifications (user_id, type, ref_id)
-            VALUES (\$1, 'share_request', \$2)
-        `, [viewer_id, rows[0].id]);
+            INSERT INTO notifications (user_id, type, ref_id, sender_id)
+            VALUES (\$1, 'share_request', \$2, \$3)
+        `, [viewer_id, rows[0].id, req.user.id]);
+
         res.json({ success: true, partage: rows[0] });
     } catch (err) {
         console.error('[SOCIAL] POST /partages :', err.message);
@@ -255,10 +258,13 @@ router.post('/coucou/:userId', async (req, res) => {
             VALUES (\$1, \$2, \$3)
             RETURNING id
         `, [req.user.id, receiverId, content]);
+
+        // FIX : sender_id ajouté — la cloche affiche désormais le prénom de l'expéditeur
         await pool.query(`
-            INSERT INTO notifications (user_id, type, ref_id)
-            VALUES (\$1, 'coucou', \$2)
-        `, [receiverId, rows[0].id]);
+            INSERT INTO notifications (user_id, type, ref_id, sender_id)
+            VALUES (\$1, 'coucou', \$2, \$3)
+        `, [receiverId, rows[0].id, req.user.id]);
+
         const sub = await pool.query(
             'SELECT subscription FROM push_subscriptions WHERE user_id = \$1', [receiverId]
         );
@@ -343,7 +349,6 @@ router.get('/notifications/count', async (req, res) => {
     }
 });
 
-// Correction bug #4 : ajout prenom/nom du sender + limite 10 au lieu de 50
 router.get('/notifications', async (req, res) => {
     try {
         const { rows } = await pool.query(`

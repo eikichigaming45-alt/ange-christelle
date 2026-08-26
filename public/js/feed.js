@@ -218,12 +218,15 @@ async function _mentionInput(inputEl, dropEl) {
     } catch { _fermerDropdown(dropEl); }
 }
 
+// FIX bug #4 : espace insécable (\u00A0) comme terminateur de mention.
+// La regex serveur attend \u00A0 ou \s{2,} — l'espace simple était ambigu
+// et empêchait la résolution quand du texte suivait directement le tag.
 function _insererMention(inputEl, dropEl, prenom, nom) {
     const val      = inputEl.value;
     const cursor   = inputEl.selectionStart;
     const avant    = val.substring(0, cursor);
     const apres    = val.substring(cursor);
-    const newAvant = avant.replace(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/, `@${prenom} ${nom} `);
+    const newAvant = avant.replace(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/, `@${prenom} ${nom}\u00A0`);
     inputEl.value  = newAvant + apres;
     const pos      = newAvant.length;
     inputEl.setSelectionRange(pos, pos);
@@ -963,3 +966,4 @@ async function partagerPost(postId) {
 function escapeHtml(str) {
     return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+

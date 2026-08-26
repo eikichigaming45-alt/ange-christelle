@@ -11,9 +11,6 @@ const { authenticateToken } = require('../middleware/auth');
 // ── Utilitaire : convertir date locale "YYYY-MM-DD" + heure "HH:MM"
 // en un timestamp UTC comparable à Date.now()
 function _localToUTC(dateStr, heureStr) {
-    // On construit un Date en supposant que dateStr/heureStr sont locaux au client.
-    // Le /check reçoit dateLocale + heureLocale du navigateur, donc on compare
-    // directement en minutes-of-day sur la même base locale.
     const [y, m, d] = dateStr.split('-').map(Number);
     const [h, min]  = heureStr.split(':').map(Number);
     return { y, m, d, h, min, totalMin: d * 1440 + h * 60 + min };
@@ -57,15 +54,33 @@ router.post('/subscribe', authenticateToken, async (req, res) => {
     if (!subscription) {
         return res.status(400).json({ success: false, message: 'Subscription manquante.' });
     }
-    const subStr = JSON.stringify(subscription);
+    const subStr   = JSON.stringify(subscription);
+    const endpoint = subscription.endpoint;
+
     try {
-        // Upsert sur (user_id, endpoint) — multi-device correct
-        await pool.query(`
-            INSERT INTO push_subscriptions (user_id, subscription, updated_at)
-            VALUES (\$1, \$2, NOW())
-            ON CONFLICT (user_id, (subscription::json->>'endpoint'))
-            DO UPDATE SET subscription = \$2, updated_at = NOW()
-        `, [req.user.id, subStr]);
+        // Cherche une subscription existante pour ce user + cet endpoint
+        const { rows } = await pool.query(`
+            SELECT id FROM push_subscriptions
+            WHERE user_id = \$1
+              AND subscription::json->>'endpoint' = \$2
+            LIMIT 1
+        `, [req.user.id, endpoint]);
+
+        if (rows.length > 0) {
+            // Mise à jour de la subscription existante (clés p256dh/auth peuvent tourner)
+            await pool.query(`
+                UPDATE push_subscriptions
+                SET subscription = \$1, updated_at = NOW()
+                WHERE id = \$2
+            `, [subStr, rows[0].id]);
+        } else {
+            // Nouveau device / nouveau navigateur
+            await pool.query(`
+                INSERT INTO push_subscriptions (user_id, subscription, updated_at)
+                VALUES (\$1, \$2, NOW())
+            `, [req.user.id, subStr]);
+        }
+
         res.json({ success: true });
     } catch (err) {
         console.error('[PUSH] POST /subscribe :', err.message);
@@ -88,7 +103,7 @@ router.post('/check', authenticateToken, async (req, res) => {
 
         console.log(`[PUSH] /check — local ${dateLocale} ${heureActuelle}`);
 
-        // ── Tâches — FIX : comparaison via Date réels ─────────
+        // ── Tâches ────────────────────────────────────────────
         const { rows: taches } = await pool.query(`
             SELECT id, titre, date, heure, rappel_avant
             FROM taches
@@ -105,12 +120,10 @@ router.post('/check', authenticateToken, async (req, res) => {
             const [ty, tm, td] = dateTache.split('-').map(Number);
             const [th, tmin]   = heureTache.split(':').map(Number);
 
-            // Timestamp de la tâche (en minutes depuis epoch UTC approximatif)
             const tacheTs  = Date.UTC(ty, tm - 1, td, th, tmin);
             const rappel   = t.rappel_avant || 0;
             const notifTs  = tacheTs - rappel * 60 * 1000;
 
-            // Timestamp de l'heure locale actuelle
             const [cy, cm, cd] = dateLocale.split('-').map(Number);
             const clientTs = Date.UTC(cy, cm - 1, cd, ah, amin);
 
@@ -137,7 +150,7 @@ router.post('/check', authenticateToken, async (req, res) => {
             await envoyerPush(user_id, '🩺 Rappel rendez-vous', `${rdv.titre} — ${label}`, `rdv-${rdv.id}`);
         }
 
-        // ── Planning — FIX : comparaison via Date.UTC ─────────
+        // ── Planning ──────────────────────────────────────────
         const { rows: shifts } = await pool.query(`
             SELECT id, type, heure_debut, rappel_avant_shift, employeur
             FROM planning

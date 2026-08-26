@@ -80,6 +80,14 @@ const Cycle = (() => {
         }
     ];
 
+    // FIX bug #5 : construit minuit heure locale à partir des composantes
+    // locales du navigateur — jamais influencé par UTC ou le fuseau serveur.
+    // Remplace tous les `new Date()` utilisés comme "date du jour".
+    function _aujourdHuiLocal() {
+        const n = new Date();
+        return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
+    }
+
     function calculerBornesPhases(dureeRegles, dureeCycle) {
         const ovulation    = dureeCycle - 14;
         const debutFertile = dureeCycle - 16;
@@ -213,15 +221,16 @@ const Cycle = (() => {
 
     function calculerCycle(dernierCycle, dureeMoyenne) {
         if (!dernierCycle) return null;
-        const debut         = parseDateLocale(dernierCycle.date_debut.split('T')[0]);
-        const dureeRegles   = dernierCycle.duree_regles || 5;
-        const dureeCycle    = dureeMoyenne || dernierCycle.duree_cycle || 28;
-        const finRegles     = addDays(debut, dureeRegles - 1);
-        const prochainDebut = addDays(debut, dureeCycle);
-        const debutFertile  = addDays(debut, dureeCycle - 16);
-        const finFertile    = addDays(debut, dureeCycle - 12);
-        const ovulation     = addDays(debut, dureeCycle - 14);
-        const aujourd_hui   = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
+        const debut            = parseDateLocale(dernierCycle.date_debut.split('T')[0]);
+        const dureeRegles      = dernierCycle.duree_regles || 5;
+        const dureeCycle       = dureeMoyenne || dernierCycle.duree_cycle || 28;
+        const finRegles        = addDays(debut, dureeRegles - 1);
+        const prochainDebut    = addDays(debut, dureeCycle);
+        const debutFertile     = addDays(debut, dureeCycle - 16);
+        const finFertile       = addDays(debut, dureeCycle - 12);
+        const ovulation        = addDays(debut, dureeCycle - 14);
+        // FIX : _aujourdHuiLocal() — minuit heure locale, pas UTC
+        const aujourd_hui      = _aujourdHuiLocal();
         const joursAvantRegles = Math.round((prochainDebut - aujourd_hui) / (1000 * 60 * 60 * 24));
         const enRegles         = aujourd_hui >= debut && aujourd_hui <= finRegles;
         const enFenetre        = aujourd_hui >= debutFertile && aujourd_hui <= finFertile;
@@ -235,7 +244,8 @@ const Cycle = (() => {
 
     function getPhase(calc) {
         if (!calc) return { label: 'Aucun cycle enregistré', emoji: '❓', color: '#888' };
-        const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
+        // FIX : _aujourdHuiLocal()
+        const aujourd_hui = _aujourdHuiLocal();
         if (calc.enRegles)  return { label: 'Règles en cours', emoji: '🔴', color: '#e74c3c' };
         if (calc.enFenetre) return { label: 'Fenêtre fertile',  emoji: '🟢', color: '#2ecc71' };
         if (memeJour(aujourd_hui, calc.ovulation)) return { label: "Jour d'ovulation", emoji: '🌟', color: '#f39c12' };
@@ -263,7 +273,8 @@ const Cycle = (() => {
 
     function calculerJourCycle(calc) {
         if (!calc) return null;
-        const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
+        // FIX : _aujourdHuiLocal()
+        const aujourd_hui = _aujourdHuiLocal();
         return Math.round((aujourd_hui - calc.debut) / (1000 * 60 * 60 * 24)) + 1;
     }
 
@@ -281,7 +292,8 @@ const Cycle = (() => {
     }
 
     function renderCalendrier(calc) {
-        const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
+        // FIX : _aujourdHuiLocal()
+        const aujourd_hui = _aujourdHuiLocal();
         const moisRef     = new Date(_moisAffiche.getFullYear(), _moisAffiche.getMonth(), 1);
         const moisNom     = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
         const nbJours     = new Date(moisRef.getFullYear(), moisRef.getMonth() + 1, 0).getDate();
@@ -458,8 +470,7 @@ const Cycle = (() => {
 
         document.getElementById('modal-title').textContent = dateAff;
         document.getElementById('modal-body').innerHTML = `
-            <div class="journal-form">
-                ${contenu}
+            <div class="journal-form">                ${contenu}
                 <div class="modal-actions" style="margin-top:16px">
                     <button class="btn-save"
                         onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', null)">
@@ -481,7 +492,7 @@ const Cycle = (() => {
         });
         const symptomesActifs = journal.symptomes ? journal.symptomes.split(',').filter(Boolean) : [];
 
-                document.getElementById('modal-title').textContent = isEdit
+        document.getElementById('modal-title').textContent = isEdit
             ? 'Modifier le rapport'
             : 'Enregistrer un rapport';
         document.getElementById('modal-body').innerHTML = `
@@ -591,7 +602,8 @@ const Cycle = (() => {
         const zone = document.getElementById('cycle-mood-zone');
         if (!zone || !calc) return;
 
-        const today     = formatDateInput(new Date());
+        // FIX : formatDateInput(_aujourdHuiLocal()) — date locale garantie
+        const today     = formatDateInput(_aujourdHuiLocal());
         const jourCycle = calculerJourCycle(calc);
         const phaseMood = getPhaseMood(jourCycle, calc);
 
@@ -786,7 +798,8 @@ const Cycle = (() => {
 
         let labelOvulation, valeurOvulation, labelFenetre, valeurFenetre;
         if (calc) {
-            const aujourd_hui = new Date(); aujourd_hui.setHours(0, 0, 0, 0);
+            // FIX : _aujourdHuiLocal()
+            const aujourd_hui = _aujourdHuiLocal();
             if (calc.ovulation < aujourd_hui) {
                 const prochaineOvulation    = addDays(calc.ovulation, calc.dureeCycle);
                 const prochaineFenetreDebut = addDays(prochaineOvulation, -5);
@@ -853,7 +866,7 @@ const Cycle = (() => {
                     <div class="cycle-progress-label">Progression du cycle (${calc.dureeCycle} jours)</div>
                     <div class="cycle-progress-bar">
                         <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0,
-                            Math.round(((new Date() - calc.debut) / (1000 * 60 * 60 * 24))
+                            Math.round((_aujourdHuiLocal() - calc.debut) / (1000 * 60 * 60 * 24)
                             / calc.dureeCycle * 100)))}%;background:${phase.color}">
                         </div>
                     </div>
@@ -906,7 +919,9 @@ const Cycle = (() => {
             const phase        = getPhase(calc);
 
             _calcCourant = calc;
-            _moisAffiche = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+            // FIX : _aujourdHuiLocal()
+            const auj    = _aujourdHuiLocal();
+            _moisAffiche = new Date(auj.getFullYear(), auj.getMonth(), 1);
             _toutesLesP  = calculerToutesPeriodes(cycles, dureeMoyenne);
 
             await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
@@ -957,7 +972,8 @@ const Cycle = (() => {
 
     function ouvrirModalAjout(cycleExistant = null) {
         const isEdit = !!cycleExistant;
-        const today  = formatDateInput(new Date());
+        // FIX : _aujourdHuiLocal() pour la date max du champ date
+        const today  = formatDateInput(_aujourdHuiLocal());
         document.getElementById('modal-title').textContent = isEdit
             ? 'Modifier le cycle'
             : 'Enregistrer mes règles';
@@ -1043,7 +1059,7 @@ const Cycle = (() => {
         );
     }
 
-        async function ouvrirHistorique(page = 0) {
+    async function ouvrirHistorique(page = 0) {
         try {
             const res          = await fetch('/api/cycle', { headers: authHeaders() });
             const d            = await res.json();
@@ -1133,3 +1149,5 @@ const Cycle = (() => {
     };
 
 })();
+
+

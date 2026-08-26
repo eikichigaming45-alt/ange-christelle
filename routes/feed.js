@@ -16,8 +16,12 @@ const supabase = createClient(
 );
 
 // ── Utilitaire : extraire et résoudre les @mentions ──────────
+// FIX : regex remplacée — capture @Prénom NOM jusqu'au premier
+// double espace, espace insécable (\u00A0), ou fin de chaîne.
+// Ne s'arrête plus prématurément sur un espace simple,
+// n'avale plus le mot suivant le nom complet.
 async function resoudreMentions(contenu, auteurId) {
-    const matches = [...contenu.matchAll(/@([A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ ]{1,60}?)(?=\s{2,}|[^A-ZÀ-Ÿa-zà-ÿ ]|$)/g)];
+    const matches = [...contenu.matchAll(/@([A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ]*(?:\s[A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ]*)*)(?:\u00A0|\s{2,}|$)/g)];
     if (!matches.length) return [];
 
     const mentions = new Set();
