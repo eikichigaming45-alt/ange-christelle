@@ -1,5 +1,5 @@
 // ============================================================
-// public/js/anniversaires.js — v3.58
+// public/js/anniversaires.js
 // Authentification : JWT Bearer uniquement.
 // Suppression : message personnalisé avec prénom + nom.
 // ============================================================

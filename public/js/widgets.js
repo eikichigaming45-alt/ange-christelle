@@ -91,7 +91,6 @@ async function buildGrid() {
 	if (typeof chargerWidgetAnniversaires === 'function') chargerWidgetAnniversaires();
 	if (typeof chargerWidgetAdmin         === 'function') chargerWidgetAdmin();
 	if (typeof chargerAstrologie          === 'function') chargerAstrologie();
-
 }
 
 async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
