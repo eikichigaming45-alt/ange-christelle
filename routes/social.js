@@ -5,9 +5,9 @@
 const express  = require('express');
 const router   = express.Router();
 const { pool } = require('../db/pool');
-const webpush  = require('web-push');
 const Groq     = require('groq-sdk');
 const { authenticateToken } = require('../middleware/auth');
+const { envoyerPush }       = require('./push');
 
 let groq = null;
 if (process.env.GROQ_API_KEY) {
@@ -122,11 +122,23 @@ router.post('/partages', async (req, res) => {
             RETURNING *
         `, [req.user.id, viewer_id, resource_type]);
 
-        // FIX : sender_id ajouté — le destinataire verra qui a partagé
         await pool.query(`
             INSERT INTO notifications (user_id, type, ref_id, sender_id)
             VALUES (\$1, 'share_request', \$2, \$3)
         `, [viewer_id, rows[0].id, req.user.id]);
+
+        // FIX : push via envoyerPush() comme feed.js
+        const senderProfil = await pool.query(
+            'SELECT prenom, nom FROM profiles WHERE user_id = \$1', [req.user.id]
+        );
+        const prenom = senderProfil.rows[0]?.prenom || 'Quelqu\'un';
+        const nom    = senderProfil.rows[0]?.nom    || '';
+        await envoyerPush(
+            parseInt(viewer_id),
+            '🔗 Nouveau partage',
+            `${prenom}${nom ? ' ' + nom : ''} a partagé ses données avec toi`,
+            `share-${rows[0].id}`
+        );
 
         res.json({ success: true, partage: rows[0] });
     } catch (err) {
@@ -259,36 +271,25 @@ router.post('/coucou/:userId', async (req, res) => {
             RETURNING id
         `, [req.user.id, receiverId, content]);
 
-        // FIX : sender_id ajouté — la cloche affiche désormais le prénom de l'expéditeur
         await pool.query(`
             INSERT INTO notifications (user_id, type, ref_id, sender_id)
             VALUES (\$1, 'coucou', \$2, \$3)
         `, [receiverId, rows[0].id, req.user.id]);
 
-        const sub = await pool.query(
-            'SELECT subscription FROM push_subscriptions WHERE user_id = \$1', [receiverId]
+        // FIX : push via envoyerPush() — même logique que feed.js
+        // multi-device, purge 410/404, pas de webpush.sendNotification() direct
+        const senderProfil = await pool.query(
+            'SELECT prenom, nom FROM profiles WHERE user_id = \$1', [req.user.id]
         );
-        if (sub.rows.length) {
-            const senderProfil = await pool.query(
-                'SELECT prenom FROM profiles WHERE user_id = \$1', [req.user.id]
-            );
-            const prenom = senderProfil.rows[0]?.prenom || 'Quelqu\'un';
-            try {
-                await webpush.sendNotification(
-                    JSON.parse(sub.rows[0].subscription),
-                    JSON.stringify({
-                        titre: `${prenom} t'envoie un coucou`,
-                        corps: content,
-                        tag  : `coucou-${rows[0].id}`,
-                        url  : '/'
-                    })
-                );
-            } catch (pushErr) {
-                if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
-                    await pool.query('DELETE FROM push_subscriptions WHERE user_id = \$1', [receiverId]);
-                }
-            }
-        }
+        const prenom = senderProfil.rows[0]?.prenom || 'Quelqu\'un';
+        const nom    = senderProfil.rows[0]?.nom    || '';
+        await envoyerPush(
+            receiverId,
+            '👋 Coucou !',
+            `${prenom}${nom ? ' ' + nom : ''} t'a envoyé un coucou`,
+            `coucou-${rows[0].id}`
+        );
+
         res.json({ success: true });
     } catch (err) {
         console.error('[SOCIAL] POST /coucou :', err.message);
