@@ -87,6 +87,9 @@ document.addEventListener('click', function(e) {
 });
 
 // ===================== AFFICHAGE RAPIDE ======================
+// Affiche l'app immédiatement si token présent.
+// Pré-injecte la photo de profil depuis profilCache si disponible
+// pour éviter le flash 👤 au refresh.
 (function() {
     const user = getUser();
     if (user?.token) {
@@ -98,6 +101,18 @@ document.addEventListener('click', function(e) {
             document.body.style.background = '#f3f4f6';
             document.body.style.alignItems = 'stretch';
         }
+
+        // Pré-remplir le bouton profil depuis le cache myvibe_profil si dispo
+        try {
+            const cached = JSON.parse(localStorage.getItem('myvibe_profil'));
+            const btn    = document.getElementById('btn-profil-header');
+            if (btn && cached?.photo) {
+                btn.innerHTML        = `<img src="${cached.photo}" alt="profil">`;
+                btn.style.fontSize   = '';
+                btn.style.fontWeight = '';
+                btn.style.background = '';
+            }
+        } catch { /* silencieux */ }
     }
 })();
 
@@ -232,6 +247,7 @@ function logout() {
     fermerUserMenu();
 
     localStorage.removeItem('myvibe_user');
+    localStorage.removeItem('myvibe_profil');
 
     _appInitialisee = false;
     gridConstruit   = false;

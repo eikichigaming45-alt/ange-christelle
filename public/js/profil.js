@@ -167,6 +167,11 @@ async function chargerProfilHeader() {
         const p         = d.profil;
         const trigramme = construireTrigramme(p.prenom, p.nom);
 
+        // Mise en cache localStorage pour pré-injection au prochain refresh
+        try {
+            localStorage.setItem('myvibe_profil', JSON.stringify({ photo: p.photo || null }));
+        } catch { /* silencieux */ }
+
         if (p.photo) {
             btn.innerHTML          = `<img src="${p.photo}" alt="profil">`;
             btn.style.fontSize     = '';
@@ -335,6 +340,10 @@ async function _confirmerSupprimerPhoto() {
         const d = await r.json();
         if (d.success) {
             profilCache = { ...profilCache, photo: null };
+            // Purge du cache localStorage photo
+            try {
+                localStorage.setItem('myvibe_profil', JSON.stringify({ photo: null }));
+            } catch { /* silencieux */ }
             closeModal();
             chargerProfilHeader();
             const preview   = document.getElementById('profil-photo-preview');
