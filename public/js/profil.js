@@ -562,12 +562,12 @@ async function afficherSectionWidgets() {
         );
 
         container.innerHTML = tries.map(w => `
-            <label class="widget-choix-item">
-                <input type="checkbox" value="${w.slug}"
-                    ${widgetsCaches.includes(w.slug) ? '' : 'checked'}>
-                <span>${w.icon} ${w.label}</span>
-            </label>
-        `).join('');
+    <div class="widget-choix-item">
+        <input type="checkbox" id="opt-${w.slug}" value="${w.slug}"
+            ${widgetsCaches.includes(w.slug) ? '' : 'checked'}>
+        <label class="widget-choix-label" for="opt-${w.slug}">${w.icon} ${w.label}</label>
+		</div>
+	`).join('');
     } catch {
         container.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement.</p>';
     }
