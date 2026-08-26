@@ -1,9 +1,7 @@
 // ============================================================
 // public/js/admin.js
-// Dashboard admin : widget, modale stats/users, CRUD users.
-// Authentification : JWT Bearer uniquement — plus d'adminId.
-// Dépend de : app.js (getUser), profil.js (validerMotDePasse)
-// B.6 — message suppression iso : "Confirmer la suppression ?"
+// Dashboard admin — widget + modale stats/users + CRUD.
+// v1.30 — last_activity, top contributeurs, widgets populaires.
 // ============================================================
 
 // ===================== WIDGET ADMIN (dashboard) ==============
@@ -34,12 +32,12 @@ async function chargerWidgetAdmin() {
                     <div class="wa-stat-lbl">Profils</div>
                 </div>
                 <div class="wa-stat wa-stat-orange">
-                    <div class="wa-stat-val">${d.jamaisConnectes}</div>
+                    <div class="wa-stat-val">${d.jamaisActifs}</div>
                     <div class="wa-stat-lbl">Inactifs</div>
                 </div>
             </div>
-            <div class="wa-activity-title">Dernières connexions</div>
-            ${(d.lastLogins || []).map(u => {
+            <div class="wa-activity-title">Dernière activité</div>
+            ${(d.lastActivity || []).map(u => {
                 const initiale  = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
                 const affichage = (u.prenom && u.nom)
                     ? u.prenom + ' ' + u.nom.toUpperCase()
@@ -49,7 +47,7 @@ async function chargerWidgetAdmin() {
                     <div class="wa-avatar ${u.role === 'admin' ? 'wa-avatar-admin' : 'wa-avatar-user'}">${initiale}</div>
                     <div class="wa-username">${affichage}</div>
                     <span class="wa-badge ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>
-                    <div class="wa-date">${u.lastLogin ? _formatDateRelative(u.lastLogin) : '<span style="color:#d1d5db">Jamais</span>'}</div>
+                    <div class="wa-date">${u.lastActivity ? _formatDateRelative(u.lastActivity) : '<span style="color:#d1d5db">Jamais</span>'}</div>
                 </div>`;
             }).join('')}
         `;
@@ -101,7 +99,25 @@ async function chargerAdminStats() {
             ? Math.round((d.profilsRemplis / d.totalUsers) * 100)
             : 0;
 
+        // Médailles top contributeurs
+        const medailles = ['🥇', '🥈', '🥉', '4.', '5.'];
+
+        // Labels widgets lisibles
+        const widgetLabels = {
+            'anniversaires' : '🎂 Anniversaires',
+            'astrologie'    : '✨ Astrologie',
+            'planning'      : '📋 Planning',
+            'priere'        : '🙏 Prière du jour',
+            'prieres'       : '🌙 Prières & Hadiths',
+            'rendezvous'    : '🩺 Rendez-vous',
+            'sante'         : '🥗 Santé',
+            'social'        : '🤝 Social',
+            'cycle'         : '🌸 Suivi du cycle',
+            'taches'        : '✅ Tâches'
+        };
+
         el.innerHTML = `
+            <!-- UTILISATEURS -->
             <div class="as-section-title">Utilisateurs</div>
             <div class="as-cards-grid">
                 <div class="as-card as-card-blue">
@@ -121,10 +137,12 @@ async function chargerAdminStats() {
                 </div>
                 <div class="as-card as-card-red">
                     <div class="as-card-icon">💤</div>
-                    <div class="as-card-val">${d.jamaisConnectes}</div>
-                    <div class="as-card-lbl">Jamais connectés</div>
+                    <div class="as-card-val">${d.jamaisActifs}</div>
+                    <div class="as-card-lbl">Jamais actifs</div>
                 </div>
             </div>
+
+            <!-- PROFILS -->
             <div class="as-progress-bloc">
                 <div class="as-progress-header">
                     <span class="as-progress-label">Profils remplis</span>
@@ -134,32 +152,60 @@ async function chargerAdminStats() {
                     <div class="as-progress-fill as-fill-blue" style="width:${tauxProfils}%"></div>
                 </div>
             </div>
-            <div class="as-section-title" style="margin-top:20px">Activité globale</div>
-            <div class="as-activity-bloc">
-                <div class="as-activity-row">
-                    <span class="as-activity-icon">✅</span>
-                    <span class="as-activity-label">Tâches complétées</span>
-                    <span class="as-activity-val">${d.tachesFaites} / ${d.totalTaches}</span>
-                </div>
-                <div class="as-activity-row">
-                    <span class="as-activity-icon">📅</span>
-                    <span class="as-activity-label">Rendez-vous enregistrés</span>
-                    <span class="as-activity-val">${d.totalRdv}</span>
-                </div>
-                <div class="as-activity-row">
-                    <span class="as-activity-icon">🎂</span>
-                    <span class="as-activity-label">Anniversaires enregistrés</span>
-                    <span class="as-activity-val">${d.totalAnniversaires}</span>
-                </div>
-                <div class="as-activity-row">
-                    <span class="as-activity-icon">🌸</span>
-                    <span class="as-activity-label">Entrées journal cycle</span>
-                    <span class="as-activity-val">${d.totalCycles}</span>
-                </div>
+
+            <!-- TOP CONTRIBUTEURS -->
+            <div class="as-section-title" style="margin-top:20px">Top contributeurs</div>
+            <div class="as-contrib-list">
+                ${(d.topContributeurs || []).map((u, i) => {
+                    const affichage = (u.prenom && u.nom)
+                        ? u.prenom + ' ' + u.nom.toUpperCase()
+                        : u.username;
+                    const initiale = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
+                    const details = [
+                        u.posts        > 0 ? `${u.posts} post${u.posts > 1 ? 's' : ''}`         : null,
+                        u.commentaires > 0 ? `${u.commentaires} comment.`                         : null,
+                        u.likes        > 0 ? `${u.likes} like${u.likes > 1 ? 's' : ''}`          : null,
+                        u.rdv          > 0 ? `${u.rdv} RDV`                                       : null,
+                        u.taches       > 0 ? `${u.taches} tâche${u.taches > 1 ? 's' : ''}`       : null,
+                        u.anniversaires > 0 ? `${u.anniversaires} anniv.`                         : null,
+                    ].filter(Boolean).join(' · ');
+                    return `
+                    <div class="as-contrib-row">
+                        <div class="as-contrib-medal">${medailles[i]}</div>
+                        <div class="as-login-avatar ${u.role === 'admin' ? 'as-av-admin' : 'as-av-user'}">${initiale}</div>
+                        <div class="as-contrib-info">
+                            <div class="as-contrib-name">${affichage}
+                                <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
+                            </div>
+                            <div class="as-contrib-detail">${details || 'Aucune activité'}</div>
+                        </div>
+                        <div class="as-contrib-score">${u.score} pts</div>
+                    </div>`;
+                }).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune donnée.</p>'}
             </div>
-            <div class="as-section-title" style="margin-top:20px">Dernières connexions</div>
+
+            <!-- WIDGETS POPULAIRES -->
+            <div class="as-section-title" style="margin-top:20px">Widgets les plus utilisés</div>
+            <div class="as-widgets-list">
+                ${(d.widgetsPopulaires || []).map((w, i) => {
+                    const label  = widgetLabels[w.widget] || w.widget;
+                    const maxNb  = d.widgetsPopulaires[0]?.nb || 1;
+                    const pct    = Math.round((w.nb / maxNb) * 100);
+                    return `
+                    <div class="as-widget-row">
+                        <div class="as-widget-label">${label}</div>
+                        <div class="as-widget-bar-wrap">
+                            <div class="as-widget-bar-fill" style="width:${pct}%;background:${i === 0 ? '#4f46e5' : i === 1 ? '#7c3aed' : '#a78bfa'}"></div>
+                        </div>
+                        <div class="as-widget-count">${w.nb}/${d.totalUsers}</div>
+                    </div>`;
+                }).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune donnée.</p>'}
+            </div>
+
+            <!-- DERNIÈRE ACTIVITÉ -->
+            <div class="as-section-title" style="margin-top:20px">Dernière activité</div>
             <div class="as-logins-list">
-                ${(d.lastLogins || []).map(u => {
+                ${(d.lastActivity || []).map(u => {
                     const initiale  = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
                     const affichage = (u.prenom && u.nom)
                         ? u.prenom + ' ' + u.nom.toUpperCase()
@@ -171,11 +217,11 @@ async function chargerAdminStats() {
                             <div class="as-login-name">${affichage}
                                 <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
                             </div>
-                            <div class="as-login-date">${u.lastLogin ? _formatDateComplete(u.lastLogin) : 'Jamais connecté'}</div>
+                            <div class="as-login-date">${u.lastActivity ? _formatDateComplete(u.lastActivity) : 'Jamais actif'}</div>
                         </div>
-                        <div class="as-login-relative">${_formatDateRelative(u.lastLogin)}</div>
+                        <div class="as-login-relative">${_formatDateRelative(u.lastActivity)}</div>
                     </div>`;
-                }).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune connexion.</p>'}
+                }).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune activité.</p>'}
             </div>
         `;
     } catch {
@@ -225,7 +271,7 @@ function _renderAdminUsers() {
         <div id="admin-creer-form" style="display:none;background:#f8fafc;border-radius:12px;
              padding:16px;margin-bottom:12px;border:1.5px solid #e5e7eb">
             <div style="font-size:13px;font-weight:700;color:#1e1b4b;margin-bottom:12px">Nouveau compte</div>
-            <input type="text" id="new-username" placeholder="Nom d'utilisateur"
+                        <input type="text" id="new-username" placeholder="Nom d'utilisateur"
                 autocomplete="off" name="new-username-field"
                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
@@ -316,9 +362,9 @@ function _filtrerAdminUsers() {
                     <span class="as-badge ${u.role === 'admin' ? 'as-badge-admin' : 'as-badge-user'}">${u.role}</span>
                 </div>
                 <div style="font-size:11px;color:#9ca3af;margin-top:2px">
-                    ${u.lastLogin
-                        ? _formatDateComplete(u.lastLogin) + ' — ' + _formatDateRelative(u.lastLogin)
-                        : 'Jamais connecté'}
+                    ${u.lastActivity
+                        ? _formatDateComplete(u.lastActivity) + ' — ' + _formatDateRelative(u.lastActivity)
+                        : 'Jamais actif'}
                 </div>
             </div>
             <div style="display:flex;gap:4px;flex-shrink:0">
@@ -507,13 +553,12 @@ async function adminConfirmResetPwd(id) {
         const d = await r.json();
         if (d.success) chargerAdminUsers();
         else if (msg) msg.textContent = d.message || 'Erreur.';
-        } catch {
+    } catch {
         if (msg) msg.textContent = 'Erreur réseau.';
     }
 }
 
 // ===================== SUPPRIMER UTILISATEUR =================
-// B.6 — message iso "Confirmer la suppression ?"
 
 function adminSupprimerUser(id, username) {
     const el = document.getElementById('admin-tab-users');
@@ -603,3 +648,4 @@ function switchAdminTab(tab) {
     if (tab === 'stats') chargerAdminStats();
     if (tab === 'users') chargerAdminUsers();
 }
+

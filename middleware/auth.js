@@ -1,8 +1,10 @@
 // ============================================================
-// middleware/auth.js — inchangé, aucune correction requise
+// middleware/auth.js
+// Auth JWT — met à jour last_activity à chaque requête auth.
 // ============================================================
 
-const jwt = require('jsonwebtoken');
+const jwt        = require('jsonwebtoken');
+const { pool }   = require('../db/pool');
 
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -11,6 +13,11 @@ function authenticateToken(req, res, next) {
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) return res.status(403).json({ success: false, message: 'Token invalide' });
         req.user = user;
+        // Mise à jour last_activity non bloquante
+        pool.query(
+            'UPDATE users SET last_activity = NOW() WHERE id = \$1',
+            [user.id]
+        ).catch(e => console.error('[AUTH] last_activity update error:', e.message));
         next();
     });
 }

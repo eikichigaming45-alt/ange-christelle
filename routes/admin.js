@@ -1,7 +1,7 @@
 // ============================================================
 // routes/admin.js
 // Gestion des utilisateurs et statistiques — réservé aux admins.
-// Auth via JWT (middleware/auth.js) — plus d'adminId client.
+// v1.30 — last_activity, top contributeurs, widgets populaires.
 // ============================================================
 
 const express    = require('express');
@@ -11,60 +11,85 @@ const { pool }   = require('../db/pool');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validerMotDePasse }               = require('../utils/validations');
 
-// ── Toutes les routes admin nécessitent JWT + rôle admin ──────
 router.use(authenticateToken, requireAdmin);
 
 // ── GET /api/admin/stats ──────────────────────────────────────
-// Statistiques globales du tableau de bord admin.
 router.get('/stats', async (req, res) => {
     try {
         const [
             totalUsers, totalAdmins, profilsRemplis, sansProfile,
-            actifsRecents, jamaisConnectes, totalTaches, tachesFaites,
-            totalRdv, totalAnniversaires, totalCycles, lastLogins, activiteJours
+            actifsRecents, jamaisActifs, lastActivity,
+            topContributeurs, widgetsPopulaires
         ] = await Promise.all([
             pool.query("SELECT COUNT(*) FROM users"),
             pool.query("SELECT COUNT(*) FROM users WHERE role = 'admin'"),
             pool.query("SELECT COUNT(*) FROM profiles WHERE prenom IS NOT NULL AND prenom != ''"),
             pool.query("SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.id IS NULL"),
-            pool.query("SELECT COUNT(*) FROM users WHERE last_login >= NOW() - INTERVAL '7 days'"),
-            pool.query("SELECT COUNT(*) FROM users WHERE last_login IS NULL"),
-            pool.query("SELECT COUNT(*) FROM taches"),
-            pool.query("SELECT COUNT(*) FROM taches WHERE faite = TRUE"),
-            pool.query("SELECT COUNT(*) FROM rendezvous"),
-            pool.query("SELECT COUNT(*) FROM anniversaires"),
-            pool.query("SELECT COUNT(*) FROM cycle_journal"),
+            pool.query("SELECT COUNT(*) FROM users WHERE last_activity >= NOW() - INTERVAL '7 days'"),
+            pool.query("SELECT COUNT(*) FROM users WHERE last_activity IS NULL"),
+
+            // Dernière activité — top 5
             pool.query(`
-                SELECT u.id, u.username, u.role, u.last_login AS "lastLogin", p.prenom, p.nom
+                SELECT u.id, u.username, u.role,
+                       u.last_activity AS "lastActivity",
+                       p.prenom, p.nom
                 FROM users u
                 LEFT JOIN profiles p ON p.user_id = u.id
-                ORDER BY u.last_login DESC NULLS LAST
+                ORDER BY u.last_activity DESC NULLS LAST
                 LIMIT 5
             `),
+
+            // Top 5 contributeurs — score pondéré
             pool.query(`
-                SELECT DATE(last_login) AS jour, COUNT(*) AS nb
-                FROM users
-                WHERE last_login >= NOW() - INTERVAL '7 days'
-                GROUP BY DATE(last_login)
-                ORDER BY jour ASC
+                SELECT
+                    u.id, u.username, u.role,
+                    p.prenom, p.nom,
+                    COALESCE(po.nb, 0)  AS posts,
+                    COALESCE(co.nb, 0)  AS commentaires,
+                    COALESCE(pl.nb, 0)  AS likes,
+                    COALESCE(rv.nb, 0)  AS rdv,
+                    COALESCE(ta.nb, 0)  AS taches,
+                    COALESCE(an.nb, 0)  AS anniversaires,
+                    (
+                        COALESCE(po.nb, 0) * 3 +
+                        COALESCE(co.nb, 0) * 2 +
+                        COALESCE(pl.nb, 0)     +
+                        COALESCE(rv.nb, 0)     +
+                        COALESCE(ta.nb, 0)     +
+                        COALESCE(an.nb, 0)
+                    ) AS score
+                FROM users u
+                LEFT JOIN profiles p ON p.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM posts        GROUP BY user_id) po ON po.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM post_comments GROUP BY user_id) co ON co.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM post_likes   GROUP BY user_id) pl ON pl.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM rendezvous   GROUP BY user_id) rv ON rv.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM taches        GROUP BY user_id) ta ON ta.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM anniversaires GROUP BY user_id) an ON an.user_id = u.id
+                ORDER BY score DESC
+                LIMIT 5
+            `),
+
+            // Widgets les plus utilisés — dépilage du tableau widgets_visibles
+            pool.query(`
+                SELECT widget, COUNT(*) AS nb
+                FROM profiles, unnest(widgets_visibles) AS widget
+                GROUP BY widget
+                ORDER BY nb DESC
             `)
         ]);
 
         res.json({
-            success            : true,
-            totalUsers         : parseInt(totalUsers.rows[0].count),
-            totalAdmins        : parseInt(totalAdmins.rows[0].count),
-            profilsRemplis     : parseInt(profilsRemplis.rows[0].count),
-            sansProfile        : parseInt(sansProfile.rows[0].count),
-            actifsRecents      : parseInt(actifsRecents.rows[0].count),
-            jamaisConnectes    : parseInt(jamaisConnectes.rows[0].count),
-            totalTaches        : parseInt(totalTaches.rows[0].count),
-            tachesFaites       : parseInt(tachesFaites.rows[0].count),
-            totalRdv           : parseInt(totalRdv.rows[0].count),
-            totalAnniversaires : parseInt(totalAnniversaires.rows[0].count),
-            totalCycles        : parseInt(totalCycles.rows[0].count),
-            lastLogins         : lastLogins.rows,
-            activiteJours      : activiteJours.rows
+            success           : true,
+            totalUsers        : parseInt(totalUsers.rows[0].count),
+            totalAdmins       : parseInt(totalAdmins.rows[0].count),
+            profilsRemplis    : parseInt(profilsRemplis.rows[0].count),
+            sansProfile       : parseInt(sansProfile.rows[0].count),
+            actifsRecents     : parseInt(actifsRecents.rows[0].count),
+            jamaisActifs      : parseInt(jamaisActifs.rows[0].count),
+            lastActivity      : lastActivity.rows,
+            topContributeurs  : topContributeurs.rows,
+            widgetsPopulaires : widgetsPopulaires.rows
         });
     } catch (err) {
         console.error('[ADMIN] GET /stats :', err.message);
@@ -73,11 +98,11 @@ router.get('/stats', async (req, res) => {
 });
 
 // ── GET /api/admin/users ──────────────────────────────────────
-// Liste tous les utilisateurs avec leur profil.
 router.get('/users', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT u.id, u.username, u.role, u.last_login AS "lastLogin",
+            SELECT u.id, u.username, u.role,
+                   u.last_activity AS "lastActivity",
                    p.prenom, p.nom
             FROM users u
             LEFT JOIN profiles p ON p.user_id = u.id
@@ -91,7 +116,6 @@ router.get('/users', async (req, res) => {
 });
 
 // ── GET /api/admin/users/:id/profil ──────────────────────────
-// Retourne le compte + profil d'un utilisateur spécifique.
 router.get('/users/:id/profil', async (req, res) => {
     const targetId = parseInt(req.params.id);
     try {
@@ -114,7 +138,6 @@ router.get('/users/:id/profil', async (req, res) => {
 });
 
 // ── PATCH /api/admin/users/:id/profil ────────────────────────
-// Met à jour le compte et le profil d'un utilisateur.
 router.patch('/users/:id/profil', async (req, res) => {
     const targetId = parseInt(req.params.id);
     const { username, prenom, nom, date_naissance, email, telephone, profession, note } = req.body;
@@ -146,7 +169,6 @@ router.patch('/users/:id/profil', async (req, res) => {
 });
 
 // ── POST /api/admin/users ─────────────────────────────────────
-// Crée un nouvel utilisateur.
 router.post('/users', async (req, res) => {
     const { username, password, role } = req.body;
     if (!username || !password) {
@@ -175,7 +197,6 @@ router.post('/users', async (req, res) => {
 });
 
 // ── PATCH /api/admin/users/:id/role ──────────────────────────
-// Change le rôle d'un utilisateur.
 router.patch('/users/:id/role', async (req, res) => {
     const targetId = parseInt(req.params.id);
     const { role } = req.body;
@@ -192,7 +213,6 @@ router.patch('/users/:id/role', async (req, res) => {
 });
 
 // ── PATCH /api/admin/users/:id/password ──────────────────────
-// Réinitialise le mot de passe d'un utilisateur.
 router.patch('/users/:id/password', async (req, res) => {
     const targetId = parseInt(req.params.id);
     const { password } = req.body;
@@ -212,7 +232,6 @@ router.patch('/users/:id/password', async (req, res) => {
 });
 
 // ── DELETE /api/admin/users/:id ──────────────────────────────
-// Supprime un utilisateur (impossible de se supprimer soi-même).
 router.delete('/users/:id', async (req, res) => {
     const targetId = parseInt(req.params.id);
     if (req.user.id === targetId) {
