@@ -10,7 +10,6 @@ const { authenticateToken } = require('../middleware/auth');
 const { validerMotDePasse } = require('../utils/validations');
 
 router.get('/', authenticateToken, async (req, res) => {
-    console.log('[PROFIL] GET / — req.user =', JSON.stringify(req.user));
     try {
         const result = await pool.query(
             `SELECT prenom, nom, date_naissance, heure_naissance, lieu_naissance,
@@ -22,7 +21,6 @@ router.get('/', authenticateToken, async (req, res) => {
              FROM profiles WHERE user_id = \$1`,
             [req.user.id]
         );
-        console.log('[PROFIL] GET / — rows found =', result.rows.length);
         if (result.rows.length === 0) return res.json({ success: true, profil: null });
         res.json({ success: true, profil: result.rows[0] });
     } catch (err) {
@@ -32,7 +30,6 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 router.post('/', authenticateToken, async (req, res) => {
-    console.log('[PROFIL] POST / — req.user =', JSON.stringify(req.user), '— body =', JSON.stringify(req.body));
     const {
         prenom, nom, date_naissance, heure_naissance, lieu_naissance,
         naissance_lat, naissance_lon,
