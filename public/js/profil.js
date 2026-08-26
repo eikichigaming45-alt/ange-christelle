@@ -21,9 +21,6 @@ function construireTrigramme(prenom, nom) {
 }
 
 // ===================== SIGNE ASTROLOGIQUE ====================
-// Calculé depuis la date de naissance, ou pris depuis signe_zodiaque
-// si renseigné manuellement.
-
 const _SIGNES_ZODIAQUE = [
     { signe:'Capricorne', emoji:'♑', mois:1,  jour:20 },
     { signe:'Verseau',    emoji:'♒', mois:2,  jour:19 },
@@ -65,7 +62,6 @@ function _signeDepuisDate(dateStr) {
 }
 
 function obtenirSigne(p) {
-    // Priorité : signe manuel → calcul depuis date de naissance
     if (p.signe_zodiaque && _SIGNES_LABELS[p.signe_zodiaque]) {
         return _SIGNES_LABELS[p.signe_zodiaque];
     }
@@ -73,12 +69,11 @@ function obtenirSigne(p) {
 }
 
 // ===================== GÉOCODAGE NOMINATIM ===================
-
 async function geocoderLieuNaissance() {
-    const input  = document.getElementById('p-lieu-naissance');
-    const msg    = document.getElementById('p-lieu-naissance-msg');
-    const latEl  = document.getElementById('p-naissance-lat');
-    const lonEl  = document.getElementById('p-naissance-lon');
+    const input = document.getElementById('p-lieu-naissance');
+    const msg   = document.getElementById('p-lieu-naissance-msg');
+    const latEl = document.getElementById('p-naissance-lat');
+    const lonEl = document.getElementById('p-naissance-lon');
     if (!input || !msg || !latEl || !lonEl) return;
 
     const q = input.value.trim();
@@ -134,26 +129,25 @@ async function chargerProfilHeader() {
         const p         = d.profil;
         const trigramme = construireTrigramme(p.prenom, p.nom);
 
-        // Mise en cache localStorage pour pré-injection au prochain refresh
         try {
             localStorage.setItem('myvibe_profil', JSON.stringify({ photo: p.photo || null }));
         } catch { /* silencieux */ }
 
         if (p.photo) {
-            btn.innerHTML          = `<img src="${p.photo}" alt="profil">`;
-            btn.style.fontSize     = '';
-            btn.style.fontWeight   = '';
-            btn.style.background   = '';
+            btn.innerHTML        = `<img src="${p.photo}" alt="profil">`;
+            btn.style.fontSize   = '';
+            btn.style.fontWeight = '';
+            btn.style.background = '';
         } else if (trigramme) {
-            btn.innerHTML          = trigramme;
-            btn.style.fontSize     = '11px';
-            btn.style.fontWeight   = '700';
-            btn.style.background   = '#7c3aed';
-            btn.style.color        = '#fff';
+            btn.innerHTML        = trigramme;
+            btn.style.fontSize   = '11px';
+            btn.style.fontWeight = '700';
+            btn.style.background = '#7c3aed';
+            btn.style.color      = '#fff';
         } else {
-            btn.innerHTML          = '👤';
-            btn.style.fontSize     = '';
-            btn.style.fontWeight   = '';
+            btn.innerHTML        = '👤';
+            btn.style.fontSize   = '';
+            btn.style.fontWeight = '';
         }
 
         _appliquerVisibiliteCycle(p.sexe);
@@ -198,7 +192,6 @@ function _appliquerVisibiliteCycle(sexe) {
 }
 
 // ===================== PHOTO & CROPPER =======================
-
 function previewPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -282,7 +275,6 @@ function annulerCrop() {
 }
 
 // ===================== SUPPRESSION PHOTO =====================
-
 function supprimerPhoto() {
     document.getElementById('modal-title').textContent = 'Confirmation';
     document.getElementById('modal-body').innerHTML = `
@@ -306,7 +298,6 @@ async function _confirmerSupprimerPhoto() {
         const d = await r.json();
         if (d.success) {
             profilCache = { ...profilCache, photo: null };
-            // Purge du cache localStorage photo
             try {
                 localStorage.setItem('myvibe_profil', JSON.stringify({ photo: null }));
             } catch { /* silencieux */ }
@@ -345,7 +336,6 @@ async function _confirmerSupprimerPhoto() {
 }
 
 // ===================== SAUVEGARDE PROFIL =====================
-
 async function sauvegarderProfil() {
     const user = getUser();
     const msg  = document.getElementById('profil-msg');
@@ -396,19 +386,13 @@ async function sauvegarderProfil() {
 }
 
 // ===================== SAUVEGARDE SANTÉ ======================
-// Fonction dédiée à l'onglet Santé — id feedback : sante-msg
-// pour éviter le conflit avec profil-msg de l'onglet Profil.
-// allergies et aliments_exclus : lus depuis les inputs texte,
-// splitté sur la virgule pour produire un tableau.
-
 async function sauvegarderSante() {
     const user = getUser();
     const msg  = document.getElementById('sante-msg');
     msg.textContent = 'Sauvegarde...';
     msg.style.color = '#9ca3af';
 
-    // Lecture et normalisation des tableaux allergies / aliments_exclus
-    const allergiesRaw     = document.getElementById('p-allergies')?.value || '';
+    const allergiesRaw       = document.getElementById('p-allergies')?.value     || '';
     const aliments_exclusRaw = document.getElementById('p-aliments-exclus')?.value || '';
 
     const allergies       = allergiesRaw.split(',').map(s => s.trim()).filter(Boolean);
@@ -416,8 +400,8 @@ async function sauvegarderSante() {
 
     const body = {
         sexe            : document.getElementById('p-sexe')?.value            || null,
-        taille          : document.getElementById('p-taille')?.value          ? parseInt(document.getElementById('p-taille').value)           : null,
-        poids           : document.getElementById('p-poids')?.value           ? parseFloat(document.getElementById('p-poids').value)          : null,
+        taille          : document.getElementById('p-taille')?.value          ? parseInt(document.getElementById('p-taille').value)          : null,
+        poids           : document.getElementById('p-poids')?.value           ? parseFloat(document.getElementById('p-poids').value)         : null,
         groupe_sanguin  : document.getElementById('p-groupe-sanguin')?.value  || null,
         niveau_activite : document.getElementById('p-niveau-activite')?.value || null,
         objectif_sante  : document.getElementById('p-objectif-sante')?.value  || null,
@@ -451,173 +435,10 @@ async function sauvegarderSante() {
     }
 }
 
-// ── Injection des champs allergies et aliments_exclus dans l'onglet Santé ──
-// Appelée depuis openModal('profil') après pré-remplissage des autres champs.
-// Injecte les deux champs dans le conteneur #profil-tab-sante,
-// juste avant le bouton de sauvegarde.
-
+// ── Injection champs allergies / aliments_exclus ──────────────
 function _injecterChampsAllergies(p) {
     const container = document.getElementById('profil-tab-sante');
     if (!container) return;
-
-    // Éviter la double injection
-    if (document.getElementById('p-allergies')) return;
-
-    const allergiesVal     = Array.isArray(p?.allergies)       ? p.allergies.join(', ')       : '';
-    const aliments_exclusVal = Array.isArray(p?.aliments_exclus) ? p.aliments_exclus.join(', ') : '';
-
-    const bloc = document.createElement('div');
-    bloc.innerHTML = `
-        <div class="form-group">
-            <label for="p-allergies">Allergies <span style="font-size:11px;color:#9ca3af">(séparées par des virgules)</span></label>
-            <input type="text" id="p-allergies" placeholder="ex : gluten, arachides, lactose" value="${allergiesVal}">
-        </div>
-        <div class="form-group">
-            <label for="p-aliments-exclus">Aliments exclus <span style="font-size:11px;color:#9ca3af">(séparés par des virgules)</span></label>
-            <input type="text" id="p-aliments-exclus" placeholder="ex : porc, alcool, café" value="${aliments_exclusVal}">
-        </div>
-    `;
-
-    // Insertion avant le bouton de sauvegarde
-    const btnSave = container.querySelector('button[onclick="sauvegarderSante()"]');
-    if (btnSave) {
-        container.insertBefore(bloc, btnSave);
-    } else {
-        container.appendChild(bloc);
-    }
-}
-
-// ===================== MOT DE PASSE ==========================
-
-function validerMotDePasse(pwd) {
-    if (!pwd || pwd.length < 8)    return 'Minimum 8 caractères.';
-    if (!/[A-Z]/.test(pwd))        return 'Au moins une majuscule requise.';
-    if (!/[a-z]/.test(pwd))        return 'Au moins une minuscule requise.';
-    if (!/[0-9]/.test(pwd))        return 'Au moins un chiffre requis.';
-    if (!/[^A-Za-z0-9]/.test(pwd)) return 'Au moins un caractère spécial requis.';
-    return null;
-}
-
-async function changerMdp() {
-    const user    = getUser();
-    const ancien  = document.getElementById('mdp-ancien').value;
-    const nouveau = document.getElementById('mdp-nouveau').value;
-    const confirm = document.getElementById('mdp-confirm').value;
-    const msg     = document.getElementById('mdp-msg');
-
-    if (nouveau !== confirm) {
-        msg.textContent = '❌ Les mots de passe ne correspondent pas.';
-        msg.style.color = '#ef4444';
-        return;
-    }
-    const erreur = validerMotDePasse(nouveau);
-    if (erreur) {
-        msg.textContent = '❌ ' + erreur;
-        msg.style.color = '#ef4444';
-        return;
-    }
-    msg.textContent = 'Sauvegarde...';
-    msg.style.color = '#9ca3af';
-    try {
-        const r = await fetch('/api/profil/changer-mdp', {
-            method  : 'POST',
-            headers : {
-                'Content-Type'  : 'application/json',
-                'Authorization' : `Bearer ${user.token}`
-            },
-            body: JSON.stringify({ ancienMdp: ancien, nouveauMdp: nouveau })
-        });
-        const d = await r.json();
-        if (d.success) {
-            msg.textContent = '✅ Mot de passe changé !';
-            msg.style.color = '#10b981';
-            document.getElementById('mdp-ancien').value  = '';
-            document.getElementById('mdp-nouveau').value = '';
-            document.getElementById('mdp-confirm').value = '';
-        } else {
-            msg.textContent = '❌ ' + (d.message || 'Erreur.');
-            msg.style.color = '#ef4444';
-        }
-    } catch {
-        msg.textContent = '❌ Erreur réseau.';
-        msg.style.color = '#ef4444';
-    }
-}
-
-// ===================== WIDGETS OPT-OUT =======================
-
-async function afficherSectionWidgets() {
-    const user      = getUser();
-    const container = document.getElementById('widgets-choix');
-    if (!container) return;
-    try {
-        const res  = await fetch('/api/profil/widgets-visibles', {
-            headers: { 'Authorization': `Bearer ${user.token}` }
-        });
-        const data          = await res.json();
-        const widgetsCaches = data.widgets_caches || [];
-
-        const tries = [...TOUS_WIDGETS].sort((a, b) =>
-            a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' })
-        );
-
-        container.innerHTML = tries.map(w => `
-    <div class="widget-choix-item">
-        <input type="checkbox" id="opt-${w.slug}" value="${w.slug}"
-            ${widgetsCaches.includes(w.slug) ? '' : 'checked'}>
-        <label class="widget-choix-label" for="opt-${w.slug}">${w.icon} ${w.label}</label>
-		</div>
-	`).join('');
-    } catch {
-        container.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement.</p>';
-    }
-}
-
-async function sauvegarderWidgetsVisibles() {
-    const user       = getUser();
-    const msg        = document.getElementById('widgets-msg');
-    const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
-
-    const widgets_caches = [...checkboxes]
-        .filter(cb => !cb.checked)
-        .map(cb => cb.value);
-
-    msg.textContent = 'Sauvegarde...';
-    msg.style.color = '#9ca3af';
-    try {
-        const res = await fetch('/api/profil/widgets-visibles', {
-            method  : 'PATCH',
-            headers : {
-                'Authorization' : `Bearer ${user.token}`,
-                'Content-Type'  : 'application/json'
-            },
-            body: JSON.stringify({ widgets_caches })
-        });
-        const d = await res.json();
-        if (d.success) {
-            msg.textContent = '✅ Widgets mis à jour !';
-            msg.style.color = '#10b981';
-            appliquerWidgetsVisibles(widgets_caches);
-        } else {
-            msg.textContent = '❌ Erreur serveur.';
-            msg.style.color = '#ef4444';
-        }
-        } catch {
-        msg.textContent = '❌ Erreur réseau.';
-        msg.style.color = '#ef4444';
-    }
-}
-
-// ── Injection des champs allergies et aliments_exclus dans l'onglet Santé ──
-// Appelée depuis openModal('profil') après pré-remplissage des autres champs.
-// Injecte les deux champs dans le conteneur #profil-tab-sante,
-// juste avant le bouton de sauvegarde.
-
-function _injecterChampsAllergies(p) {
-    const container = document.getElementById('profil-tab-sante');
-    if (!container) return;
-
-    // Éviter la double injection
     if (document.getElementById('p-allergies')) return;
 
     const allergiesVal       = Array.isArray(p?.allergies)       ? p.allergies.join(', ')       : '';
@@ -635,7 +456,6 @@ function _injecterChampsAllergies(p) {
         </div>
     `;
 
-    // Insertion avant le bouton de sauvegarde
     const btnSave = container.querySelector('button[onclick="sauvegarderSante()"]');
     if (btnSave) {
         container.insertBefore(bloc, btnSave);
@@ -645,7 +465,6 @@ function _injecterChampsAllergies(p) {
 }
 
 // ===================== MOT DE PASSE ==========================
-
 function validerMotDePasse(pwd) {
     if (!pwd || pwd.length < 8)    return 'Minimum 8 caractères.';
     if (!/[A-Z]/.test(pwd))        return 'Au moins une majuscule requise.';
@@ -702,7 +521,6 @@ async function changerMdp() {
 }
 
 // ===================== WIDGETS OPT-OUT =======================
-
 async function afficherSectionWidgets() {
     const user      = getUser();
     const container = document.getElementById('widgets-choix');
@@ -719,11 +537,11 @@ async function afficherSectionWidgets() {
         );
 
         container.innerHTML = tries.map(w => `
-            <label class="widget-choix-item">
-                <input type="checkbox" value="${w.slug}"
+            <div class="widget-choix-item">
+                <input type="checkbox" id="opt-${w.slug}" value="${w.slug}"
                     ${widgetsCaches.includes(w.slug) ? '' : 'checked'}>
-                <span>${w.icon} ${w.label}</span>
-            </label>
+                <label class="widget-choix-label" for="opt-${w.slug}">${w.icon} ${w.label}</label>
+            </div>
         `).join('');
     } catch {
         container.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement.</p>';
@@ -759,7 +577,7 @@ async function sauvegarderWidgetsVisibles() {
             msg.textContent = '❌ Erreur serveur.';
             msg.style.color = '#ef4444';
         }
-    } catch {
+        } catch {
         msg.textContent = '❌ Erreur réseau.';
         msg.style.color = '#ef4444';
     }

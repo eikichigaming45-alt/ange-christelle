@@ -123,10 +123,8 @@ async function chargerWidgetSante() {
     const profilComplet = p.taille && p.poids && p.sexe && p.date_naissance && p.niveau_activite && p.objectif_sante;
 
     // ── Vérification cache serveur ────────────────────────────
-    // Le serveur retourne cached:true si le plan du jour existe déjà en base
-    let planCache      = null;
-    let calesCache     = null;
-    let dejaCacheServeur = false;
+    let planCache        = null;
+    let calesCache       = null;
 
     if (profilComplet) {
         try {
@@ -136,9 +134,8 @@ async function chargerWidgetSante() {
             });
             const dc = await rc.json();
             if (dc.plan) {
-                planCache          = dc.plan;
-                calesCache         = dc.calories_cibles;
-                dejaCacheServeur   = !!dc.cached;
+                planCache  = dc.plan;
+                calesCache = dc.calories_cibles;
             }
         } catch {}
     }
@@ -189,7 +186,7 @@ async function chargerWidgetSante() {
         </div>
     `;
 
-    // ── Zone plan — repliée par défaut si déjà générée ────────
+    // ── Zone plan — toujours repliée par défaut ───────────────
     const planHtml = planCache ? _renderPlan(planCache, calesCache) : '';
 
     el.innerHTML = `
@@ -209,12 +206,11 @@ async function chargerWidgetSante() {
         <div id="sante-plan-zone" class="sante-plan-replie">${planHtml}</div>
         ${planCache ? `
         <button class="sante-btn-toggle" id="btn-sante-toggle" onclick="togglePlanSante()">
-            ▲ Replier le plan
+            ▼ Voir le plan du jour
         </button>` : ''}
     `;
 
-    // Si plan déjà là, déplier au chargement
-    if (planCache) _depilerPlan();
+    // ── Plan replié par défaut — NE PAS appeler _depilerPlan() ─
 }
 
 // ===================== TOGGLE PLAN ===========================
@@ -310,11 +306,9 @@ async function genererPlanSante() {
             _depilerPlan();
 
             if (btn) {
-                btn.textContent      = '🔄 Plan généré aujourd\'hui';
-                btn.dataset.genere   = '1';
-                btn.disabled         = false;
-                btn.style.opacity    = '';
-                btn.style.cursor     = '';
+                btn.textContent    = '🔄 Plan généré aujourd\'hui';
+                btn.dataset.genere = '1';
+                btn.disabled       = false;
             }
         } else {
             if (msg) msg.textContent = '❌ ' + (d.error || 'Erreur lors de la génération.');
