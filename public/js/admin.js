@@ -1,7 +1,7 @@
 // ============================================================
 // public/js/admin.js
 // Dashboard admin — widget + modale stats/users + CRUD.
-// v1.30 — last_activity, top contributeurs, widgets populaires.
+// fix titre widgets : "les plus désactivés".
 // ============================================================
 
 // ===================== WIDGET ADMIN (dashboard) ==============
@@ -99,16 +99,14 @@ async function chargerAdminStats() {
             ? Math.round((d.profilsRemplis / d.totalUsers) * 100)
             : 0;
 
-        // Médailles top contributeurs
         const medailles = ['🥇', '🥈', '🥉', '4.', '5.'];
 
-        // Labels widgets lisibles
         const widgetLabels = {
             'anniversaires' : '🎂 Anniversaires',
             'astrologie'    : '✨ Astrologie',
             'planning'      : '📋 Planning',
             'priere'        : '🙏 Prière du jour',
-            'prieres'       : '🌙 Prières & Hadiths',
+            'islam'         : '🌙 Prières & Hadiths',
             'rendezvous'    : '🩺 Rendez-vous',
             'sante'         : '🥗 Santé',
             'social'        : '🤝 Social',
@@ -162,12 +160,12 @@ async function chargerAdminStats() {
                         : u.username;
                     const initiale = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
                     const details = [
-                        u.posts        > 0 ? `${u.posts} post${u.posts > 1 ? 's' : ''}`         : null,
-                        u.commentaires > 0 ? `${u.commentaires} comment.`                         : null,
-                        u.likes        > 0 ? `${u.likes} like${u.likes > 1 ? 's' : ''}`          : null,
-                        u.rdv          > 0 ? `${u.rdv} RDV`                                       : null,
-                        u.taches       > 0 ? `${u.taches} tâche${u.taches > 1 ? 's' : ''}`       : null,
-                        u.anniversaires > 0 ? `${u.anniversaires} anniv.`                         : null,
+                        u.posts         > 0 ? `${u.posts} post${u.posts > 1 ? 's' : ''}`               : null,
+                        u.commentaires  > 0 ? `${u.commentaires} comment.`                               : null,
+                        u.likes         > 0 ? `${u.likes} like${u.likes > 1 ? 's' : ''}`                : null,
+                        u.rdv           > 0 ? `${u.rdv} RDV`                                             : null,
+                        u.taches        > 0 ? `${u.taches} tâche${u.taches > 1 ? 's' : ''}`             : null,
+                        u.anniversaires > 0 ? `${u.anniversaires} anniv.`                                : null,
                     ].filter(Boolean).join(' · ');
                     return `
                     <div class="as-contrib-row">
@@ -184,22 +182,25 @@ async function chargerAdminStats() {
                 }).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune donnée.</p>'}
             </div>
 
-            <!-- WIDGETS POPULAIRES -->
-            <div class="as-section-title" style="margin-top:20px">Widgets les plus utilisés</div>
+            <!-- WIDGETS LES PLUS DÉSACTIVÉS -->
+            <div class="as-section-title" style="margin-top:20px">Widgets les plus désactivés</div>
             <div class="as-widgets-list">
-                ${(d.widgetsPopulaires || []).map((w, i) => {
-                    const label  = widgetLabels[w.widget] || w.widget;
-                    const maxNb  = d.widgetsPopulaires[0]?.nb || 1;
-                    const pct    = Math.round((w.nb / maxNb) * 100);
-                    return `
-                    <div class="as-widget-row">
-                        <div class="as-widget-label">${label}</div>
-                        <div class="as-widget-bar-wrap">
-                            <div class="as-widget-bar-fill" style="width:${pct}%;background:${i === 0 ? '#4f46e5' : i === 1 ? '#7c3aed' : '#a78bfa'}"></div>
-                        </div>
-                        <div class="as-widget-count">${w.nb}/${d.totalUsers}</div>
-                    </div>`;
-                }).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune donnée.</p>'}
+                ${(d.widgetsPopulaires || []).length === 0
+                    ? '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucun widget désactivé.</p>'
+                    : (d.widgetsPopulaires || []).map((w, i) => {
+                        const label = widgetLabels[w.widget] || w.widget;
+                        const maxNb = parseInt(d.widgetsPopulaires[0]?.nb) || 1;
+                        const pct   = Math.round((parseInt(w.nb) / maxNb) * 100);
+                        return `
+                        <div class="as-widget-row">
+                            <div class="as-widget-label">${label}</div>
+                            <div class="as-widget-bar-wrap">
+                                <div class="as-widget-bar-fill" style="width:${pct}%;background:${i === 0 ? '#ef4444' : i === 1 ? '#f97316' : '#fb923c'}"></div>
+                            </div>
+                            <div class="as-widget-count">${w.nb}/${d.totalUsers}</div>
+                        </div>`;
+                    }).join('')
+                }
             </div>
 
             <!-- DERNIÈRE ACTIVITÉ -->
@@ -271,7 +272,7 @@ function _renderAdminUsers() {
         <div id="admin-creer-form" style="display:none;background:#f8fafc;border-radius:12px;
              padding:16px;margin-bottom:12px;border:1.5px solid #e5e7eb">
             <div style="font-size:13px;font-weight:700;color:#1e1b4b;margin-bottom:12px">Nouveau compte</div>
-                        <input type="text" id="new-username" placeholder="Nom d'utilisateur"
+            <input type="text" id="new-username" placeholder="Nom d'utilisateur"
                 autocomplete="off" name="new-username-field"
                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
@@ -285,7 +286,7 @@ function _renderAdminUsers() {
             <select id="new-role"
                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;background:#fff">
-                <option value="user">user</option>
+                                <option value="user">user</option>
                 <option value="admin">admin</option>
             </select>
             <button onclick="creerUser()" class="ua-btn ua-btn-blue"
@@ -566,7 +567,7 @@ function adminSupprimerUser(id, username) {
         <div class="user-card" style="border-color:#fee2e2;background:#fff5f5">
             <div style="font-size:32px;text-align:center;margin-bottom:8px">🗑️</div>
             <div class="user-card-name" style="text-align:center;margin-bottom:16px">
-                Confirmer la suppression ?
+                Confirmer la suppression de <strong>${username}</strong> ?
             </div>
             <div style="display:flex;gap:8px">
                 <button class="ua-btn ua-btn-red" style="flex:1" onclick="adminConfirmSupprimer(${id})">Confirmer</button>
@@ -649,3 +650,13 @@ function switchAdminTab(tab) {
     if (tab === 'users') chargerAdminUsers();
 }
 
+// ===================== VALIDATION MDP (client) ===============
+
+function validerMotDePasse(pwd) {
+    if (!pwd || pwd.length < 8)                  return 'Minimum 8 caractères.';
+    if (!/[A-Z]/.test(pwd))                      return 'Au moins une majuscule.';
+    if (!/[a-z]/.test(pwd))                      return 'Au moins une minuscule.';
+    if (!/[0-9]/.test(pwd))                      return 'Au moins un chiffre.';
+    if (!/[^A-Za-z0-9]/.test(pwd))              return 'Au moins un caractère spécial.';
+    return null;
+}
