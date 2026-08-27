@@ -888,7 +888,7 @@ const Cycle = (() => {
     async function charger() {
         const container = document.getElementById('widget-cycle-content');
         if (!container) return;
-        const user = JSON.parse(localStorage.getItem('myvibe_user'));
+        const user = JSON.parse(localStorage.getItem('moadja_user'));
         if (!user?.token) { setTimeout(() => charger(), 300); return; }
         try {
             const res = await fetch('/api/cycle', { headers: authHeaders() });
