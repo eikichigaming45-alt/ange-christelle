@@ -57,10 +57,10 @@ router.get('/stats', async (req, res) => {
                     ) AS score
                 FROM users u
                 LEFT JOIN profiles p ON p.user_id = u.id
-                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM posts         GROUP BY user_id) po ON po.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM posts          GROUP BY user_id) po ON po.user_id = u.id
                 LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM post_comments  GROUP BY user_id) co ON co.user_id = u.id
-                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM post_likes    GROUP BY user_id) pl ON pl.user_id = u.id
-                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM rendezvous    GROUP BY user_id) rv ON rv.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM post_likes     GROUP BY user_id) pl ON pl.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM rendezvous     GROUP BY user_id) rv ON rv.user_id = u.id
                 LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM taches         GROUP BY user_id) ta ON ta.user_id = u.id
                 LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM anniversaires  GROUP BY user_id) an ON an.user_id = u.id
                 ORDER BY score DESC
@@ -187,7 +187,7 @@ router.post('/users', async (req, res) => {
         );
         const newUserId = result.rows[0].id;
         await pool.query(
-            'INSERT INTO profiles (user_id, widgets_visibles) VALUES (\\$1, \\$2) ON CONFLICT (user_id) DO NOTHING',
+            'INSERT INTO profiles (user_id, widgets_visibles) VALUES (\\$1, \\$2::text[]) ON CONFLICT (user_id) DO NOTHING',
             [newUserId, '{}']
         );
         res.json({ success: true, userId: newUserId });
