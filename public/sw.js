@@ -1,16 +1,10 @@
-﻿const CACHE_NAME = 'moadja-cache-v1.38';
+﻿const CACHE_NAME = 'moadja-cache-v1.39';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
     '/css/feed.css',
     '/css/sante.css',
     '/css/cycle.css',
-        '/css/taches.css',
-        '/css/meteo.css',
-        '/css/priere.css',
-        '/css/islam.css',
-        '/css/profil.css',
-        '/css/planning.css',
     '/css/taches.css',
     '/css/meteo.css',
     '/css/priere.css',
@@ -85,6 +79,7 @@ self.addEventListener('fetch', event => {
         '/css/profil.css',
         '/css/planning.css'
     ];
+
     if (networkFirst.includes(url.pathname)) {
         event.respondWith(
             fetch(event.request)
@@ -141,4 +136,3 @@ self.addEventListener('notificationclick', event => {
         })
     );
 });
-
