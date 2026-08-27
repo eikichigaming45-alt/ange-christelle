@@ -12,7 +12,6 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 1);
 app.set('etag', false);
 
-// FIX : limite augmentée pour les photos base64 (feed, profil)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

@@ -5,13 +5,30 @@
 const express    = require('express');
 const router     = express.Router();
 const bcrypt     = require('bcryptjs');
+const path       = require('path');
+const fs         = require('fs');
+const multer     = require('multer');
+const sharp      = require('sharp');
 const { pool }   = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 const { validerMotDePasse } = require('../utils/validations');
 
+const uploadsAvatars = path.join(__dirname, '..', 'public', 'uploads', 'avatars');
+if (!fs.existsSync(uploadsAvatars)) fs.mkdirSync(uploadsAvatars, { recursive: true });
+
+const storage = multer.memoryStorage();
+const upload  = multer({
+    storage,
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+            return cb(new Error('Fichier non supporté.'));
+        }
+        cb(null, true);
+    }
+});
+
 // GET /api/profil
-// Récupère les données du profil de l'utilisateur connecté
-// Inclut désormais allergies et aliments_exclus (ajoutés v1.26)
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -33,13 +50,11 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // POST /api/profil
-// Met à jour les données du profil de l'utilisateur connecté
-// Inclut désormais allergies et aliments_exclus (ajoutés v1.26)
 router.post('/', authenticateToken, async (req, res) => {
     const {
         prenom, nom, date_naissance, heure_naissance, lieu_naissance,
         naissance_lat, naissance_lon,
-        email, telephone, profession, note, photo,
+        email, telephone, profession, note,
         signe_zodiaque, sexe, taille, poids, groupe_sanguin,
         niveau_activite, objectif_sante,
         allergies, aliments_exclus
@@ -64,16 +79,15 @@ router.post('/', authenticateToken, async (req, res) => {
                 telephone       = CASE WHEN \$10::text IS NOT NULL THEN \$10::text    ELSE telephone       END,
                 profession      = CASE WHEN \$11::text IS NOT NULL THEN \$11::text    ELSE profession      END,
                 note            = CASE WHEN \$12::text IS NOT NULL THEN \$12::text    ELSE note            END,
-                photo           = CASE WHEN \$13::text IS NOT NULL THEN \$13::text    ELSE photo           END,
-                signe_zodiaque  = CASE WHEN \$14::text IS NOT NULL THEN \$14::text    ELSE signe_zodiaque  END,
-                sexe            = CASE WHEN \$15::text IS NOT NULL THEN \$15::text    ELSE sexe            END,
-                taille          = CASE WHEN \$16::text IS NOT NULL THEN \$16::integer ELSE taille          END,
-                poids           = CASE WHEN \$17::text IS NOT NULL THEN \$17::numeric ELSE poids           END,
-                groupe_sanguin  = CASE WHEN \$18::text IS NOT NULL THEN \$18::text    ELSE groupe_sanguin  END,
-                niveau_activite = CASE WHEN \$19::text IS NOT NULL THEN \$19::text    ELSE niveau_activite END,
-                objectif_sante  = CASE WHEN \$20::text IS NOT NULL THEN \$20::text    ELSE objectif_sante  END,
-                allergies       = CASE WHEN \$21::text IS NOT NULL THEN \$21::text[]  ELSE allergies       END,
-                aliments_exclus = CASE WHEN \$22::text IS NOT NULL THEN \$22::text[]  ELSE aliments_exclus END,
+                signe_zodiaque  = CASE WHEN \$13::text IS NOT NULL THEN \$13::text    ELSE signe_zodiaque  END,
+                sexe            = CASE WHEN \$14::text IS NOT NULL THEN \$14::text    ELSE sexe            END,
+                taille          = CASE WHEN \$15::text IS NOT NULL THEN \$15::integer ELSE taille          END,
+                poids           = CASE WHEN \$16::text IS NOT NULL THEN \$16::numeric ELSE poids           END,
+                groupe_sanguin  = CASE WHEN \$17::text IS NOT NULL THEN \$17::text    ELSE groupe_sanguin  END,
+                niveau_activite = CASE WHEN \$18::text IS NOT NULL THEN \$18::text    ELSE niveau_activite END,
+                objectif_sante  = CASE WHEN \$19::text IS NOT NULL THEN \$19::text    ELSE objectif_sante  END,
+                allergies       = CASE WHEN \$20::text IS NOT NULL THEN \$20::text[]  ELSE allergies       END,
+                aliments_exclus = CASE WHEN \$21::text IS NOT NULL THEN \$21::text[]  ELSE aliments_exclus END,
                 updated_at      = NOW()
             WHERE user_id = \$1
         `, [
@@ -89,7 +103,6 @@ router.post('/', authenticateToken, async (req, res) => {
             telephone       != null && telephone       !== '' ? telephone       : null,
             profession      != null && profession      !== '' ? profession      : null,
             note            != null && note            !== '' ? note            : null,
-            photo           != null && photo           !== '' ? photo           : null,
             signe_zodiaque  != null && signe_zodiaque  !== '' ? signe_zodiaque  : null,
             sexe            != null && sexe            !== '' ? sexe            : null,
             taille          != null                           ? String(taille)  : null,
@@ -108,8 +121,44 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
+// POST /api/profil/photo
+router.post('/photo', authenticateToken, upload.single('photo'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Aucun fichier reçu.' });
+    try {
+        const ancienRes = await pool.query(
+            'SELECT photo FROM profiles WHERE user_id = \$1',
+            [req.user.id]
+        );
+        const anciennePhoto = ancienRes.rows[0]?.photo;
+
+        const nomFichier = `avatar_${req.user.id}_${Date.now()}.webp`;
+        const cheminDest = path.join(uploadsAvatars, nomFichier);
+
+        await sharp(req.file.buffer)
+            .resize(300, 300, { fit: 'cover' })
+            .webp({ quality: 80 })
+            .toFile(cheminDest);
+
+        const urlPhoto = `/uploads/avatars/${nomFichier}`;
+
+        await pool.query(
+            'UPDATE profiles SET photo = \$1, updated_at = NOW() WHERE user_id = \$2',
+            [urlPhoto, req.user.id]
+        );
+
+        if (anciennePhoto && anciennePhoto.startsWith('/uploads/avatars/')) {
+            const ancienChemin = path.join(__dirname, '..', 'public', anciennePhoto);
+            fs.unlink(ancienChemin, () => {});
+        }
+
+        res.json({ success: true, url: urlPhoto });
+    } catch (err) {
+        console.error('[PROFIL] POST /photo :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur lors de la sauvegarde de la photo.' });
+    }
+});
+
 // PATCH /api/profil/meteo-ville
-// Met à jour les coordonnées et le nom de ville météo
 router.patch('/meteo-ville', authenticateToken, async (req, res) => {
     const { lat, lon, ville } = req.body;
     if (!lat || !lon) return res.status(400).json({ success: false, message: 'Coordonnées manquantes.' });
@@ -126,13 +175,24 @@ router.patch('/meteo-ville', authenticateToken, async (req, res) => {
 });
 
 // DELETE /api/profil/photo
-// Supprime la photo de profil
 router.delete('/photo', authenticateToken, async (req, res) => {
     try {
+        const ancienRes = await pool.query(
+            'SELECT photo FROM profiles WHERE user_id = \$1',
+            [req.user.id]
+        );
+        const anciennePhoto = ancienRes.rows[0]?.photo;
+
         await pool.query(
             'UPDATE profiles SET photo = NULL, updated_at = NOW() WHERE user_id = \$1',
             [req.user.id]
         );
+
+        if (anciennePhoto && anciennePhoto.startsWith('/uploads/avatars/')) {
+            const ancienChemin = path.join(__dirname, '..', 'public', anciennePhoto);
+            fs.unlink(ancienChemin, () => {});
+        }
+
         res.json({ success: true });
     } catch (err) {
         console.error('[PROFIL] DELETE /photo :', err.message);
@@ -141,7 +201,6 @@ router.delete('/photo', authenticateToken, async (req, res) => {
 });
 
 // POST /api/profil/changer-mdp
-// Changement de mot de passe — vérifie l'ancien avant de hasher le nouveau
 router.post('/changer-mdp', authenticateToken, async (req, res) => {
     const { ancienMdp, nouveauMdp } = req.body;
     if (!ancienMdp || !nouveauMdp) return res.status(400).json({ success: false, message: 'Champs manquants.' });
@@ -168,7 +227,6 @@ router.post('/changer-mdp', authenticateToken, async (req, res) => {
 });
 
 // GET /api/profil/widgets-visibles
-// Récupère la liste des widgets cachés pour l'utilisateur
 router.get('/widgets-visibles', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -184,7 +242,6 @@ router.get('/widgets-visibles', authenticateToken, async (req, res) => {
 });
 
 // PATCH /api/profil/widgets-visibles
-// Met à jour la liste des widgets cachés
 router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
     const { widgets_caches } = req.body;
     if (!Array.isArray(widgets_caches)) return res.status(400).json({ success: false, message: 'Format invalide.' });
@@ -201,7 +258,6 @@ router.patch('/widgets-visibles', authenticateToken, async (req, res) => {
 });
 
 // GET /api/profil/abonnes/:userId
-// Retourne la liste des abonnés d'un utilisateur (accès limité à soi-même)
 router.get('/abonnes/:userId', authenticateToken, async (req, res) => {
     const cibleId = parseInt(req.params.userId);
     if (isNaN(cibleId)) return res.status(400).json({ success: false, message: 'ID invalide.' });
@@ -223,7 +279,6 @@ router.get('/abonnes/:userId', authenticateToken, async (req, res) => {
 });
 
 // GET /api/profil/public/:userId
-// Retourne le profil public d'un utilisateur avec stats sociales
 router.get('/public/:userId', authenticateToken, async (req, res) => {
     const cibleId = parseInt(req.params.userId);
     const moi     = req.user.id;

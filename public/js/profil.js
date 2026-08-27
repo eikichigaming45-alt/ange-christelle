@@ -1,18 +1,7 @@
 // ============================================================
 // public/js/profil.js
-// Profil utilisateur : affichage, édition, photo (cropper),
-// suppression photo, trigramme 3 lettres, changement de mot
-// de passe, préférences widgets (opt-out).
-// Onglet Santé  : sexe, taille, poids, groupe sanguin,
-//                 niveau activité, objectif santé, signe zodiaque,
-//                 allergies, aliments exclus.
-// Géocodage Nominatim : lieu de naissance → lat/lon (onblur).
-// Widget Mon Profil : signe astrologique.
-// Dépend de : app.js (getUser, profilCache, cropperInstance, TOUS_WIDGETS)
-//             widgets.js (appliquerWidgetsVisibles)
 // ============================================================
 
-// ===================== UTILITAIRE TRIGRAMME ==================
 function construireTrigramme(prenom, nom) {
     const mots = [...(prenom || '').split(/\s+/), ...(nom || '').split(/\s+/)]
         .map(m => m.trim())
@@ -20,7 +9,6 @@ function construireTrigramme(prenom, nom) {
     return mots.slice(0, 3).map(m => m[0].toUpperCase()).join('');
 }
 
-// ===================== SIGNE ASTROLOGIQUE ====================
 const _SIGNES_ZODIAQUE = [
     { signe:'Capricorne', emoji:'♑', mois:1,  jour:20 },
     { signe:'Verseau',    emoji:'♒', mois:2,  jour:19 },
@@ -68,7 +56,6 @@ function obtenirSigne(p) {
     return _signeDepuisDate(p.date_naissance);
 }
 
-// ===================== GÉOCODAGE NOMINATIM ===================
 async function geocoderLieuNaissance() {
     const input = document.getElementById('p-lieu-naissance');
     const msg   = document.getElementById('p-lieu-naissance-msg');
@@ -113,7 +100,6 @@ async function geocoderLieuNaissance() {
     }
 }
 
-// ===================== PROFIL HEADER =========================
 async function chargerProfilHeader() {
     const user = getUser();
     if (!user?.token) return;
@@ -183,7 +169,6 @@ async function chargerProfilHeader() {
     } catch { /* silencieux */ }
 }
 
-// ── Masquer widget cycle si homme ou intersexe ────────────────
 function _appliquerVisibiliteCycle(sexe) {
     const widgetCycle = document.querySelector('.widget[data-id="cycle"]');
     if (!widgetCycle) return;
@@ -191,7 +176,6 @@ function _appliquerVisibiliteCycle(sexe) {
     widgetCycle.style.display = cacher ? 'none' : '';
 }
 
-// ===================== PHOTO & CROPPER =======================
 function previewPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -224,46 +208,77 @@ function previewPhoto(event) {
     reader.readAsDataURL(file);
 }
 
-function validerCrop() {
+async function validerCrop() {
     if (!cropperInstance) return;
-    const canvas  = cropperInstance.getCroppedCanvas({ width: 300, height: 300 });
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    const user = getUser();
 
-    let preview = document.getElementById('profil-photo-preview');
-    if (preview) {
-        preview.src = dataUrl;
-    } else {
-        const zone = document.querySelector('#profil-tab-infos .profil-widget-initiales, #profil-tab-infos .initiales');
-        if (zone) {
-            const newImg         = document.createElement('img');
-            newImg.id            = 'profil-photo-preview';
-            newImg.src           = dataUrl;
-            newImg.style.cssText = 'width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)';
-            newImg.onclick       = () => document.getElementById('photo-input').click();
-            zone.replaceWith(newImg);
-            preview = newImg;
+    const canvas = cropperInstance.getCroppedCanvas({ width: 300, height: 300 });
+    canvas.toBlob(async blob => {
+        if (!blob) return;
+
+        const formData = new FormData();
+        formData.append('photo', blob, 'avatar.jpg');
+
+        const btn = document.getElementById('btn-profil-header');
+        if (btn) btn.innerHTML = '...';
+
+        try {
+            const r = await fetch('/api/profil/photo', {
+                method  : 'POST',
+                headers : { 'Authorization': `Bearer ${user.token}` },
+                body    : formData
+            });
+            const d = await r.json();
+            if (!d.success) throw new Error(d.message);
+
+            const urlPhoto = d.url;
+            profilCache = { ...profilCache, photo: urlPhoto };
+
+            try {
+                localStorage.setItem('moadja_profil', JSON.stringify({ photo: urlPhoto }));
+            } catch { /* silencieux */ }
+
+            let preview = document.getElementById('profil-photo-preview');
+            if (preview) {
+                preview.src = urlPhoto;
+            } else {
+                const zone = document.querySelector('#profil-tab-infos .profil-widget-initiales, #profil-tab-infos .initiales');
+                if (zone) {
+                    const newImg         = document.createElement('img');
+                    newImg.id            = 'profil-photo-preview';
+                    newImg.src           = urlPhoto;
+                    newImg.style.cssText = 'width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)';
+                    newImg.onclick       = () => document.getElementById('photo-input').click();
+                    zone.replaceWith(newImg);
+                    preview = newImg;
+                }
+            }
+
+            let btnSuppr = document.getElementById('btn-supprimer-photo');
+            if (!btnSuppr && preview) {
+                btnSuppr               = document.createElement('button');
+                btnSuppr.id            = 'btn-supprimer-photo';
+                btnSuppr.onclick       = supprimerPhoto;
+                btnSuppr.style.cssText = 'margin-top:8px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer';
+                btnSuppr.innerHTML     = '🗑️ Supprimer la photo';
+                preview.insertAdjacentElement('afterend', btnSuppr);
+            }
+
+            if (btn) {
+                btn.innerHTML        = `<img src="${urlPhoto}" alt="profil">`;
+                btn.style.fontSize   = '';
+                btn.style.fontWeight = '';
+                btn.style.background = '';
+            }
+
+        } catch (err) {
+            const msgEl = document.getElementById('profil-msg');
+            if (msgEl) { msgEl.textContent = '❌ Erreur lors de la sauvegarde de la photo.'; msgEl.style.color = '#ef4444'; }
+            chargerProfilHeader();
         }
-    }
 
-    let btnSuppr = document.getElementById('btn-supprimer-photo');
-    if (!btnSuppr && preview) {
-        btnSuppr               = document.createElement('button');
-        btnSuppr.id            = 'btn-supprimer-photo';
-        btnSuppr.onclick       = supprimerPhoto;
-        btnSuppr.style.cssText = 'margin-top:8px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer';
-        btnSuppr.innerHTML     = '🗑️ Supprimer la photo';
-        preview.insertAdjacentElement('afterend', btnSuppr);
-    }
-
-    const btn = document.getElementById('btn-profil-header');
-    if (btn) {
-        btn.innerHTML        = `<img src="${dataUrl}" alt="profil">`;
-        btn.style.fontSize   = '';
-        btn.style.fontWeight = '';
-        btn.style.background = '';
-    }
-
-    annulerCrop();
+        annulerCrop();
+    }, 'image/jpeg', 0.8);
 }
 
 function annulerCrop() {
@@ -274,7 +289,6 @@ function annulerCrop() {
     if (input) input.value = '';
 }
 
-// ===================== SUPPRESSION PHOTO =====================
 function supprimerPhoto() {
     document.getElementById('modal-title').textContent = 'Confirmation';
     document.getElementById('modal-body').innerHTML = `
@@ -335,15 +349,11 @@ async function _confirmerSupprimerPhoto() {
     }
 }
 
-// ===================== SAUVEGARDE PROFIL =====================
 async function sauvegarderProfil() {
     const user = getUser();
     const msg  = document.getElementById('profil-msg');
     msg.textContent = 'Sauvegarde...';
     msg.style.color = '#9ca3af';
-
-    const photoEl = document.getElementById('profil-photo-preview');
-    const photo   = photoEl?.src?.startsWith('data:') ? photoEl.src : (profilCache?.photo || null);
 
     const body = {
         prenom          : document.getElementById('p-prenom')?.value           || '',
@@ -357,7 +367,6 @@ async function sauvegarderProfil() {
         telephone       : document.getElementById('p-tel')?.value              || '',
         profession      : document.getElementById('p-prof')?.value             || '',
         note            : document.getElementById('p-note')?.value             || '',
-        photo,
     };
 
     try {
@@ -385,14 +394,13 @@ async function sauvegarderProfil() {
     }
 }
 
-// ===================== SAUVEGARDE SANTÉ ======================
 async function sauvegarderSante() {
     const user = getUser();
     const msg  = document.getElementById('sante-msg');
     msg.textContent = 'Sauvegarde...';
     msg.style.color = '#9ca3af';
 
-    const allergiesRaw       = document.getElementById('p-allergies')?.value     || '';
+    const allergiesRaw       = document.getElementById('p-allergies')?.value       || '';
     const aliments_exclusRaw = document.getElementById('p-aliments-exclus')?.value || '';
 
     const allergies       = allergiesRaw.split(',').map(s => s.trim()).filter(Boolean);
@@ -435,7 +443,6 @@ async function sauvegarderSante() {
     }
 }
 
-// ── Injection champs allergies / aliments_exclus ──────────────
 function _injecterChampsAllergies(p) {
     const container = document.getElementById('profil-tab-sante');
     if (!container) return;
@@ -464,7 +471,6 @@ function _injecterChampsAllergies(p) {
     }
 }
 
-// ===================== MOT DE PASSE ==========================
 function validerMotDePasse(pwd) {
     if (!pwd || pwd.length < 8)    return 'Minimum 8 caractères.';
     if (!/[A-Z]/.test(pwd))        return 'Au moins une majuscule requise.';
@@ -520,7 +526,6 @@ async function changerMdp() {
     }
 }
 
-// ===================== WIDGETS OPT-OUT =======================
 async function afficherSectionWidgets() {
     const user      = getUser();
     const container = document.getElementById('widgets-choix');
