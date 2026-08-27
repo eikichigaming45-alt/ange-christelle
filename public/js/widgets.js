@@ -27,6 +27,21 @@ function getOngletWidget(id) {
     return null;
 }
 
+// ===================== TRACKING OUVERTURE ====================
+
+function _trackerOuverture(widgetId) {
+    const user = getUser();
+    if (!user?.token) return;
+    fetch('/api/widget-order/open', {
+        method  : 'POST',
+        headers : {
+            'Content-Type' : 'application/json',
+            'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ widget: widgetId })
+    }).catch(() => {});
+}
+
 // ===================== BUILD PRINCIPAL =======================
 
 async function buildGrid() {
@@ -69,7 +84,6 @@ async function buildGrid() {
         });
     }
 
-    // Seuls les hommes ne peuvent pas voir le widget cycle
     if (sexe === 'homme') {
         defs = defs.filter(w => w.id !== 'cycle');
     }
@@ -82,15 +96,15 @@ async function buildGrid() {
 
     _buildAccueilMeteo();
 
-    if (typeof chargerProfilHeader   === 'function') chargerProfilHeader();
-    if (typeof Cycle                 !== 'undefined') Cycle.charger();
-    if (typeof Rendezvous            !== 'undefined') Rendezvous.charger();
-    if (typeof chargerWidgetPlanning === 'function')  chargerWidgetPlanning();
-    if (typeof chargerWidgetSocial   === 'function')  chargerWidgetSocial();
-    if (typeof chargerWidgetSante    === 'function')  chargerWidgetSante();
-	if (typeof chargerWidgetAnniversaires === 'function') chargerWidgetAnniversaires();
-	if (typeof chargerWidgetAdmin         === 'function') chargerWidgetAdmin();
-	if (typeof chargerAstrologie          === 'function') chargerAstrologie();
+    if (typeof chargerProfilHeader        === 'function') chargerProfilHeader();
+    if (typeof Cycle                      !== 'undefined') Cycle.charger();
+    if (typeof Rendezvous                 !== 'undefined') Rendezvous.charger();
+    if (typeof chargerWidgetPlanning      === 'function')  chargerWidgetPlanning();
+    if (typeof chargerWidgetSocial        === 'function')  chargerWidgetSocial();
+    if (typeof chargerWidgetSante         === 'function')  chargerWidgetSante();
+    if (typeof chargerWidgetAnniversaires === 'function')  chargerWidgetAnniversaires();
+    if (typeof chargerWidgetAdmin         === 'function')  chargerWidgetAdmin();
+    if (typeof chargerAstrologie          === 'function')  chargerAstrologie();
 }
 
 async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
@@ -152,15 +166,15 @@ function creerWidget(def, gridId) {
     div.draggable    = true;
 
     let contentHtml = def.desc || '';
-    if (def.id === 'cycle')          contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
-	if (def.id === 'rendezvous')     contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
-	if (def.id === 'planning')       contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
-	if (def.id === 'profil')         contentHtml = '<div id="wc-profil"></div>';
-	if (def.id === 'astrologie')     contentHtml = '<div id="wc-astrologie">Chargement...</div>';
-	if (def.id === 'admin')          contentHtml = '<div id="wc-admin">Chargement...</div>';
-	if (def.id === 'social')         contentHtml = '<div id="wc-social">Chargement...</div>';
-	if (def.id === 'sante')          contentHtml = '<div id="wc-sante">Chargement...</div>';
-	if (def.id === 'anniversaires')  contentHtml = '<div id="wc-anniversaires">Chargement...</div>';
+    if (def.id === 'cycle')         contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
+    if (def.id === 'rendezvous')    contentHtml = '<div id="widget-rdv-content">Chargement...</div>';
+    if (def.id === 'planning')      contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
+    if (def.id === 'profil')        contentHtml = '<div id="wc-profil"></div>';
+    if (def.id === 'astrologie')    contentHtml = '<div id="wc-astrologie">Chargement...</div>';
+    if (def.id === 'admin')         contentHtml = '<div id="wc-admin">Chargement...</div>';
+    if (def.id === 'social')        contentHtml = '<div id="wc-social">Chargement...</div>';
+    if (def.id === 'sante')         contentHtml = '<div id="wc-sante">Chargement...</div>';
+    if (def.id === 'anniversaires') contentHtml = '<div id="wc-anniversaires">Chargement...</div>';
 
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
@@ -174,12 +188,14 @@ function creerWidget(def, gridId) {
         <div class="wf">${def.foot || ''}</div>
     `;
 
+    const SANS_MODAL = ['social', 'sante'];
+
     div.addEventListener('click', e => {
         if (e.target.classList.contains('drag-handle')) return;
         if (e.target.closest('button'))                 return;
         if (e.target.closest('.rdv-card'))              return;
-        if (def.id === 'social') return; // widget lecture seule, pas de modal
-        if (def.id === 'sante')  return; // widget inline, pas de modal
+        if (SANS_MODAL.includes(def.id))                return;
+        _trackerOuverture(def.id);
         openModal(def.id);
     });
 
