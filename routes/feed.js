@@ -7,13 +7,33 @@ const express               = require('express');
 const router                = express.Router();
 const { pool }              = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
-const { createClient }      = require('@supabase/supabase-js');
 const { envoyerPush }       = require('./push');
+const multer                = require('multer');
+const sharp                 = require('sharp');
+const path                  = require('path');
+const fs                    = require('fs');
 
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
-);
+const UPLOADS_DIR = path.join(__dirname, '../public/uploads/posts');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const storage = multer.memoryStorage();
+const upload  = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
+
+// ── Utilitaire : sauvegarder une image sur disque ────────────
+async function sauvegarderImage(buffer, userId) {
+    const filename = `${userId}_${Date.now()}.webp`;
+    const filepath = path.join(UPLOADS_DIR, filename);
+    await sharp(buffer).webp({ quality: 80 }).toFile(filepath);
+    return `/uploads/posts/${filename}`;
+}
+
+// ── Utilitaire : supprimer une image du disque ───────────────
+function supprimerImage(photo_url) {
+    if (!photo_url) return;
+    const filename = path.basename(photo_url);
+    const filepath = path.join(UPLOADS_DIR, filename);
+    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+}
 
 // ── Utilitaire : extraire et résoudre les @mentions ──────────
 async function resoudreMentions(contenu, auteurId) {
@@ -32,7 +52,7 @@ async function resoudreMentions(contenu, auteurId) {
             const nom    = parts.slice(i).join(' ');
             const { rows } = await pool.query(
                 `SELECT user_id FROM profiles
-                 WHERE LOWER(prenom) = LOWER(\$1) AND LOWER(nom) = LOWER(\$2)
+                 WHERE LOWER(prenom) = LOWER(\\$1) AND LOWER(nom) = LOWER(\\$2)
                  LIMIT 1`,
                 [prenom, nom]
             );
@@ -48,13 +68,13 @@ async function resoudreMentions(contenu, auteurId) {
 // ── Utilitaire : notifier @toutlemonde ───────────────────────
 async function notifierToutLeMonde(auteurId, refId, type, prenomAuteur, nomAuteur) {
     const { rows } = await pool.query(
-        'SELECT id FROM users WHERE id != \$1',
+        'SELECT id FROM users WHERE id != \\$1',
         [auteurId]
     );
     for (const u of rows) {
         await pool.query(
             `INSERT INTO notifications (user_id, type, ref_id, sender_id)
-             VALUES (\$1, \$2, \$3, \$4)
+             VALUES (\\$1, \\$2, \\$3, \\$4)
              ON CONFLICT DO NOTHING`,
             [u.id, type === 'post' ? 'mention_post' : 'mention_comment', refId, auteurId]
         );
@@ -72,7 +92,7 @@ async function notifierMentions(mentionIds, auteurId, refId, type, prenomAuteur,
     for (const targetId of mentionIds) {
         await pool.query(
             `INSERT INTO notifications (user_id, type, ref_id, sender_id)
-             VALUES (\$1, \$2, \$3, \$4)
+             VALUES (\\$1, \\$2, \\$3, \\$4)
              ON CONFLICT DO NOTHING`,
             [targetId, type === 'post' ? 'mention_post' : 'mention_comment', refId, auteurId]
         );
@@ -88,7 +108,7 @@ async function notifierMentions(mentionIds, auteurId, refId, type, prenomAuteur,
 // ── Utilitaire : récupérer prenom/nom de l'auteur connecté ───
 async function getProfilAuteur(userId) {
     const { rows } = await pool.query(
-        `SELECT prenom, nom FROM profiles WHERE user_id = \$1`, [userId]
+        `SELECT prenom, nom FROM profiles WHERE user_id = \\$1`, [userId]
     );
     return {
         prenom: rows[0]?.prenom || 'Quelqu\'un',
@@ -101,16 +121,6 @@ function contientToutLeMonde(contenu) {
     return /@toutlemonde(?:\s|$)/i.test(contenu);
 }
 
-// ── Utilitaire : mentions_data safe ──────────────────────────
-const MENTIONS_DATA_SQL = `
-    CASE WHEN c.mentions IS NOT NULL AND array_length(c.mentions, 1) > 0 THEN (
-        SELECT json_agg(json_build_object('id', u2.id, 'prenom', pr2.prenom, 'nom', pr2.nom))
-        FROM unnest(c.mentions) AS mid
-        JOIN users u2 ON u2.id = mid
-        LEFT JOIN profiles pr2 ON pr2.user_id = u2.id
-    ) ELSE NULL END
-`;
-
 // ── GET /api/feed/users (autocomplete @mention) ──────────────
 router.get('/users', authenticateToken, async (req, res) => {
     const q = (req.query.q || '').trim();
@@ -120,9 +130,9 @@ router.get('/users', authenticateToken, async (req, res) => {
             `SELECT u.id, pr.prenom, pr.nom, pr.photo AS avatar
              FROM users u
              LEFT JOIN profiles pr ON pr.user_id = u.id
-             WHERE LOWER(pr.prenom) LIKE LOWER(\$1)
-                OR LOWER(pr.nom)    LIKE LOWER(\$1)
-                OR LOWER(CONCAT(pr.prenom, ' ', pr.nom)) LIKE LOWER(\$1)
+             WHERE LOWER(pr.prenom) LIKE LOWER(\\$1)
+                OR LOWER(pr.nom)    LIKE LOWER(\\$1)
+                OR LOWER(CONCAT(pr.prenom, ' ', pr.nom)) LIKE LOWER(\\$1)
              ORDER BY pr.prenom, pr.nom
              LIMIT 8`,
             [`${q}%`]
@@ -154,14 +164,14 @@ router.get('/', authenticateToken, async (req, res) => {
                 u.id AS user_id,
                 (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id)::int AS likes,
                 (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id)::int AS nb_comments,
-                EXISTS(SELECT 1 FROM post_likes l WHERE l.post_id = p.id AND l.user_id = \$1) AS liked
+                EXISTS(SELECT 1 FROM post_likes l WHERE l.post_id = p.id AND l.user_id = \\$1) AS liked
             FROM posts p
             JOIN users u ON u.id = p.user_id
             LEFT JOIN profiles pr ON pr.user_id = p.user_id
         `;
         const params = [userId];
         if (filter === 'following') {
-            query += ` WHERE p.user_id IN (SELECT following_id FROM follows WHERE follower_id = \$1)`;
+            query += ` WHERE p.user_id IN (SELECT following_id FROM follows WHERE follower_id = \\$1)`;
         }
         query += ` ORDER BY p.created_at DESC LIMIT 50`;
         const { rows } = await pool.query(query, params);
@@ -173,44 +183,37 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // ── POST /api/feed ────────────────────────────────────────────
-router.post('/', authenticateToken, async (req, res) => {
-    const userId    = req.user.id;
-    const contenu   = (req.body.contenu || '').trim();
-    const photoB64  = req.body.photo || null;
-    const photoMime = req.body.mime  || 'image/jpeg';
-    if (!contenu && !photoB64) {
+router.post('/', authenticateToken, upload.single('photo'), async (req, res) => {
+    const userId   = req.user.id;
+    const contenu  = (req.body.contenu || '').trim();
+    const photoB64 = req.body.photo || null;
+
+    if (!contenu && !photoB64 && !req.file) {
         return res.status(400).json({ success: false, message: 'Post vide.' });
     }
     try {
         let photo_url = null;
-        if (photoB64) {
-            const buffer   = Buffer.from(photoB64, 'base64');
-            const ext      = photoMime.split('/')[1] || 'jpg';
-            const filename = `${userId}_${Date.now()}.${ext}`;
-            const { error } = await supabase.storage
-                .from('posts-photos')
-                .upload(filename, buffer, { contentType: photoMime, upsert: false });
-            if (error) throw new Error(error.message);
-            const { data } = supabase.storage.from('posts-photos').getPublicUrl(filename);
-            photo_url = data.publicUrl;
+        if (req.file) {
+            photo_url = await sauvegarderImage(req.file.buffer, userId);
+        } else if (photoB64) {
+            const buffer = Buffer.from(photoB64, 'base64');
+            photo_url = await sauvegarderImage(buffer, userId);
         }
 
         const mentionIds = contenu ? await resoudreMentions(contenu, userId) : [];
 
         const { rows } = await pool.query(
             `INSERT INTO posts (user_id, contenu, photo_url, mentions)
-             VALUES (\$1, \$2, \$3, \$4)
+             VALUES (\\$1, \\$2, \\$3, \\$4)
              RETURNING id, contenu, photo_url, created_at, mentions`,
             [userId, contenu || null, photo_url, mentionIds]
         );
         const post = rows[0];
-
         const { prenom, nom } = await getProfilAuteur(userId);
 
         if (mentionIds.length) {
             await notifierMentions(mentionIds, userId, post.id, 'post', prenom, nom);
         }
-
         if (contenu && contientToutLeMonde(contenu) && req.user.role === 'admin') {
             await notifierToutLeMonde(userId, post.id, 'post', prenom, nom);
         }
@@ -227,7 +230,7 @@ router.get('/following', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     try {
         const { rows } = await pool.query(
-            `SELECT following_id FROM follows WHERE follower_id = \$1`, [userId]
+            `SELECT following_id FROM follows WHERE follower_id = \\$1`, [userId]
         );
         res.json({ success: true, following: rows.map(r => r.following_id) });
     } catch (e) {
@@ -245,25 +248,25 @@ router.post('/follow/:id', authenticateToken, async (req, res) => {
     }
     try {
         const { rows } = await pool.query(
-            `SELECT id FROM follows WHERE follower_id = \$1 AND following_id = \$2`,
+            `SELECT id FROM follows WHERE follower_id = \\$1 AND following_id = \\$2`,
             [followerId, followingId]
         );
         if (rows.length) {
             await pool.query(
-                `DELETE FROM follows WHERE follower_id = \$1 AND following_id = \$2`,
+                `DELETE FROM follows WHERE follower_id = \\$1 AND following_id = \\$2`,
                 [followerId, followingId]
             );
             return res.json({ success: true, following: false });
         }
 
         await pool.query(
-            `INSERT INTO follows (follower_id, following_id) VALUES (\$1, \$2)`,
+            `INSERT INTO follows (follower_id, following_id) VALUES (\\$1, \\$2)`,
             [followerId, followingId]
         );
         const { prenom, nom } = await getProfilAuteur(followerId);
         await pool.query(
             `INSERT INTO notifications (user_id, type, ref_id, sender_id)
-             VALUES (\$1, 'follow', \$2, \$3)`,
+             VALUES (\\$1, 'follow', \\$2, \\$3)`,
             [followingId, followerId, followerId]
         );
         await envoyerPush(
@@ -287,7 +290,7 @@ router.put('/comments/:id', authenticateToken, async (req, res) => {
     if (!contenu) return res.status(400).json({ success: false, message: 'Contenu vide.' });
     try {
         const { rows } = await pool.query(
-            `SELECT user_id FROM post_comments WHERE id = \$1`, [commentId]
+            `SELECT user_id FROM post_comments WHERE id = \\$1`, [commentId]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Commentaire introuvable.' });
         if (rows[0].user_id !== userId && req.user.role !== 'admin') {
@@ -297,7 +300,7 @@ router.put('/comments/:id', authenticateToken, async (req, res) => {
         const mentionIds = await resoudreMentions(contenu, userId);
 
         await pool.query(
-            `UPDATE post_comments SET contenu = \$1, mentions = \$2 WHERE id = \$3`,
+            `UPDATE post_comments SET contenu = \\$1, mentions = \\$2 WHERE id = \\$3`,
             [contenu, mentionIds, commentId]
         );
 
@@ -306,7 +309,6 @@ router.put('/comments/:id', authenticateToken, async (req, res) => {
         if (mentionIds.length) {
             await notifierMentions(mentionIds, userId, commentId, 'comment', prenom, nom);
         }
-
         if (contientToutLeMonde(contenu) && req.user.role === 'admin') {
             await notifierToutLeMonde(userId, commentId, 'comment', prenom, nom);
         }
@@ -324,13 +326,13 @@ router.delete('/comments/:id', authenticateToken, async (req, res) => {
     const commentId = parseInt(req.params.id);
     try {
         const { rows } = await pool.query(
-            `SELECT user_id FROM post_comments WHERE id = \$1`, [commentId]
+            `SELECT user_id FROM post_comments WHERE id = \\$1`, [commentId]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Commentaire introuvable.' });
         if (rows[0].user_id !== userId && req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Interdit.' });
         }
-        await pool.query(`DELETE FROM post_comments WHERE id = \$1`, [commentId]);
+        await pool.query(`DELETE FROM post_comments WHERE id = \\$1`, [commentId]);
         res.json({ success: true });
     } catch (e) {
         console.error('[FEED COMMENT DELETE]', e.message);
@@ -344,18 +346,18 @@ router.post('/comments/:id/like', authenticateToken, async (req, res) => {
     const commentId = parseInt(req.params.id);
     try {
         const { rows } = await pool.query(
-            `SELECT id FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`,
+            `SELECT id FROM comment_likes WHERE comment_id = \\$1 AND user_id = \\$2`,
             [commentId, userId]
         );
         if (rows.length) {
             await pool.query(
-                `DELETE FROM comment_likes WHERE comment_id = \$1 AND user_id = \$2`,
+                `DELETE FROM comment_likes WHERE comment_id = \\$1 AND user_id = \\$2`,
                 [commentId, userId]
             );
             return res.json({ success: true, liked: false });
         }
         await pool.query(
-            `INSERT INTO comment_likes (comment_id, user_id) VALUES (\$1, \$2)`,
+            `INSERT INTO comment_likes (comment_id, user_id) VALUES (\\$1, \\$2)`,
             [commentId, userId]
         );
         res.json({ success: true, liked: true });
@@ -371,30 +373,30 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
     const postId = parseInt(req.params.id);
     try {
         const { rows } = await pool.query(
-            `SELECT id FROM post_likes WHERE post_id = \$1 AND user_id = \$2`,
+            `SELECT id FROM post_likes WHERE post_id = \\$1 AND user_id = \\$2`,
             [postId, userId]
         );
         if (rows.length) {
             await pool.query(
-                `DELETE FROM post_likes WHERE post_id = \$1 AND user_id = \$2`,
+                `DELETE FROM post_likes WHERE post_id = \\$1 AND user_id = \\$2`,
                 [postId, userId]
             );
             return res.json({ success: true, liked: false });
         }
 
         await pool.query(
-            `INSERT INTO post_likes (post_id, user_id) VALUES (\$1, \$2)`,
+            `INSERT INTO post_likes (post_id, user_id) VALUES (\\$1, \\$2)`,
             [postId, userId]
         );
         const { rows: postRows } = await pool.query(
-            `SELECT user_id FROM posts WHERE id = \$1`, [postId]
+            `SELECT user_id FROM posts WHERE id = \\$1`, [postId]
         );
         const ownerId = postRows[0]?.user_id;
         if (ownerId && ownerId !== userId) {
             const { prenom, nom } = await getProfilAuteur(userId);
             await pool.query(
                 `INSERT INTO notifications (user_id, type, ref_id, sender_id)
-                 VALUES (\$1, 'like', \$2, \$3)`,
+                 VALUES (\\$1, 'like', \\$2, \\$3)`,
                 [ownerId, postId, userId]
             );
             await envoyerPush(
@@ -420,7 +422,7 @@ router.get('/:id/likes', authenticateToken, async (req, res) => {
             FROM post_likes l
             JOIN users u ON u.id = l.user_id
             LEFT JOIN profiles pr ON pr.user_id = l.user_id
-            WHERE l.post_id = \$1
+            WHERE l.post_id = \\$1
             ORDER BY l.id ASC
         `, [postId]);
         res.json({ success: true, likers: rows });
@@ -447,11 +449,11 @@ router.get('/:id/comments', authenticateToken, async (req, res) => {
                    pr.prenom, pr.nom, pr.photo AS avatar,
                    u.username, u.id AS user_id,
                    (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id)::int AS likes,
-                   EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = \$2) AS liked
+                   EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = \\$2) AS liked
             FROM post_comments c
             JOIN users u ON u.id = c.user_id
             LEFT JOIN profiles pr ON pr.user_id = c.user_id
-            WHERE c.post_id = \$1
+            WHERE c.post_id = \\$1
             ORDER BY COALESCE(c.parent_id, c.id), c.id ASC
         `, [postId, userId]);
         res.json({ success: true, comments: rows });
@@ -474,22 +476,21 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
 
         const { rows } = await pool.query(
             `INSERT INTO post_comments (post_id, user_id, contenu, mentions, parent_id)
-             VALUES (\$1, \$2, \$3, \$4, \$5)
+             VALUES (\\$1, \\$2, \\$3, \\$4, \\$5)
              RETURNING id, contenu, created_at, mentions, parent_id`,
             [postId, userId, contenu, mentionIds, parentId]
         );
         const comment = rows[0];
-
         const { prenom, nom } = await getProfilAuteur(userId);
 
         const { rows: postRows } = await pool.query(
-            `SELECT user_id FROM posts WHERE id = \$1`, [postId]
+            `SELECT user_id FROM posts WHERE id = \\$1`, [postId]
         );
         const ownerId = postRows[0]?.user_id;
         if (ownerId && ownerId !== userId) {
             await pool.query(
                 `INSERT INTO notifications (user_id, type, ref_id, sender_id)
-                 VALUES (\$1, 'comment', \$2, \$3)`,
+                 VALUES (\\$1, 'comment', \\$2, \\$3)`,
                 [ownerId, comment.id, userId]
             );
             await envoyerPush(
@@ -502,13 +503,13 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
 
         if (parentId) {
             const { rows: parentRows } = await pool.query(
-                `SELECT user_id FROM post_comments WHERE id = \$1`, [parentId]
+                `SELECT user_id FROM post_comments WHERE id = \\$1`, [parentId]
             );
             const parentAuteurId = parentRows[0]?.user_id;
             if (parentAuteurId && parentAuteurId !== userId && parentAuteurId !== ownerId) {
                 await pool.query(
                     `INSERT INTO notifications (user_id, type, ref_id, sender_id)
-                     VALUES (\$1, 'reply', \$2, \$3)`,
+                     VALUES (\\$1, 'reply', \\$2, \\$3)`,
                     [parentAuteurId, comment.id, userId]
                 );
                 await envoyerPush(
@@ -520,12 +521,11 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
             }
         }
 
-        const exclus = [ownerId, parentId ? (await pool.query(`SELECT user_id FROM post_comments WHERE id = \$1`, [parentId])).rows[0]?.user_id : null].filter(Boolean);
+        const exclus = [ownerId, parentId ? (await pool.query(`SELECT user_id FROM post_comments WHERE id = \\$1`, [parentId])).rows[0]?.user_id : null].filter(Boolean);
         const mentionsFiltered = mentionIds.filter(id => !exclus.includes(id));
         if (mentionsFiltered.length) {
             await notifierMentions(mentionsFiltered, userId, comment.id, 'comment', prenom, nom);
         }
-
         if (contientToutLeMonde(contenu) && req.user.role === 'admin') {
             await notifierToutLeMonde(userId, comment.id, 'comment', prenom, nom);
         }
@@ -538,17 +538,16 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
 });
 
 // ── PUT /api/feed/:id ─────────────────────────────────────────
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, upload.single('photo'), async (req, res) => {
     const userId    = req.user.id;
     const postId    = parseInt(req.params.id);
     const contenu   = (req.body.contenu || '').trim();
-    const photoB64  = req.body.photo     || null;
-    const photoMime = req.body.mime      || 'image/jpeg';
-    const suppPhoto = req.body.supprimer_photo === true;
+    const photoB64  = req.body.photo || null;
+    const suppPhoto = req.body.supprimer_photo === true || req.body.supprimer_photo === 'true';
 
     try {
         const { rows } = await pool.query(
-            `SELECT user_id, photo_url FROM posts WHERE id = \$1`, [postId]
+            `SELECT user_id, photo_url FROM posts WHERE id = \\$1`, [postId]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Post introuvable.' });
         const post = rows[0];
@@ -557,27 +556,21 @@ router.put('/:id', authenticateToken, async (req, res) => {
         }
 
         let photo_url = post.photo_url;
-        if ((suppPhoto || photoB64) && post.photo_url) {
-            const filename = post.photo_url.split('/').pop();
-            await supabase.storage.from('posts-photos').remove([filename]);
+        if ((suppPhoto || req.file || photoB64) && post.photo_url) {
+            supprimerImage(post.photo_url);
             photo_url = null;
         }
-        if (photoB64) {
-            const buffer   = Buffer.from(photoB64, 'base64');
-            const ext      = photoMime.split('/')[1] || 'jpg';
-            const filename = `${userId}_${Date.now()}.${ext}`;
-            const { error } = await supabase.storage
-                .from('posts-photos')
-                .upload(filename, buffer, { contentType: photoMime, upsert: false });
-            if (error) throw new Error(error.message);
-            const { data } = supabase.storage.from('posts-photos').getPublicUrl(filename);
-            photo_url = data.publicUrl;
+        if (req.file) {
+            photo_url = await sauvegarderImage(req.file.buffer, userId);
+        } else if (photoB64) {
+            const buffer = Buffer.from(photoB64, 'base64');
+            photo_url = await sauvegarderImage(buffer, userId);
         }
 
         const mentionIds = contenu ? await resoudreMentions(contenu, userId) : [];
 
         await pool.query(
-            `UPDATE posts SET contenu = \$1, photo_url = \$2, mentions = \$3 WHERE id = \$4`,
+            `UPDATE posts SET contenu = \\$1, photo_url = \\$2, mentions = \\$3 WHERE id = \\$4`,
             [contenu || null, photo_url, mentionIds, postId]
         );
 
@@ -586,7 +579,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
         if (mentionIds.length) {
             await notifierMentions(mentionIds, userId, postId, 'post', prenom, nom);
         }
-
         if (contenu && contientToutLeMonde(contenu) && req.user.role === 'admin') {
             await notifierToutLeMonde(userId, postId, 'post', prenom, nom);
         }
@@ -604,18 +596,15 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     const postId = parseInt(req.params.id);
     try {
         const { rows } = await pool.query(
-            `SELECT user_id, photo_url FROM posts WHERE id = \$1`, [postId]
+            `SELECT user_id, photo_url FROM posts WHERE id = \\$1`, [postId]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Post introuvable.' });
         const post = rows[0];
         if (post.user_id !== userId && req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Interdit.' });
         }
-        if (post.photo_url) {
-            const filename = post.photo_url.split('/').pop();
-            await supabase.storage.from('posts-photos').remove([filename]);
-        }
-        await pool.query(`DELETE FROM posts WHERE id = \$1`, [postId]);
+        supprimerImage(post.photo_url);
+        await pool.query(`DELETE FROM posts WHERE id = \\$1`, [postId]);
         res.json({ success: true });
     } catch (e) {
         console.error('[FEED DELETE]', e.message);
