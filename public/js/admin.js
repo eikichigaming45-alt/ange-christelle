@@ -110,8 +110,10 @@ async function chargerAdminStats() {
             'sante'         : '🥗 Santé',
             'social'        : '🤝 Social',
             'cycle'         : '🌸 Suivi du cycle',
-            'taches'        : '✅ Tâches'
-        };
+            'taches'        : '✅ Tâches',
+            'admin'         : '⚙️ Administration',
+            'meteo'         : '🌤️ Météo'
+};
 
         el.innerHTML = `
             <div class="as-section-title">Utilisateurs</div>
