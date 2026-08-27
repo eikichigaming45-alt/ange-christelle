@@ -1,7 +1,7 @@
 // ============================================================
 // routes/admin.js
 // Gestion des utilisateurs et statistiques — réservé aux admins.
-// v1.30 — last_activity, top contributeurs, widgets populaires.
+// fix widgetsPopulaires : comptage désactivations opt-out.
 // ============================================================
 
 const express    = require('express');
@@ -60,17 +60,17 @@ router.get('/stats', async (req, res) => {
                     ) AS score
                 FROM users u
                 LEFT JOIN profiles p ON p.user_id = u.id
-                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM posts        GROUP BY user_id) po ON po.user_id = u.id
-                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM post_comments GROUP BY user_id) co ON co.user_id = u.id
-                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM post_likes   GROUP BY user_id) pl ON pl.user_id = u.id
-                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM rendezvous   GROUP BY user_id) rv ON rv.user_id = u.id
-                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM taches        GROUP BY user_id) ta ON ta.user_id = u.id
-                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM anniversaires GROUP BY user_id) an ON an.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM posts         GROUP BY user_id) po ON po.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM post_comments  GROUP BY user_id) co ON co.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM post_likes    GROUP BY user_id) pl ON pl.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM rendezvous    GROUP BY user_id) rv ON rv.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM taches         GROUP BY user_id) ta ON ta.user_id = u.id
+                LEFT JOIN (SELECT user_id, COUNT(*) AS nb FROM anniversaires  GROUP BY user_id) an ON an.user_id = u.id
                 ORDER BY score DESC
                 LIMIT 5
             `),
 
-            // Widgets les plus utilisés — dépilage du tableau widgets_visibles
+            // Widgets les plus désactivés — dépilage opt-out
             pool.query(`
                 SELECT widget, COUNT(*) AS nb
                 FROM profiles, unnest(widgets_visibles) AS widget
