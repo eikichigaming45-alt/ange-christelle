@@ -105,11 +105,18 @@ function renderContenuAvecMentions(contenu, mentionsData) {
         }
     }
 
+    // Rendre @toutlemonde cliquable visuellement
+    result = result.replace(/@toutlemonde/gi, '%%TOUTLEMONDE%%');
+
     result = escapeHtml(result);
 
     for (const { placeholder, html } of placeholders) {
         result = result.split(escapeHtml(placeholder)).join(html);
     }
+
+    result = result.split('%%TOUTLEMONDE%%').join(
+        `<span style="color:#7c3aed;font-weight:600">@toutlemonde</span>`
+    );
 
     return result;
 }
@@ -162,7 +169,11 @@ function initMentions(inputEl, wrapEl) {
             const active = dropEl.querySelector('.mention-item.active');
             if (active) {
                 e.preventDefault();
-                _insererMention(inputEl, dropEl, active.dataset.prenom, active.dataset.nom);
+                if (active.dataset.special === 'toutlemonde') {
+                    _insererToutLeMonde(inputEl, dropEl);
+                } else {
+                    _insererMention(inputEl, dropEl, active.dataset.prenom, active.dataset.nom);
+                }
             }
         } else if (e.key === 'Escape') {
             _fermerDropdown(dropEl);
@@ -181,35 +192,62 @@ async function _mentionInput(inputEl, dropEl) {
     const match  = avant.match(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/);
     if (!match) { _fermerDropdown(dropEl); return; }
 
-    const q = match[1].trim();
+    const q    = match[1].trim();
     if (!q) { _fermerDropdown(dropEl); return; }
 
     const user = getUser();
+    const isAdmin = user.role === 'admin';
+
     try {
         const r = await fetch(`/api/feed/users?q=${encodeURIComponent(q)}`, {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const d = await r.json();
-        if (!d.success || !d.users.length) { _fermerDropdown(dropEl); return; }
+        if (!d.success) { _fermerDropdown(dropEl); return; }
 
-        dropEl.innerHTML = d.users.map((u, i) => {
-            const av = u.avatar
-                ? `<img src="${u.avatar}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
-                : `<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(u.prenom?.[0] || '?').toUpperCase()}</div>`;
-            return `<div class="mention-item${i === 0 ? ' active' : ''}"
-                        data-prenom="${escapeHtml(u.prenom || '')}"
-                        data-nom="${escapeHtml(u.nom || '')}">
+        const items = [];
+
+        // Suggestion @toutlemonde en premier — admins uniquement
+        if (isAdmin && 'toutlemonde'.startsWith(q.toLowerCase())) {
+            items.push(`
+                <div class="mention-item active" data-special="toutlemonde"
+                     style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer">
+                    <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                                color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;
+                                justify-content:center;flex-shrink:0">📢</div>
+                    <span style="font-size:13px;font-weight:700;color:#7c3aed">@toutlemonde</span>
+                    <span style="font-size:11px;color:#9ca3af;margin-left:4px">Tout le monde</span>
+                </div>`);
+        }
+
+        if (d.users.length) {
+            d.users.forEach((u, i) => {
+                const av = u.avatar
+                    ? `<img src="${u.avatar}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
+                    : `<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(u.prenom?.[0] || '?').toUpperCase()}</div>`;
+                items.push(`
+                    <div class="mention-item${items.length === 0 && i === 0 ? ' active' : ''}"
+                         data-prenom="${escapeHtml(u.prenom || '')}"
+                         data-nom="${escapeHtml(u.nom || '')}">
                         ${av}
                         <span style="font-size:13px;font-weight:600;color:#111">${escapeHtml(u.prenom || '')} ${escapeHtml(u.nom || '')}</span>
-                    </div>`;
-        }).join('');
+                    </div>`);
+            });
+        }
 
+        if (!items.length) { _fermerDropdown(dropEl); return; }
+
+        dropEl.innerHTML = items.join('');
         dropEl.style.display = 'block';
 
         dropEl.querySelectorAll('.mention-item').forEach(item => {
             item.addEventListener('mousedown', e => {
                 e.preventDefault();
-                _insererMention(inputEl, dropEl, item.dataset.prenom, item.dataset.nom);
+                if (item.dataset.special === 'toutlemonde') {
+                    _insererToutLeMonde(inputEl, dropEl);
+                } else {
+                    _insererMention(inputEl, dropEl, item.dataset.prenom, item.dataset.nom);
+                }
             });
         });
     } catch { _fermerDropdown(dropEl); }
@@ -221,6 +259,19 @@ function _insererMention(inputEl, dropEl, prenom, nom) {
     const avant    = val.substring(0, cursor);
     const apres    = val.substring(cursor);
     const newAvant = avant.replace(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/, `@${prenom} ${nom}  `);
+    inputEl.value  = newAvant + apres;
+    const pos      = newAvant.length;
+    inputEl.setSelectionRange(pos, pos);
+    inputEl.focus();
+    _fermerDropdown(dropEl);
+}
+
+function _insererToutLeMonde(inputEl, dropEl) {
+    const val      = inputEl.value;
+    const cursor   = inputEl.selectionStart;
+    const avant    = val.substring(0, cursor);
+    const apres    = val.substring(cursor);
+    const newAvant = avant.replace(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/, '@toutlemonde ');
     inputEl.value  = newAvant + apres;
     const pos      = newAvant.length;
     inputEl.setSelectionRange(pos, pos);
@@ -486,7 +537,6 @@ async function chargerCommentaires(postId) {
         const racines  = d.comments.filter(c => !c.parent_id);
         const reponses = d.comments.filter(c => !!c.parent_id);
 
-        // FIX : Number() cast — pg retourne parent_id en string, c.id en number
         const html = racines.map(c => {
             const reps = reponses.filter(r => Number(r.parent_id) === Number(c.id));
             return `
@@ -508,7 +558,7 @@ async function chargerCommentaires(postId) {
                 <button onclick="envoyerCommentaire(${postId})" class="feed-comment-send">Envoyer</button>
             </div>
         `;
-        const inputEl = document.getElementById(`comment-input-${postId}`);
+                const inputEl = document.getElementById(`comment-input-${postId}`);
         const wrapEl  = document.getElementById(`comment-form-${postId}`);
         initMentions(inputEl, wrapEl);
     } catch {
@@ -539,7 +589,7 @@ function renderComment(c, postId, isReponse = false) {
            </div>`;
 
     return `
-                <div class="feed-comment${isReponse ? ' feed-comment-reply' : ''}"
+        <div class="feed-comment${isReponse ? ' feed-comment-reply' : ''}"
              id="comment-${c.id}" data-comment-id="${c.id}"
              style="display:flex;gap:8px;padding:8px 0;align-items:flex-start">
             ${avatar}
@@ -622,7 +672,7 @@ function afficherFormulaireReponse(parentId, postId, nomAuteur) {
     const inputEl = document.getElementById(`reply-input-${parentId}`);
     const wrapEl  = document.getElementById(`reply-wrap-${parentId}`);
     if (inputEl) {
-        inputEl.value = ''; // FIX : vider avant focus
+        inputEl.value = '';
         inputEl.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -1005,7 +1055,7 @@ async function toggleFollowDepuisProfil(userId, btn) {
             method : 'POST',
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
-        const d = await r.json();
+                const d = await r.json();
         if (!d.success) return;
         if (d.following) {
             feedFollowing.push(userId);
