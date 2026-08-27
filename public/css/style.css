@@ -1,4 +1,4 @@
-/* ===================== BASE ===================== */
+﻿/* ===================== BASE ===================== */
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(180deg,#F3E8FF 0%,#D8B4FE 100%) fixed;min-height:100vh;display:flex;justify-content:center;align-items:center}
 
@@ -34,10 +34,6 @@ input:focus{border-color:#7C3AED}
 .tab-content-wrap{flex:1;overflow:hidden;position:relative}
 .tab-pane{display:none;height:100%;overflow-y:auto}
 .tab-pane.active{display:flex;flex-direction:column}
-
-/* ===================== ACCUEIL ===================== */
-.meteo-accueil-card{padding:14px 20px;cursor:pointer;transition:background .15s;max-width:600px;margin:0 auto}
-.meteo-accueil-card:hover{background:#f8f5ff;border-radius:12px}
 
 /* ===================== BOTTOM NAV ===================== */
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:#fff;border-top:1px solid #e5e7eb;display:flex;align-items:stretch;z-index:300;box-shadow:0 -2px 12px rgba(0,0,0,.08)}
@@ -132,88 +128,6 @@ input:focus{border-color:#7C3AED}
 .item-del:hover{color:#ef4444}
 .badge-today{display:inline-block;background:#fef3c7;color:#d97706;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;margin-left:6px}
 .badge-recur{display:inline-block;background:#d1fae5;color:#059669;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;margin-left:4px}
-
-/* ===================== CROP PHOTO ===================== */
-.crop-container{width:100%;max-height:300px;overflow:hidden;border-radius:10px;margin-bottom:12px;background:#000}
-.crop-container img{max-width:100%;display:block}
-.crop-actions{display:flex;gap:8px;margin-bottom:12px}
-.crop-actions button{flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}
-.btn-crop-ok{background:#7C3AED;color:#fff}
-.btn-crop-ok:hover{background:#6D28D9}
-.btn-crop-cancel{background:#f3f4f6;color:#666}
-.btn-crop-cancel:hover{background:#e5e7eb}
-
-/* ===================== WIDGET PROFIL ===================== */
-.profil-widget{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;width:100%}
-.profil-widget-photo{width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid #7C3AED;flex-shrink:0}
-.profil-widget-initiales{width:64px;height:64px;border-radius:50%;background:#7C3AED;color:#fff;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.profil-widget-nom{font-size:14px;font-weight:700;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
-.profil-widget-info{font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
-.profil-widget-bio{font-size:12px;color:#9ca3af;line-height:1.4;max-height:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.profil-widget-btn{padding:7px 18px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:4px}
-.profil-widget-btn:hover{background:#6D28D9}
-
-/* ===================== WIDGET TÂCHES ===================== */
-.tache-widget-liste{display:flex;flex-direction:column;gap:4px}
-.tache-widget-section{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 2px}
-.tache-widget-item{display:flex;align-items:center;gap:8px;padding:3px 0}
-.tache-widget-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.tache-dot-today{background:#059669}
-.tache-dot-futur{background:#6b7280}
-.tache-dot-flott{background:#d1d5db}
-.tache-widget-titre{font-size:13px;color:#333;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tache-widget-date{font-size:11px;color:#9ca3af;white-space:nowrap;flex-shrink:0}
-
-/* ===================== WIDGET MÉTÉO ===================== */
-.meteo-badge{background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px}
-.ville-form{display:flex;gap:8px;margin-top:16px}
-.ville-form input{flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;margin:0}
-.ville-form button{padding:10px 16px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;width:auto}
-.geo-btn{width:100%;margin-top:8px;padding:10px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px}
-
-/* ===================== WIDGET PRIÈRE ===================== */
-.priere-txt{color:#444;font-size:16px;line-height:1.8;font-style:italic}
-.priere-ref{color:#7C3AED;font-size:14px;font-weight:700;font-style:normal;margin-top:14px;display:block}
-.priere-modal{display:flex;flex-direction:column;gap:12px}
-.priere-titre-jour{font-size:15px;font-weight:700;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:10px;border-left:4px solid #d97706}
-.priere-section-label{font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.5px}
-.priere-texte-complet{font-size:13px;color:#444;line-height:1.7;font-style:italic;max-height:220px;overflow-y:auto;padding-right:4px}
-.priere-texte-complet::-webkit-scrollbar{width:3px}
-.priere-texte-complet::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:2px}
-.priere-lecture1{border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;background:#f9fafb}
-.priere-lecture1 summary{font-weight:600;color:#555;cursor:pointer;font-size:13px}
-.priere-lecture1 .priere-texte-complet{max-height:150px}
-.priere-source{font-size:11px;color:#9ca3af;text-align:right;margin-top:4px}
-
-/* ===================== WIDGET ISLAM ===================== */
-.islam-prochaine{display:flex;flex-direction:column;align-items:center;background:linear-gradient(135deg,#059669,#10b981);border-radius:12px;padding:12px 16px;color:#fff;text-align:center}
-.islam-prochaine-label{font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
-.islam-prochaine-nom{font-size:18px;font-weight:800;margin:2px 0}
-.islam-prochaine-heure{font-size:28px;font-weight:900;line-height:1}
-.islam-prieres-row{display:flex;gap:4px;justify-content:space-between}
-.islam-mini-priere{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:8px;background:#f0fdf4;flex:1;transition:background .2s}
-.islam-mini-actif{background:#d1fae5;outline:2px solid #10b981}
-.islam-mini-nom{font-size:9px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.3px}
-.islam-mini-heure{font-size:11px;font-weight:700;color:#1e3a2f}
-.islam-hadith-apercu{font-size:12px;color:#6b7280;font-style:italic;border-left:3px solid #10b981;padding-left:8px;line-height:1.5}
-.islam-modal{display:flex;flex-direction:column;gap:16px}
-.islam-modal-header{text-align:center}
-.islam-modal-date{font-size:13px;color:#9ca3af;font-weight:600}
-.islam-modal-titre-section{font-size:11px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.islam-modal-prieres{background:#f0fdf4;border-radius:12px;padding:14px}
-.islam-modal-priere-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #d1fae5}
-.islam-modal-priere-row:last-child{border-bottom:none}
-.islam-modal-priere-actif{background:#d1fae5;border-radius:8px;padding:10px 8px;margin:0 -8px}
-.islam-modal-priere-nom{flex:1;font-size:14px;font-weight:600;color:#1e3a2f}
-.islam-modal-priere-heure{font-size:15px;font-weight:800;color:#059669}
-.islam-modal-priere-badge{font-size:10px;background:#059669;color:#fff;padding:2px 8px;border-radius:12px;font-weight:700;margin-left:6px}
-.islam-modal-hadith{background:#fefce8;border-radius:12px;padding:14px;border-left:4px solid #ca8a04}
-.islam-modal-hadith-arabe{font-size:16px;color:#1e3a2f;text-align:right;line-height:2;margin-bottom:8px;font-family:serif}
-.islam-modal-hadith-fr{font-size:13px;color:#555;font-style:italic;line-height:1.6}
-.islam-modal-hadith-ref{font-size:11px;color:#9ca3af;margin-top:6px;text-align:right}
-.islam-modal-doua{background:#f5f3ff;border-radius:12px;padding:14px;border-left:4px solid #7c3aed}
-.islam-modal-doua-arabe{font-size:15px;color:#1e3a2f;text-align:right;line-height:2;margin-bottom:8px;font-family:serif}
-.islam-modal-doua-fr{font-size:13px;color:#555;font-style:italic;line-height:1.6}
 
 /* ===================== WIDGET CHOIX (opt-out) ===================== */
 .widget-choix-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6}

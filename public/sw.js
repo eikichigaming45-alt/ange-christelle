@@ -1,10 +1,22 @@
-const CACHE_NAME = 'moadja-cache-v1.37';
+﻿const CACHE_NAME = 'moadja-cache-v1.38';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
     '/css/feed.css',
     '/css/sante.css',
     '/css/cycle.css',
+        '/css/taches.css',
+        '/css/meteo.css',
+        '/css/priere.css',
+        '/css/islam.css',
+        '/css/profil.css',
+        '/css/planning.css',
+    '/css/taches.css',
+    '/css/meteo.css',
+    '/css/priere.css',
+    '/css/islam.css',
+    '/css/profil.css',
+    '/css/planning.css',
     '/js/app.js',
     '/js/widgets.js',
     '/js/modal.js',
@@ -65,7 +77,13 @@ self.addEventListener('fetch', event => {
         '/css/style.css',
         '/css/feed.css',
         '/css/sante.css',
-        '/css/cycle.css'
+        '/css/cycle.css',
+        '/css/taches.css',
+        '/css/meteo.css',
+        '/css/priere.css',
+        '/css/islam.css',
+        '/css/profil.css',
+        '/css/planning.css'
     ];
     if (networkFirst.includes(url.pathname)) {
         event.respondWith(
@@ -123,3 +141,4 @@ self.addEventListener('notificationclick', event => {
         })
     );
 });
+

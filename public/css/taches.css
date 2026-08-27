@@ -1,0 +1,10 @@
+﻿/* ===================== WIDGET TACHES ===================== */
+.tache-widget-liste{display:flex;flex-direction:column;gap:4px}
+.tache-widget-section{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 2px}
+.tache-widget-item{display:flex;align-items:center;gap:8px;padding:3px 0}
+.tache-widget-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.tache-dot-today{background:#059669}
+.tache-dot-futur{background:#6b7280}
+.tache-dot-flott{background:#d1d5db}
+.tache-widget-titre{font-size:13px;color:#333;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tache-widget-date{font-size:11px;color:#9ca3af;white-space:nowrap;flex-shrink:0}
