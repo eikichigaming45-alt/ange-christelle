@@ -1,5 +1,16 @@
 # Changelog MyDaily
 
+## v1.34 — 27-08-2026 🏷️ Stable
+### Nouveau
+- Dashboard admin : suivi des widgets vraiment les plus ouverts — basé sur les clics réels de tous les utilisateurs, toutes sessions confondues
+- Dashboard admin : section "Widgets les plus désactivés" — indique ce que les utilisateurs ont choisi de masquer de leur tableau de bord
+
+### Corrections
+- Calendrier du cycle menstruel : affichage en grille corrigé (les jours s'affichaient en liste verticale)
+- Dashboard admin : les widgets les plus utilisés affichaient une valeur incorrecte — corrigé
+
+---
+
 ## v1.30 — 26-08-2026 🏷️ Stable
 ### Nouveau
 - Administration : suivi de la dernière activité en temps réel, indépendant des connexions
