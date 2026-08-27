@@ -1,7 +1,6 @@
 // ============================================================
 // routes/admin.js
 // Gestion des utilisateurs et statistiques — réservé aux admins.
-// fix widgetsPopulaires : comptage désactivations opt-out.
 // ============================================================
 
 const express    = require('express');
@@ -28,7 +27,6 @@ router.get('/stats', async (req, res) => {
             pool.query("SELECT COUNT(*) FROM users WHERE last_activity >= NOW() - INTERVAL '7 days'"),
             pool.query("SELECT COUNT(*) FROM users WHERE last_activity IS NULL"),
 
-            // Dernière activité — top 5
             pool.query(`
                 SELECT u.id, u.username, u.role,
                        u.last_activity AS "lastActivity",
@@ -39,7 +37,6 @@ router.get('/stats', async (req, res) => {
                 LIMIT 5
             `),
 
-            // Top 5 contributeurs — score pondéré
             pool.query(`
                 SELECT
                     u.id, u.username, u.role,
@@ -70,10 +67,9 @@ router.get('/stats', async (req, res) => {
                 LIMIT 5
             `),
 
-            // Widgets les plus désactivés — dépilage opt-out
             pool.query(`
                 SELECT widget, COUNT(*) AS nb
-                FROM profiles, unnest(widgets_visibles) AS widget
+                FROM widget_opens
                 GROUP BY widget
                 ORDER BY nb DESC
             `)
