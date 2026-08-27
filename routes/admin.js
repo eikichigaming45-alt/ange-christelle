@@ -116,10 +116,10 @@ router.get('/users/:id/profil', async (req, res) => {
     const targetId = parseInt(req.params.id);
     try {
         const [user, profil] = await Promise.all([
-            pool.query('SELECT id, username, role FROM users WHERE id = \\$1', [targetId]),
+            pool.query('SELECT id, username, role FROM users WHERE id = \$1', [targetId]),
             pool.query(
                 `SELECT prenom, nom, date_naissance, email, telephone, profession, note
-                 FROM profiles WHERE user_id = \\$1`,
+                 FROM profiles WHERE user_id = \$1`,
                 [targetId]
             )
         ]);
@@ -140,21 +140,21 @@ router.patch('/users/:id/profil', async (req, res) => {
     try {
         if (username) {
             const exists = await pool.query(
-                'SELECT id FROM users WHERE username = \\$1 AND id != \\$2',
+                'SELECT id FROM users WHERE username = \$1 AND id != \$2',
                 [username, targetId]
             );
             if (exists.rows.length > 0) {
                 return res.status(409).json({ success: false, message: "Nom d'utilisateur déjà pris." });
             }
-            await pool.query('UPDATE users SET username = \\$1 WHERE id = \\$2', [username, targetId]);
+            await pool.query('UPDATE users SET username = \$1 WHERE id = \$2', [username, targetId]);
         }
         await pool.query(`
             INSERT INTO profiles
                 (user_id, prenom, nom, date_naissance, email, telephone, profession, note, updated_at)
-            VALUES (\\$1, \\$2, \\$3, \\$4, \\$5, \\$6, \\$7, \\$8, NOW())
+            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, NOW())
             ON CONFLICT (user_id) DO UPDATE SET
-                prenom=\\$2, nom=\\$3, date_naissance=\\$4, email=\\$5,
-                telephone=\\$6, profession=\\$7, note=\\$8, updated_at=NOW()
+                prenom=\$2, nom=\$3, date_naissance=\$4, email=\$5,
+                telephone=\$6, profession=\$7, note=\$8, updated_at=NOW()
         `, [targetId, prenom||null, nom||null, date_naissance||null,
             email||null, telephone||null, profession||null, note||null]);
         res.json({ success: true });
@@ -176,13 +176,13 @@ router.post('/users', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Rôle invalide.' });
     }
     try {
-        const exists = await pool.query('SELECT id FROM users WHERE username = \\$1', [username]);
+        const exists = await pool.query('SELECT id FROM users WHERE username = \$1', [username]);
         if (exists.rows.length) {
             return res.status(409).json({ success: false, message: "Nom d'utilisateur déjà pris." });
         }
         const hash   = await bcrypt.hash(password, 10);
         const result = await pool.query(
-            'INSERT INTO users (username, password, role) VALUES (\\$1, \\$2, \\$3) RETURNING id',
+            'INSERT INTO users (username, password, role) VALUES (\$1, \$2, \$3) RETURNING id',
             [username, hash, role]
         );
         res.json({ success: true, userId: result.rows[0].id });
@@ -200,7 +200,7 @@ router.patch('/users/:id/role', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Rôle invalide.' });
     }
     try {
-        await pool.query('UPDATE users SET role = \\$1 WHERE id = \\$2', [role, targetId]);
+        await pool.query('UPDATE users SET role = \$1 WHERE id = \$2', [role, targetId]);
         res.json({ success: true });
     } catch (err) {
         console.error('[ADMIN] PATCH /users/:id/role :', err.message);
@@ -217,7 +217,7 @@ router.patch('/users/:id/password', async (req, res) => {
     try {
         const hash = await bcrypt.hash(password, 10);
         await pool.query(
-            'UPDATE users SET password = \\$1, must_change_password = FALSE WHERE id = \\$2',
+            'UPDATE users SET password = \$1, must_change_password = FALSE WHERE id = \$2',
             [hash, targetId]
         );
         res.json({ success: true });
@@ -234,7 +234,7 @@ router.delete('/users/:id', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Impossible de se supprimer soi-même.' });
     }
     try {
-        await pool.query('DELETE FROM users WHERE id = \\$1', [targetId]);
+        await pool.query('DELETE FROM users WHERE id = \$1', [targetId]);
         res.json({ success: true });
     } catch (err) {
         console.error('[ADMIN] DELETE /users/:id :', err.message);
