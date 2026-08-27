@@ -185,12 +185,7 @@ router.post('/users', async (req, res) => {
             'INSERT INTO users (username, password, role) VALUES (\\$1, \\$2, \\$3) RETURNING id',
             [username, hash, role]
         );
-        const newUserId = result.rows[0].id;
-        await pool.query(
-            'INSERT INTO profiles (user_id, widgets_visibles) VALUES (\\$1, \\$2::text[]) ON CONFLICT (user_id) DO NOTHING',
-            [newUserId, '{}']
-        );
-        res.json({ success: true, userId: newUserId });
+        res.json({ success: true, userId: result.rows[0].id });
     } catch (err) {
         console.error('[ADMIN] POST /users :', err.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
