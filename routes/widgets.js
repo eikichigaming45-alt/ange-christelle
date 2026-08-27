@@ -1,7 +1,6 @@
 // ============================================================
 // routes/widgets.js
-// Gestion de l'ordre des widgets par utilisateur.
-// L'ordre est stocké en JSON dans la colonne TEXT `ordre`.
+// Gestion de l'ordre des widgets et tracking des ouvertures.
 // ============================================================
 
 const express  = require('express');
@@ -9,11 +8,9 @@ const router   = express.Router();
 const { pool } = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
-// ── Toutes les routes nécessitent un token JWT ────────────────
 router.use(authenticateToken);
 
 // ── GET /api/widget-order ─────────────────────────────────────
-// Retourne l'ordre des widgets de l'utilisateur connecté.
 router.get('/', async (req, res) => {
     try {
         const result = await pool.query(
@@ -31,7 +28,6 @@ router.get('/', async (req, res) => {
 });
 
 // ── POST /api/widget-order ────────────────────────────────────
-// Sauvegarde ou met à jour l'ordre des widgets.
 router.post('/', async (req, res) => {
     const { ordre } = req.body;
     if (!ordre || !Array.isArray(ordre)) {
@@ -47,6 +43,22 @@ router.post('/', async (req, res) => {
     } catch (err) {
         console.error('[WIDGETS] POST / :', err.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── POST /api/widget-order/open ───────────────────────────────
+router.post('/open', async (req, res) => {
+    const { widget } = req.body;
+    if (!widget) return res.status(400).json({ success: false });
+    try {
+        await pool.query(
+            'INSERT INTO widget_opens (user_id, widget) VALUES (\$1, \$2)',
+            [req.user.id, widget]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[WIDGETS] POST /open :', err.message);
+        res.status(500).json({ success: false });
     }
 });
 
