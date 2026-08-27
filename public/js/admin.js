@@ -1,7 +1,6 @@
 // ============================================================
 // public/js/admin.js
 // Dashboard admin — widget + modale stats/users + CRUD.
-// fix titre widgets : "les plus désactivés".
 // ============================================================
 
 // ===================== WIDGET ADMIN (dashboard) ==============
@@ -115,7 +114,6 @@ async function chargerAdminStats() {
         };
 
         el.innerHTML = `
-            <!-- UTILISATEURS -->
             <div class="as-section-title">Utilisateurs</div>
             <div class="as-cards-grid">
                 <div class="as-card as-card-blue">
@@ -140,7 +138,6 @@ async function chargerAdminStats() {
                 </div>
             </div>
 
-            <!-- PROFILS -->
             <div class="as-progress-bloc">
                 <div class="as-progress-header">
                     <span class="as-progress-label">Profils remplis</span>
@@ -151,7 +148,6 @@ async function chargerAdminStats() {
                 </div>
             </div>
 
-            <!-- TOP CONTRIBUTEURS -->
             <div class="as-section-title" style="margin-top:20px">Top contributeurs</div>
             <div class="as-contrib-list">
                 ${(d.topContributeurs || []).map((u, i) => {
@@ -160,12 +156,12 @@ async function chargerAdminStats() {
                         : u.username;
                     const initiale = (u.prenom ? u.prenom[0] : u.username[0]).toUpperCase();
                     const details = [
-                        u.posts         > 0 ? `${u.posts} post${u.posts > 1 ? 's' : ''}`               : null,
-                        u.commentaires  > 0 ? `${u.commentaires} comment.`                               : null,
-                        u.likes         > 0 ? `${u.likes} like${u.likes > 1 ? 's' : ''}`                : null,
-                        u.rdv           > 0 ? `${u.rdv} RDV`                                             : null,
-                        u.taches        > 0 ? `${u.taches} tâche${u.taches > 1 ? 's' : ''}`             : null,
-                        u.anniversaires > 0 ? `${u.anniversaires} anniv.`                                : null,
+                        u.posts         > 0 ? `${u.posts} post${u.posts > 1 ? 's' : ''}`          : null,
+                        u.commentaires  > 0 ? `${u.commentaires} comment.`                          : null,
+                        u.likes         > 0 ? `${u.likes} like${u.likes > 1 ? 's' : ''}`           : null,
+                        u.rdv           > 0 ? `${u.rdv} RDV`                                        : null,
+                        u.taches        > 0 ? `${u.taches} tâche${u.taches > 1 ? 's' : ''}`        : null,
+                        u.anniversaires > 0 ? `${u.anniversaires} anniv.`                           : null,
                     ].filter(Boolean).join(' · ');
                     return `
                     <div class="as-contrib-row">
@@ -182,11 +178,10 @@ async function chargerAdminStats() {
                 }).join('') || '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune donnée.</p>'}
             </div>
 
-            <!-- WIDGETS LES PLUS DÉSACTIVÉS -->
-            <div class="as-section-title" style="margin-top:20px">Widgets les plus désactivés</div>
+            <div class="as-section-title" style="margin-top:20px">Widgets les plus utilisés</div>
             <div class="as-widgets-list">
                 ${(d.widgetsPopulaires || []).length === 0
-                    ? '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucun widget désactivé.</p>'
+                    ? '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0">Aucune ouverture enregistrée pour le moment.</p>'
                     : (d.widgetsPopulaires || []).map((w, i) => {
                         const label = widgetLabels[w.widget] || w.widget;
                         const maxNb = parseInt(d.widgetsPopulaires[0]?.nb) || 1;
@@ -195,15 +190,14 @@ async function chargerAdminStats() {
                         <div class="as-widget-row">
                             <div class="as-widget-label">${label}</div>
                             <div class="as-widget-bar-wrap">
-                                <div class="as-widget-bar-fill" style="width:${pct}%;background:${i === 0 ? '#ef4444' : i === 1 ? '#f97316' : '#fb923c'}"></div>
+                                <div class="as-widget-bar-fill" style="width:${pct}%;background:${i === 0 ? '#4f46e5' : i === 1 ? '#7c3aed' : '#a78bfa'}"></div>
                             </div>
-                            <div class="as-widget-count">${w.nb}/${d.totalUsers}</div>
+                            <div class="as-widget-count">${w.nb}</div>
                         </div>`;
                     }).join('')
                 }
             </div>
 
-            <!-- DERNIÈRE ACTIVITÉ -->
             <div class="as-section-title" style="margin-top:20px">Dernière activité</div>
             <div class="as-logins-list">
                 ${(d.lastActivity || []).map(u => {
@@ -286,7 +280,7 @@ function _renderAdminUsers() {
             <select id="new-role"
                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;background:#fff">
-                                <option value="user">user</option>
+                <option value="user">user</option>
                 <option value="admin">admin</option>
             </select>
             <button onclick="creerUser()" class="ua-btn ua-btn-blue"
@@ -506,13 +500,11 @@ async function adminToggleRole(id, roleActuel) {
         });
         const d = await r.json();
         if (d.success) chargerAdminUsers();
-        else alert(d.message || 'Erreur.');
-    } catch {
-        alert('Erreur réseau.');
-    }
+        else { const m = document.createElement('p'); m.textContent = d.message || 'Erreur.'; }
+    } catch { /* silencieux */ }
 }
 
-// ===================== RESET MOT DE PASSE ===================
+// ===================== RESET MOT DE PASSE ====================
 
 function adminResetPwd(id, username) {
     const el = document.getElementById('admin-tab-users');
@@ -589,10 +581,11 @@ async function adminConfirmSupprimer(id) {
         });
         const d = await r.json();
         if (d.success) chargerAdminUsers();
-        else alert(d.message || 'Erreur.');
-    } catch {
-        alert('Erreur réseau.');
-    }
+        else {
+            const el  = document.getElementById('admin-tab-users');
+            if (el) el.innerHTML += `<p style="color:#ef4444;font-size:13px;text-align:center;margin-top:8px">${d.message || 'Erreur.'}</p>`;
+        }
+    } catch { /* silencieux */ }
 }
 
 // ===================== CRÉER UTILISATEUR =====================
@@ -653,10 +646,10 @@ function switchAdminTab(tab) {
 // ===================== VALIDATION MDP (client) ===============
 
 function validerMotDePasse(pwd) {
-    if (!pwd || pwd.length < 8)                  return 'Minimum 8 caractères.';
-    if (!/[A-Z]/.test(pwd))                      return 'Au moins une majuscule.';
-    if (!/[a-z]/.test(pwd))                      return 'Au moins une minuscule.';
-    if (!/[0-9]/.test(pwd))                      return 'Au moins un chiffre.';
-    if (!/[^A-Za-z0-9]/.test(pwd))              return 'Au moins un caractère spécial.';
+    if (!pwd || pwd.length < 8)         return 'Minimum 8 caractères.';
+    if (!/[A-Z]/.test(pwd))             return 'Au moins une majuscule.';
+    if (!/[a-z]/.test(pwd))             return 'Au moins une minuscule.';
+    if (!/[0-9]/.test(pwd))             return 'Au moins un chiffre.';
+    if (!/[^A-Za-z0-9]/.test(pwd))     return 'Au moins un caractère spécial.';
     return null;
 }
