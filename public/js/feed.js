@@ -1091,11 +1091,11 @@ async function partagerPost(postId) {
     const contenuEl = document.getElementById(`post-contenu-${postId}`);
     const contenu   = contenuEl ? contenuEl.textContent.trim() : '';
     const photoUrl  = card?.dataset.photoUrl || '';
-    const text      = contenu.substring(0, 100) || 'Regarde ce post sur MyDaily';
+    const text      = contenu.substring(0, 100) || 'Regarde ce post sur MoaDja';
 
     if (navigator.share) {
         try {
-            const shareData = { title: 'MyDaily', text };
+            const shareData = { title: 'MoaDja', text };
             if (photoUrl) { shareData.url = photoUrl; } else { shareData.url = location.origin; }
             await navigator.share(shareData);
         } catch (e) {

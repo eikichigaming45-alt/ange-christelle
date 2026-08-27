@@ -4,7 +4,7 @@
 
 // ── Utilitaire auth ───────────────────────────────────────────
 function _socialAuth() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user = JSON.parse(localStorage.getItem('moadja_user'));
     return { user, token: user?.token };
 }
 

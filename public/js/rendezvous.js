@@ -12,7 +12,7 @@ const Rendezvous = (() => {
     const PAGE_SIZE = 10;
 
     function authHeaders() {
-        const user = JSON.parse(localStorage.getItem('myvibe_user'));
+        const user = JSON.parse(localStorage.getItem('moadja_user'));
         return {
             'Content-Type' : 'application/json',
             'Authorization': `Bearer ${user?.token || ''}`
@@ -78,16 +78,12 @@ const Rendezvous = (() => {
 
     const TYPES = Object.keys(TYPE_ICONS);
 
-    // ── Fetch ──────────────────────────────────────────────────────────────
-
     async function fetchRdvs() {
         const res  = await fetch('/api/rendezvous', { headers: authHeaders() });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         return Array.isArray(data) ? data : (data.rendezvous || []);
     }
-
-    // ── Rendu widget — 3 prochains RDV à venir ─────────────────────────────
 
     function renderWidget(rdvs) {
         const maintenant = new Date();
@@ -133,8 +129,6 @@ const Rendezvous = (() => {
             </div>`;
     }
 
-    // ── Détail (lecture seule) ─────────────────────────────────────────────
-
     async function ouvrirDetail(id) {
         let rdv = null;
         try {
@@ -167,12 +161,10 @@ const Rendezvous = (() => {
         document.getElementById('overlay').classList.add('on');
     }
 
-    // ── Chargement widget ──────────────────────────────────────────────────
-
     async function charger() {
         const container = document.getElementById('widget-rdv-content');
         if (!container) return;
-        const user = JSON.parse(localStorage.getItem('myvibe_user'));
+        const user = JSON.parse(localStorage.getItem('moadja_user'));
         if (!user?.token) { setTimeout(() => charger(), 300); return; }
         try {
             const rdvs = await fetchRdvs();
@@ -181,8 +173,6 @@ const Rendezvous = (() => {
             container.innerHTML = `<p class="rdv-error">Erreur de chargement.</p>`;
         }
     }
-
-    // ── Modal ajout / édition ──────────────────────────────────────────────
 
     async function ouvrirModal(id = null) {
         let rdv = null;
@@ -245,8 +235,6 @@ const Rendezvous = (() => {
         document.getElementById('overlay').classList.add('on');
     }
 
-    // ── Sauvegarder ───────────────────────────────────────────────────────
-
     async function sauvegarder(id = null) {
         const titre        = document.getElementById('rdv-titre').value.trim();
         const date_rdv_raw = document.getElementById('rdv-date').value;
@@ -286,7 +274,6 @@ const Rendezvous = (() => {
                 body    : JSON.stringify({ titre, date_rdv, type_rdv, praticien, lieu, notes, rappel_avant })
             });
             if (!res.ok) throw new Error();
-            // B.6 — rester dans la vue courante après sauvegarde
             charger();
             ouvrirListe();
         } catch {
@@ -299,10 +286,7 @@ const Rendezvous = (() => {
         }
     }
 
-    // ── Supprimer — B.6 retour vue courante + message iso ─────────────────
-
     async function supprimer(id) {
-        // B.6 — stocker l'origine pour le retour
         document.getElementById('modal-title').textContent = 'Confirmation';
         document.getElementById('modal-body').innerHTML = `
             <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
@@ -314,7 +298,6 @@ const Rendezvous = (() => {
         document.getElementById('btn-rdv-oui').onclick = async () => {
             try {
                 await fetch(`/api/rendezvous/${id}`, { method: 'DELETE', headers: authHeaders() });
-                // B.6 — rester dans la liste, pas closeModal
                 charger();
                 ouvrirListe();
             } catch {
@@ -328,8 +311,6 @@ const Rendezvous = (() => {
         };
         document.getElementById('btn-rdv-non').onclick = () => ouvrirListe();
     }
-
-    // ── Liste complète paginée 10/page ────────────────────────────────────
 
     async function ouvrirListe(pagePasses = 0) {
         try {

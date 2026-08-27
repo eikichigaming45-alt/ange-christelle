@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mydaily-cache-v1.36';
+const CACHE_NAME = 'moadja-cache-v1.36';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
@@ -100,12 +100,12 @@ self.addEventListener('push', event => {
     let data = {};
     try { data = event.data.json(); } catch {}
     event.waitUntil(
-        self.registration.showNotification(data.titre || 'MyDaily', {
+        self.registration.showNotification(data.titre || 'MoaDja', {
             body  : data.corps || '',
             icon  : '/icon-192.png',
             badge : '/icon-192.png',
             data  : { url: data.url || '/' },
-            tag   : data.tag || 'mydaily'
+            tag   : data.tag || 'moadja'
         })
     );
 });

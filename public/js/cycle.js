@@ -109,7 +109,7 @@ const Cycle = (() => {
     }
 
     function authHeaders() {
-        const user = JSON.parse(localStorage.getItem('myvibe_user'));
+        const user = JSON.parse(localStorage.getItem('moadja_user'));
         return {
             'Content-Type' : 'application/json',
             'Authorization': `Bearer ${user?.token || ''}`

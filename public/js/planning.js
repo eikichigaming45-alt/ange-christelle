@@ -24,7 +24,7 @@ const MOIS_COURT     = ['jan','fév','mar','avr','mai','juin',
 const CATS_PRIORITE = ['Mission', 'Travail'];
 
 function _planningAuth() {
-    const user = JSON.parse(localStorage.getItem('myvibe_user'));
+    const user = JSON.parse(localStorage.getItem('moadja_user'));
     return { user, token: user?.token };
 }
 
@@ -486,9 +486,9 @@ async function _ouvrirFormulaireEntreePlanning(id = null, dateDefaut = null) {
                     style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none">${entry.notes || ''}</textarea>
             </div>
 
-            <div style="margin-bottom:16px">
+                        <div style="margin-bottom:16px">
                 <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Rappel avant le shift</label>
-                                <select id="pl-rappel" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
+                <select id="pl-rappel" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
                     ${_optionsRappel(rappelVal)}
                 </select>
             </div>

@@ -1,13 +1,14 @@
-# Changelog MyDaily
+# Changelog MoaDja
 
-## v1.34 — 27-08-2026 🏷️ Stable
+## v1.36 — 27-08-2026 🏷️ Stable
 ### Nouveau
-- Dashboard admin : suivi des widgets vraiment les plus ouverts — basé sur les clics réels de tous les utilisateurs, toutes sessions confondues
-- Dashboard admin : section "Widgets les plus désactivés" — indique ce que les utilisateurs ont choisi de masquer de leur tableau de bord
+- L'application s'appelle désormais **MoaDja** et est accessible sur **moadja.fr**
+- Les photos partagées dans le fil d'actualité sont automatiquement compressées pour un chargement plus rapide
+- Mention **@toutlemonde** : les administrateurs peuvent désormais notifier tous les membres en une seule mention
 
 ### Corrections
 - Calendrier du cycle menstruel : affichage en grille corrigé (les jours s'affichaient en liste verticale)
-- Dashboard admin : les widgets les plus utilisés affichaient une valeur incorrecte — corrigé
+- Statistiques d'utilisation des widgets corrigées dans l'espace administration
 
 ---
 
@@ -26,7 +27,6 @@
 - Plan nutritionnel & fitness quotidien généré par IA — 1 génération par jour, synchronisé sur tous les appareils
 - Plan replié par défaut, déployable à la demande
 - Profil : onglet Santé dédié à la saisie (allergies, aliments exclus, objectif, niveau d'activité)
-- Calculs santé affichés uniquement dans le widget, pas dans le profil
 
 ### Corrections
 - Alignement des cases à cocher dans la gestion des widgets (profil)
@@ -42,8 +42,8 @@
 
 ## v1.15 — 26-08-2026
 ### Corrections
-- Commentaires imbriqués (réponses) — suppression en cascade fonctionnelle
-- Réponse à un commentaire : champ de saisie correctement vidé avant focus
+- Suppression d'une réponse à un commentaire fonctionnelle
+- Champ de réponse correctement vidé avant ouverture
 - Crash mentions vides résolu
 
 ---
@@ -51,10 +51,10 @@
 ## v1.13 — 25-08-2026
 ### Corrections
 - Notifications push silencieuses — envoi multi-appareils rétabli
-- Expéditeur manquant dans certaines notifications (coucou / partage)
+- Expéditeur manquant dans certaines notifications
 - Mentions cliquables non résolues dans certains cas
 - Décalage de date +1 jour la nuit résolu
-- Jeton push invalidé à chaque connexion — conservé entre les sessions
+- Jeton de connexion conservé entre les sessions
 
 ---
 
@@ -69,9 +69,9 @@
 ## v1.06 — 25-08-2026
 ### Nouveau
 - Cloche de notifications : panel dédié, badge non lus, sections Aujourd'hui / Plus tôt
-- Notifications push pour likes, commentaires et abonnements
+- Notifications pour likes, commentaires et abonnements
 - Module Changelog accessible depuis le menu
-- Rappels planning multi-appareils rétablis
+- Rappels planning rétablis sur tous les appareils
 
 ---
 
@@ -79,5 +79,5 @@
 ### Nouveau
 - Version stable initiale
 - Modules : Profil, Feed, Planning, Tâches, Rendez-vous, Anniversaires, Cycle, Islam, Prières, Astrologie, Social, Push, Admin
-- PWA : notifications push, cache hors-ligne, installation mobile
+- Notifications push, accès hors-ligne, installation sur mobile
 - Authentification sécurisée

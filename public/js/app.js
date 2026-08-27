@@ -56,7 +56,7 @@ const codes = {
 // ===================== UTILITAIRE SESSION ====================
 function getUser() {
     try {
-        return JSON.parse(localStorage.getItem('myvibe_user')) || null;
+        return JSON.parse(localStorage.getItem('moadja_user')) || null;
     } catch { return null; }
 }
 
@@ -104,9 +104,9 @@ document.addEventListener('click', function(e) {
             document.body.style.alignItems = 'stretch';
         }
 
-        // Pré-remplir le bouton profil depuis le cache myvibe_profil si dispo
+        // Pré-remplir le bouton profil depuis le cache moadja_profil si dispo
         try {
-            const cached = JSON.parse(localStorage.getItem('myvibe_profil'));
+            const cached = JSON.parse(localStorage.getItem('moadja_profil'));
             const btn    = document.getElementById('btn-profil-header');
             if (btn && cached?.photo) {
                 btn.innerHTML        = `<img src="${cached.photo}" alt="profil">`;
@@ -124,7 +124,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (user?.token) {
         showApp();
     } else {
-        localStorage.removeItem('myvibe_user');
+        localStorage.removeItem('moadja_user');
     }
 });
 
@@ -143,7 +143,7 @@ document.getElementById('login-form').addEventListener('submit', async e => {
         });
         const d = await r.json();
         if (d.success) {
-            localStorage.setItem('myvibe_user', JSON.stringify({
+            localStorage.setItem('moadja_user', JSON.stringify({
                 username : d.username,
                 role     : d.role,
                 userId   : d.userId,
@@ -175,7 +175,7 @@ async function showApp() {
     afficherDate();
     afficherVersion();
 
-    const saved = localStorage.getItem('mydaily_onglet') || 'accueil';
+    const saved = localStorage.getItem('moadja_onglet') || 'accueil';
 
     // Masquer tous les panes immédiatement pour éviter le flash
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -210,7 +210,7 @@ async function showApp() {
 // ===================== NAVIGATION ONGLETS ====================
 
 const ONGLET_TITRES = {
-    accueil  : 'MyDaily',
+    accueil  : 'MoaDja',
     quotidien: 'Mon Quotidien',
     bienetre : 'Bien-être',
     sport    : 'Sport',
@@ -219,7 +219,7 @@ const ONGLET_TITRES = {
 
 function switchTab(onglet, silent = false) {
     _ongletActif = onglet;
-    if (!silent) localStorage.setItem('mydaily_onglet', onglet);
+    if (!silent) localStorage.setItem('moadja_onglet', onglet);
 
     fermerUserMenu();
 
@@ -232,7 +232,7 @@ function switchTab(onglet, silent = false) {
     });
 
     const titleEl = document.getElementById('topbar-title');
-    if (titleEl) titleEl.textContent = ONGLET_TITRES[onglet] || 'MyDaily';
+    if (titleEl) titleEl.textContent = ONGLET_TITRES[onglet] || 'MoaDja';
 
     if (onglet === 'accueil' && !silent) {
         const u = getUser();
@@ -249,8 +249,8 @@ function switchTab(onglet, silent = false) {
 function logout() {
     fermerUserMenu();
 
-    localStorage.removeItem('myvibe_user');
-    localStorage.removeItem('myvibe_profil');
+    localStorage.removeItem('moadja_user');
+    localStorage.removeItem('moadja_profil');
 
     _appInitialisee = false;
     gridConstruit   = false;

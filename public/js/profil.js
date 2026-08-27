@@ -130,7 +130,7 @@ async function chargerProfilHeader() {
         const trigramme = construireTrigramme(p.prenom, p.nom);
 
         try {
-            localStorage.setItem('myvibe_profil', JSON.stringify({ photo: p.photo || null }));
+            localStorage.setItem('moadja_profil', JSON.stringify({ photo: p.photo || null }));
         } catch { /* silencieux */ }
 
         if (p.photo) {
@@ -299,7 +299,7 @@ async function _confirmerSupprimerPhoto() {
         if (d.success) {
             profilCache = { ...profilCache, photo: null };
             try {
-                localStorage.setItem('myvibe_profil', JSON.stringify({ photo: null }));
+                localStorage.setItem('moadja_profil', JSON.stringify({ photo: null }));
             } catch { /* silencieux */ }
             closeModal();
             chargerProfilHeader();
