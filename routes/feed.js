@@ -23,6 +23,7 @@ async function resoudreMentions(contenu, auteurId) {
     const mentions = new Set();
     for (const m of matches) {
         const token = m[1].trim();
+        if (token.toLowerCase() === 'toutlemonde') continue;
         const parts = token.split(/\s+/);
         if (parts.length < 2) continue;
 
@@ -42,6 +43,28 @@ async function resoudreMentions(contenu, auteurId) {
         }
     }
     return [...mentions];
+}
+
+// ── Utilitaire : notifier @toutlemonde ───────────────────────
+async function notifierToutLeMonde(auteurId, refId, type, prenomAuteur, nomAuteur) {
+    const { rows } = await pool.query(
+        'SELECT id FROM users WHERE id != \$1',
+        [auteurId]
+    );
+    for (const u of rows) {
+        await pool.query(
+            `INSERT INTO notifications (user_id, type, ref_id, sender_id)
+             VALUES (\$1, \$2, \$3, \$4)
+             ON CONFLICT DO NOTHING`,
+            [u.id, type === 'post' ? 'mention_post' : 'mention_comment', refId, auteurId]
+        );
+        await envoyerPush(
+            u.id,
+            '📢 Annonce générale',
+            `${prenomAuteur}${nomAuteur ? ' ' + nomAuteur : ''} a publié une annonce pour tout le monde`,
+            `toutlemonde-${type}-${refId}`
+        );
+    }
 }
 
 // ── Utilitaire : notifier les @mentions ──────────────────────
@@ -73,7 +96,12 @@ async function getProfilAuteur(userId) {
     };
 }
 
-// ── Utilitaire : mentions_data safe (évite unnest sur tableau vide) ──
+// ── Utilitaire : détecter @toutlemonde dans le contenu ───────
+function contientToutLeMonde(contenu) {
+    return /@toutlemonde(?:\s|$)/i.test(contenu);
+}
+
+// ── Utilitaire : mentions_data safe ──────────────────────────
 const MENTIONS_DATA_SQL = `
     CASE WHEN c.mentions IS NOT NULL AND array_length(c.mentions, 1) > 0 THEN (
         SELECT json_agg(json_build_object('id', u2.id, 'prenom', pr2.prenom, 'nom', pr2.nom))
@@ -99,7 +127,7 @@ router.get('/users', authenticateToken, async (req, res) => {
              LIMIT 8`,
             [`${q}%`]
         );
-        res.json({ success: true, users: rows });
+        res.json({ success: true, users: rows, isAdmin: req.user.role === 'admin' });
     } catch (e) {
         console.error('[FEED USERS SEARCH]', e.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
@@ -177,9 +205,14 @@ router.post('/', authenticateToken, async (req, res) => {
         );
         const post = rows[0];
 
+        const { prenom, nom } = await getProfilAuteur(userId);
+
         if (mentionIds.length) {
-            const { prenom, nom } = await getProfilAuteur(userId);
             await notifierMentions(mentionIds, userId, post.id, 'post', prenom, nom);
+        }
+
+        if (contenu && contientToutLeMonde(contenu) && req.user.role === 'admin') {
+            await notifierToutLeMonde(userId, post.id, 'post', prenom, nom);
         }
 
         res.json({ success: true, post });
@@ -268,9 +301,14 @@ router.put('/comments/:id', authenticateToken, async (req, res) => {
             [contenu, mentionIds, commentId]
         );
 
+        const { prenom, nom } = await getProfilAuteur(userId);
+
         if (mentionIds.length) {
-            const { prenom, nom } = await getProfilAuteur(userId);
             await notifierMentions(mentionIds, userId, commentId, 'comment', prenom, nom);
+        }
+
+        if (contientToutLeMonde(contenu) && req.user.role === 'admin') {
+            await notifierToutLeMonde(userId, commentId, 'comment', prenom, nom);
         }
 
         res.json({ success: true });
@@ -488,6 +526,10 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
             await notifierMentions(mentionsFiltered, userId, comment.id, 'comment', prenom, nom);
         }
 
+        if (contientToutLeMonde(contenu) && req.user.role === 'admin') {
+            await notifierToutLeMonde(userId, comment.id, 'comment', prenom, nom);
+        }
+
         res.json({ success: true, comment });
     } catch (e) {
         console.error('[FEED COMMENT POST]', e.message);
@@ -539,9 +581,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
             [contenu || null, photo_url, mentionIds, postId]
         );
 
+        const { prenom, nom } = await getProfilAuteur(userId);
+
         if (mentionIds.length) {
-            const { prenom, nom } = await getProfilAuteur(userId);
             await notifierMentions(mentionIds, userId, postId, 'post', prenom, nom);
+        }
+
+        if (contenu && contientToutLeMonde(contenu) && req.user.role === 'admin') {
+            await notifierToutLeMonde(userId, postId, 'post', prenom, nom);
         }
 
         res.json({ success: true, photo_url });
