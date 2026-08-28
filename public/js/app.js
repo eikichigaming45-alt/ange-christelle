@@ -65,8 +65,9 @@ function getUser() {
 // ===================== MENU UTILISATEUR (header) =============
 function toggleUserMenu(e) {
     e.stopPropagation();
-    const menu = document.getElementById('user-menu');
+    const menu      = document.getElementById('user-menu');
     const isVisible = menu.style.display === 'block';
+    if (!isVisible) _fermerTousPanneaux();
     menu.style.display = isVisible ? 'none' : 'block';
 }
 
@@ -82,8 +83,8 @@ function fermerUserMenu() {
 
 // Fermeture du menu au clic en dehors
 document.addEventListener('click', function(e) {
-    const menu   = document.getElementById('user-menu');
-    const btn    = document.getElementById('btn-profil-header');
+    const menu = document.getElementById('user-menu');
+    const btn  = document.getElementById('btn-profil-header');
     if (!menu || !btn) return;
     if (!menu.contains(e.target) && e.target !== btn) {
         menu.style.display = 'none';
