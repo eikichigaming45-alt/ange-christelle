@@ -265,7 +265,7 @@ async function _renderBlocCycle(ownerId, token) {
                       padding:3px 8px;font-size:11px;font-weight:600">${m}</span>`
     ).join('');
 
-        let conseilBloc = '';
+    let conseilBloc = '';
     if (d.conseil) {
         const texteComplet = d.conseil;
         const SEUIL        = 220;
@@ -575,7 +575,7 @@ function _htmlBlocViewer(v, typesDisponibles) {
                 </label>
                 <div style="width:65px;display:flex;justify-content:flex-end">
                     ${existe
-                        ? `<button data-action="supprimer-partage"
+                                                ? `<button data-action="supprimer-partage"
                                    data-del-id="${shareId}"
                                    style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;
                                           padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">
@@ -588,7 +588,7 @@ function _htmlBlocViewer(v, typesDisponibles) {
         </div>`;
     }).join('');
 
-        return `
+    return `
         <div style="background:#faf5ff;border-radius:12px;padding:12px 14px;border:1px solid #ede9fe">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
                 ${avatar}
@@ -942,18 +942,18 @@ async function _envoyerPartages() {
 let _notifsData        = [];
 let _notifsTab         = 'tout';
 let _notifsOffset      = 0;
-const _NOTIFS_PAR_PAGE = 10;
+const _NOTIFS_PAR_PAGE = 6;
 let _panelNotifOuvert  = false;
 
 // ── Icônes par type de notif ──────────────────────────────────
 const _NOTIF_ICONES = {
-    like          : { icone: '❤️',  texte: 'a aimé ta publication'          },
-    comment       : { icone: '💬',  texte: 'a commenté ta publication'       },
-    follow        : { icone: '👤',  texte: 'a commencé à te suivre'          },
-    coucou        : { icone: '💕',  texte: 't\'a envoyé un coucou'           },
-    share_request : { icone: '🤝',  texte: 'a partagé des données avec toi'  },
-    mention_post    : { icone: '🏷️', texte: 't\'a mentionné(e) dans un post' },
-	mention_comment : { icone: '🏷️', texte: 't\'a mentionné(e) dans un commentaire' },
+    like            : { icone: '❤️',  texte: 'a aimé ta publication'                },
+    comment         : { icone: '💬',  texte: 'a commenté ta publication'             },
+    follow          : { icone: '👤',  texte: 'a commencé à te suivre'               },
+    coucou          : { icone: '💕',  texte: 't\'a envoyé un coucou'                },
+    share_request   : { icone: '🤝',  texte: 'a partagé des données avec toi'       },
+    mention_post    : { icone: '🏷️', texte: 't\'a mentionné(e) dans un post'       },
+    mention_comment : { icone: '🏷️', texte: 't\'a mentionné(e) dans un commentaire'},
 };
 
 // ── Temps écoulé ─────────────────────────────────────────────
@@ -990,26 +990,34 @@ async function chargerBadgeNotifs() {
         const badge = document.getElementById('notif-badge');
         if (!badge) return;
         if (d.success && d.count > 0) {
-            badge.textContent    = d.count > 99 ? '99+' : d.count;
-            badge.style.display  = 'flex';
+            badge.textContent   = d.count > 99 ? '99+' : d.count;
+            badge.style.display = 'flex';
         } else {
-            badge.style.display  = 'none';
+            badge.style.display = 'none';
         }
     } catch { /* silencieux */ }
 }
 
-// ── Toggle panel ──────────────────────────────────────────────
+// ── Fermer tous les panneaux ──────────────────────────────────
+function _fermerTousPanneaux() {
+    const panelNotifs = document.getElementById('panel-notifs');
+    const userMenu    = document.getElementById('user-menu');
+    if (panelNotifs) panelNotifs.style.display = 'none';
+    if (userMenu)    userMenu.style.display    = 'none';
+    _panelNotifOuvert = false;
+}
+
+// ── Toggle panel notifs ───────────────────────────────────────
 async function togglePanelNotifs(e) {
     e.stopPropagation();
-    fermerUserMenu();
-    const panel = document.getElementById('panel-notifs');
+    const panel   = document.getElementById('panel-notifs');
     if (!panel) return;
-
-    _panelNotifOuvert = !_panelNotifOuvert;
-    panel.style.display = _panelNotifOuvert ? 'flex' : 'none';
-
-    if (_panelNotifOuvert) {
-        _notifsOffset = 0;
+    const etaitOuvert = _panelNotifOuvert;
+    _fermerTousPanneaux();
+    if (!etaitOuvert) {
+        panel.style.display = 'flex';
+        _panelNotifOuvert   = true;
+        _notifsOffset       = 0;
         await _chargerNotifs();
     }
 }
@@ -1053,15 +1061,12 @@ function _renderNotifs() {
     const liste = document.getElementById('notif-liste');
     if (!liste) return;
 
-    // Filtrage selon onglet actif
     const filtrees = _notifsTab === 'nonlu'
         ? _notifsData.filter(n => !n.seen)
         : _notifsData;
 
-    // Pagination
     const visibles = filtrees.slice(0, _notifsOffset + _NOTIFS_PAR_PAGE);
 
-    // Bouton voir plus
     const btnVoir = document.getElementById('btn-voir-plus-notifs');
     if (btnVoir) {
         btnVoir.style.display = filtrees.length > visibles.length ? 'block' : 'none';
@@ -1076,7 +1081,6 @@ function _renderNotifs() {
         return;
     }
 
-    // Séparer aujourd'hui / plus tôt
     const aujourdhui = visibles.filter(n => _estAujourdhui(n.created_at));
     const plusTot    = visibles.filter(n => !_estAujourdhui(n.created_at));
 
@@ -1100,7 +1104,6 @@ function _renderNotifs() {
 
     liste.innerHTML = html;
 
-    // Listener clic sur chaque notif → marquer vue
     liste.querySelectorAll('[data-notif-id]').forEach(el => {
         el.addEventListener('click', async () => {
             const id = el.dataset.notifId;
@@ -1110,7 +1113,6 @@ function _renderNotifs() {
                     method : 'PATCH',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                // Mettre à jour localement
                 const notif = _notifsData.find(n => String(n.id) === String(id));
                 if (notif) notif.seen = true;
                 _renderNotifs();
@@ -1129,7 +1131,6 @@ function _htmlNotif(n) {
     const temps   = _tempsEcoule(n.created_at);
     const nonLu   = !n.seen;
 
-    // Avatar
     const avatar = n.sender_photo
         ? `<img src="${n.sender_photo}"
                style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
@@ -1149,8 +1150,6 @@ function _htmlNotif(n) {
             transition:background .15s;
         " onmouseover="this.style.background='${nonLu ? '#ede9fe' : '#f9fafb'}'"
            onmouseout="this.style.background='${nonLu ? '#f5f3ff' : '#fff'}'">
-
-            <!-- Avatar + icône action -->
             <div style="position:relative;flex-shrink:0">
                 ${avatar}
                 <div style="
@@ -1163,8 +1162,6 @@ function _htmlNotif(n) {
                     ${infos.icone}
                 </div>
             </div>
-
-            <!-- Texte -->
             <div style="flex:1;min-width:0">
                 <div style="font-size:13px;color:#1f2937;line-height:1.4">
                     <span style="font-weight:700">${nomComp}</span>
@@ -1175,8 +1172,6 @@ function _htmlNotif(n) {
                     ${temps}
                 </div>
             </div>
-
-            <!-- Point non lu -->
             ${nonLu
                 ? `<div style="width:10px;height:10px;border-radius:50%;
                                background:#7c3aed;flex-shrink:0"></div>`
@@ -1189,16 +1184,16 @@ function switchNotifTab(tab) {
     _notifsTab    = tab;
     _notifsOffset = 0;
 
-    const btnTout  = document.getElementById('notif-tab-tout');
+        const btnTout  = document.getElementById('notif-tab-tout');
     const btnNonlu = document.getElementById('notif-tab-nonlu');
 
     if (btnTout) {
-        btnTout.style.color            = tab === 'tout'  ? '#7c3aed' : '#9ca3af';
+        btnTout.style.color             = tab === 'tout'  ? '#7c3aed' : '#9ca3af';
         btnTout.style.borderBottomColor = tab === 'tout'  ? '#7c3aed' : 'transparent';
         btnTout.style.fontWeight        = tab === 'tout'  ? '700'     : '600';
     }
     if (btnNonlu) {
-        btnNonlu.style.color            = tab === 'nonlu' ? '#7c3aed' : '#9ca3af';
+        btnNonlu.style.color             = tab === 'nonlu' ? '#7c3aed' : '#9ca3af';
         btnNonlu.style.borderBottomColor = tab === 'nonlu' ? '#7c3aed' : 'transparent';
         btnNonlu.style.fontWeight        = tab === 'nonlu' ? '700'     : '600';
     }
