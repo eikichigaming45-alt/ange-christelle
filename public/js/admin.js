@@ -100,7 +100,7 @@ async function chargerAdminStats() {
 
         const medailles = ['🥇', '🥈', '🥉', '4.', '5.'];
 
-        cconst widgetLabels = {
+        const widgetLabels = {
     'anniversaires' : '🎂 Anniversaires',
     'astrologie'    : '✨ Astrologie',
     'planning'      : '📋 Planning',
