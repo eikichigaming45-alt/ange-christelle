@@ -100,19 +100,21 @@ async function chargerAdminStats() {
 
         const medailles = ['🥇', '🥈', '🥉', '4.', '5.'];
 
-        const widgetLabels = {
-            'anniversaires' : '🎂 Anniversaires',
-            'astrologie'    : '✨ Astrologie',
-            'planning'      : '📋 Planning',
-            'priere'        : '🙏 Prière du jour',
-            'islam'         : '🌙 Prières & Hadiths',
-            'rendezvous'    : '🩺 Rendez-vous',
-            'sante'         : '🥗 Santé',
-            'social'        : '🤝 Social',
-            'cycle'         : '🌸 Suivi du cycle',
-            'taches'        : '✅ Tâches',
-            'admin'         : '⚙️ Administration',
-            'meteo'         : '🌤️ Météo'
+        cconst widgetLabels = {
+    'anniversaires' : '🎂 Anniversaires',
+    'astrologie'    : '✨ Astrologie',
+    'planning'      : '📋 Planning',
+    'priere'        : '🙏 Prière du jour',
+    'islam'         : '🌙 Prières & Hadiths',
+    'rendezvous'    : '🩺 Rendez-vous',
+    'sante'         : '🥗 Santé',
+    'social'        : '🤝 Social',
+    'cycle'         : '🌸 Suivi du cycle',
+    'taches'        : '✅ Tâches',
+    'admin'         : '⚙️ Administration',
+    'meteo'         : '🌤️ Météo',
+    'theme-astral'  : '🔯 Thème Astral',
+    'profil'        : '👤 Profil'
 };
 
         el.innerHTML = `
