@@ -3,9 +3,9 @@
 // Thème astral natal — FreeAstroAPI + Groq + cache BDD
 // ============================================================
 
-const express              = require('express');
-const router               = express.Router();
-const { pool }             = require('../db/pool');
+const express               = require('express');
+const router                = express.Router();
+const { pool }              = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
 const FREEASTRO_URL = 'https://json.freeastrologyapi.com/western/planets';
@@ -65,6 +65,38 @@ function calculerDominante(planetes) {
     return sorted[0]?.[0] || null;
 }
 
+// ── Calcul offset UTC depuis coordonnées et date ──────────────
+function calculerTimezoneOffset(lat, lon, dateNaissance, hh, mm) {
+    try {
+        const { find } = require('geo-tz');
+        const tzResult = find(parseFloat(lat), parseFloat(lon));
+        if (!tzResult || !tzResult.length) return 0;
+        const tzName    = tzResult[0];
+        const dateRef   = new Date(
+            dateNaissance.getFullYear(),
+            dateNaissance.getMonth(),
+            dateNaissance.getDate(),
+            hh, mm, 0
+        );
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone    : tzName,
+            timeZoneName: 'shortOffset'
+        });
+        const parts  = formatter.formatToParts(dateRef);
+        const tzPart = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+0';
+        const match  = tzPart.match(/GMT([+-]\d+(?::\d+)?)?/);
+        if (match && match[1]) {
+            const raw     = match[1];
+            const sign    = raw[0] === '-' ? -1 : 1;
+            const [h, m]  = raw.replace(/[+-]/, '').split(':').map(Number);
+            return sign * (h + (m ? m / 60 : 0));
+        }
+        return 0;
+    } catch {
+        return 0;
+    }
+}
+
 // ── GET /api/theme-astral ─────────────────────────────────────
 router.get('/', authenticateToken, async (req, res) => {
     const userId = req.user.id;
@@ -107,30 +139,25 @@ router.get('/', authenticateToken, async (req, res) => {
         const heureStr      = hasHeure ? profil.heure_naissance.slice(0, 5) : '12:00';
         const [hh, mm]      = heureStr.split(':').map(Number);
 
-        // geo-tz pour la timezone
-        let timezone = 'Europe/Paris';
-        try {
-            const { find } = require('geo-tz');
-            const tzResult = find(
-                parseFloat(profil.naissance_lat),
-                parseFloat(profil.naissance_lon)
-            );
-            if (tzResult && tzResult.length > 0) timezone = tzResult[0];
-        } catch { /* fallback Europe/Paris */ }
+        const timezoneOffset = calculerTimezoneOffset(
+            profil.naissance_lat,
+            profil.naissance_lon,
+            dateNaissance,
+            hh, mm
+        );
 
         const payload = {
-            year    : dateNaissance.getFullYear(),
-            month   : dateNaissance.getMonth() + 1,
-            date    : dateNaissance.getDate(),
-            hours   : hh,
-            minutes : mm,
-            seconds : 0,
+            year     : dateNaissance.getFullYear(),
+            month    : dateNaissance.getMonth() + 1,
+            date     : dateNaissance.getDate(),
+            hours    : hh,
+            minutes  : mm,
+            seconds  : 0,
             latitude : parseFloat(profil.naissance_lat),
             longitude: parseFloat(profil.naissance_lon),
-            timezone,
-            settings: {
-                observation_point: 'topocentric',
-                ayanamsha        : 'no_ayanamsha'
+            timezone : timezoneOffset,
+            config   : {
+                observation_point: 'topocentric'
             }
         };
 
@@ -156,17 +183,17 @@ router.get('/', authenticateToken, async (req, res) => {
         // 6. Enrichir avec labels FR
         const planetesFR = planetes.map(p => ({
             ...p,
-            nameFR  : PLANETES_FR[p.name]  || p.name,
-            signeFR : SIGNES_FR[p.sign]     || p.sign,
-            emoji   : SIGNES_EMOJI[p.sign]  || ''
+            nameFR : PLANETES_FR[p.name] || p.name,
+            signeFR: SIGNES_FR[p.sign]   || p.sign,
+            emoji  : SIGNES_EMOJI[p.sign] || ''
         }));
 
         // 7. Extraire points clés
-        const soleil     = planetesFR.find(p => p.name === 'Sun');
-        const lune       = planetesFR.find(p => p.name === 'Moon');
-        const ascendant  = planetesFR.find(p => p.name === 'Ascendant');
-        const mc         = planetesFR.find(p => p.name === 'MC');
-        const dominante  = calculerDominante(planetesFR);
+        const soleil      = planetesFR.find(p => p.name === 'Sun');
+        const lune        = planetesFR.find(p => p.name === 'Moon');
+        const ascendant   = planetesFR.find(p => p.name === 'Ascendant');
+        const mc          = planetesFR.find(p => p.name === 'MC');
+        const dominante   = calculerDominante(planetesFR);
         const dominanteFR = dominante ? (PLANETES_FR[dominante] || dominante) : null;
 
         // 8. Appel Groq — interprétation narrative
@@ -190,16 +217,16 @@ router.get('/', authenticateToken, async (req, res) => {
                     'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
                 },
                 body: JSON.stringify({
-                    model   : GROQ_MODEL,
-                    messages: [{ role: 'user', content: promptParts }],
+                    model      : GROQ_MODEL,
+                    messages   : [{ role: 'user', content: promptParts }],
                     max_tokens : 700,
                     temperature: 0.7
                 })
             });
 
             if (groqRes.ok) {
-                const groqData  = await groqRes.json();
-                interpretation  = groqData.choices?.[0]?.message?.content?.trim() || null;
+                const groqData = await groqRes.json();
+                interpretation = groqData.choices?.[0]?.message?.content?.trim() || null;
             }
         } catch (groqErr) {
             console.error('[THEME-ASTRAL] Groq error:', groqErr.message);
@@ -207,16 +234,16 @@ router.get('/', authenticateToken, async (req, res) => {
 
         // 9. Construire objet cache
         const cacheData = {
-            planetes    : planetesFR,
+            planetes     : planetesFR,
             soleil,
             lune,
-            ascendant   : hasHeure ? ascendant : null,
-            mc          : hasHeure ? mc : null,
+            ascendant    : hasHeure ? ascendant : null,
+            mc           : hasHeure ? mc : null,
             dominante,
             dominanteFR,
             interpretation,
             hasHeure,
-            generatedAt : today
+            generatedAt  : today
         };
 
         // 10. Sauvegarder en BDD
