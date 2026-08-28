@@ -52,14 +52,30 @@ const SIGNES_EMOJI = {
     Sagittarius:'♐', Capricorn:'♑', Aquarius:'♒', Pisces:'♓'
 };
 
+// ── Normaliser une planète depuis le format API ───────────────
+function normaliserPlanete(p) {
+    const name = p.planet?.en || p.name || '';
+    const sign = p.zodiac_sign?.name?.en || p.sign || '';
+    return {
+        name,
+        sign,
+        fullDegree : p.fullDegree,
+        normDegree : p.normDegree,
+        isRetro    : p.isRetro,
+        house      : p.house || null,
+        nameFR     : PLANETES_FR[name]  || name,
+        signeFR    : SIGNES_FR[sign]    || sign,
+        emoji      : SIGNES_EMOJI[sign] || ''
+    };
+}
+
 // ── Calcul dominante planétaire ───────────────────────────────
 function calculerDominante(planetes) {
     const scores = {};
     planetes.forEach(p => {
-        const nom = p.name;
-        if (!PLANETES_FR[nom]) return;
-        scores[nom] = (scores[nom] || 0) + 1;
-        if (p.house) scores[nom] += 0.5;
+        if (!PLANETES_FR[p.name]) return;
+        scores[p.name] = (scores[p.name] || 0) + 1;
+        if (p.house) scores[p.name] += 0.5;
     });
     const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
     return sorted[0]?.[0] || null;
@@ -71,8 +87,8 @@ function calculerTimezoneOffset(lat, lon, dateNaissance, hh, mm) {
         const { find } = require('geo-tz');
         const tzResult = find(parseFloat(lat), parseFloat(lon));
         if (!tzResult || !tzResult.length) return 0;
-        const tzName    = tzResult[0];
-        const dateRef   = new Date(
+        const tzName  = tzResult[0];
+        const dateRef = new Date(
             dateNaissance.getFullYear(),
             dateNaissance.getMonth(),
             dateNaissance.getDate(),
@@ -86,9 +102,9 @@ function calculerTimezoneOffset(lat, lon, dateNaissance, hh, mm) {
         const tzPart = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+0';
         const match  = tzPart.match(/GMT([+-]\d+(?::\d+)?)?/);
         if (match && match[1]) {
-            const raw     = match[1];
-            const sign    = raw[0] === '-' ? -1 : 1;
-            const [h, m]  = raw.replace(/[+-]/, '').split(':').map(Number);
+            const raw  = match[1];
+            const sign = raw[0] === '-' ? -1 : 1;
+            const [h, m] = raw.replace(/[+-]/, '').split(':').map(Number);
             return sign * (h + (m ? m / 60 : 0));
         }
         return 0;
@@ -102,7 +118,6 @@ router.get('/', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     try {
-        // 1. Récupérer le profil
         const { rows } = await pool.query(
             'SELECT date_naissance, heure_naissance, naissance_lat, naissance_lon, astral_cache, astral_cache_date FROM profiles WHERE user_id = \$1',
             [userId]
@@ -114,7 +129,6 @@ router.get('/', authenticateToken, async (req, res) => {
 
         const profil = rows[0];
 
-        // 2. Vérifier données minimales
         if (!profil.date_naissance) {
             return res.json({ success: false, code: 'NO_DATE' });
         }
@@ -124,7 +138,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
         const hasHeure = !!profil.heure_naissance;
 
-        // 3. Vérifier cache journalier
+        // Cache journalier
         const today = new Date().toISOString().split('T')[0];
         if (
             profil.astral_cache &&
@@ -134,7 +148,6 @@ router.get('/', authenticateToken, async (req, res) => {
             return res.json({ success: true, data: profil.astral_cache, fromCache: true });
         }
 
-        // 4. Préparer payload FreeAstroAPI
         const dateNaissance = new Date(profil.date_naissance);
         const heureStr      = hasHeure ? profil.heure_naissance.slice(0, 5) : '12:00';
         const [hh, mm]      = heureStr.split(':').map(Number);
@@ -161,7 +174,6 @@ router.get('/', authenticateToken, async (req, res) => {
             }
         };
 
-        // 5. Appel FreeAstroAPI
         const astroRes = await fetch(FREEASTRO_URL, {
             method : 'POST',
             headers: {
@@ -177,18 +189,12 @@ router.get('/', authenticateToken, async (req, res) => {
             return res.json({ success: false, code: 'API_ERROR', message: 'FreeAstroAPI indisponible.' });
         }
 
-        const astroData = await astroRes.json();
-        const planetes  = astroData.output || [];
+        const astroData  = await astroRes.json();
+        const rawPlanetes = astroData.output || [];
 
-        // 6. Enrichir avec labels FR
-        const planetesFR = planetes.map(p => ({
-            ...p,
-            nameFR : PLANETES_FR[p.name] || p.name,
-            signeFR: SIGNES_FR[p.sign]   || p.sign,
-            emoji  : SIGNES_EMOJI[p.sign] || ''
-        }));
+        // Normaliser toutes les planètes
+        const planetesFR = rawPlanetes.map(normaliserPlanete);
 
-        // 7. Extraire points clés
         const soleil      = planetesFR.find(p => p.name === 'Sun');
         const lune        = planetesFR.find(p => p.name === 'Moon');
         const ascendant   = planetesFR.find(p => p.name === 'Ascendant');
@@ -196,7 +202,7 @@ router.get('/', authenticateToken, async (req, res) => {
         const dominante   = calculerDominante(planetesFR);
         const dominanteFR = dominante ? (PLANETES_FR[dominante] || dominante) : null;
 
-        // 8. Appel Groq — interprétation narrative
+        // Groq — interprétation narrative
         let interpretation = null;
         try {
             const promptParts = [
@@ -232,7 +238,6 @@ router.get('/', authenticateToken, async (req, res) => {
             console.error('[THEME-ASTRAL] Groq error:', groqErr.message);
         }
 
-        // 9. Construire objet cache
         const cacheData = {
             planetes     : planetesFR,
             soleil,
@@ -246,7 +251,6 @@ router.get('/', authenticateToken, async (req, res) => {
             generatedAt  : today
         };
 
-        // 10. Sauvegarder en BDD
         await pool.query(
             'UPDATE profiles SET astral_cache = \$1, astral_cache_date = \$2 WHERE user_id = \$3',
             [JSON.stringify(cacheData), today, userId]
