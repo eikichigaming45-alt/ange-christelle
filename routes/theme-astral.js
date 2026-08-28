@@ -1,7 +1,6 @@
 // ============================================================
 // routes/theme-astral.js
 // Thème astral natal — FreeAstroAPI v2 + Groq + cache BDD
-// Cache permanent, suppression astral_cache_date
 // ============================================================
 
 const express               = require('express');
