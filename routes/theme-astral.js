@@ -1,6 +1,7 @@
 // ============================================================
 // routes/theme-astral.js
 // Thème astral natal — FreeAstroAPI v2 + Groq + cache BDD
+// Cache permanent, suppression astral_cache_date
 // ============================================================
 
 const express               = require('express');
@@ -92,7 +93,7 @@ router.get('/', authenticateToken, async (req, res) => {
     try {
         // 1. Récupérer le profil
         const { rows } = await pool.query(
-            'SELECT date_naissance, heure_naissance, naissance_lat, naissance_lon, lieu_naissance, astral_cache, astral_cache_date FROM profiles WHERE user_id = \$1',
+            'SELECT date_naissance, heure_naissance, naissance_lat, naissance_lon, lieu_naissance, astral_cache FROM profiles WHERE user_id = \$1',
             [userId]
         );
 
@@ -111,13 +112,8 @@ router.get('/', authenticateToken, async (req, res) => {
 
         const hasHeure = !!profil.heure_naissance;
 
-        // 2. Cache journalier
-        const today = new Date().toISOString().split('T')[0];
-        if (
-            profil.astral_cache &&
-            profil.astral_cache_date &&
-            profil.astral_cache_date.toISOString().split('T')[0] === today
-        ) {
+        // 2. Cache permanent
+        if (profil.astral_cache) {
             return res.json({ success: true, data: profil.astral_cache, fromCache: true });
         }
 
@@ -247,13 +243,13 @@ router.get('/', authenticateToken, async (req, res) => {
             dominanteFR,
             interpretation,
             hasHeure,
-            generatedAt : today
+            generatedAt : new Date().toISOString().split('T')[0]
         };
 
         // 9. Sauvegarder en BDD
         await pool.query(
-            'UPDATE profiles SET astral_cache = \$1, astral_cache_date = \$2 WHERE user_id = \$3',
-            [JSON.stringify(cacheData), today, userId]
+            'UPDATE profiles SET astral_cache = \$1 WHERE user_id = \$2',
+            [JSON.stringify(cacheData), userId]
         );
 
         return res.json({ success: true, data: cacheData, fromCache: false });
@@ -264,16 +260,13 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 });
 
-// ── DELETE /api/theme-astral/cache — forcer recalcul (admin) ──
+// ── DELETE /api/theme-astral/cache — reset tous users (admin uniquement) ──
 router.delete('/cache', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ success: false, message: 'Accès refusé.' });
     }
     try {
-        await pool.query(
-            'UPDATE profiles SET astral_cache = NULL, astral_cache_date = NULL WHERE user_id = \$1',
-            [req.user.id]
-        );
+        await pool.query('UPDATE profiles SET astral_cache = NULL');
         return res.json({ success: true });
     } catch (err) {
         return res.status(500).json({ success: false, message: 'Erreur serveur.' });
