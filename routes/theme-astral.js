@@ -52,26 +52,24 @@ const SIGNES_EMOJI = {
     Sagittarius:'♐', Capricorn:'♑', Aquarius:'♒', Pisces:'♓'
 };
 
-// ── Normaliser une planète depuis le format API v2 ────────────
+// ── Normaliser une planète depuis le format API ───────────────
 function normaliserPlanete(p) {
-    const name       = p.name || '';
-    const sign       = p.sign || '';
-    const normDegree = p.longitude != null
-        ? (parseFloat(p.longitude) % 30).toFixed(1)
-        : (p.normDegree != null ? parseFloat(p.normDegree).toFixed(1) : null);
-    const fullDegree = p.longitude != null
-        ? parseFloat(p.longitude)
-        : (p.fullDegree != null ? parseFloat(p.fullDegree) : null);
+    const name       = p.planet?.en || p.name || '';
+    const sign       = p.zodiac_sign?.name?.en || p.sign || '';
+    const fullDegree = p.longitude    != null ? parseFloat(p.longitude)    :
+                       p.fullDegree   != null ? parseFloat(p.fullDegree)   : null;
+    const normDegree = fullDegree     != null ? (fullDegree % 30).toFixed(1) :
+                       p.normDegree   != null ? parseFloat(p.normDegree).toFixed(1) : null;
     return {
         name,
         sign,
         fullDegree,
         normDegree,
-        isRetro  : p.is_retrograde ?? p.isRetro ?? false,
-        house    : p.house || null,
-        nameFR   : PLANETES_FR[name]  || name,
-        signeFR  : SIGNES_FR[sign]    || sign,
-        emoji    : SIGNES_EMOJI[sign] || ''
+        isRetro : p.is_retrograde ?? p.isRetro ?? false,
+        house   : p.house || null,
+        nameFR  : PLANETES_FR[name]  || name,
+        signeFR : SIGNES_FR[sign]    || sign,
+        emoji   : SIGNES_EMOJI[sign] || ''
     };
 }
 
@@ -137,18 +135,19 @@ router.get('/', authenticateToken, async (req, res) => {
             city  : profil.lieu_naissance || 'Paris'
         };
 
-        // Enrichir avec lat/lng si disponibles
         if (profil.naissance_lat && profil.naissance_lon) {
             payload.lat = parseFloat(profil.naissance_lat);
             payload.lng = parseFloat(profil.naissance_lon);
         }
 
         // 4. Appel FreeAstroAPI v2
+        console.log('[THEME-ASTRAL] Payload envoyé:', JSON.stringify(payload));
+
         const astroRes = await fetch(FREEASTRO_URL, {
             method : 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'x-api-key'   : process.env.FREEASTROAPI_KEY
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${process.env.FREEASTROAPI_KEY}`
             },
             body: JSON.stringify(payload)
         });
@@ -160,8 +159,9 @@ router.get('/', authenticateToken, async (req, res) => {
         }
 
         const astroData = await astroRes.json();
+        console.log('[THEME-ASTRAL] Réponse API (keys):', Object.keys(astroData));
 
-        // 5. Extraire planètes — compatibilité formats possibles
+        // 5. Extraire planètes — compatibilité formats
         let rawPlanetes = [];
         if (Array.isArray(astroData.planets)) {
             rawPlanetes = astroData.planets;
@@ -171,7 +171,6 @@ router.get('/', authenticateToken, async (req, res) => {
             rawPlanetes = astroData.output;
         }
 
-        // Injecter angles si présents séparément
         if (astroData.angles) {
             const anglesArr = Array.isArray(astroData.angles)
                 ? astroData.angles
@@ -179,20 +178,21 @@ router.get('/', authenticateToken, async (req, res) => {
             rawPlanetes = [...rawPlanetes, ...anglesArr];
         }
 
-        // Log format pour debug
         if (rawPlanetes.length > 0) {
             console.log('[THEME-ASTRAL] Format planète exemple:', JSON.stringify(rawPlanetes[0]));
+        } else {
+            console.error('[THEME-ASTRAL] Aucune planète extraite. Réponse complète:', JSON.stringify(astroData));
         }
 
         const planetesFR = rawPlanetes.map(normaliserPlanete);
 
         // 6. Extraire points clés
-        const soleil      = planetesFR.find(p => p.name === 'Sun');
-        const lune        = planetesFR.find(p => p.name === 'Moon');
-        const ascendant   = planetesFR.find(p =>
+        const soleil    = planetesFR.find(p => p.name === 'Sun');
+        const lune      = planetesFR.find(p => p.name === 'Moon');
+        const ascendant = planetesFR.find(p =>
             p.name === 'Ascendant' || p.name === 'ASC' || p.name === 'Asc'
         );
-        const mc          = planetesFR.find(p =>
+        const mc        = planetesFR.find(p =>
             p.name === 'MC' || p.name === 'Midheaven'
         );
         const dominante   = calculerDominante(planetesFR);
@@ -223,7 +223,7 @@ router.get('/', authenticateToken, async (req, res) => {
                 body: JSON.stringify({
                     model      : GROQ_MODEL,
                     messages   : [{ role: 'user', content: promptParts }],
-                    max_tokens : 700,
+                    max_tokens : 1200,
                     temperature: 0.7
                 })
             });
@@ -238,16 +238,16 @@ router.get('/', authenticateToken, async (req, res) => {
 
         // 8. Construire objet cache
         const cacheData = {
-            planetes     : planetesFR,
+            planetes    : planetesFR,
             soleil,
             lune,
-            ascendant    : hasHeure ? ascendant : null,
-            mc           : hasHeure ? mc : null,
+            ascendant   : hasHeure ? ascendant : null,
+            mc          : hasHeure ? mc : null,
             dominante,
             dominanteFR,
             interpretation,
             hasHeure,
-            generatedAt  : today
+            generatedAt : today
         };
 
         // 9. Sauvegarder en BDD
