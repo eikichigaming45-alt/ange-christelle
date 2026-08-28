@@ -1,6 +1,6 @@
 // ============================================================
 // routes/theme-astral.js
-// Thème astral natal — FreeAstroAPI + Groq + cache BDD
+// Thème astral natal — FreeAstroAPI v2 + Groq + cache BDD
 // ============================================================
 
 const express               = require('express');
@@ -8,7 +8,7 @@ const router                = express.Router();
 const { pool }              = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
-const FREEASTRO_URL = 'https://json.freeastrologyapi.com/western/planets';
+const FREEASTRO_URL = 'https://api.freeastroapi.com/api/v1/natal/calculate';
 const GROQ_URL      = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL    = 'openai/gpt-oss-20b';
 
@@ -52,20 +52,26 @@ const SIGNES_EMOJI = {
     Sagittarius:'♐', Capricorn:'♑', Aquarius:'♒', Pisces:'♓'
 };
 
-// ── Normaliser une planète depuis le format API ───────────────
+// ── Normaliser une planète depuis le format API v2 ────────────
 function normaliserPlanete(p) {
-    const name = p.planet?.en || p.name || '';
-    const sign = p.zodiac_sign?.name?.en || p.sign || '';
+    const name       = p.name || '';
+    const sign       = p.sign || '';
+    const normDegree = p.longitude != null
+        ? (parseFloat(p.longitude) % 30).toFixed(1)
+        : (p.normDegree != null ? parseFloat(p.normDegree).toFixed(1) : null);
+    const fullDegree = p.longitude != null
+        ? parseFloat(p.longitude)
+        : (p.fullDegree != null ? parseFloat(p.fullDegree) : null);
     return {
         name,
         sign,
-        fullDegree : p.fullDegree,
-        normDegree : p.normDegree,
-        isRetro    : p.isRetro,
-        house      : p.house || null,
-        nameFR     : PLANETES_FR[name]  || name,
-        signeFR    : SIGNES_FR[sign]    || sign,
-        emoji      : SIGNES_EMOJI[sign] || ''
+        fullDegree,
+        normDegree,
+        isRetro  : p.is_retrograde ?? p.isRetro ?? false,
+        house    : p.house || null,
+        nameFR   : PLANETES_FR[name]  || name,
+        signeFR  : SIGNES_FR[sign]    || sign,
+        emoji    : SIGNES_EMOJI[sign] || ''
     };
 }
 
@@ -81,45 +87,14 @@ function calculerDominante(planetes) {
     return sorted[0]?.[0] || null;
 }
 
-// ── Calcul offset UTC depuis coordonnées et date ──────────────
-function calculerTimezoneOffset(lat, lon, dateNaissance, hh, mm) {
-    try {
-        const { find } = require('geo-tz');
-        const tzResult = find(parseFloat(lat), parseFloat(lon));
-        if (!tzResult || !tzResult.length) return 0;
-        const tzName  = tzResult[0];
-        const dateRef = new Date(
-            dateNaissance.getFullYear(),
-            dateNaissance.getMonth(),
-            dateNaissance.getDate(),
-            hh, mm, 0
-        );
-        const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone    : tzName,
-            timeZoneName: 'shortOffset'
-        });
-        const parts  = formatter.formatToParts(dateRef);
-        const tzPart = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+0';
-        const match  = tzPart.match(/GMT([+-]\d+(?::\d+)?)?/);
-        if (match && match[1]) {
-            const raw  = match[1];
-            const sign = raw[0] === '-' ? -1 : 1;
-            const [h, m] = raw.replace(/[+-]/, '').split(':').map(Number);
-            return sign * (h + (m ? m / 60 : 0));
-        }
-        return 0;
-    } catch {
-        return 0;
-    }
-}
-
 // ── GET /api/theme-astral ─────────────────────────────────────
 router.get('/', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     try {
+        // 1. Récupérer le profil
         const { rows } = await pool.query(
-            'SELECT date_naissance, heure_naissance, naissance_lat, naissance_lon, astral_cache, astral_cache_date FROM profiles WHERE user_id = \$1',
+            'SELECT date_naissance, heure_naissance, naissance_lat, naissance_lon, lieu_naissance, astral_cache, astral_cache_date FROM profiles WHERE user_id = \$1',
             [userId]
         );
 
@@ -132,13 +107,13 @@ router.get('/', authenticateToken, async (req, res) => {
         if (!profil.date_naissance) {
             return res.json({ success: false, code: 'NO_DATE' });
         }
-        if (!profil.naissance_lat || !profil.naissance_lon) {
+        if (!profil.lieu_naissance && (!profil.naissance_lat || !profil.naissance_lon)) {
             return res.json({ success: false, code: 'NO_LOCATION' });
         }
 
         const hasHeure = !!profil.heure_naissance;
 
-        // Cache journalier
+        // 2. Cache journalier
         const today = new Date().toISOString().split('T')[0];
         if (
             profil.astral_cache &&
@@ -148,32 +123,27 @@ router.get('/', authenticateToken, async (req, res) => {
             return res.json({ success: true, data: profil.astral_cache, fromCache: true });
         }
 
+        // 3. Préparer payload
         const dateNaissance = new Date(profil.date_naissance);
         const heureStr      = hasHeure ? profil.heure_naissance.slice(0, 5) : '12:00';
         const [hh, mm]      = heureStr.split(':').map(Number);
 
-        const timezoneOffset = calculerTimezoneOffset(
-            profil.naissance_lat,
-            profil.naissance_lon,
-            dateNaissance,
-            hh, mm
-        );
-
         const payload = {
-            year     : dateNaissance.getFullYear(),
-            month    : dateNaissance.getMonth() + 1,
-            date     : dateNaissance.getDate(),
-            hours    : hh,
-            minutes  : mm,
-            seconds  : 0,
-            latitude : parseFloat(profil.naissance_lat),
-            longitude: parseFloat(profil.naissance_lon),
-            timezone : timezoneOffset,
-            config   : {
-                observation_point: 'topocentric'
-            }
+            year  : dateNaissance.getFullYear(),
+            month : dateNaissance.getMonth() + 1,
+            day   : dateNaissance.getDate(),
+            hour  : hh,
+            minute: mm,
+            city  : profil.lieu_naissance || 'Paris'
         };
 
+        // Enrichir avec lat/lng si disponibles
+        if (profil.naissance_lat && profil.naissance_lon) {
+            payload.lat = parseFloat(profil.naissance_lat);
+            payload.lng = parseFloat(profil.naissance_lon);
+        }
+
+        // 4. Appel FreeAstroAPI v2
         const astroRes = await fetch(FREEASTRO_URL, {
             method : 'POST',
             headers: {
@@ -189,29 +159,57 @@ router.get('/', authenticateToken, async (req, res) => {
             return res.json({ success: false, code: 'API_ERROR', message: 'FreeAstroAPI indisponible.' });
         }
 
-        const astroData  = await astroRes.json();
-        const rawPlanetes = astroData.output || [];
+        const astroData = await astroRes.json();
 
-        // Normaliser toutes les planètes
+        // 5. Extraire planètes — compatibilité formats possibles
+        let rawPlanetes = [];
+        if (Array.isArray(astroData.planets)) {
+            rawPlanetes = astroData.planets;
+        } else if (astroData.planets && typeof astroData.planets === 'object') {
+            rawPlanetes = Object.values(astroData.planets);
+        } else if (Array.isArray(astroData.output)) {
+            rawPlanetes = astroData.output;
+        }
+
+        // Injecter angles si présents séparément
+        if (astroData.angles) {
+            const anglesArr = Array.isArray(astroData.angles)
+                ? astroData.angles
+                : Object.values(astroData.angles);
+            rawPlanetes = [...rawPlanetes, ...anglesArr];
+        }
+
+        // Log format pour debug
+        if (rawPlanetes.length > 0) {
+            console.log('[THEME-ASTRAL] Format planète exemple:', JSON.stringify(rawPlanetes[0]));
+        }
+
         const planetesFR = rawPlanetes.map(normaliserPlanete);
 
+        // 6. Extraire points clés
         const soleil      = planetesFR.find(p => p.name === 'Sun');
         const lune        = planetesFR.find(p => p.name === 'Moon');
-        const ascendant   = planetesFR.find(p => p.name === 'Ascendant');
-        const mc          = planetesFR.find(p => p.name === 'MC');
+        const ascendant   = planetesFR.find(p =>
+            p.name === 'Ascendant' || p.name === 'ASC' || p.name === 'Asc'
+        );
+        const mc          = planetesFR.find(p =>
+            p.name === 'MC' || p.name === 'Midheaven'
+        );
         const dominante   = calculerDominante(planetesFR);
         const dominanteFR = dominante ? (PLANETES_FR[dominante] || dominante) : null;
 
-        // Groq — interprétation narrative
+        // 7. Groq — interprétation narrative
         let interpretation = null;
         try {
             const promptParts = [
                 `Tu es un astrologue expert. Génère une interprétation narrative du thème natal en français, structurée en 4 parties courtes (3-4 phrases chacune) :`,
                 `1. **Soleil en ${soleil?.signeFR || '?'}** — identité profonde, ego, vitalité`,
-                ascendant ? `2. **Ascendant ${ascendant.signeFR}** — façade, première impression, corps` : `2. **Ascendant** — non calculé (heure de naissance manquante)`,
+                ascendant
+                    ? `2. **Ascendant ${ascendant.signeFR}** — façade, première impression, corps`
+                    : `2. **Ascendant** — non calculé (heure de naissance manquante)`,
                 mc ? `3. **Milieu du Ciel en ${mc.signeFR}** — vocation, ambitions, image publique` : '',
                 `4. **Dominante planétaire : ${dominanteFR || '?'}** — énergie principale du thème`,
-                `Lune en ${lune?.signeFR || '?'}, en maison ${lune?.house || '?'}.`,
+                `Lune en ${lune?.signeFR || '?'}${lune?.house ? ', en maison ' + lune.house : ''}.`,
                 `Sois précis, bienveillant, et évite les généralités vagues. Pas de bullet points — texte fluide uniquement.`,
                 !hasHeure ? `Note : l'heure de naissance est inconnue, l'Ascendant et le MC sont donc absents.` : ''
             ].filter(Boolean).join('\n');
@@ -238,6 +236,7 @@ router.get('/', authenticateToken, async (req, res) => {
             console.error('[THEME-ASTRAL] Groq error:', groqErr.message);
         }
 
+        // 8. Construire objet cache
         const cacheData = {
             planetes     : planetesFR,
             soleil,
@@ -251,6 +250,7 @@ router.get('/', authenticateToken, async (req, res) => {
             generatedAt  : today
         };
 
+        // 9. Sauvegarder en BDD
         await pool.query(
             'UPDATE profiles SET astral_cache = \$1, astral_cache_date = \$2 WHERE user_id = \$3',
             [JSON.stringify(cacheData), today, userId]
