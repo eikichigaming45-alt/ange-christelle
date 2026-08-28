@@ -78,7 +78,10 @@ async function chargerFeed() {
 // ── @MENTION : RENDER CONTENU AVEC TAGS CLIQUABLES ───────────
 function renderContenuAvecMentions(contenu, mentionsData) {
     if (!contenu) return '';
-    if (!mentionsData || !mentionsData.length) return escapeHtml(contenu);
+    if (!mentionsData || !mentionsData.length) {
+        return escapeHtml(contenu).replace(/@toutlemonde/gi,
+            '<span class="mention-tag" style="color:#7c3aed;font-weight:600;cursor:default">@Tout le monde</span>');
+    }
 
     let result = contenu;
 
@@ -105,7 +108,6 @@ function renderContenuAvecMentions(contenu, mentionsData) {
         }
     }
 
-    // Rendre @toutlemonde cliquable visuellement
     result = result.replace(/@toutlemonde/gi, '%%TOUTLEMONDE%%');
 
     result = escapeHtml(result);
@@ -115,7 +117,7 @@ function renderContenuAvecMentions(contenu, mentionsData) {
     }
 
     result = result.split('%%TOUTLEMONDE%%').join(
-        `<span style="color:#7c3aed;font-weight:600">@toutlemonde</span>`
+        '<span class="mention-tag" style="color:#7c3aed;font-weight:600;cursor:default">@Tout le monde</span>'
     );
 
     return result;
