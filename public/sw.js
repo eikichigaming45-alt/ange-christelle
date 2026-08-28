@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'moadja-cache-v1.39';
+﻿const CACHE_NAME = 'moadja-cache-v1.40';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
@@ -11,6 +11,7 @@ const ASSETS_TO_CACHE = [
     '/css/islam.css',
     '/css/profil.css',
     '/css/planning.css',
+    '/css/theme-astral.css',
     '/js/app.js',
     '/js/widgets.js',
     '/js/modal.js',
@@ -30,6 +31,7 @@ const ASSETS_TO_CACHE = [
     '/js/social.js',
     '/js/sante.js',
     '/js/changelog.js',
+    '/js/theme-astral.js',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png'
@@ -77,7 +79,8 @@ self.addEventListener('fetch', event => {
         '/css/priere.css',
         '/css/islam.css',
         '/css/profil.css',
-        '/css/planning.css'
+        '/css/planning.css',
+        '/css/theme-astral.css'
     ];
 
     if (networkFirst.includes(url.pathname)) {

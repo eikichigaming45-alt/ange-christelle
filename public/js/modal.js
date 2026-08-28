@@ -1,7 +1,8 @@
 // ============================================================
 // public/js/modal.js
 // Modales : météo, prière, islam, tâches, anniversaires,
-// cycle, rendez-vous, planning, profil, admin, astrologie.
+// cycle, rendez-vous, planning, profil, admin, astrologie,
+// theme-astral.
 // Onglet Profil : infos + heure/lieu naissance + géocodage.
 // Onglet Santé  : sexe, taille, poids, groupe sanguin,
 //                 niveau activité, objectif santé, signe zodiaque,
@@ -26,7 +27,8 @@ async function openModal(type) {
         admin        : 'Administration',
         cycle        : 'Suivi du cycle',
         rendezvous   : 'Rendez-vous médicaux',
-        astrologie   : 'Astrologie'
+        astrologie   : 'Astrologie',
+        'theme-astral': 'Thème Astral'
     };
     document.getElementById('modal-title').textContent = titres[type] || type;
 
@@ -186,6 +188,10 @@ async function openModal(type) {
         } else {
             document.getElementById('modal-body').innerHTML = '<p style="color:red">Module planning non chargé.</p>';
         }
+
+    // ── Thème Astral ──────────────────────────────────────────
+    } else if (type === 'theme-astral') {
+        await ouvrirModaleThemeAstral();
 
     // ── Profil ────────────────────────────────────────────────
     } else if (type === 'profil') {
@@ -384,12 +390,12 @@ async function openModal(type) {
                                     letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Activité & Objectif</div>
                         <div style="margin-bottom:10px">
                             <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Niveau d'activité</label>
-                                                        <select id="p-niveau-activite"
+                            <select id="p-niveau-activite"
                                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
                                 <option value="">— Non renseigné —</option>
                                 <option value="sedentaire" ${p.niveau_activite === 'sedentaire' ? 'selected' : ''}>Sédentaire (bureau, peu de sport)</option>
                                 <option value="leger"      ${p.niveau_activite === 'leger'      ? 'selected' : ''}>Légèrement actif (1–3 séances/sem)</option>
-                                <option value="modere"     ${p.niveau_activite === 'modere'     ? 'selected' : ''}>Modérément actif (3–5 séances/sem)</option>
+                                                                <option value="modere"     ${p.niveau_activite === 'modere'     ? 'selected' : ''}>Modérément actif (3–5 séances/sem)</option>
                                 <option value="actif"      ${p.niveau_activite === 'actif'      ? 'selected' : ''}>Actif (6–7 séances/sem)</option>
                                 <option value="tres_actif" ${p.niveau_activite === 'tres_actif' ? 'selected' : ''}>Très actif (sport intensif quotidien)</option>
                             </select>
@@ -399,11 +405,11 @@ async function openModal(type) {
                             <select id="p-objectif-sante"
                                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
                                 <option value="">— Non renseigné —</option>
-                                <option value="perte_rapide"      ${p.objectif_sante === 'perte_rapide'      ? 'selected' : ''}>🔥 Perte de poids rapide (−500 kcal/j)</option>
-                                <option value="perte_moderee"     ${p.objectif_sante === 'perte_moderee'     ? 'selected' : ''}>📉 Perte de poids modérée (−300 kcal/j)</option>
-                                <option value="maintien"          ${p.objectif_sante === 'maintien'          ? 'selected' : ''}>⚖️ Maintien du poids (0 kcal)</option>
-                                <option value="prise_masse"       ${p.objectif_sante === 'prise_masse'       ? 'selected' : ''}>💪 Prise de masse (+300 kcal/j)</option>
-                                <option value="prise_masse_rapide"${p.objectif_sante === 'prise_masse_rapide'? 'selected' : ''}>🏋️ Prise de masse rapide (+500 kcal/j)</option>
+                                <option value="perte_rapide"       ${p.objectif_sante === 'perte_rapide'       ? 'selected' : ''}>🔥 Perte de poids rapide (−500 kcal/j)</option>
+                                <option value="perte_moderee"      ${p.objectif_sante === 'perte_moderee'      ? 'selected' : ''}>📉 Perte de poids modérée (−300 kcal/j)</option>
+                                <option value="maintien"           ${p.objectif_sante === 'maintien'           ? 'selected' : ''}>⚖️ Maintien du poids (0 kcal)</option>
+                                <option value="prise_masse"        ${p.objectif_sante === 'prise_masse'        ? 'selected' : ''}>💪 Prise de masse (+300 kcal/j)</option>
+                                <option value="prise_masse_rapide" ${p.objectif_sante === 'prise_masse_rapide' ? 'selected' : ''}>🏋️ Prise de masse rapide (+500 kcal/j)</option>
                             </select>
                         </div>
 

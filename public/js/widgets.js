@@ -13,7 +13,7 @@ function resetGrid() {
 // ===================== DÉFINITION PAR ONGLET =================
 
 const WIDGETS_PAR_ONGLET = {
-    quotidien : ['planning', 'taches', 'priere', 'islam', 'anniversaires', 'astrologie', 'social'],
+    quotidien : ['planning', 'taches', 'priere', 'islam', 'anniversaires', 'astrologie', 'theme-astral', 'social'],
     bienetre  : ['rendezvous', 'cycle', 'sante'],
     sport     : [],
     profil    : ['profil', 'admin'],
@@ -102,6 +102,7 @@ async function buildGrid() {
     if (typeof chargerWidgetPlanning      === 'function')  chargerWidgetPlanning();
     if (typeof chargerWidgetSocial        === 'function')  chargerWidgetSocial();
     if (typeof chargerWidgetSante         === 'function')  chargerWidgetSante();
+    if (typeof chargerThemeAstral         === 'function')  chargerThemeAstral();
     if (typeof chargerWidgetAnniversaires === 'function')  chargerWidgetAnniversaires();
     if (typeof chargerWidgetAdmin         === 'function')  chargerWidgetAdmin();
     if (typeof chargerAstrologie          === 'function')  chargerAstrologie();
@@ -171,6 +172,7 @@ function creerWidget(def, gridId) {
     if (def.id === 'planning')      contentHtml = '<div id="widget-planning-contenu">Chargement...</div>';
     if (def.id === 'profil')        contentHtml = '<div id="wc-profil"></div>';
     if (def.id === 'astrologie')    contentHtml = '<div id="wc-astrologie">Chargement...</div>';
+    if (def.id === 'theme-astral')  contentHtml = '<div id="wc-theme-astral">Chargement...</div>';
     if (def.id === 'admin')         contentHtml = '<div id="wc-admin">Chargement...</div>';
     if (def.id === 'social')        contentHtml = '<div id="wc-social">Chargement...</div>';
     if (def.id === 'sante')         contentHtml = '<div id="wc-sante">Chargement...</div>';

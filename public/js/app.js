@@ -26,6 +26,7 @@ const WIDGETS_DEF = [
     { id:'planning',      label:'Planning',           icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
     { id:'anniversaires', label:'Anniversaires',      icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
     { id:'astrologie',    label:'Astrologie',         icon:'✨',  cls:'w-astrologie',    desc:'Chargement...',  foot:'Cliquez pour votre horoscope',     refresh:true },
+    { id:'theme-astral',  label:'Thème Astral',       icon:'🔮',  cls:'w-theme-astral',  desc:'Chargement...',  foot:'Cliquez pour votre thème natal',   refresh:true },
     { id:'social',        label:'Social',             icon:'🤝',  cls:'w-social',        desc:'Chargement...',  foot:'Ce que mes proches partagent avec moi' },
     { id:'profil',        label:'Mon Profil',         icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
     { id:'sante',         label:'Santé',              icon:'🥗',  cls:'w-sante',         desc:'Chargement...',  foot:'Calculs & plan nutritionnel' },
@@ -42,6 +43,7 @@ const TOUS_WIDGETS = [
     { slug:'sante',         label:'Santé',             icon:'🥗' },
     { slug:'social',        label:'Social',            icon:'🤝' },
     { slug:'taches',        label:'Tâches',            icon:'✅' },
+    { slug:'theme-astral',  label:'Thème Astral',      icon:'🔮' },
 ];
 
 // ===================== CODES MÉTÉO ===========================
@@ -89,9 +91,6 @@ document.addEventListener('click', function(e) {
 });
 
 // ===================== AFFICHAGE RAPIDE ======================
-// Affiche l'app immédiatement si token présent.
-// Pré-injecte la photo de profil depuis profilCache si disponible
-// pour éviter le flash 👤 au refresh.
 (function() {
     const user = getUser();
     if (user?.token) {
@@ -104,7 +103,6 @@ document.addEventListener('click', function(e) {
             document.body.style.alignItems = 'stretch';
         }
 
-        // Pré-remplir le bouton profil depuis le cache moadja_profil si dispo
         try {
             const cached = JSON.parse(localStorage.getItem('moadja_profil'));
             const btn    = document.getElementById('btn-profil-header');
@@ -177,7 +175,6 @@ async function showApp() {
 
     const saved = localStorage.getItem('moadja_onglet') || 'accueil';
 
-    // Masquer tous les panes immédiatement pour éviter le flash
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     const paneImmediat = document.getElementById(`tab-${saved}`);
     if (paneImmediat) paneImmediat.classList.add('active');
@@ -186,12 +183,13 @@ async function showApp() {
     switchTab(saved, true);
 
     chargerPriere();
-    if (typeof window.chargerIslam   === 'function') window.chargerIslam();
+    if (typeof window.chargerIslam     === 'function') window.chargerIslam();
     chargerMeteoAuto();
-    if (typeof initFeed              === 'function') initFeed();
-    if (typeof chargerAstrologie     === 'function') chargerAstrologie();
-    if (typeof chargerWidgetSocial   === 'function') chargerWidgetSocial();
-    if (typeof chargerWidgetSante    === 'function') chargerWidgetSante();
+    if (typeof initFeed                === 'function') initFeed();
+    if (typeof chargerAstrologie       === 'function') chargerAstrologie();
+    if (typeof chargerWidgetSocial     === 'function') chargerWidgetSocial();
+    if (typeof chargerWidgetSante      === 'function') chargerWidgetSante();
+    if (typeof chargerThemeAstral      === 'function') chargerThemeAstral();
     setTimeout(() => {
         if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
     }, 300);
@@ -203,7 +201,6 @@ async function showApp() {
     enregistrerServiceWorker();
     initPush();
 
-    // Chargement initial du badge notifications
     if (typeof chargerBadgeNotifs === 'function') chargerBadgeNotifs();
 }
 
@@ -279,7 +276,6 @@ function logout() {
     const errEl = document.getElementById('error-msg');
     if (errEl) errEl.textContent = '';
 
-    // Masquer le panel notifs et reset badge
     const panel = document.getElementById('panel-notifs');
     if (panel) panel.style.display = 'none';
     const badge = document.getElementById('notif-badge');
@@ -292,14 +288,15 @@ function logout() {
 function actualiser() {
     afficherDate();
     chargerPriere();
-    if (typeof window.chargerIslam   === 'function') window.chargerIslam();
+    if (typeof window.chargerIslam     === 'function') window.chargerIslam();
     chargerMeteoAuto();
-    if (typeof initFeed              === 'function') initFeed();
-    if (typeof chargerAstrologie     === 'function') chargerAstrologie();
-    if (typeof chargerProfilHeader   === 'function') chargerProfilHeader();
-    if (typeof chargerWidgetTaches   === 'function') chargerWidgetTaches();
-    if (typeof chargerWidgetSocial   === 'function') chargerWidgetSocial();
-    if (typeof chargerWidgetSante    === 'function') chargerWidgetSante();
+    if (typeof initFeed                === 'function') initFeed();
+    if (typeof chargerAstrologie       === 'function') chargerAstrologie();
+    if (typeof chargerProfilHeader     === 'function') chargerProfilHeader();
+    if (typeof chargerWidgetTaches     === 'function') chargerWidgetTaches();
+    if (typeof chargerWidgetSocial     === 'function') chargerWidgetSocial();
+    if (typeof chargerWidgetSante      === 'function') chargerWidgetSante();
+    if (typeof chargerThemeAstral      === 'function') chargerThemeAstral();
     chargerWidgetAnniversaires();
     chargerWidgetPlanning();
     if (typeof Cycle      !== 'undefined') Cycle.charger();
@@ -417,15 +414,16 @@ async function afficherVersion() {
 // ===================== REFRESH WIDGET ========================
 function refreshWidget(id) {
     switch (id) {
-        case 'meteo'      : chargerMeteoAuto();                                                    break;
-        case 'priere'     : chargerPriere();                                                       break;
-        case 'islam'      : if (typeof window.chargerIslam === 'function') window.chargerIslam();  break;
-        case 'astrologie' : if (typeof chargerAstrologie   === 'function') chargerAstrologie();    break;
-        case 'cycle'      : if (typeof Cycle      !== 'undefined') Cycle.charger();                break;
-        case 'rendezvous' : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();           break;
-        case 'planning'   : chargerWidgetPlanning();                                               break;
-        case 'social'     : if (typeof chargerWidgetSocial === 'function') chargerWidgetSocial();  break;
-        case 'sante'      : if (typeof chargerWidgetSante  === 'function') chargerWidgetSante();   break;
+        case 'meteo'        : chargerMeteoAuto();                                                        break;
+        case 'priere'       : chargerPriere();                                                           break;
+        case 'islam'        : if (typeof window.chargerIslam   === 'function') window.chargerIslam();    break;
+        case 'astrologie'   : if (typeof chargerAstrologie     === 'function') chargerAstrologie();      break;
+        case 'theme-astral' : if (typeof chargerThemeAstral    === 'function') chargerThemeAstral();     break;
+        case 'cycle'        : if (typeof Cycle      !== 'undefined') Cycle.charger();                    break;
+        case 'rendezvous'   : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();               break;
+        case 'planning'     : chargerWidgetPlanning();                                                   break;
+        case 'social'       : if (typeof chargerWidgetSocial   === 'function') chargerWidgetSocial();    break;
+        case 'sante'        : if (typeof chargerWidgetSante    === 'function') chargerWidgetSante();     break;
     }
 }
 
