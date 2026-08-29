@@ -52,6 +52,7 @@ app.use('/api/admin',         require('./routes/admin'));
 app.use('/api/cycle',         require('./routes/cycle'));
 app.use('/api/rendezvous',    require('./routes/rendezvous'));
 app.use('/api/planning',      require('./routes/planning'));
+app.use('/api/agenda',        require('./routes/agenda'));
 app.use('/api/astrologie',    require('./routes/astrologie'));
 app.use('/api/theme-astral',  require('./routes/theme-astral'));
 app.use('/api/feed',          require('./routes/feed'));

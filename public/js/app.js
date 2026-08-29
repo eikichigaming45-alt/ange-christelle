@@ -22,24 +22,22 @@ const WIDGETS_DEF = [
     { id:'islam',         label:'Prières & Hadiths',  icon:'🌙',  cls:'w-islam',         desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
     { id:'taches',        label:'Tâches du jour',     icon:'✅',  cls:'w-taches',        desc:'Chargement...',  foot:'Cliquez pour gérer' },
     { id:'cycle',         label:'Suivi du cycle',     icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
-    { id:'rendezvous',    label:'Rendez-vous',        icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
-    { id:'planning',      label:'Planning',           icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
     { id:'anniversaires', label:'Anniversaires',      icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
     { id:'astrologie',    label:'Astrologie',         icon:'✨',  cls:'w-astrologie',    desc:'Chargement...',  foot:'Cliquez pour votre horoscope',     refresh:true },
     { id:'theme-astral',  label:'Thème Astral',       icon:'🔮',  cls:'w-theme-astral',  desc:'Chargement...',  foot:'Cliquez pour votre thème natal',   refresh:true },
     { id:'social',        label:'Social',             icon:'🤝',  cls:'w-social',        desc:'Chargement...',  foot:'Ce que mes proches partagent avec moi' },
     { id:'profil',        label:'Mon Profil',         icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
     { id:'sante',         label:'Santé',              icon:'🥗',  cls:'w-sante',         desc:'Chargement...',  foot:'Calculs & plan nutritionnel' },
+    { id:'agenda-unifie', label:'Agenda',             icon:'📆',  cls:'w-agenda-unifie', desc:'Chargement...',  foot:'Planning · RDV · Tâches' },
 ];
 
 const TOUS_WIDGETS = [
+    { slug:'agenda-unifie', label:'Agenda',            icon:'📆' },
     { slug:'anniversaires', label:'Anniversaires',     icon:'🎂' },
     { slug:'astrologie',    label:'Astrologie',        icon:'✨' },
     { slug:'cycle',         label:'Suivi du cycle',    icon:'🌸' },
     { slug:'islam',         label:'Prières & Hadiths', icon:'🌙' },
-    { slug:'planning',      label:'Planning',          icon:'📋' },
     { slug:'priere',        label:'Prière du jour',    icon:'🙏' },
-    { slug:'rendezvous',    label:'Rendez-vous',       icon:'🩺' },
     { slug:'sante',         label:'Santé',             icon:'🥗' },
     { slug:'social',        label:'Social',            icon:'🤝' },
     { slug:'taches',        label:'Tâches',            icon:'✅' },
@@ -81,7 +79,6 @@ function fermerUserMenu() {
     if (menu) menu.style.display = 'none';
 }
 
-// Fermeture du menu au clic en dehors
 document.addEventListener('click', function(e) {
     const menu = document.getElementById('user-menu');
     const btn  = document.getElementById('btn-profil-header');
@@ -103,7 +100,6 @@ document.addEventListener('click', function(e) {
             document.body.style.background = '#f3f4f6';
             document.body.style.alignItems = 'stretch';
         }
-
         try {
             const cached = JSON.parse(localStorage.getItem('moadja_profil'));
             const btn    = document.getElementById('btn-profil-header');
@@ -184,16 +180,14 @@ async function showApp() {
     switchTab(saved, true);
 
     chargerPriere();
-    if (typeof window.chargerIslam     === 'function') window.chargerIslam();
+    if (typeof window.chargerIslam === 'function') window.chargerIslam();
     chargerMeteoAuto();
-    if (typeof initFeed                === 'function') initFeed();
-    if (typeof chargerAstrologie       === 'function') chargerAstrologie();
-    if (typeof chargerWidgetSocial     === 'function') chargerWidgetSocial();
-    if (typeof chargerWidgetSante      === 'function') chargerWidgetSante();
-    if (typeof chargerThemeAstral      === 'function') chargerThemeAstral();
-    setTimeout(() => {
-        if (typeof chargerWidgetTaches === 'function') chargerWidgetTaches();
-    }, 300);
+    if (typeof initFeed            === 'function') initFeed();
+    if (typeof chargerAstrologie   === 'function') chargerAstrologie();
+    if (typeof chargerWidgetSocial === 'function') chargerWidgetSocial();
+    if (typeof chargerWidgetSante  === 'function') chargerWidgetSante();
+    if (typeof chargerThemeAstral  === 'function') chargerThemeAstral();
+    if (typeof chargerAgendaUnifie === 'function') chargerAgendaUnifie();
     chargerWidgetAnniversaires();
 
     const user = getUser();
@@ -289,20 +283,18 @@ function logout() {
 function actualiser() {
     afficherDate();
     chargerPriere();
-    if (typeof window.chargerIslam     === 'function') window.chargerIslam();
+    if (typeof window.chargerIslam === 'function') window.chargerIslam();
     chargerMeteoAuto();
-    if (typeof initFeed                === 'function') initFeed();
-    if (typeof chargerAstrologie       === 'function') chargerAstrologie();
-    if (typeof chargerProfilHeader     === 'function') chargerProfilHeader();
-    if (typeof chargerWidgetTaches     === 'function') chargerWidgetTaches();
-    if (typeof chargerWidgetSocial     === 'function') chargerWidgetSocial();
-    if (typeof chargerWidgetSante      === 'function') chargerWidgetSante();
-    if (typeof chargerThemeAstral      === 'function') chargerThemeAstral();
+    if (typeof initFeed            === 'function') initFeed();
+    if (typeof chargerAstrologie   === 'function') chargerAstrologie();
+    if (typeof chargerProfilHeader === 'function') chargerProfilHeader();
+    if (typeof chargerWidgetSocial === 'function') chargerWidgetSocial();
+    if (typeof chargerWidgetSante  === 'function') chargerWidgetSante();
+    if (typeof chargerThemeAstral  === 'function') chargerThemeAstral();
+    if (typeof chargerAgendaUnifie === 'function') chargerAgendaUnifie();
     chargerWidgetAnniversaires();
-    chargerWidgetPlanning();
-    if (typeof Cycle      !== 'undefined') Cycle.charger();
-    if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
-    if (typeof chargerBadgeNotifs === 'function') chargerBadgeNotifs();
+    if (typeof Cycle              !== 'undefined') Cycle.charger();
+    if (typeof chargerBadgeNotifs === 'function')  chargerBadgeNotifs();
     const user = getUser();
     if (user?.role === 'admin') chargerWidgetAdmin();
 }
@@ -415,16 +407,15 @@ async function afficherVersion() {
 // ===================== REFRESH WIDGET ========================
 function refreshWidget(id) {
     switch (id) {
-        case 'meteo'        : chargerMeteoAuto();                                                        break;
-        case 'priere'       : chargerPriere();                                                           break;
-        case 'islam'        : if (typeof window.chargerIslam   === 'function') window.chargerIslam();    break;
-        case 'astrologie'   : if (typeof chargerAstrologie     === 'function') chargerAstrologie();      break;
-        case 'theme-astral' : if (typeof chargerThemeAstral    === 'function') chargerThemeAstral();     break;
-        case 'cycle'        : if (typeof Cycle      !== 'undefined') Cycle.charger();                    break;
-        case 'rendezvous'   : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();               break;
-        case 'planning'     : chargerWidgetPlanning();                                                   break;
-        case 'social'       : if (typeof chargerWidgetSocial   === 'function') chargerWidgetSocial();    break;
-        case 'sante'        : if (typeof chargerWidgetSante    === 'function') chargerWidgetSante();     break;
+        case 'meteo'        : chargerMeteoAuto();                                                     break;
+        case 'priere'       : chargerPriere();                                                        break;
+        case 'islam'        : if (typeof window.chargerIslam === 'function') window.chargerIslam();   break;
+        case 'astrologie'   : if (typeof chargerAstrologie   === 'function') chargerAstrologie();     break;
+        case 'theme-astral' : if (typeof chargerThemeAstral  === 'function') chargerThemeAstral();    break;
+        case 'cycle'        : if (typeof Cycle !== 'undefined') Cycle.charger();                      break;
+        case 'social'       : if (typeof chargerWidgetSocial === 'function') chargerWidgetSocial();   break;
+        case 'sante'        : if (typeof chargerWidgetSante  === 'function') chargerWidgetSante();    break;
+        case 'agenda-unifie': if (typeof chargerAgendaUnifie === 'function') chargerAgendaUnifie();   break;
     }
 }
 

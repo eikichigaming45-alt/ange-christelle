@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'moadja-cache-v1.46';
+﻿const CACHE_NAME = 'moadja-cache-v1.47';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
@@ -17,6 +17,7 @@ const ASSETS_TO_CACHE = [
     '/js/modal.js',
     '/js/profil.js',
     '/js/planning.js',
+    '/js/agenda.js',
     '/js/meteo.js',
     '/js/rendezvous.js',
     '/js/cycle.js',
