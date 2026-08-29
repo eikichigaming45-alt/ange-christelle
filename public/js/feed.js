@@ -78,9 +78,10 @@ async function chargerFeed() {
 
 // ── @MENTION : RENDER CONTENU AVEC TAGS CLIQUABLES ───────────
 function _renderHashtags(texte) {
-    return texte.replace(/#([a-zA-ZÀ-ÿ0-9_]+)/g, (match, tag) =>
-        `<span class="hashtag-tag" data-tag="${tag.toLowerCase()}" style="color:#7c3aed;font-weight:600;cursor:pointer">${match}</span>`
-    );
+    return texte.replace(/(<[^>]*>)|#([a-zA-ZÀ-ÿ0-9_]+)/g, (match, tag_html, tag) => {
+        if (tag_html) return tag_html;
+        return `<span class="hashtag-tag" data-tag="${tag.toLowerCase()}" style="color:#7c3aed;font-weight:600;cursor:pointer">#${tag}</span>`;
+    });
 }
 
 function renderContenuAvecMentions(contenu, mentionsData) {
