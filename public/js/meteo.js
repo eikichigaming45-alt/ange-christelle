@@ -1,4 +1,11 @@
-// ===================== WIDGET METEO =====================
+// ============================================================
+// public/js/meteo.js
+// Widget Météo — Open-Meteo + Nominatim.
+// Persistance localStorage : moadja_meteo_mode + moadja_meteo_coords
+// Refresh manuel (bouton ↻) + auto toutes les 30 min.
+// Refresh géoloc : re-demande position si mode=geoloc.
+// Fallback : coords profil BDD → géoloc → Paris.
+// ============================================================
 
 const METEO_ICONS = {
     0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️',
@@ -13,18 +20,55 @@ const METEO_ICONS = {
     95:'⛈️', 96:'⛈️', 99:'⛈️'
 };
 
-
 const METEO_DESC = {
     0:'Ciel dégagé', 1:'Principalement dégagé', 2:'Partiellement nuageux',
     3:'Couvert', 45:'Brouillard', 48:'Brouillard givrant',
     51:'Bruine légère', 53:'Bruine', 55:'Bruine forte',
+    56:'Bruine légère verglaçante', 57:'Bruine verglaçante forte',
     61:'Pluie légère', 63:'Pluie modérée', 65:'Forte pluie',
-    71:'Neige légère', 73:'Neige', 75:'Forte neige',
+    66:'Pluie verglaçante légère', 67:'Pluie verglaçante forte',
+    71:'Neige légère', 73:'Neige', 75:'Forte neige', 77:'Grésil',
     80:'Averses légères', 81:'Averses', 82:'Fortes averses',
+    85:'Averses de neige légères', 86:'Averses de neige fortes',
     95:'Orage', 96:'Orage avec grêle', 99:'Orage violent'
 };
 
 const JOURS_COURT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+
+// ── Clés localStorage ─────────────────────────────────────────
+const LS_MODE   = 'moadja_meteo_mode';
+const LS_COORDS = 'moadja_meteo_coords';
+
+// ── Intervalle refresh auto (30 min) ─────────────────────────
+let _meteoRefreshInterval = null;
+
+// ── Utilitaires localStorage ──────────────────────────────────
+function _sauverMeteoLS(mode, lat, lon, ville) {
+    try {
+        localStorage.setItem(LS_MODE, mode);
+        localStorage.setItem(LS_COORDS, JSON.stringify({ lat, lon, ville }));
+    } catch (e) {}
+}
+
+function _lireMeteoLS() {
+    try {
+        const mode   = localStorage.getItem(LS_MODE);
+        const coords = localStorage.getItem(LS_COORDS);
+        if (mode && coords) return { mode, ...JSON.parse(coords) };
+    } catch (e) {}
+    return null;
+}
+
+// ── Calcul distance entre deux points (km) — formule Haversine ─
+function _distanceKm(lat1, lon1, lat2, lon2) {
+    const R  = 6371;
+    const dL = (lat2 - lat1) * Math.PI / 180;
+    const dl = (lon2 - lon1) * Math.PI / 180;
+    const a  = Math.sin(dL / 2) * Math.sin(dL / 2)
+             + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+             * Math.sin(dl / 2) * Math.sin(dl / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 async function getNomVille(lat, lon) {
     try {
@@ -34,7 +78,7 @@ async function getNomVille(lat, lon) {
     } catch { return 'Ma position'; }
 }
 
-async function chargerMeteo(lat, lon, nomVille) {
+async function chargerMeteo(lat, lon, nomVille, mode) {
     const el = document.getElementById('wc-meteo');
     if (el) el.textContent = 'Chargement...';
     try {
@@ -55,6 +99,10 @@ async function chargerMeteo(lat, lon, nomVille) {
             lat, lon,
             daily : d.daily
         };
+
+        // Persistance localStorage
+        const modeEffectif = mode || 'ville';
+        _sauverMeteoLS(modeEffectif, lat, lon, nomVille);
 
         _renderWidget();
 
@@ -80,7 +128,7 @@ function _renderWidget() {
     const dateLabel = now.toLocaleDateString('fr-FR', {
         weekday: 'long', day: 'numeric', month: 'long'
     });
-    const dateCap   = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
+    const dateCap = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
 
     const joursHTML = d.daily.time.slice(0, 5).map((tj, i) => {
         const jObj  = new Date(tj + 'T12:00:00');
@@ -108,7 +156,17 @@ function _renderWidget() {
                     <div style="font-size:11px;color:#e879a0;margin-top:2px;font-weight:600">📍 ${d.ville}</div>
                     <div style="font-size:11px;color:#9ca3af;margin-top:2px">${dateCap}</div>
                 </div>
-                <div style="font-size:44px;line-height:1">${d.icon}</div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+                    <div style="font-size:44px;line-height:1">${d.icon}</div>
+                    <button onclick="_refreshMeteo()"
+                        title="Actualiser la météo"
+                        style="background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.2);
+                               border-radius:50%;width:32px;height:32px;font-size:15px;cursor:pointer;
+                               color:#7c3aed;display:flex;align-items:center;justify-content:center;
+                               padding:0;transition:background .15s"
+                        onmouseover="this.style.background='rgba(79,70,229,0.18)'"
+                        onmouseout="this.style.background='rgba(79,70,229,0.08)'">↻</button>
+                </div>
             </div>
             <div style="display:flex;gap:5px;flex-wrap:wrap">
                 <span class="meteo-badge">💧 ${d.hum}%</span>
@@ -118,6 +176,65 @@ function _renderWidget() {
             <div style="display:flex;gap:4px;width:100%">${joursHTML}</div>
         </div>
     `;
+}
+
+// ── Refresh manuel ────────────────────────────────────────────
+window._refreshMeteo = async function () {
+    const ls = _lireMeteoLS();
+    if (ls?.mode === 'geoloc' && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            async pos => {
+                const newLat = pos.coords.latitude;
+                const newLon = pos.coords.longitude;
+                const ville  = await getNomVille(newLat, newLon);
+                await chargerMeteo(newLat, newLon, ville, 'geoloc');
+            },
+            async () => {
+                // Géoloc refusée — fallback coords sauvegardées
+                if (ls?.lat && ls?.lon) {
+                    await chargerMeteo(ls.lat, ls.lon, ls.ville || 'Ma position', 'ville');
+                }
+            }
+        );
+    } else if (ls?.lat && ls?.lon) {
+        await chargerMeteo(ls.lat, ls.lon, ls.ville || 'Ma position', ls.mode || 'ville');
+    }
+};
+
+// ── Refresh auto 30 min ───────────────────────────────────────
+function _demarrerRefreshAuto() {
+    if (_meteoRefreshInterval) clearInterval(_meteoRefreshInterval);
+    _meteoRefreshInterval = setInterval(async () => {
+        const ls = _lireMeteoLS();
+        if (!ls) return;
+
+        if (ls.mode === 'geoloc' && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                async pos => {
+                    const newLat = pos.coords.latitude;
+                    const newLon = pos.coords.longitude;
+                    // Refresh uniquement si déplacement > 5 km
+                    const dist = (ls.lat && ls.lon)
+                        ? _distanceKm(ls.lat, ls.lon, newLat, newLon)
+                        : 999;
+                    if (dist > 5) {
+                        const ville = await getNomVille(newLat, newLon);
+                        await chargerMeteo(newLat, newLon, ville, 'geoloc');
+                    } else {
+                        // Même position — refresh données météo sans changer la ville
+                        await chargerMeteo(ls.lat, ls.lon, ls.ville || 'Ma position', 'geoloc');
+                    }
+                },
+                () => {
+                    if (ls.lat && ls.lon) {
+                        chargerMeteo(ls.lat, ls.lon, ls.ville || 'Ma position', 'ville');
+                    }
+                }
+            );
+        } else if (ls.lat && ls.lon) {
+            await chargerMeteo(ls.lat, ls.lon, ls.ville || 'Ma position', ls.mode || 'ville');
+        }
+    }, 30 * 60 * 1000);
 }
 
 function _renderModaleMeteo(selectedIdx) {
@@ -140,11 +257,11 @@ function _renderModaleMeteo(selectedIdx) {
     const dateLabel = selectedIdx === 0
         ? "Aujourd'hui"
         : dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-    const iMax    = Math.round(d.daily.temperature_2m_max[selectedIdx]);
-    const iMin    = Math.round(d.daily.temperature_2m_min[selectedIdx]);
-    const iIcon   = METEO_ICONS[d.daily.weather_code[selectedIdx]] || '🌡️';
-    const iPluie  = d.daily.precipitation_probability_max?.[selectedIdx] || 0;
-    const desc    = METEO_DESC[d.daily.weather_code[selectedIdx]] || 'Variable';
+    const iMax   = Math.round(d.daily.temperature_2m_max[selectedIdx]);
+    const iMin   = Math.round(d.daily.temperature_2m_min[selectedIdx]);
+    const iIcon  = METEO_ICONS[d.daily.weather_code[selectedIdx]] || '🌡️';
+    const iPluie = d.daily.precipitation_probability_max?.[selectedIdx] || 0;
+    const desc   = METEO_DESC[d.daily.weather_code[selectedIdx]] || 'Variable';
     const isToday = selectedIdx === 0;
 
     const joursHTML = d.daily.time.slice(0, 6).map((tj, i) => {
@@ -216,11 +333,11 @@ function _renderModaleMeteo(selectedIdx) {
     `;
 }
 
-window._selectJourModale = function(idx) {
+window._selectJourModale = function (idx) {
     _renderModaleMeteo(idx);
 };
 
-window._ouvrirModaleMeteo = function() {
+window._ouvrirModaleMeteo = function () {
     _renderModaleMeteo(0);
 };
 
@@ -229,10 +346,15 @@ function afficherDetailJourModale(i) {
 }
 
 async function chargerMeteoAuto() {
-    if (profilCache?.meteo_lat && profilCache?.meteo_lon) {
-        chargerMeteo(profilCache.meteo_lat, profilCache.meteo_lon, profilCache.meteo_ville || 'Ma ville');
+    // Priorité 1 : localStorage
+    const ls = _lireMeteoLS();
+    if (ls?.lat && ls?.lon) {
+        await chargerMeteo(ls.lat, ls.lon, ls.ville || 'Ma position', ls.mode || 'ville');
+        _demarrerRefreshAuto();
         return;
     }
+
+    // Priorité 2 : profil BDD
     try {
         const user = getUser();
         if (user?.token) {
@@ -242,21 +364,36 @@ async function chargerMeteoAuto() {
             const d = await r.json();
             if (d.profil?.meteo_lat && d.profil?.meteo_lon) {
                 profilCache = d.profil;
-                chargerMeteo(d.profil.meteo_lat, d.profil.meteo_lon, d.profil.meteo_ville || 'Ma ville');
+                await chargerMeteo(
+                    d.profil.meteo_lat,
+                    d.profil.meteo_lon,
+                    d.profil.meteo_ville || 'Ma ville',
+                    'ville'
+                );
+                _demarrerRefreshAuto();
                 return;
             }
         }
-    } catch { /* fallback géoloc */ }
+    } catch {}
 
+    // Priorité 3 : géolocalisation
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             async pos => {
                 const ville = await getNomVille(pos.coords.latitude, pos.coords.longitude);
-                chargerMeteo(pos.coords.latitude, pos.coords.longitude, ville);
+                await chargerMeteo(pos.coords.latitude, pos.coords.longitude, ville, 'geoloc');
+                _demarrerRefreshAuto();
             },
-            () => chargerMeteo(48.8566, 2.3522, 'Paris')
+            async () => {
+                // Priorité 4 : fallback Paris
+                await chargerMeteo(48.8566, 2.3522, 'Paris', 'ville');
+                _demarrerRefreshAuto();
+            }
         );
-    } else { chargerMeteo(48.8566, 2.3522, 'Paris'); }
+    } else {
+        await chargerMeteo(48.8566, 2.3522, 'Paris', 'ville');
+        _demarrerRefreshAuto();
+    }
 }
 
 async function rechercherVille() {
@@ -267,7 +404,7 @@ async function rechercherVille() {
         const d = await r.json();
         if (d.results?.length > 0) {
             const res = d.results[0];
-            await chargerMeteo(res.latitude, res.longitude, res.name);
+            await chargerMeteo(res.latitude, res.longitude, res.name, 'ville');
             closeModal();
         } else {
             document.getElementById('modal-body').innerHTML = `
@@ -294,7 +431,7 @@ async function geoLocaliser() {
     navigator.geolocation.getCurrentPosition(
         async pos => {
             const ville = await getNomVille(pos.coords.latitude, pos.coords.longitude);
-            await chargerMeteo(pos.coords.latitude, pos.coords.longitude, ville);
+            await chargerMeteo(pos.coords.latitude, pos.coords.longitude, ville, 'geoloc');
             closeModal();
         },
         () => {
@@ -308,4 +445,3 @@ async function geoLocaliser() {
         }
     );
 }
-// ============================================================
