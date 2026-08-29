@@ -169,10 +169,14 @@ router.get('/', authenticateToken, async (req, res) => {
             JOIN users u ON u.id = p.user_id
             LEFT JOIN profiles pr ON pr.user_id = p.user_id
         `;
-        const params = [userId];
+                const hashtag = (req.query.hashtag || '').trim().toLowerCase();
         if (filter === 'following') {
             query += ` WHERE p.user_id IN (SELECT following_id FROM follows WHERE follower_id = \$1)`;
+            if (hashtag) query += ` AND LOWER(p.contenu) LIKE \$2`;
+        } else if (hashtag) {
+            query += ` WHERE LOWER(p.contenu) LIKE \$2`;
         }
+        if (hashtag) params.push(`%#${hashtag}%`);
         query += ` ORDER BY p.created_at DESC LIMIT 50`;
         const { rows } = await pool.query(query, params);
         res.json({ success: true, posts: rows });

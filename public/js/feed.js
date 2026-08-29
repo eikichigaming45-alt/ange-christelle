@@ -7,6 +7,7 @@
 
 let feedFilter    = 'all';
 let feedFollowing = [];
+let feedHashtag   = null;
 
 // ── INIT ─────────────────────────────────────────────────────
 async function initFeed() {
@@ -76,11 +77,19 @@ async function chargerFeed() {
 }
 
 // ── @MENTION : RENDER CONTENU AVEC TAGS CLIQUABLES ───────────
+function _renderHashtags(texte) {
+    return texte.replace(/#([a-zA-ZÀ-ÿ0-9_]+)/g, (match, tag) =>
+        `<span class="hashtag-tag" data-tag="${tag.toLowerCase()}" style="color:#7c3aed;font-weight:600;cursor:pointer">${match}</span>`
+    );
+}
+
 function renderContenuAvecMentions(contenu, mentionsData) {
     if (!contenu) return '';
     if (!mentionsData || !mentionsData.length) {
-        return escapeHtml(contenu).replace(/@toutlemonde/gi,
-            '<span class="mention-tag" style="color:#7c3aed;font-weight:600;cursor:default">@Tout le monde</span>');
+        return _renderHashtags(
+            escapeHtml(contenu).replace(/@toutlemonde/gi,
+                '<span class="mention-tag" style="color:#7c3aed;font-weight:600;cursor:default">@Tout le monde</span>')
+        );
     }
 
     let result = contenu;
@@ -116,9 +125,12 @@ function renderContenuAvecMentions(contenu, mentionsData) {
         result = result.split(escapeHtml(placeholder)).join(html);
     }
 
-    result = result.split('%%TOUTLEMONDE%%').join(
+        result = result.split('%%TOUTLEMONDE%%').join(
         '<span class="mention-tag" style="color:#7c3aed;font-weight:600;cursor:default">@Tout le monde</span>'
     );
+
+    return _renderHashtags(result);
+}
 
     return result;
 }
@@ -131,6 +143,65 @@ document.addEventListener('click', e => {
     const userId = parseInt(tag.dataset.userId);
     if (userId) ouvrirProfilPublic(userId);
 });
+
+// Clic sur hashtag → filtrer le feed
+document.addEventListener('click', e => {
+    const tag = e.target.closest('.hashtag-tag');
+    if (!tag) return;
+    e.stopPropagation();
+    filtrerParHashtag(tag.dataset.tag);
+});
+
+async function filtrerParHashtag(tag) {
+    feedFilter = 'hashtag';
+    feedHashtag = tag;
+
+    document.querySelectorAll('.feed-filter-btn').forEach(b => b.classList.remove('active'));
+
+    const list = document.getElementById('feed-list');
+    if (!list) return;
+    list.innerHTML = '<div class="feed-loading">Chargement...</div>';
+
+    const user = getUser();
+    try {
+        const r = await fetch(`/api/feed?hashtag=${encodeURIComponent(tag)}`, {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error();
+
+        // Bandeau hashtag actif
+        const header = document.querySelector('.feed-header');
+        const existing = document.getElementById('hashtag-banner');
+        if (existing) existing.remove();
+        if (header) {
+            const banner = document.createElement('div');
+            banner.id = 'hashtag-banner';
+            banner.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;background:#ede9fe;border-radius:10px;margin-bottom:8px;font-size:13px;font-weight:600;color:#7c3aed';
+            banner.innerHTML = `#${tag} <button onclick="clearHashtagFilter()" style="margin-left:auto;background:none;border:none;font-size:16px;cursor:pointer;color:#7c3aed;line-height:1">✕</button>`;
+            header.insertAdjacentElement('afterend', banner);
+        }
+
+        if (!d.posts.length) {
+            list.innerHTML = `<div class="feed-empty">Aucun post avec #${tag}.</div>`;
+            return;
+        }
+        list.innerHTML = d.posts.map(p => renderPost(p)).join('');
+    } catch {
+        list.innerHTML = '<div class="feed-empty">Erreur de chargement.</div>';
+    }
+}
+
+async function clearHashtagFilter() {
+    feedFilter  = 'all';
+    feedHashtag = null;
+    const banner = document.getElementById('hashtag-banner');
+    if (banner) banner.remove();
+    document.querySelectorAll('.feed-filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === 'all');
+    });
+    await chargerFeed();
+}
 
 // ── @MENTION : AUTOCOMPLETE ───────────────────────────────────
 function initMentions(inputEl, wrapEl) {
