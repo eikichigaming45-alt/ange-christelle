@@ -1,6 +1,6 @@
 // ============================================================
 // routes/theme-astral.js
-// Thème astral natal — freeastrologyapi.com + Groq + cache BDD
+// Thème astral natal — freeastrologyapi.com western + Groq + cache BDD
 // ============================================================
 
 const express               = require('express');
@@ -9,61 +9,67 @@ const { pool }              = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 const { find }              = require('geo-tz');
 
-const FREEASTRO_URL = 'https://json.freeastrologyapi.com/planets';
+const FREEASTRO_URL = 'https://json.freeastrologyapi.com/western/planets';
 const GROQ_URL      = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL    = 'openai/gpt-oss-20b';
 
 // ── Mappings FR ───────────────────────────────────────────────
 const PLANETES_FR = {
-    Sun      : 'Soleil',
-    Moon     : 'Lune',
-    Mercury  : 'Mercure',
-    Venus    : 'Vénus',
-    Mars     : 'Mars',
-    Jupiter  : 'Jupiter',
-    Saturn   : 'Saturne',
-    Uranus   : 'Uranus',
-    Neptune  : 'Neptune',
-    Pluto    : 'Pluton',
-    Ascendant: 'Ascendant',
-    MC       : 'Milieu du Ciel',
-    NorthNode: 'Nœud Nord',
-    Rahu     : 'Nœud Nord',
-    Ketu     : 'Nœud Sud',
-    Chiron   : 'Chiron',
-    Lilith   : 'Lilith'
+    Sun        : 'Soleil',
+    Moon       : 'Lune',
+    Mercury    : 'Mercure',
+    Venus      : 'Vénus',
+    Mars       : 'Mars',
+    Jupiter    : 'Jupiter',
+    Saturn     : 'Saturne',
+    Uranus     : 'Uranus',
+    Neptune    : 'Neptune',
+    Pluto      : 'Pluton',
+    Ascendant  : 'Ascendant',
+    Descendant : 'Descendant',
+    MC         : 'Milieu du Ciel',
+    IC         : 'Fond du Ciel',
+    'Mean Node': 'Nœud Nord',
+    'True Node': 'Nœud Nord (vrai)',
+    Chiron     : 'Chiron',
+    Lilith     : 'Lilith',
+    Ceres      : 'Cérès',
+    Vesta      : 'Vesta',
+    Juno       : 'Junon',
+    Pallas     : 'Pallas'
 };
 
 const SIGNES_FR = {
-    1 : { fr: 'Bélier',      en: 'Aries'       },
-    2 : { fr: 'Taureau',     en: 'Taurus'      },
-    3 : { fr: 'Gémeaux',     en: 'Gemini'       },
-    4 : { fr: 'Cancer',      en: 'Cancer'       },
-    5 : { fr: 'Lion',        en: 'Leo'          },
-    6 : { fr: 'Vierge',      en: 'Virgo'        },
-    7 : { fr: 'Balance',     en: 'Libra'        },
-    8 : { fr: 'Scorpion',    en: 'Scorpio'      },
-    9 : { fr: 'Sagittaire',  en: 'Sagittarius'  },
-    10: { fr: 'Capricorne',  en: 'Capricorn'    },
-    11: { fr: 'Verseau',     en: 'Aquarius'     },
-    12: { fr: 'Poissons',    en: 'Pisces'       }
+    Aries      : 'Bélier',
+    Taurus     : 'Taureau',
+    Gemini     : 'Gémeaux',
+    Cancer     : 'Cancer',
+    Leo        : 'Lion',
+    Virgo      : 'Vierge',
+    Libra      : 'Balance',
+    Scorpio    : 'Scorpion',
+    Sagittarius: 'Sagittaire',
+    Capricorn  : 'Capricorne',
+    Aquarius   : 'Verseau',
+    Pisces     : 'Poissons'
 };
 
 const SIGNES_EMOJI = {
-    1:'♈', 2:'♉', 3:'♊', 4:'♋', 5:'♌', 6:'♍',
-    7:'♎', 8:'♏', 9:'♐', 10:'♑', 11:'♒', 12:'♓'
+    Aries:'♈', Taurus:'♉', Gemini:'♊', Cancer:'♋',
+    Leo:'♌', Virgo:'♍', Libra:'♎', Scorpio:'♏',
+    Sagittarius:'♐', Capricorn:'♑', Aquarius:'♒', Pisces:'♓'
 };
 
 // ── Calcul offset UTC depuis timezone IANA ────────────────────
 function getUtcOffset(tzName, date) {
     try {
         const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: tzName,
+            timeZone    : tzName,
             timeZoneName: 'shortOffset'
         });
-        const parts = formatter.formatToParts(date);
+        const parts     = formatter.formatToParts(date);
         const offsetStr = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+0';
-        const match = offsetStr.match(/GMT([+-]\d+(?::\d+)?)?/);
+        const match     = offsetStr.match(/GMT([+-]\d+(?::\d+)?)?/);
         if (!match || !match[1]) return 0;
         const [h, m] = match[1].split(':').map(Number);
         return h + (m ? (h < 0 ? -m / 60 : m / 60) : 0);
@@ -72,34 +78,32 @@ function getUtcOffset(tzName, date) {
     }
 }
 
-// ── Normaliser une planète depuis le format API ───────────────
+// ── Normaliser une planète depuis le format API western ───────
 function normaliserPlanete(p) {
-    const name       = p.name || '';
-    const signNum    = p.current_sign || null;
-    const signInfo   = signNum ? (SIGNES_FR[signNum] || null) : null;
-    const sign       = signInfo?.en || '';
-    const fullDegree = p.fullDegree  != null ? parseFloat(p.fullDegree)  : null;
-    const normDegree = p.normDegree  != null ? parseFloat(p.normDegree).toFixed(1) : null;
+    const name       = p.planet?.en || '';
+    const sign       = p.zodiac_sign?.name?.en || '';
+    const fullDegree = p.fullDegree != null ? parseFloat(p.fullDegree)                    : null;
+    const normDegree = p.normDegree != null ? parseFloat(p.normDegree).toFixed(1)         : null;
     return {
         name,
         sign,
         fullDegree,
         normDegree,
         isRetro : p.isRetro === 'true' || p.isRetro === true,
-        house   : p.house_number || null,
-        nameFR  : PLANETES_FR[name] || name,
-        signeFR : signInfo?.fr || sign,
-        emoji   : signNum ? (SIGNES_EMOJI[signNum] || '') : ''
+        house   : null,
+        nameFR  : PLANETES_FR[name]  || name,
+        signeFR : SIGNES_FR[sign]    || sign,
+        emoji   : SIGNES_EMOJI[sign] || ''
     };
 }
 
 // ── Calcul dominante planétaire ───────────────────────────────
 function calculerDominante(planetes) {
     const scores = {};
+    const principales = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'];
     planetes.forEach(p => {
-        if (!PLANETES_FR[p.name]) return;
+        if (!principales.includes(p.name)) return;
         scores[p.name] = (scores[p.name] || 0) + 1;
-        if (p.house) scores[p.name] += 0.5;
     });
     const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
     return sorted[0]?.[0] || null;
@@ -154,11 +158,7 @@ router.get('/', authenticateToken, async (req, res) => {
             seconds  : 0,
             latitude : lat,
             longitude: lng,
-            timezone,
-            config   : {
-                observation_point: 'topocentric',
-                ayanamsha        : 'lahiri'
-            }
+            timezone
         };
 
         console.log('[THEME-ASTRAL] Payload envoyé:', JSON.stringify(payload));
@@ -181,24 +181,18 @@ router.get('/', authenticateToken, async (req, res) => {
         const astroData = await astroRes.json();
         console.log('[THEME-ASTRAL] statusCode:', astroData.statusCode);
 
-        const rawOutput = astroData.output?.[0];
-        if (!rawOutput) {
+        const rawOutput = astroData.output;
+        if (!Array.isArray(rawOutput) || !rawOutput.length) {
             console.error('[THEME-ASTRAL] Aucune donnée output. Réponse:', JSON.stringify(astroData));
             return res.json({ success: false, code: 'API_ERROR', message: 'Données astrologiques invalides.' });
         }
 
-        const rawPlanetes = Object.values(rawOutput).filter(p => p && typeof p === 'object' && p.name);
-
-        if (rawPlanetes.length > 0) {
-            console.log('[THEME-ASTRAL] Format planète exemple:', JSON.stringify(rawPlanetes[0]));
-        }
-
-        const planetesFR = rawPlanetes.map(normaliserPlanete);
+        const planetesFR = rawOutput.map(normaliserPlanete).filter(p => p.name);
 
         const soleil    = planetesFR.find(p => p.name === 'Sun');
         const lune      = planetesFR.find(p => p.name === 'Moon');
         const ascendant = planetesFR.find(p => p.name === 'Ascendant');
-        const mc        = planetesFR.find(p => p.name === 'MC' || p.name === 'Midheaven');
+        const mc        = planetesFR.find(p => p.name === 'MC');
         const dominante   = calculerDominante(planetesFR);
         const dominanteFR = dominante ? (PLANETES_FR[dominante] || dominante) : null;
 
@@ -240,16 +234,16 @@ router.get('/', authenticateToken, async (req, res) => {
         }
 
         const cacheData = {
-            planetes      : planetesFR,
+            planetes    : planetesFR,
             soleil,
             lune,
-            ascendant     : hasHeure ? ascendant : null,
-            mc            : hasHeure ? mc : null,
+            ascendant   : hasHeure ? ascendant : null,
+            mc          : hasHeure ? mc : null,
             dominante,
             dominanteFR,
             interpretation,
             hasHeure,
-            generatedAt   : new Date().toISOString().split('T')[0]
+            generatedAt : new Date().toISOString().split('T')[0]
         };
 
         await pool.query(
