@@ -90,7 +90,6 @@ router.get('/', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     try {
-        // 1. Récupérer le profil
         const { rows } = await pool.query(
             'SELECT date_naissance, heure_naissance, naissance_lat, naissance_lon, lieu_naissance, astral_cache FROM profiles WHERE user_id = \$1',
             [userId]
@@ -111,12 +110,10 @@ router.get('/', authenticateToken, async (req, res) => {
 
         const hasHeure = !!profil.heure_naissance;
 
-        // 2. Cache permanent
         if (profil.astral_cache) {
             return res.json({ success: true, data: profil.astral_cache, fromCache: true });
         }
 
-        // 3. Préparer payload
         const dateNaissance = new Date(profil.date_naissance);
         const heureStr      = hasHeure ? profil.heure_naissance.slice(0, 5) : '12:00';
         const [hh, mm]      = heureStr.split(':').map(Number);
@@ -135,14 +132,13 @@ router.get('/', authenticateToken, async (req, res) => {
             payload.lng = parseFloat(profil.naissance_lon);
         }
 
-        // 4. Appel FreeAstroAPI v2
         console.log('[THEME-ASTRAL] Payload envoyé:', JSON.stringify(payload));
 
         const astroRes = await fetch(FREEASTRO_URL, {
             method : 'POST',
             headers: {
-                'Content-Type' : 'application/json',
-                'Authorization': `Bearer ${process.env.FREEASTROAPI_KEY}`
+                'Content-Type': 'application/json',
+                'x-api-key'   : process.env.FREEASTROAPI_KEY
             },
             body: JSON.stringify(payload)
         });
@@ -156,7 +152,6 @@ router.get('/', authenticateToken, async (req, res) => {
         const astroData = await astroRes.json();
         console.log('[THEME-ASTRAL] Réponse API (keys):', Object.keys(astroData));
 
-        // 5. Extraire planètes — compatibilité formats
         let rawPlanetes = [];
         if (Array.isArray(astroData.planets)) {
             rawPlanetes = astroData.planets;
@@ -181,7 +176,6 @@ router.get('/', authenticateToken, async (req, res) => {
 
         const planetesFR = rawPlanetes.map(normaliserPlanete);
 
-        // 6. Extraire points clés
         const soleil    = planetesFR.find(p => p.name === 'Sun');
         const lune      = planetesFR.find(p => p.name === 'Moon');
         const ascendant = planetesFR.find(p =>
@@ -193,7 +187,6 @@ router.get('/', authenticateToken, async (req, res) => {
         const dominante   = calculerDominante(planetesFR);
         const dominanteFR = dominante ? (PLANETES_FR[dominante] || dominante) : null;
 
-        // 7. Groq — interprétation narrative
         let interpretation = null;
         try {
             const promptParts = [
@@ -231,7 +224,6 @@ router.get('/', authenticateToken, async (req, res) => {
             console.error('[THEME-ASTRAL] Groq error:', groqErr.message);
         }
 
-        // 8. Construire objet cache
         const cacheData = {
             planetes    : planetesFR,
             soleil,
@@ -245,7 +237,6 @@ router.get('/', authenticateToken, async (req, res) => {
             generatedAt : new Date().toISOString().split('T')[0]
         };
 
-        // 9. Sauvegarder en BDD
         await pool.query(
             'UPDATE profiles SET astral_cache = \$1 WHERE user_id = \$2',
             [JSON.stringify(cacheData), userId]
