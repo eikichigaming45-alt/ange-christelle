@@ -1,3 +1,10 @@
+// ============================================================
+// public/js/islam.js
+// Widget Prière Islam — horaires Aladhan + hadith HadeethEnc.
+// Si islam_coords absent : tente les coords météo du profil.
+// Si aucune coords dispo : bandeau + bouton Compléter le profil.
+// ============================================================
+
 (function () {
     'use strict';
 
@@ -26,8 +33,8 @@
         try {
             const saved = localStorage.getItem('islam_coords');
             if (saved) return JSON.parse(saved);
-        } catch(e) {}
-        return { lat: 48.8566, lon: 2.3522, ville: 'Paris' };
+        } catch (e) {}
+        return null;
     }
 
     function afficherWidget(data) {
@@ -40,7 +47,7 @@
                 <div style="font-size:11px;text-transform:uppercase;opacity:.8;letter-spacing:1px;">Prochaine prière</div>
                 <div style="font-size:22px;font-weight:700;">${prochaine.nom}</div>
                 <div style="font-size:32px;font-weight:800;">${prochaine.heure}</div>
-                <div style="font-size:11px;opacity:.75;margin-top:4px;">📍 ${coords.ville}</div>
+                <div style="font-size:11px;opacity:.75;margin-top:4px;">📍 ${coords?.ville || 'Ma position'}</div>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:10px;">
                 ${['Fajr','Dhuhr','Asr','Maghrib','Isha'].map(n => {
@@ -56,8 +63,53 @@
             </div>`;
     }
 
-    function chargerIslam(rafraichirModale = false) {
-        const coords = getCoords();
+    function afficherBandeauProfil() {
+        const w = document.getElementById('wc-islam');
+        if (!w) return;
+        w.innerHTML = `
+            <div class="sante-alerte">
+                ⚠️ Indique ta ville pour afficher les horaires de prière.
+                <br><button class="ta-banner-btn" style="margin-top:8px" onclick="ouvrirMonProfil()">Compléter le profil</button>
+            </div>`;
+    }
+
+    async function obtenirCoordsDepuisProfil() {
+        try {
+            const user = (typeof getUser === 'function') ? getUser() : null;
+            if (!user?.token) return null;
+            const r = await fetch('/api/profil', {
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+            const d = await r.json();
+            if (!d.success || !d.profil) return null;
+            const p = d.profil;
+            if (p.meteo_lat && p.meteo_lon) {
+                const coords = {
+                    lat  : parseFloat(p.meteo_lat),
+                    lon  : parseFloat(p.meteo_lon),
+                    ville: p.meteo_ville || 'Ma position'
+                };
+                try {
+                    localStorage.setItem('islam_coords', JSON.stringify(coords));
+                } catch (e) {}
+                return coords;
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    async function chargerIslam(rafraichirModale = false) {
+        let coords = getCoords();
+
+        if (!coords) {
+            coords = await obtenirCoordsDepuisProfil();
+        }
+
+        if (!coords) {
+            afficherBandeauProfil();
+            return;
+        }
+
         fetch(`/api/islam?lat=${coords.lat}&lon=${coords.lon}`)
             .then(r => r.json())
             .then(data => {
@@ -76,12 +128,12 @@
             });
     }
 
-    window._islamChangerVille = function() {
+    window._islamChangerVille = function () {
         const form = document.getElementById('islam-ville-form');
         if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
     };
 
-    window._islamGeolocate = function() {
+    window._islamGeolocate = function () {
         const msg = document.getElementById('islam-ville-msg');
         if (!navigator.geolocation) {
             if (msg) msg.textContent = 'Géolocalisation non supportée.';
@@ -99,7 +151,7 @@
                 if (msg) { msg.style.color = '#059669'; msg.textContent = `Position enregistrée : ${ville}`; }
                 window._islamData = null;
                 chargerIslam(true);
-            } catch(e) {
+            } catch (e) {
                 if (msg) msg.textContent = 'Erreur de géolocalisation.';
             }
         }, () => {
@@ -107,7 +159,7 @@
         });
     };
 
-    window._islamRechercherVille = async function() {
+    window._islamRechercherVille = async function () {
         const input = document.getElementById('islam-ville-input');
         const msg   = document.getElementById('islam-ville-msg');
         if (!input?.value.trim()) return;
@@ -123,7 +175,7 @@
             if (msg) { msg.style.color = '#059669'; msg.textContent = `Enregistré : ${ville}`; }
             window._islamData = null;
             chargerIslam(true);
-        } catch(e) {
+        } catch (e) {
             if (msg) msg.textContent = 'Erreur de recherche.';
         }
     };
