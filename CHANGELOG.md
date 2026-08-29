@@ -2,6 +2,19 @@
 
 ---
 
+## v1.42 — 29-08-2026 🏷️ Stable
+
+### ✨ Nouveau
+- Thème Astral : le Milieu du Ciel est désormais calculé et affiché correctement
+- Thème Astral : passage à l'astrologie occidentale tropicale — positions planétaires plus précises
+- Thème Astral : l'Ascendant, la Lune, le Soleil et le Milieu du Ciel sont tous affichés dans la roue natale
+
+### 🔧 Corrections
+- Le Milieu du Ciel affichait "Heure requise" alors que l'heure de naissance était renseignée — corrigé
+- Les variables d'environnement n'étaient pas chargées au démarrage du serveur — corrigé
+
+---
+
 ## v1.41 — 28-08-2026 🏷️ Stable
 
 ### ✨ Nouveau
