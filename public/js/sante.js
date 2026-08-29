@@ -106,8 +106,12 @@ async function chargerWidgetSante() {
         } catch {}
     }
 
-    if (!p) {
-        el.innerHTML = '<p class="rdv-error">Erreur de chargement du profil</p>';
+        if (!p) {
+        el.innerHTML = `
+            <div class="sante-alerte">
+                ⚠️ Profil introuvable — complète ton profil pour activer le widget Santé.
+                <br><button class="ta-banner-btn" style="margin-top:8px" onclick="ouvrirMonProfil()">Compléter le profil</button>
+            </div>`;
         return;
     }
 
