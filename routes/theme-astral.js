@@ -82,8 +82,8 @@ function getUtcOffset(tzName, date) {
 function normaliserPlanete(p) {
     const name       = p.planet?.en || '';
     const sign       = p.zodiac_sign?.name?.en || '';
-    const fullDegree = p.fullDegree != null ? parseFloat(p.fullDegree)                    : null;
-    const normDegree = p.normDegree != null ? parseFloat(p.normDegree).toFixed(1)         : null;
+    const fullDegree = p.fullDegree != null ? parseFloat(p.fullDegree)            : null;
+    const normDegree = p.normDegree != null ? parseFloat(p.normDegree).toFixed(1) : null;
     return {
         name,
         sign,
@@ -99,7 +99,7 @@ function normaliserPlanete(p) {
 
 // ── Calcul dominante planétaire ───────────────────────────────
 function calculerDominante(planetes) {
-    const scores = {};
+    const scores     = {};
     const principales = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'];
     planetes.forEach(p => {
         if (!principales.includes(p.name)) return;
@@ -108,6 +108,28 @@ function calculerDominante(planetes) {
     const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
     return sorted[0]?.[0] || null;
 }
+
+// ── GET /api/theme-astral/status ──────────────────────────────
+router.get('/status', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const { rows } = await pool.query(
+            'SELECT date_naissance, naissance_lat, naissance_lon, astral_cache FROM profiles WHERE user_id = \$1',
+            [userId]
+        );
+        if (!rows.length) return res.json({ success: true, hasCache: false, hasDate: false, hasLocation: false });
+        const profil = rows[0];
+        res.json({
+            success    : true,
+            hasCache   : !!profil.astral_cache,
+            hasDate    : !!profil.date_naissance,
+            hasLocation: !!(profil.naissance_lat && profil.naissance_lon)
+        });
+    } catch (err) {
+        console.error('[THEME-ASTRAL] GET /status :', err.message);
+        res.status(500).json({ success: false });
+    }
+});
 
 // ── GET /api/theme-astral ─────────────────────────────────────
 router.get('/', authenticateToken, async (req, res) => {
@@ -234,16 +256,16 @@ router.get('/', authenticateToken, async (req, res) => {
         }
 
         const cacheData = {
-            planetes    : planetesFR,
+            planetes      : planetesFR,
             soleil,
             lune,
-            ascendant   : hasHeure ? ascendant : null,
-            mc          : hasHeure ? mc : null,
+            ascendant     : hasHeure ? ascendant : null,
+            mc            : hasHeure ? mc : null,
             dominante,
             dominanteFR,
             interpretation,
             hasHeure,
-            generatedAt : new Date().toISOString().split('T')[0]
+            generatedAt   : new Date().toISOString().split('T')[0]
         };
 
         await pool.query(

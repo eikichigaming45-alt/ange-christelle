@@ -79,6 +79,105 @@ async function chargerThemeAstral() {
     if (!user?.token) return;
 
     try {
+        const r = await fetch('/api/theme-astral/status', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d = await r.json();
+
+        if (!d.success) {
+            wc.innerHTML = `<div class="ta-banner ta-banner-error"><span class="ta-banner-icon">⚠️</span><span>Erreur réseau.</span></div>`;
+            return;
+        }
+
+        if (!d.hasDate) {
+            wc.innerHTML = _taWidgetErreur('NO_DATE');
+            return;
+        }
+        if (!d.hasLocation) {
+            wc.innerHTML = _taWidgetErreur('NO_LOCATION');
+            return;
+        }
+
+        if (!d.hasCache) {
+            wc.innerHTML = _taWidgetBoutonCalcul();
+            return;
+        }
+
+        const r2 = await fetch('/api/theme-astral', {
+            headers: { 'Authorization': `Bearer ${user.token}` }
+        });
+        const d2 = await r2.json();
+
+        if (!d2.success) {
+            wc.innerHTML = _taWidgetErreur(d2.code);
+            return;
+        }
+
+        _taCache = d2.data;
+        wc.innerHTML = _taWidgetContenu(d2.data);
+
+    } catch {
+        wc.innerHTML = `
+            <div class="ta-banner ta-banner-error">
+                <span class="ta-banner-icon">⚠️</span>
+                <span>Erreur réseau — réessayez plus tard.</span>
+            </div>`;
+    }
+}
+
+function _taWidgetBoutonCalcul() {
+    return `
+        <div style="
+            display:flex;flex-direction:column;align-items:center;justify-content:center;
+            gap:14px;padding:20px 12px;text-align:center;
+        ">
+            <div style="
+                width:64px;height:64px;border-radius:50%;
+                background:linear-gradient(135deg,#7c3aed,#4f46e5);
+                display:flex;align-items:center;justify-content:center;
+                font-size:30px;
+                box-shadow:0 8px 24px rgba(124,58,237,0.35);
+            ">🔮</div>
+            <div>
+                <div style="font-size:14px;font-weight:700;color:#1e1b4b;margin-bottom:4px">
+                    Thème natal non calculé
+                </div>
+                <div style="font-size:12px;color:#6b7280;line-height:1.5">
+                    Calculé une seule fois, conservé définitivement.
+                </div>
+            </div>
+            <button
+                onclick="lancerCalculThemeAstral()"
+                style="
+                    padding:12px 24px;
+                    background:linear-gradient(135deg,#7c3aed,#4f46e5);
+                    color:#fff;border:none;border-radius:50px;
+                    font-size:14px;font-weight:700;cursor:pointer;
+                    box-shadow:0 6px 20px rgba(124,58,237,0.4);
+                    transition:transform .15s,box-shadow .15s;
+                "
+                onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 10px 28px rgba(124,58,237,0.5)'"
+                onmouseout="this.style.transform='';this.style.boxShadow='0 6px 20px rgba(124,58,237,0.4)'"
+            >
+                Calculer mon thème natal
+            </button>
+        </div>`;
+}
+
+async function lancerCalculThemeAstral() {
+    const wc = document.getElementById('wc-theme-astral');
+    if (!wc) return;
+
+    wc.innerHTML = `
+        <div class="ta-loader">
+            <div class="ta-spinner"></div>
+            <span style="font-size:12px;color:#6b7280;margin-top:8px">Calcul en cours...</span>
+        </div>`;
+
+    const user = getUser();
+    if (!user?.token) return;
+
+    try {
         const r = await fetch('/api/theme-astral', {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
@@ -142,6 +241,7 @@ function _taWidgetErreur(code) {
                     <span class="ta-banner-icon">🔮</span>
                     <strong>Service temporairement indisponible.</strong><br>
                     Le calcul astral sera disponible dans quelques instants.
+                    <br><button class="ta-banner-btn" onclick="lancerCalculThemeAstral()">Réessayer</button>
                 </div>
             </div>`;
     }
@@ -255,7 +355,7 @@ function _taModaleContenu(data) {
             <div>
                 <strong>Heure de naissance non renseignée.</strong><br>
                 L'Ascendant, le Milieu du Ciel et les maisons ne peuvent pas être calculés.
-                Les planètes sont positionnées à midi (heure locale).
+				                Les planètes sont positionnées à midi (heure locale).
                 <br><button class="ta-banner-btn" onclick="closeModal();ouvrirMonProfil()">Ajouter l'heure</button>
             </div>
         </div>` : '';
@@ -316,7 +416,7 @@ function _taModaleContenu(data) {
 
     const cacheHtml = `
         <div class="ta-cache-info">
-            Thème calculé le ${generatedAt || 'aujourd\'hui'} · Mis à jour chaque jour
+            Thème natal · Données permanentes
         </div>`;
 
     return `${banniereHeure}${cardsHtml}${dominanteHtml}${roueHtml}${interpHtml}${tableauHtml}${cacheHtml}`;
@@ -408,7 +508,6 @@ function _taGenererRoue(planetes, ascendant) {
         svg += `<text x="${mx.toFixed(1)}" y="${my.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="${couleur}">${TA_SIGNES_EMOJI[signe] || ''}</text>`;
     });
 
-    // ── Planètes ──────────────────────────────────────────────
     const PLANETES_AFFICHEES = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto','Ascendant','MC'];
     const planetesRoue = (planetes || []).filter(p =>
         PLANETES_AFFICHEES.includes(p.name) && p.fullDegree != null
@@ -416,7 +515,7 @@ function _taGenererRoue(planetes, ascendant) {
 
     const positions = [];
     planetesRoue.forEach(p => {
-        let deg      = parseFloat(p.fullDegree);
+        let deg       = parseFloat(p.fullDegree);
         let tentatives = 0;
         while (
             positions.some(pos => Math.abs(((deg - pos + 540) % 360) - 180) > 172) &&
@@ -439,7 +538,6 @@ function _taGenererRoue(planetes, ascendant) {
         svg += `<text x="${pos.x.toFixed(1)}" y="${pos.y.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="7" fill="${couleur}" font-weight="bold">${symbole}</text>`;
     });
 
-    // ── Axe Asc/Desc ──────────────────────────────────────────
     if (ascendant && ascendant.fullDegree != null) {
         const aPos = eclipToSVG(parseFloat(ascendant.fullDegree), R_INNER - 2);
         const dPos = eclipToSVG(parseFloat(ascendant.fullDegree) + 180, R_INNER - 2);
@@ -447,7 +545,6 @@ function _taGenererRoue(planetes, ascendant) {
         svg += `<text x="${aPos.x.toFixed(1)}" y="${(aPos.y - 10).toFixed(1)}" text-anchor="middle" font-size="7" fill="#34d399" font-weight="bold">Asc</text>`;
     }
 
-    // Croix centrale
     svg += `<line x1="${CX}" y1="${CY - 8}" x2="${CX}" y2="${CY + 8}" stroke="#4338ca" stroke-width="0.8"/>`;
     svg += `<line x1="${CX - 8}" y1="${CY}" x2="${CX + 8}" y2="${CY}" stroke="#4338ca" stroke-width="0.8"/>`;
 

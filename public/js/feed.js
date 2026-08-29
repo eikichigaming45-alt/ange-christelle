@@ -884,16 +884,16 @@ function ouvrirModalPost() {
                        font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
         </div>
         <div style="margin-top:12px">
-            <label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">Photo (optionnelle)</label>
-            <input type="file" id="post-photo" accept="image/*" capture="environment"
-                style="font-size:13px;color:#374151">
-        </div>
-        <div id="post-preview" style="margin-top:10px"></div>
-        <button onclick="publierPost()"
-            style="width:100%;margin-top:16px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
-                   color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
-            Publier
-        </button>
+    <label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">Photo (optionnelle)</label>
+    <input type="file" id="post-photo" accept="image/*"
+        style="font-size:13px;color:#374151">
+</div>
+<div id="post-preview" style="margin-top:10px"></div>
+<button onclick="publierPost()"
+    style="width:100%;margin-top:16px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
+           color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
+    Publier
+</button>
         <div id="post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
     const ta   = document.getElementById('post-contenu');

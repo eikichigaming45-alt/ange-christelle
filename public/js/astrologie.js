@@ -77,8 +77,8 @@ async function chargerAstrologie() {
                     <div style="font-size:13px;color:#555;margin-bottom:12px">
                         Renseignez votre date de naissance ou choisissez votre signe dans votre profil.
                     </div>
-                    <button class="astro-btn-profil" onclick="openModal('profil')">
-                        Compléter mon profil
+                    <button class="astro-btn-profil" onclick="ouvrirMonProfil()">
+                        Compléter le profil
                     </button>
                 </div>`;
             return;
