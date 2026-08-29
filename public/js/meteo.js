@@ -162,16 +162,7 @@ function _renderWidget() {
                 <span class="meteo-badge">💨 ${d.vent} km/h</span>
                 <span class="meteo-badge">🌧️ ${d.pluie}%</span>
             </div>
-            <div style="display:flex;gap:4px;width:100%">${joursHTML}</div>
-            <div style="display:flex;justify-content:flex-end;margin-top:2px">
-                <button
-                    onclick="event.stopPropagation();_refreshMeteo()"
-                    title="Actualiser la météo"
-                    style="background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.2);
-                           border-radius:50%;width:30px;height:30px;font-size:14px;cursor:pointer;
-                           color:#7c3aed;display:flex;align-items:center;justify-content:center;
-                           padding:0;line-height:1">↻</button>
-            </div>
+                        <div style="display:flex;gap:4px;width:100%">${joursHTML}</div>
         </div>
     `;
 }
