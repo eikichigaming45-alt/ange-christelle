@@ -188,7 +188,7 @@ function creerWidget(def, gridId) {
         <div class="wf">${def.foot || ''}</div>
     `;
 
-    const SANS_MODAL = ['social', 'sante', 'agenda-unifie'];
+    const SANS_MODAL = ['social', 'sante'];
 
     div.addEventListener('click', e => {
         if (e.target.classList.contains('drag-handle')) return;

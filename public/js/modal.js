@@ -2,7 +2,7 @@
 // public/js/modal.js
 // Modales : météo, prière, islam, tâches, anniversaires,
 // cycle, rendez-vous, planning, profil, admin, astrologie,
-// theme-astral.
+// theme-astral, agenda-unifie.
 // Onglet Profil : infos + heure/lieu naissance + géocodage.
 // Onglet Santé  : sexe, taille, poids, groupe sanguin,
 //                 niveau activité, objectif santé, signe zodiaque,
@@ -17,18 +17,19 @@ const JOURS_MODAL = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 async function openModal(type) {
     document.getElementById('overlay').classList.add('on');
     const titres = {
-        meteo        : 'Météo du jour',
-        priere       : 'Prière du jour',
-        islam        : 'Prières & Hadiths',
-        taches       : 'Tâches du jour',
-        planning     : 'Mon Planning',
-        anniversaires: 'Anniversaires',
-        profil       : 'Mon Profil',
-        admin        : 'Administration',
-        cycle        : 'Suivi du cycle',
-        rendezvous   : 'Rendez-vous médicaux',
-        astrologie   : 'Astrologie',
-        'theme-astral': 'Thème Astral'
+        meteo          : 'Météo du jour',
+        priere         : 'Prière du jour',
+        islam          : 'Prières & Hadiths',
+        taches         : 'Tâches du jour',
+        planning       : 'Mon Planning',
+        anniversaires  : 'Anniversaires',
+        profil         : 'Mon Profil',
+        admin          : 'Administration',
+        cycle          : 'Suivi du cycle',
+        rendezvous     : 'Rendez-vous médicaux',
+        astrologie     : 'Astrologie',
+        'theme-astral' : 'Thème Astral',
+        'agenda-unifie': 'Mon Agenda',
     };
     document.getElementById('modal-title').textContent = titres[type] || type;
 
@@ -188,6 +189,11 @@ async function openModal(type) {
         } else {
             document.getElementById('modal-body').innerHTML = '<p style="color:red">Module planning non chargé.</p>';
         }
+
+    // ── Agenda unifié ─────────────────────────────────────────
+    } else if (type === 'agenda-unifie') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>';
+        await ouvrirModaleAgenda();
 
     // ── Thème Astral ──────────────────────────────────────────
     } else if (type === 'theme-astral') {
@@ -386,7 +392,7 @@ async function openModal(type) {
                             </select>
                         </div>
 
-                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
                                     letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Activité & Objectif</div>
                         <div style="margin-bottom:10px">
                             <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Niveau d'activité</label>
@@ -395,7 +401,7 @@ async function openModal(type) {
                                 <option value="">— Non renseigné —</option>
                                 <option value="sedentaire" ${p.niveau_activite === 'sedentaire' ? 'selected' : ''}>Sédentaire (bureau, peu de sport)</option>
                                 <option value="leger"      ${p.niveau_activite === 'leger'      ? 'selected' : ''}>Légèrement actif (1–3 séances/sem)</option>
-                                                                <option value="modere"     ${p.niveau_activite === 'modere'     ? 'selected' : ''}>Modérément actif (3–5 séances/sem)</option>
+                                <option value="modere"     ${p.niveau_activite === 'modere'     ? 'selected' : ''}>Modérément actif (3–5 séances/sem)</option>
                                 <option value="actif"      ${p.niveau_activite === 'actif'      ? 'selected' : ''}>Actif (6–7 séances/sem)</option>
                                 <option value="tres_actif" ${p.niveau_activite === 'tres_actif' ? 'selected' : ''}>Très actif (sport intensif quotidien)</option>
                             </select>

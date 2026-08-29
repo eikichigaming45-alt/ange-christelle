@@ -28,7 +28,7 @@ const WIDGETS_DEF = [
     { id:'social',        label:'Social',             icon:'🤝',  cls:'w-social',        desc:'Chargement...',  foot:'Ce que mes proches partagent avec moi' },
     { id:'profil',        label:'Mon Profil',         icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
     { id:'sante',         label:'Santé',              icon:'🥗',  cls:'w-sante',         desc:'Chargement...',  foot:'Calculs & plan nutritionnel' },
-    { id:'agenda-unifie', label:'Agenda',             icon:'📆',  cls:'w-agenda-unifie', desc:'Chargement...',  foot:'Planning · RDV · Tâches' },
+    { id:'agenda-unifie', label:'Agenda',             icon:'📆',  cls:'w-agenda-unifie', desc:'Chargement...',  foot:'Planning · RDV' },
 ];
 
 const TOUS_WIDGETS = [
