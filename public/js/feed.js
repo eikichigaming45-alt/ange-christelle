@@ -118,18 +118,17 @@ function renderContenuAvecMentions(contenu, mentionsData) {
     }
 
     result = result.replace(/@toutlemonde/gi, '%%TOUTLEMONDE%%');
-
     result = escapeHtml(result);
 
     for (const { placeholder, html } of placeholders) {
         result = result.split(escapeHtml(placeholder)).join(html);
     }
 
-        result = result.split('%%TOUTLEMONDE%%').join(
+    result = result.split('%%TOUTLEMONDE%%').join(
         '<span class="mention-tag" style="color:#7c3aed;font-weight:600;cursor:default">@Tout le monde</span>'
     );
 
-        return _renderHashtags(result);
+    return _renderHashtags(result);
 }
 
 // Clic sur mention → profil direct
