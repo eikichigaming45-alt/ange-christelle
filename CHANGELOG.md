@@ -2,6 +2,16 @@
 
 ---
 
+## v1.44 — 29-08-2026
+
+### ✨ Nouveau
+- Les hashtags sont désormais cliquables dans le feed — un tap sur #mot filtre les posts contenant ce hashtag, avec un bandeau de filtre actif et un bouton pour revenir au feed complet
+
+### 🔧 Corrections
+- Les mentions @Tout le monde ne s'affichaient plus correctement après l'ajout des hashtags — corrigé
+
+---
+
 ## v1.43 — 29-08-2026
 
 ### ✨ Nouveau
