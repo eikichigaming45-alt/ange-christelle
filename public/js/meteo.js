@@ -100,7 +100,6 @@ async function chargerMeteo(lat, lon, nomVille, mode) {
             daily : d.daily
         };
 
-        // Persistance localStorage
         const modeEffectif = mode || 'ville';
         _sauverMeteoLS(modeEffectif, lat, lon, nomVille);
 
@@ -148,7 +147,7 @@ function _renderWidget() {
 
     el.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:8px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between">
                 <div>
                     <div style="font-size:38px;font-weight:800;color:#1e3a5f;line-height:1">${d.temp}°</div>
                     <div style="font-size:12px;color:#555;margin-top:2px">${d.icon} ${METEO_DESC[d.code] || 'Variable'}</div>
@@ -156,17 +155,7 @@ function _renderWidget() {
                     <div style="font-size:11px;color:#e879a0;margin-top:2px;font-weight:600">📍 ${d.ville}</div>
                     <div style="font-size:11px;color:#9ca3af;margin-top:2px">${dateCap}</div>
                 </div>
-                <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
-                    <div style="font-size:44px;line-height:1">${d.icon}</div>
-                    <button onclick="_refreshMeteo()"
-                        title="Actualiser la météo"
-                        style="background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.2);
-                               border-radius:50%;width:32px;height:32px;font-size:15px;cursor:pointer;
-                               color:#7c3aed;display:flex;align-items:center;justify-content:center;
-                               padding:0;transition:background .15s"
-                        onmouseover="this.style.background='rgba(79,70,229,0.18)'"
-                        onmouseout="this.style.background='rgba(79,70,229,0.08)'">↻</button>
-                </div>
+                <div style="font-size:44px;line-height:1">${d.icon}</div>
             </div>
             <div style="display:flex;gap:5px;flex-wrap:wrap">
                 <span class="meteo-badge">💧 ${d.hum}%</span>
@@ -174,6 +163,15 @@ function _renderWidget() {
                 <span class="meteo-badge">🌧️ ${d.pluie}%</span>
             </div>
             <div style="display:flex;gap:4px;width:100%">${joursHTML}</div>
+            <div style="display:flex;justify-content:flex-end;margin-top:2px">
+                <button
+                    onclick="event.stopPropagation();_refreshMeteo()"
+                    title="Actualiser la météo"
+                    style="background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.2);
+                           border-radius:50%;width:30px;height:30px;font-size:14px;cursor:pointer;
+                           color:#7c3aed;display:flex;align-items:center;justify-content:center;
+                           padding:0;line-height:1">↻</button>
+            </div>
         </div>
     `;
 }
@@ -190,7 +188,6 @@ window._refreshMeteo = async function () {
                 await chargerMeteo(newLat, newLon, ville, 'geoloc');
             },
             async () => {
-                // Géoloc refusée — fallback coords sauvegardées
                 if (ls?.lat && ls?.lon) {
                     await chargerMeteo(ls.lat, ls.lon, ls.ville || 'Ma position', 'ville');
                 }
@@ -213,7 +210,6 @@ function _demarrerRefreshAuto() {
                 async pos => {
                     const newLat = pos.coords.latitude;
                     const newLon = pos.coords.longitude;
-                    // Refresh uniquement si déplacement > 5 km
                     const dist = (ls.lat && ls.lon)
                         ? _distanceKm(ls.lat, ls.lon, newLat, newLon)
                         : 999;
@@ -221,7 +217,6 @@ function _demarrerRefreshAuto() {
                         const ville = await getNomVille(newLat, newLon);
                         await chargerMeteo(newLat, newLon, ville, 'geoloc');
                     } else {
-                        // Même position — refresh données météo sans changer la ville
                         await chargerMeteo(ls.lat, ls.lon, ls.ville || 'Ma position', 'geoloc');
                     }
                 },
@@ -257,11 +252,11 @@ function _renderModaleMeteo(selectedIdx) {
     const dateLabel = selectedIdx === 0
         ? "Aujourd'hui"
         : dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-    const iMax   = Math.round(d.daily.temperature_2m_max[selectedIdx]);
-    const iMin   = Math.round(d.daily.temperature_2m_min[selectedIdx]);
-    const iIcon  = METEO_ICONS[d.daily.weather_code[selectedIdx]] || '🌡️';
-    const iPluie = d.daily.precipitation_probability_max?.[selectedIdx] || 0;
-    const desc   = METEO_DESC[d.daily.weather_code[selectedIdx]] || 'Variable';
+    const iMax    = Math.round(d.daily.temperature_2m_max[selectedIdx]);
+    const iMin    = Math.round(d.daily.temperature_2m_min[selectedIdx]);
+    const iIcon   = METEO_ICONS[d.daily.weather_code[selectedIdx]] || '🌡️';
+    const iPluie  = d.daily.precipitation_probability_max?.[selectedIdx] || 0;
+    const desc    = METEO_DESC[d.daily.weather_code[selectedIdx]] || 'Variable';
     const isToday = selectedIdx === 0;
 
     const joursHTML = d.daily.time.slice(0, 6).map((tj, i) => {
@@ -346,7 +341,6 @@ function afficherDetailJourModale(i) {
 }
 
 async function chargerMeteoAuto() {
-    // Priorité 1 : localStorage
     const ls = _lireMeteoLS();
     if (ls?.lat && ls?.lon) {
         await chargerMeteo(ls.lat, ls.lon, ls.ville || 'Ma position', ls.mode || 'ville');
@@ -354,7 +348,6 @@ async function chargerMeteoAuto() {
         return;
     }
 
-    // Priorité 2 : profil BDD
     try {
         const user = getUser();
         if (user?.token) {
@@ -376,7 +369,6 @@ async function chargerMeteoAuto() {
         }
     } catch {}
 
-    // Priorité 3 : géolocalisation
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             async pos => {
@@ -385,7 +377,6 @@ async function chargerMeteoAuto() {
                 _demarrerRefreshAuto();
             },
             async () => {
-                // Priorité 4 : fallback Paris
                 await chargerMeteo(48.8566, 2.3522, 'Paris', 'ville');
                 _demarrerRefreshAuto();
             }
