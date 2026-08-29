@@ -1,10 +1,14 @@
 // ============================================================
 // public/js/agenda.js
 // Widget Agenda unifié — Planning + RDV triés par date.
-// GET /api/agenda — affiche aujourd'hui + jours avec événements.
-// Priorité : Travail/Mission/Congé > Repos (Repos masqué si autre présent).
-// Repos seul : masqué sauf aujourd'hui.
-// Clic widget → modale Planning + RDV fusionnés.
+// GET /api/agenda
+// Règles de priorité :
+//   - Repos seul        → masqué (sauf aujourd'hui)
+//   - Repos + autre     → Repos masqué, autre affiché
+//   - Congé + autre     → Congé masqué, autre affiché
+//   - Travail + autre   → les deux affichés
+//   - Mission + autre   → les deux affichés
+// Modal : vue chronologique unifiée, sans onglets Planning/RDV.
 // ============================================================
 
 const AGENDA_SHIFT_CONFIG = {
@@ -26,9 +30,13 @@ const AGENDA_TYPE_ICONS = {
     'Autre'            : '📋'
 };
 
-const AGENDA_JOURS    = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-const AGENDA_MOIS     = ['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc'];
-const AGENDA_PRIORITE = ['Travail', 'Mission', 'Congé payé'];
+const AGENDA_JOURS = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const AGENDA_MOIS  = ['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc'];
+
+// Catégories planning qui s'effacent si un RDV ou une tâche existe le même jour
+const AGENDA_MASQUABLES = ['Repos', 'Congé payé'];
+// Catégories planning qui coexistent avec tout le reste
+const AGENDA_COEXISTANTS = ['Travail', 'Mission'];
 
 function _agendaLabelDate(dateStr) {
     const [y, m, d] = dateStr.split('-').map(Number);
@@ -38,7 +46,9 @@ function _agendaLabelDate(dateStr) {
     const diff = Math.round((obj - today) / 86400000);
     if (diff === 0) return "Aujourd'hui";
     if (diff === 1) return 'Demain';
-    return `${AGENDA_JOURS[obj.getDay()]} ${d} ${AGENDA_MOIS[m - 1]}`;
+    const jourNom = AGENDA_JOURS[obj.getDay()];
+    const moisNom = AGENDA_MOIS[m - 1];
+    return `${jourNom} ${d} ${moisNom}`;
 }
 
 function _agendaRenderItem(item) {
@@ -52,6 +62,9 @@ function _agendaRenderItem(item) {
     } else if (item.type === 'rdv') {
         emoji   = AGENDA_TYPE_ICONS[item.categorie] || '📋';
         couleur = '#a5b4fc';
+    } else if (item.type === 'tache') {
+        emoji   = '✅';
+        couleur = '#fcd34d';
     }
 
     return `
@@ -74,36 +87,37 @@ function _agendaRenderItem(item) {
         </div>`;
 }
 
-// Filtre les items d'un jour :
-// - Supprime les tâches
-// - Si Travail/Mission/Congé présent → masque Repos
-// - Retourne null si uniquement Repos (pour masquer le jour)
+// ── Logique de filtrage par jour ──────────────────────────────
+// Règles :
+//   1. Si le jour n'a que des items "masquables" (Repos/Congé) → null sauf aujourd'hui
+//   2. Si des RDV ou tâches existent → supprimer les masquables, garder Travail/Mission
+//   3. Travail/Mission coexistent toujours avec le reste
 function _agendaFiltrerJour(items, estAujourdhui) {
-    // Supprimer les tâches
-    let filtres = items.filter(i => i.type !== 'tache');
+    if (!items.length) return estAujourdhui ? [] : null;
 
-    // Si vide → null
-    if (!filtres.length) return estAujourdhui ? [] : null;
+    const hasNonPlanning = items.some(i => i.type === 'rdv' || i.type === 'tache');
+    const hasMasquable   = items.some(i => i.type === 'planning' && AGENDA_MASQUABLES.includes(i.categorie));
+    const hasCoexistant  = items.some(i => i.type === 'planning' && AGENDA_COEXISTANTS.includes(i.categorie));
 
-    // Si prioritaire présent → masquer Repos
-    const hasPriorite = filtres.some(
-        i => i.type === 'planning' && AGENDA_PRIORITE.includes(i.categorie)
-    );
-    if (hasPriorite) {
+    let filtres = [...items];
+
+    // Si RDV ou tâche présent → supprimer les masquables (Repos, Congé)
+    if (hasNonPlanning && hasMasquable) {
         filtres = filtres.filter(
-            i => !(i.type === 'planning' && i.categorie === 'Repos')
+            i => !(i.type === 'planning' && AGENDA_MASQUABLES.includes(i.categorie))
         );
     }
 
-    // Si uniquement Repos et pas aujourd'hui → masquer le jour
-    const tousRepos = filtres.length > 0 && filtres.every(
-        i => i.type === 'planning' && i.categorie === 'Repos'
+    // Si uniquement masquables restants et pas aujourd'hui → masquer le jour
+    const toutMasquable = filtres.length > 0 && filtres.every(
+        i => i.type === 'planning' && AGENDA_MASQUABLES.includes(i.categorie)
     );
-    if (tousRepos && !estAujourdhui) return null;
+    if (toutMasquable && !estAujourdhui) return null;
 
     return filtres;
 }
 
+// ── Chargement du widget (onglet Quotidien) ───────────────────
 async function chargerAgendaUnifie() {
     const el = document.getElementById('wc-agenda-unifie');
     if (!el) return;
@@ -133,17 +147,16 @@ async function chargerAgendaUnifie() {
             });
         }
 
-        // Toujours inclure aujourd'hui même si vide
+        // Toujours inclure aujourd'hui
         if (!parDate[todayStr]) parDate[todayStr] = [];
 
         const datesTrie = Object.keys(parDate).sort();
 
         let html = '';
         datesTrie.forEach(date => {
-            const estAujourdhui  = date === todayStr;
-            const itemsFiltres   = _agendaFiltrerJour(parDate[date], estAujourdhui);
+            const estAujourdhui = date === todayStr;
+            const itemsFiltres  = _agendaFiltrerJour(parDate[date], estAujourdhui);
 
-            // null = jour masqué
             if (itemsFiltres === null) return;
 
             html += `
@@ -170,59 +183,36 @@ async function chargerAgendaUnifie() {
     }
 }
 
-// ── Modale Agenda — Planning + RDV fusionnés ──────────────────
+// ── Modale Agenda — vue chronologique unifiée ─────────────────
 async function ouvrirModaleAgenda() {
     const body = document.getElementById('modal-body');
     if (!body) return;
 
-    body.innerHTML = `
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-            <button onclick="_agendaOuvrirPlanning()"
-                style="flex:1;padding:11px;background:linear-gradient(135deg,#f4a261,#e76f51);
-                       color:white;border:none;border-radius:10px;font-size:14px;
-                       font-weight:600;cursor:pointer">
-                📋 Planning
-            </button>
-            <button onclick="_agendaOuvrirRdv()"
-                style="flex:1;padding:11px;background:linear-gradient(135deg,#a5b4fc,#818cf8);
-                       color:white;border:none;border-radius:10px;font-size:14px;
-                       font-weight:600;cursor:pointer">
-                🩺 Rendez-vous
-            </button>
-        </div>
-        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
-                    letter-spacing:.5px;margin-bottom:8px">Prochains événements</div>
-        <div id="agenda-modale-liste">
-            <p style="color:#9ca3af;text-align:center;font-size:13px;padding:12px">Chargement...</p>
-        </div>
-    `;
+    body.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>';
 
     const user = getUser();
-    if (!user?.token) return;
+    if (!user?.token) {
+        body.innerHTML = '<p style="color:#888;text-align:center">Non connecté</p>';
+        return;
+    }
 
     try {
         const r = await fetch('/api/agenda', {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
-        const d    = await r.json();
-        const liste = document.getElementById('agenda-modale-liste');
-        if (!liste) return;
-
-        if (!d.success || !d.items.length) {
-            liste.innerHTML = '<p style="color:#9ca3af;text-align:center;font-size:13px">Aucun événement à venir</p>';
-            return;
-        }
+        const d = await r.json();
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayStr = today.toISOString().split('T')[0];
 
         const parDate = {};
-        d.items.forEach(item => {
-            if (item.type === 'tache') return; // pas de tâches
-            if (!parDate[item.date]) parDate[item.date] = [];
-            parDate[item.date].push(item);
-        });
+        if (d.success && d.items.length) {
+            d.items.forEach(item => {
+                if (!parDate[item.date]) parDate[item.date] = [];
+                parDate[item.date].push(item);
+            });
+        }
 
         if (!parDate[todayStr]) parDate[todayStr] = [];
 
@@ -234,7 +224,8 @@ async function ouvrirModaleAgenda() {
 
             html += `
                 <div style="font-size:11px;font-weight:700;color:#7c3aed;
-                            text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">
+                            text-transform:uppercase;letter-spacing:.5px;
+                            margin:12px 0 6px">
                     ${_agendaLabelDate(date)}
                 </div>`;
 
@@ -245,22 +236,9 @@ async function ouvrirModaleAgenda() {
             }
         });
 
-        liste.innerHTML = html || '<p style="color:#9ca3af;text-align:center;font-size:13px">Aucun événement</p>';
+        body.innerHTML = html || '<p style="color:#9ca3af;text-align:center;font-size:13px;padding:20px">Aucun événement à venir</p>';
 
     } catch {
-        const liste = document.getElementById('agenda-modale-liste');
-        if (liste) liste.innerHTML = '<p style="color:#888;text-align:center;font-size:13px">Erreur de chargement</p>';
+        body.innerHTML = '<p style="color:#888;text-align:center;font-size:13px">Erreur de chargement</p>';
     }
-}
-
-function _agendaOuvrirPlanning() {
-    document.getElementById('modal-title').textContent = 'Mon Planning';
-    document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>';
-    if (typeof ouvrirPlanningModal === 'function') ouvrirPlanningModal();
-}
-
-function _agendaOuvrirRdv() {
-    document.getElementById('modal-title').textContent = 'Rendez-vous médicaux';
-    document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>';
-    if (typeof Rendezvous !== 'undefined') Rendezvous.ouvrirListe();
 }
