@@ -129,10 +129,7 @@ function renderContenuAvecMentions(contenu, mentionsData) {
         '<span class="mention-tag" style="color:#7c3aed;font-weight:600;cursor:default">@Tout le monde</span>'
     );
 
-    return _renderHashtags(result);
-}
-
-    return result;
+        return _renderHashtags(result);
 }
 
 // Clic sur mention → profil direct
