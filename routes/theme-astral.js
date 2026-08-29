@@ -1,14 +1,15 @@
 // ============================================================
 // routes/theme-astral.js
-// Thème astral natal — FreeAstroAPI v2 + Groq + cache BDD
+// Thème astral natal — freeastrologyapi.com + Groq + cache BDD
 // ============================================================
 
 const express               = require('express');
 const router                = express.Router();
 const { pool }              = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
+const { find }              = require('geo-tz');
 
-const FREEASTRO_URL = 'https://api.freeastroapi.com/api/v1/natal/calculate';
+const FREEASTRO_URL = 'https://json.freeastrologyapi.com/planets';
 const GROQ_URL      = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL    = 'openai/gpt-oss-20b';
 
@@ -27,49 +28,68 @@ const PLANETES_FR = {
     Ascendant: 'Ascendant',
     MC       : 'Milieu du Ciel',
     NorthNode: 'Nœud Nord',
+    Rahu     : 'Nœud Nord',
+    Ketu     : 'Nœud Sud',
     Chiron   : 'Chiron',
     Lilith   : 'Lilith'
 };
 
 const SIGNES_FR = {
-    Aries      : 'Bélier',
-    Taurus     : 'Taureau',
-    Gemini     : 'Gémeaux',
-    Cancer     : 'Cancer',
-    Leo        : 'Lion',
-    Virgo      : 'Vierge',
-    Libra      : 'Balance',
-    Scorpio    : 'Scorpion',
-    Sagittarius: 'Sagittaire',
-    Capricorn  : 'Capricorne',
-    Aquarius   : 'Verseau',
-    Pisces     : 'Poissons'
+    1 : { fr: 'Bélier',      en: 'Aries'       },
+    2 : { fr: 'Taureau',     en: 'Taurus'      },
+    3 : { fr: 'Gémeaux',     en: 'Gemini'       },
+    4 : { fr: 'Cancer',      en: 'Cancer'       },
+    5 : { fr: 'Lion',        en: 'Leo'          },
+    6 : { fr: 'Vierge',      en: 'Virgo'        },
+    7 : { fr: 'Balance',     en: 'Libra'        },
+    8 : { fr: 'Scorpion',    en: 'Scorpio'      },
+    9 : { fr: 'Sagittaire',  en: 'Sagittarius'  },
+    10: { fr: 'Capricorne',  en: 'Capricorn'    },
+    11: { fr: 'Verseau',     en: 'Aquarius'     },
+    12: { fr: 'Poissons',    en: 'Pisces'       }
 };
 
 const SIGNES_EMOJI = {
-    Aries:'♈', Taurus:'♉', Gemini:'♊', Cancer:'♋',
-    Leo:'♌', Virgo:'♍', Libra:'♎', Scorpio:'♏',
-    Sagittarius:'♐', Capricorn:'♑', Aquarius:'♒', Pisces:'♓'
+    1:'♈', 2:'♉', 3:'♊', 4:'♋', 5:'♌', 6:'♍',
+    7:'♎', 8:'♏', 9:'♐', 10:'♑', 11:'♒', 12:'♓'
 };
+
+// ── Calcul offset UTC depuis timezone IANA ────────────────────
+function getUtcOffset(tzName, date) {
+    try {
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: tzName,
+            timeZoneName: 'shortOffset'
+        });
+        const parts = formatter.formatToParts(date);
+        const offsetStr = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+0';
+        const match = offsetStr.match(/GMT([+-]\d+(?::\d+)?)?/);
+        if (!match || !match[1]) return 0;
+        const [h, m] = match[1].split(':').map(Number);
+        return h + (m ? (h < 0 ? -m / 60 : m / 60) : 0);
+    } catch {
+        return 0;
+    }
+}
 
 // ── Normaliser une planète depuis le format API ───────────────
 function normaliserPlanete(p) {
-    const name       = p.planet?.en || p.name || '';
-    const sign       = p.zodiac_sign?.name?.en || p.sign || '';
-    const fullDegree = p.longitude    != null ? parseFloat(p.longitude)    :
-                       p.fullDegree   != null ? parseFloat(p.fullDegree)   : null;
-    const normDegree = fullDegree     != null ? (fullDegree % 30).toFixed(1) :
-                       p.normDegree   != null ? parseFloat(p.normDegree).toFixed(1) : null;
+    const name       = p.name || '';
+    const signNum    = p.current_sign || null;
+    const signInfo   = signNum ? (SIGNES_FR[signNum] || null) : null;
+    const sign       = signInfo?.en || '';
+    const fullDegree = p.fullDegree  != null ? parseFloat(p.fullDegree)  : null;
+    const normDegree = p.normDegree  != null ? parseFloat(p.normDegree).toFixed(1) : null;
     return {
         name,
         sign,
         fullDegree,
         normDegree,
-        isRetro : p.is_retrograde ?? p.isRetro ?? false,
-        house   : p.house || null,
-        nameFR  : PLANETES_FR[name]  || name,
-        signeFR : SIGNES_FR[sign]    || sign,
-        emoji   : SIGNES_EMOJI[sign] || ''
+        isRetro : p.isRetro === 'true' || p.isRetro === true,
+        house   : p.house_number || null,
+        nameFR  : PLANETES_FR[name] || name,
+        signeFR : signInfo?.fr || sign,
+        emoji   : signNum ? (SIGNES_EMOJI[signNum] || '') : ''
     };
 }
 
@@ -104,7 +124,7 @@ router.get('/', authenticateToken, async (req, res) => {
         if (!profil.date_naissance) {
             return res.json({ success: false, code: 'NO_DATE' });
         }
-        if (!profil.lieu_naissance && (!profil.naissance_lat || !profil.naissance_lon)) {
+        if (!profil.naissance_lat || !profil.naissance_lon) {
             return res.json({ success: false, code: 'NO_LOCATION' });
         }
 
@@ -118,19 +138,28 @@ router.get('/', authenticateToken, async (req, res) => {
         const heureStr      = hasHeure ? profil.heure_naissance.slice(0, 5) : '12:00';
         const [hh, mm]      = heureStr.split(':').map(Number);
 
-        const payload = {
-            year  : dateNaissance.getFullYear(),
-            month : dateNaissance.getMonth() + 1,
-            day   : dateNaissance.getDate(),
-            hour  : hh,
-            minute: mm,
-            city  : profil.lieu_naissance || 'Paris'
-        };
+        const lat = parseFloat(profil.naissance_lat);
+        const lng = parseFloat(profil.naissance_lon);
 
-        if (profil.naissance_lat && profil.naissance_lon) {
-            payload.lat = parseFloat(profil.naissance_lat);
-            payload.lng = parseFloat(profil.naissance_lon);
-        }
+        const tzNames  = find(lat, lng);
+        const tzName   = tzNames?.[0] || 'UTC';
+        const timezone = getUtcOffset(tzName, dateNaissance);
+
+        const payload = {
+            year     : dateNaissance.getFullYear(),
+            month    : dateNaissance.getMonth() + 1,
+            date     : dateNaissance.getDate(),
+            hours    : hh,
+            minutes  : mm,
+            seconds  : 0,
+            latitude : lat,
+            longitude: lng,
+            timezone,
+            config   : {
+                observation_point: 'topocentric',
+                ayanamsha        : 'lahiri'
+            }
+        };
 
         console.log('[THEME-ASTRAL] Payload envoyé:', JSON.stringify(payload));
 
@@ -150,40 +179,26 @@ router.get('/', authenticateToken, async (req, res) => {
         }
 
         const astroData = await astroRes.json();
-        console.log('[THEME-ASTRAL] Réponse API (keys):', Object.keys(astroData));
+        console.log('[THEME-ASTRAL] statusCode:', astroData.statusCode);
 
-        let rawPlanetes = [];
-        if (Array.isArray(astroData.planets)) {
-            rawPlanetes = astroData.planets;
-        } else if (astroData.planets && typeof astroData.planets === 'object') {
-            rawPlanetes = Object.values(astroData.planets);
-        } else if (Array.isArray(astroData.output)) {
-            rawPlanetes = astroData.output;
+        const rawOutput = astroData.output?.[0];
+        if (!rawOutput) {
+            console.error('[THEME-ASTRAL] Aucune donnée output. Réponse:', JSON.stringify(astroData));
+            return res.json({ success: false, code: 'API_ERROR', message: 'Données astrologiques invalides.' });
         }
 
-        if (astroData.angles) {
-            const anglesArr = Array.isArray(astroData.angles)
-                ? astroData.angles
-                : Object.values(astroData.angles);
-            rawPlanetes = [...rawPlanetes, ...anglesArr];
-        }
+        const rawPlanetes = Object.values(rawOutput).filter(p => p && typeof p === 'object' && p.name);
 
         if (rawPlanetes.length > 0) {
             console.log('[THEME-ASTRAL] Format planète exemple:', JSON.stringify(rawPlanetes[0]));
-        } else {
-            console.error('[THEME-ASTRAL] Aucune planète extraite. Réponse complète:', JSON.stringify(astroData));
         }
 
         const planetesFR = rawPlanetes.map(normaliserPlanete);
 
         const soleil    = planetesFR.find(p => p.name === 'Sun');
         const lune      = planetesFR.find(p => p.name === 'Moon');
-        const ascendant = planetesFR.find(p =>
-            p.name === 'Ascendant' || p.name === 'ASC' || p.name === 'Asc'
-        );
-        const mc        = planetesFR.find(p =>
-            p.name === 'MC' || p.name === 'Midheaven'
-        );
+        const ascendant = planetesFR.find(p => p.name === 'Ascendant');
+        const mc        = planetesFR.find(p => p.name === 'MC' || p.name === 'Midheaven');
         const dominante   = calculerDominante(planetesFR);
         const dominanteFR = dominante ? (PLANETES_FR[dominante] || dominante) : null;
 
@@ -225,16 +240,16 @@ router.get('/', authenticateToken, async (req, res) => {
         }
 
         const cacheData = {
-            planetes    : planetesFR,
+            planetes      : planetesFR,
             soleil,
             lune,
-            ascendant   : hasHeure ? ascendant : null,
-            mc          : hasHeure ? mc : null,
+            ascendant     : hasHeure ? ascendant : null,
+            mc            : hasHeure ? mc : null,
             dominante,
             dominanteFR,
             interpretation,
             hasHeure,
-            generatedAt : new Date().toISOString().split('T')[0]
+            generatedAt   : new Date().toISOString().split('T')[0]
         };
 
         await pool.query(
