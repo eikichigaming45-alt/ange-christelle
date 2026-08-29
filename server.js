@@ -2,6 +2,8 @@
 // server.js
 // ============================================================
 
+require('dotenv').config();
+
 const express  = require('express');
 const webpush  = require('web-push');
 const { pool, initDB } = require('./db/pool');
