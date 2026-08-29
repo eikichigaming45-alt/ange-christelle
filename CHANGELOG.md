@@ -2,6 +2,20 @@
 
 ---
 
+## v1.43 — 29-08-2026
+
+### ✨ Nouveau
+- Widget Thème Astral : un bouton "Calculer mon thème natal" apparaît désormais au premier affichage — le calcul se déclenche uniquement au clic, jamais automatiquement
+- Widget Astrologie : un bouton "Compléter le profil" s'affiche si la date de naissance est manquante
+
+### 🔧 Corrections
+- Ajouter une photo depuis un post sur Android ne force plus l'ouverture de la caméra — la galerie est proposée par défaut
+- Certaines icônes météo s'affichaient en carré bleu sur des conditions peu fréquentes — corrigé
+- Widget Thème Astral : le texte "Mis à jour chaque jour" était incorrect — remplacé par "Thème natal · Données permanentes"
+- Widget Santé : un nouveau compte sans profil renseigné affichait une erreur brute — remplacé par un bandeau avec bouton "Compléter le profil"
+
+---
+
 ## v1.42 — 29-08-2026 🏷️ Stable
 
 ### ✨ Nouveau
