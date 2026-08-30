@@ -2,6 +2,40 @@
 
 ---
 
+## v1.47 — 30-08-2026
+
+### ✨ Nouveau
+- Agenda unifié : les modules Planning et Rendez-vous fusionnent en un seul widget Agenda dans l'onglet Quotidien
+- Les rendez-vous ne sont plus limités au médical — tout type d'événement est possible : travail, repos, médical, sport, sortie, famille, administratif, voyage, autre
+- Catégories avec sous-catégories : chaque catégorie propose des sous-catégories adaptées (ex. Médical → Généraliste, Dentiste… / Travail → CDI, Mission, Intérim…)
+- Les sous-catégories saisies manuellement sont mémorisées et proposées automatiquement lors des prochaines saisies
+- Les employeurs sont conservés et réutilisables lors d'une entrée Travail ou Mission
+- Vue calendrier mensuel avec code couleur par catégorie — un clic sur un jour affiche le détail complet
+- Le widget affiche les 3 prochains jours ouvrés avec un événement, en priorité sur les entrées hors Repos
+- Les rappels push couvrent désormais toutes les entrées agenda
+
+### 🔧 Corrections
+- Les statistiques admin référençaient encore les anciennes tables — corrigé
+- Les notifications push référençaient encore rendezvous et planning — corrigé
+
+---
+
+## v1.46 — 30-08-2026 🏷️ Stable
+
+### ✨ Nouveau
+- La météo mémorise votre dernier mode et vos coordonnées entre les sessions
+- Rafraîchissement automatique toutes les 30 minutes ou si vous vous déplacez de plus de 5 km
+- Si la géolocalisation échoue, la ville renseignée dans votre profil est utilisée en secours
+
+---
+
+## v1.45 — 29-08-2026
+
+### ✨ Nouveau
+- Widget Prière Islam : un bandeau et un bouton "Compléter le profil" s'affichent si vos coordonnées GPS sont manquantes
+
+---
+
 ## v1.44 — 29-08-2026
 
 ### ✨ Nouveau
