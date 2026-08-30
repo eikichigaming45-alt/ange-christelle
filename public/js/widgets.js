@@ -13,7 +13,7 @@ function resetGrid() {
 // ── Définition par onglet ─────────────────────────────────────────────
 
 const WIDGETS_PAR_ONGLET = {
-    quotidien : ['agenda', 'taches', 'priere', 'islam', 'anniversaires'],
+    quotidien : ['agenda', 'taches', 'priere', 'islam', 'anniversaires', 'social'],
     bienetre  : ['cycle', 'sante'],
     sport     : [],
     profil    : ['profil', 'admin'],
@@ -195,14 +195,9 @@ function creerWidget(def, gridId) {
         if (e.target.closest('button'))                 return;
         if (SANS_MODAL.includes(def.id))                return;
 
-        // ── Agenda : les cartes du widget gèrent leur propre clic.
-        // Un clic sur le footer "Cliquez pour gérer" ouvre le calendrier.
-        // Un clic sur une carte enfant (div avec onclick) est déjà géré,
-        // on ne propage pas au conteneur.
         if (def.id === 'agenda') {
             const clickedCard = e.target.closest('#wc-agenda > div[onclick]');
-            if (clickedCard) return; // laisse le onclick inline de la carte agir
-            // Clic sur le footer ou la zone vide → ouvre le calendrier
+            if (clickedCard) return;
             if (e.target.closest('.wf') || !e.target.closest('#wc-agenda')) {
                 _trackerOuverture(def.id);
                 Agenda.ouvrirModal();

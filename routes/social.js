@@ -88,7 +88,7 @@ router.get('/partages/recus', async (req, res) => {
 
 router.post('/partages', async (req, res) => {
     const { viewer_id, resource_type } = req.body;
-    const typesValides = ['cycle', 'rdv', 'taches', 'planning'];
+    const typesValides = ['cycle', 'agenda', 'taches'];
     if (!viewer_id || !typesValides.includes(resource_type)) {
         return res.status(400).json({ success: false, message: 'Données invalides.' });
     }
@@ -127,7 +127,6 @@ router.post('/partages', async (req, res) => {
             VALUES (\$1, 'share_request', \$2, \$3)
         `, [viewer_id, rows[0].id, req.user.id]);
 
-        // FIX : push via envoyerPush() comme feed.js
         const senderProfil = await pool.query(
             'SELECT prenom, nom FROM profiles WHERE user_id = \$1', [req.user.id]
         );
@@ -184,13 +183,13 @@ router.delete('/partages/:id', async (req, res) => {
 });
 
 // ============================================================
-// DONNÉES PARTAGÉES — rdv, taches, planning
+// DONNÉES PARTAGÉES — agenda, taches
 // ============================================================
 
 router.get('/data/:ownerId/:type', async (req, res) => {
     const ownerId      = parseInt(req.params.ownerId);
     const type         = req.params.type;
-    const typesValides = ['rdv', 'taches', 'planning'];
+    const typesValides = ['agenda', 'taches'];
 
     if (!typesValides.includes(type)) {
         return res.status(400).json({ success: false, message: 'Type invalide.' });
@@ -209,14 +208,19 @@ router.get('/data/:ownerId/:type', async (req, res) => {
         const today = new Date().toISOString().split('T')[0];
         let data    = [];
 
-        if (type === 'rdv') {
+        if (type === 'agenda') {
             const { rows } = await pool.query(`
-                SELECT id, titre, date_rdv, praticien, lieu, type_rdv
-                FROM rendezvous
-                WHERE user_id = \$1 AND date_rdv >= NOW()
-                ORDER BY date_rdv ASC
-                LIMIT 5
-            `, [ownerId]);
+                SELECT id, titre, categorie, sous_categorie,
+                       TO_CHAR(heure_debut, 'HH24:MI') AS heure_debut,
+                       TO_CHAR(heure_fin,   'HH24:MI') AS heure_fin,
+                       lieu
+                FROM agenda
+                WHERE user_id = \$1
+                  AND date_debut <= \$2
+                  AND COALESCE(date_fin, date_debut) >= \$2
+                ORDER BY heure_debut ASC NULLS LAST
+                LIMIT 10
+            `, [ownerId, today]);
             data = rows;
         }
 
@@ -228,21 +232,6 @@ router.get('/data/:ownerId/:type', async (req, res) => {
                   AND faite = FALSE
                   AND date = \$2
                 ORDER BY heure ASC NULLS LAST
-            `, [ownerId, today]);
-            data = rows;
-        }
-
-        if (type === 'planning') {
-            const { rows } = await pool.query(`
-                SELECT id, categorie, libelle_personnalise, heure_debut, heure_fin, employeur
-                FROM planning
-                WHERE user_id = \$1
-                  AND (
-                    (date_fin IS NULL AND COALESCE(date_debut, date) = \$2)
-                    OR
-                    (date_fin IS NOT NULL AND date_debut <= \$2 AND date_fin >= \$2)
-                  )
-                ORDER BY heure_debut ASC NULLS LAST
             `, [ownerId, today]);
             data = rows;
         }
@@ -276,8 +265,6 @@ router.post('/coucou/:userId', async (req, res) => {
             VALUES (\$1, 'coucou', \$2, \$3)
         `, [receiverId, rows[0].id, req.user.id]);
 
-        // FIX : push via envoyerPush() — même logique que feed.js
-        // multi-device, purge 410/404, pas de webpush.sendNotification() direct
         const senderProfil = await pool.query(
             'SELECT prenom, nom FROM profiles WHERE user_id = \$1', [req.user.id]
         );

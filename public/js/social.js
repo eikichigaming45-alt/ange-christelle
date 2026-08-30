@@ -10,18 +10,17 @@ function _socialAuth() {
 
 // ── Labels triés alphabétiquement ────────────────────────────
 const _SHARE_LABELS_LIST = [
-    { type: 'cycle',    label: 'Cycle menstruel' },
-    { type: 'planning', label: 'Planning'         },
-    { type: 'rdv',      label: 'Rendez-vous'      },
-    { type: 'taches',   label: 'Tâches'           },
+    { type: 'agenda', label: 'Agenda'          },
+    { type: 'cycle',  label: 'Cycle menstruel' },
+    { type: 'taches', label: 'Tâches'          },
 ];
 
 const _SHARE_LABELS = Object.fromEntries(
     _SHARE_LABELS_LIST.map(l => [l.type, l.label])
 );
 
-// ── Ordre d'affichage widget social : cycle en premier, reste alphabétique
-const _SHARE_ORDER = ['cycle', 'planning', 'rdv', 'taches'];
+// ── Ordre d'affichage widget social
+const _SHARE_ORDER = ['cycle', 'agenda', 'taches'];
 
 // ── Lire le sexe de l'utilisateur courant via l'API ──────────
 async function _getSexeCourant() {
@@ -157,11 +156,10 @@ async function _renderOwnerSection(owner, token) {
 async function _renderCategorieBloc(ownerId, type, token) {
     try {
         switch (type) {
-            case 'cycle'   : return await _renderBlocCycle(ownerId, token);
-            case 'rdv'     : return await _renderBlocRdv(ownerId, token);
-            case 'taches'  : return await _renderBlocTaches(ownerId, token);
-            case 'planning': return await _renderBlocPlanning(ownerId, token);
-            default        : return '';
+            case 'cycle'  : return await _renderBlocCycle(ownerId, token);
+            case 'agenda' : return await _renderBlocAgenda(ownerId, token);
+            case 'taches' : return await _renderBlocTaches(ownerId, token);
+            default       : return '';
         }
     } catch { return ''; }
 }
@@ -308,9 +306,9 @@ document.addEventListener('click', e => {
     _ouvrirModaleConseil(decodeURIComponent(btn.dataset.conseilComplet));
 });
 
-// ── Bloc RDV ──────────────────────────────────────────────────
-async function _renderBlocRdv(ownerId, token) {
-    const r = await fetch(`/api/social/data/${ownerId}/rdv`, {
+// ── Bloc Agenda ───────────────────────────────────────────────
+async function _renderBlocAgenda(ownerId, token) {
+    const r = await fetch(`/api/social/data/${ownerId}/agenda`, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     const d = await r.json();
@@ -318,28 +316,63 @@ async function _renderBlocRdv(ownerId, token) {
         return `
             <div style="margin-bottom:10px">
                 <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                            letter-spacing:.5px;margin-bottom:6px">Rendez-vous</div>
-                <div style="font-size:13px;color:#9ca3af">Aucun rendez-vous à venir.</div>
+                            letter-spacing:.5px;margin-bottom:6px">Agenda</div>
+                <div style="font-size:13px;color:#9ca3af">Rien à l'agenda aujourd'hui.</div>
             </div>`;
     }
-    const items = d.data.slice(0, 3).map(rdv => {
-        const date = new Date(rdv.date_rdv).toLocaleDateString('fr-FR', {
-            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-        });
+
+    const CAT_COLORS = {
+        'Travail'       : '#f4a261',
+        'Mission'       : '#ce93d8',
+        'Repos'         : '#90caf9',
+        'Médical'       : '#f87171',
+        'Sport'         : '#34d399',
+        'Sortie'        : '#fbbf24',
+        'Famille'       : '#f9a8d4',
+        'Administratif' : '#94a3b8',
+        'Voyage'        : '#60a5fa',
+        'Autre'         : '#bcaaa4'
+    };
+    const CAT_ICONS = {
+        'Travail'       : '💼',
+        'Mission'       : '🧳',
+        'Repos'         : '😴',
+        'Médical'       : '🩺',
+        'Sport'         : '🏃',
+        'Sortie'        : '🎉',
+        'Famille'       : '👨‍👩‍👧',
+        'Administratif' : '📋',
+        'Voyage'        : '✈️',
+        'Autre'         : '📌'
+    };
+
+    const items = d.data.map(e => {
+        const couleur = CAT_COLORS[e.categorie] || '#bcaaa4';
+        const icone   = CAT_ICONS[e.categorie]  || '📌';
+        const hDebut  = e.heure_debut ? e.heure_debut.slice(0, 5) : null;
+        const hFin    = e.heure_fin   ? e.heure_fin.slice(0, 5)   : null;
         return `
-            <div style="padding:8px 10px;background:#fff;border-radius:8px;
-                        margin-bottom:4px;border:1px solid #f3f4f6;font-size:13px">
-                <div style="font-weight:600;color:#1f2937">${rdv.titre}</div>
-                <div style="color:#6b7280;font-size:12px">📅 ${date}</div>
-                ${rdv.praticien
-                    ? `<div style="color:#9ca3af;font-size:11px">Dr. ${rdv.praticien}</div>`
+            <div style="padding:8px 10px;background:${couleur}22;border-left:3px solid ${couleur};
+                        border-radius:8px;margin-bottom:4px;font-size:13px">
+                <div style="font-weight:600;color:#1f2937">${icone} ${e.titre}</div>
+                <div style="color:#6b7280;font-size:12px">
+                    ${e.sous_categorie ? `${e.categorie} — ${e.sous_categorie}` : e.categorie}
+                </div>
+                ${hDebut
+                    ? `<div style="color:#6b7280;font-size:12px">
+                           ⏰ ${hDebut}${hFin ? ' → ' + hFin : ''}
+                       </div>`
+                    : ''}
+                ${e.lieu
+                    ? `<div style="color:#9ca3af;font-size:11px">📍 ${e.lieu}</div>`
                     : ''}
             </div>`;
     }).join('');
+
     return `
         <div style="margin-bottom:10px">
             <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                        letter-spacing:.5px;margin-bottom:6px">Rendez-vous</div>
+                        letter-spacing:.5px;margin-bottom:6px">Agenda</div>
             ${items}
         </div>`;
 }
@@ -376,50 +409,6 @@ async function _renderBlocTaches(ownerId, token) {
         <div style="margin-bottom:10px">
             <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
                         letter-spacing:.5px;margin-bottom:6px">Tâches du jour</div>
-            ${items}
-        </div>`;
-}
-
-// ── Bloc Planning ─────────────────────────────────────────────
-async function _renderBlocPlanning(ownerId, token) {
-    const r = await fetch(`/api/social/data/${ownerId}/planning`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const d = await r.json();
-    if (!d.success || !d.data.length) {
-        return `
-            <div style="margin-bottom:10px">
-                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                            letter-spacing:.5px;margin-bottom:6px">Planning</div>
-                <div style="font-size:13px;color:#9ca3af">Rien au planning aujourd'hui.</div>
-            </div>`;
-    }
-    const SHIFT_COLORS = {
-        'Travail'   : '#f4a261',
-        'Repos'     : '#90caf9',
-        'Congé payé': '#80cbc4',
-        'Mission'   : '#ce93d8',
-        'Autre'     : '#bcaaa4'
-    };
-    const items = d.data.map(p => {
-        const couleur = SHIFT_COLORS[p.categorie] || '#bcaaa4';
-        const label   = p.categorie === 'Autre' && p.libelle_personnalise
-            ? p.libelle_personnalise : p.categorie;
-        return `
-            <div style="padding:8px 10px;background:${couleur}22;border-left:3px solid ${couleur};
-                        border-radius:8px;margin-bottom:4px;font-size:13px">
-                <div style="font-weight:600;color:#1f2937">${label}</div>
-                ${p.heure_debut
-                    ? `<div style="color:#6b7280;font-size:12px">
-                           ${p.heure_debut.slice(0,5)} → ${(p.heure_fin||'').slice(0,5)||'?'}
-                       </div>`
-                    : ''}
-            </div>`;
-    }).join('');
-    return `
-        <div style="margin-bottom:10px">
-            <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                        letter-spacing:.5px;margin-bottom:6px">Planning</div>
             ${items}
         </div>`;
 }
@@ -575,7 +564,7 @@ function _htmlBlocViewer(v, typesDisponibles) {
                 </label>
                 <div style="width:65px;display:flex;justify-content:flex-end">
                     ${existe
-                                                ? `<button data-action="supprimer-partage"
+                        ? `<button data-action="supprimer-partage"
                                    data-del-id="${shareId}"
                                    style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;
                                           padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">
@@ -938,14 +927,12 @@ async function _envoyerPartages() {
 // CLOCHE — NOTIFICATIONS
 // ============================================================
 
-// État global notifs
 let _notifsData        = [];
 let _notifsTab         = 'tout';
 let _notifsOffset      = 0;
 const _NOTIFS_PAR_PAGE = 6;
 let _panelNotifOuvert  = false;
 
-// ── Icônes par type de notif ──────────────────────────────────
 const _NOTIF_ICONES = {
     like            : { icone: '❤️',  texte: 'a aimé ta publication'                },
     comment         : { icone: '💬',  texte: 'a commenté ta publication'             },
@@ -956,7 +943,6 @@ const _NOTIF_ICONES = {
     mention_comment : { icone: '🏷️', texte: 't\'a mentionné(e) dans un commentaire'},
 };
 
-// ── Temps écoulé ─────────────────────────────────────────────
 function _tempsEcoule(dateStr) {
     const diff = Date.now() - new Date(dateStr).getTime();
     const min  = Math.floor(diff / 60000);
@@ -969,7 +955,6 @@ function _tempsEcoule(dateStr) {
     return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 
-// ── Est aujourd'hui ───────────────────────────────────────────
 function _estAujourdhui(dateStr) {
     const d     = new Date(dateStr);
     const today = new Date();
@@ -978,7 +963,6 @@ function _estAujourdhui(dateStr) {
         && d.getFullYear() === today.getFullYear();
 }
 
-// ── Charger le badge (count non lues) ────────────────────────
 async function chargerBadgeNotifs() {
     const { token } = _socialAuth();
     if (!token) return;
@@ -998,7 +982,6 @@ async function chargerBadgeNotifs() {
     } catch { /* silencieux */ }
 }
 
-// ── Fermer tous les panneaux ──────────────────────────────────
 function _fermerTousPanneaux() {
     const panelNotifs = document.getElementById('panel-notifs');
     const userMenu    = document.getElementById('user-menu');
@@ -1007,7 +990,6 @@ function _fermerTousPanneaux() {
     _panelNotifOuvert = false;
 }
 
-// ── Toggle panel notifs ───────────────────────────────────────
 async function togglePanelNotifs(e) {
     e.stopPropagation();
     const panel   = document.getElementById('panel-notifs');
@@ -1022,7 +1004,6 @@ async function togglePanelNotifs(e) {
     }
 }
 
-// ── Fermer panel au clic en dehors ────────────────────────────
 document.addEventListener('click', e => {
     const panel = document.getElementById('panel-notifs');
     const btn   = document.getElementById('btn-cloche');
@@ -1033,7 +1014,6 @@ document.addEventListener('click', e => {
     }
 });
 
-// ── Chargement des notifs ─────────────────────────────────────
 async function _chargerNotifs() {
     const { token } = _socialAuth();
     const liste     = document.getElementById('notif-liste');
@@ -1047,16 +1027,13 @@ async function _chargerNotifs() {
         });
         const d = await r.json();
         if (!d.success) throw new Error();
-
         _notifsData = d.notifications || [];
         _renderNotifs();
-
     } catch {
         liste.innerHTML = '<p style="text-align:center;color:#ef4444;padding:20px;font-size:13px">Erreur de chargement.</p>';
     }
 }
 
-// ── Rendu des notifs ──────────────────────────────────────────
 function _renderNotifs() {
     const liste = document.getElementById('notif-liste');
     if (!liste) return;
@@ -1093,12 +1070,11 @@ function _renderNotifs() {
     }
 
     if (plusTot.length) {
-        html += `
-            <div style="display:flex;align-items:center;justify-content:space-between;
-                        padding:8px 16px 4px">
-                <span style="font-size:12px;font-weight:700;color:#6b7280;
-                             text-transform:uppercase;letter-spacing:.5px">Plus tôt</span>
-            </div>`;
+        html += `<div style="display:flex;align-items:center;justify-content:space-between;
+                             padding:8px 16px 4px">
+                     <span style="font-size:12px;font-weight:700;color:#6b7280;
+                                  text-transform:uppercase;letter-spacing:.5px">Plus tôt</span>
+                 </div>`;
         html += plusTot.map(n => _htmlNotif(n)).join('');
     }
 
@@ -1122,7 +1098,6 @@ function _renderNotifs() {
     });
 }
 
-// ── HTML d'une notif ──────────────────────────────────────────
 function _htmlNotif(n) {
     const infos   = _NOTIF_ICONES[n.type] || { icone: '🔔', texte: 'nouvelle notification' };
     const prenom  = n.sender_prenom || '';
@@ -1152,13 +1127,12 @@ function _htmlNotif(n) {
            onmouseout="this.style.background='${nonLu ? '#f5f3ff' : '#fff'}'">
             <div style="position:relative;flex-shrink:0">
                 ${avatar}
-                <div style="
-                    position:absolute;bottom:-2px;right:-2px;
-                    width:20px;height:20px;border-radius:50%;
-                    background:#fff;border:2px solid #fff;
-                    display:flex;align-items:center;justify-content:center;
-                    font-size:11px;line-height:1;
-                    box-shadow:0 1px 4px rgba(0,0,0,.15)">
+                <div style="position:absolute;bottom:-2px;right:-2px;
+                            width:20px;height:20px;border-radius:50%;
+                            background:#fff;border:2px solid #fff;
+                            display:flex;align-items:center;justify-content:center;
+                            font-size:11px;line-height:1;
+                            box-shadow:0 1px 4px rgba(0,0,0,.15)">
                     ${infos.icone}
                 </div>
             </div>
@@ -1179,12 +1153,11 @@ function _htmlNotif(n) {
         </div>`;
 }
 
-// ── Switch onglet Tout / Non lu ───────────────────────────────
 function switchNotifTab(tab) {
     _notifsTab    = tab;
     _notifsOffset = 0;
 
-        const btnTout  = document.getElementById('notif-tab-tout');
+    const btnTout  = document.getElementById('notif-tab-tout');
     const btnNonlu = document.getElementById('notif-tab-nonlu');
 
     if (btnTout) {
@@ -1201,13 +1174,11 @@ function switchNotifTab(tab) {
     _renderNotifs();
 }
 
-// ── Voir plus ─────────────────────────────────────────────────
 function voirPlusNotifs() {
     _notifsOffset += _NOTIFS_PAR_PAGE;
     _renderNotifs();
 }
 
-// ── Tout marquer lu ───────────────────────────────────────────
 async function toutMarquerVu() {
     const { token } = _socialAuth();
     try {
@@ -1221,5 +1192,4 @@ async function toutMarquerVu() {
     } catch { /* silencieux */ }
 }
 
-// ── Polling badge toutes les 60s ──────────────────────────────
 setInterval(chargerBadgeNotifs, 60000);
