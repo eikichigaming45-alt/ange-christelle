@@ -89,7 +89,6 @@ const Cycle = (() => {
         return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
     }
 
-    // FIX 2 : fallback 3 au lieu de 5
     function calculerDureeReglesMoyenne(cycles) {
         if (!cycles.length) return 3;
         const durees = cycles.map(c => c.duree_regles).filter(d => d > 0);
@@ -504,7 +503,6 @@ const Cycle = (() => {
         if (zoneModal) zoneModal.innerHTML = renderCalendrier(_calcCourant);
     }
 
-    // FIX 4 : bouton "+ Enregistrer mes règles" masqué en mode retard
     function ouvrirCalendrier() {
         const body = `
             <div id="cycle-calendrier-modal">
@@ -531,11 +529,11 @@ const Cycle = (() => {
         const phaseDuJour = getPhaseDuJour(dateStr);
         const phaseLabel  = phaseDuJour ? `${phaseDuJour.emoji} ${phaseDuJour.label}` : '';
 
-                let listeRapports = '';
+        let listeRapports = '';
         rapports.forEach((r, i) => {
             const typeLabel = r.humeur === 'non_protege' ? '🔓 Non protégé' :
                               r.humeur === 'protege'     ? '🔒 Protégé'     : r.humeur || '';
-            listeRapports += `
+                    listeRapports += `
                 <div style="display:flex;align-items:center;justify-content:space-between;
                             background:#fdf4ff;border-radius:8px;padding:8px 10px;margin-bottom:6px">
                     <span style="font-size:13px">♥ ${typeLabel}
@@ -756,7 +754,6 @@ const Cycle = (() => {
         });
     }
 
-    // FIX 3 : tirets — remplacés par -
     function afficherHistorique() {
         const lignes = _cyclesCourants.map(c => {
             const dateLabel = formatDate(parseDateLocale(c.date_debut.split('T')[0]));
@@ -956,7 +953,6 @@ const Cycle = (() => {
         const calc      = _calcCourant;
         const phase     = getPhase(calc);
         const jourCycle = calculerJourCycle(calc);
-
         const progression = Math.min(100, Math.round(((jourCycle - 1) / calc.dureeCycle) * 100));
 
         let bandeauPhase = '';
@@ -980,7 +976,6 @@ const Cycle = (() => {
                 </div>`;
         }
 
-        // FIX 4 : boutons sans doublon en mode retard
         let boutonsAction = '';
         if (!calc.enRetard) {
             boutonsAction = `
@@ -1018,7 +1013,7 @@ const Cycle = (() => {
                         ${formatDate(calc.debut)}
                     </div>
                 </div>
-                                <div style="background:#f9fafb;border-radius:10px;padding:10px 12px">
+                <div style="background:#f9fafb;border-radius:10px;padding:10px 12px">
                     <div style="font-size:10px;font-weight:700;color:#9ca3af;
                                 text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
                         🔄 Durée cycle (calculée)
@@ -1036,10 +1031,10 @@ const Cycle = (() => {
                     <div style="font-size:13px;font-weight:600;
                                 color:${calc.enRetard ? '#9ca3af' : '#10b981'}">
                         ${calc.enRetard
-                            ? `<span style="color:#d1d5db">—</span>`
+                            ? `<span style="color:#d1d5db">-</span>`
                             : `${formatDate(calc.debutFertile)}<br>
                                <span style="font-size:11px;font-weight:400">
-                                   — ${formatDate(calc.finFertile)}
+                                   - ${formatDate(calc.finFertile)}
                                </span>`}
                     </div>
                 </div>
@@ -1052,22 +1047,21 @@ const Cycle = (() => {
                     <div style="font-size:13px;font-weight:600;
                                 color:${calc.enRetard ? '#9ca3af' : '#f59e0b'}">
                         ${calc.enRetard
-                            ? `<span style="color:#d1d5db">—</span>`
+                            ? `<span style="color:#d1d5db">-</span>`
                             : formatDate(calc.ovulation)}
                     </div>
                 </div>
             </div>
 
-            <div style="margin-bottom:14px">
+                        <div style="margin-bottom:14px">
                 <div style="font-size:11px;color:#9ca3af;margin-bottom:6px;font-weight:500">
                     Progression du cycle (${calc.dureeCycle} jours)
                 </div>
                 <div style="background:#f3f4f6;border-radius:999px;height:8px;overflow:hidden">
                     <div style="height:100%;border-radius:999px;width:${progression}%;
                                 background:${calc.enRetard
-                                    ? 'linear-gradient(90deg,#f59e0b,#ef4444)'
-                                    : 'linear-gradient(90deg,#e91e8c,#7c3aed)'};
-                                transition:width .6s ease">
+                                    ? 'linear-gradient(90deg,#f59e0b,#fbbf24)'
+                                    : 'linear-gradient(90deg,#e91e8c,#7c3aed)'}">
                     </div>
                 </div>
             </div>
@@ -1080,6 +1074,8 @@ const Cycle = (() => {
         const zone = document.getElementById(containerId);
         if (!zone) return;
 
+        zone.innerHTML = '<div style="padding:20px;color:#9ca3af;font-size:13px">Chargement...</div>';
+
         try {
             const res       = await fetch('/api/cycle?limit=10', { headers: authHeaders() });
             const data      = await res.json();
@@ -1088,17 +1084,22 @@ const Cycle = (() => {
             _cyclesCourants = [];
         }
 
-        const dureeMoyenne = calculerDureeMoyenne(_cyclesCourants);
-        _calcCourant       = calculerCycle(_cyclesCourants[0], dureeMoyenne);
-        _toutesLesP        = calculerToutesPeriodes(_cyclesCourants, dureeMoyenne);
+        try {
+            const dureeMoyenne = calculerDureeMoyenne(_cyclesCourants);
+            _calcCourant       = calculerCycle(_cyclesCourants[0], dureeMoyenne);
+            _toutesLesP        = calculerToutesPeriodes(_cyclesCourants, dureeMoyenne);
 
-        const aujourd_hui = _aujourdHuiLocal();
-        _moisAffiche      = new Date(aujourd_hui.getFullYear(), aujourd_hui.getMonth(), 1);
-        _moisAffiche.setHours(0, 0, 0, 0);
+            const aujourd_hui = _aujourdHuiLocal();
+            _moisAffiche      = new Date(aujourd_hui.getFullYear(), aujourd_hui.getMonth(), 1);
+            _moisAffiche.setHours(0, 0, 0, 0);
 
-        await chargerJournal(aujourd_hui.getMonth() + 1, aujourd_hui.getFullYear());
+            await chargerJournal(aujourd_hui.getMonth() + 1, aujourd_hui.getFullYear());
 
-        zone.innerHTML = await _buildWidget();
+            zone.innerHTML = await _buildWidget();
+        } catch (e) {
+            console.error('[Cycle] init error:', e);
+            zone.innerHTML = '<div style="padding:20px;color:#e74c3c;font-size:13px">Erreur chargement cycle.</div>';
+        }
     }
 
     function getDataForSocial() {
@@ -1107,36 +1108,33 @@ const Cycle = (() => {
         const phase     = getPhase(calc);
         const jourCycle = calculerJourCycle(calc);
         const phaseDef  = getPhaseMood(jourCycle, calc);
-
-        const aujourd_hui = _aujourdHuiLocal();
-        const dateStr     = formatDateInput(aujourd_hui);
-        const rapports    = _journalCache[dateStr] || [];
-        const moods       = rapports
+        const today     = formatDateInput(_aujourdHuiLocal());
+        const rapports  = _journalCache[today] || [];
+        const moods     = rapports
             .filter(r => r.humeur && !['protege','non_protege'].includes(r.humeur))
             .map(r => r.humeur);
 
         return {
-            phase          : phase.label,
-            emoji          : phase.emoji,
+            phase         : phase.label,
+            phaseEmoji    : phase.emoji,
             jourCycle,
-            dureeCycle     : calc.dureeCycle,
-            prochainDebut  : calc.prochainDebut,
-            ovulation      : calc.ovulation,
-            debutFertile   : calc.debutFertile,
-            finFertile     : calc.finFertile,
-            enRetard       : calc.enRetard,
-            joursRetard    : calc.joursRetard,
-            phaseMoodLabel : phaseDef?.label || '',
-            phaseMoodItems : phaseDef?.items || [],
+            dureeCycle    : calc.dureeCycle,
+            prochainDebut : calc.prochainDebut,
+            ovulation     : calc.ovulation,
+            debutFertile  : calc.debutFertile,
+            finFertile    : calc.finFertile,
+            enRetard      : calc.enRetard,
+            joursRetard   : calc.joursRetard,
             moods,
+            phaseMoodLabel: phaseDef?.label || '',
         };
     }
 
-    // FIX 1 : charger ajouté comme alias de init
     return {
         init,
-        charger            : init,
+        charger                : init,
         ouvrirCalendrier,
+        ouvrirModalCalendrier  : ouvrirCalendrier,
         ouvrirJournal,
         ouvrirModalAjout,
         afficherHistorique,
