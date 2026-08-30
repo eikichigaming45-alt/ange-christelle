@@ -205,22 +205,27 @@ router.get('/data/:ownerId/:type', async (req, res) => {
             return res.status(403).json({ success: false, message: 'Partage non actif.' });
         }
 
-        const today = new Date().toISOString().split('T')[0];
-        let data    = [];
+        const today    = new Date().toISOString().split('T')[0];
+        const dateFin  = new Date();
+        dateFin.setDate(dateFin.getDate() + 4);
+        const dateFinStr = dateFin.toISOString().split('T')[0];
+
+        let data = [];
 
         if (type === 'agenda') {
             const { rows } = await pool.query(`
                 SELECT id, titre, categorie, sous_categorie,
-                       TO_CHAR(heure_debut, 'HH24:MI') AS heure_debut,
-                       TO_CHAR(heure_fin,   'HH24:MI') AS heure_fin,
+                       TO_CHAR(date_debut, 'YYYY-MM-DD')  AS date_debut,
+                       TO_CHAR(heure_debut, 'HH24:MI')    AS heure_debut,
+                       TO_CHAR(heure_fin,   'HH24:MI')    AS heure_fin,
                        lieu
                 FROM agenda
                 WHERE user_id = \$1
-                  AND date_debut <= \$2
-                  AND COALESCE(date_fin, date_debut) >= \$2
-                ORDER BY heure_debut ASC NULLS LAST
-                LIMIT 10
-            `, [ownerId, today]);
+                  AND date_debut >= \$2
+                  AND date_debut <= \$3
+                ORDER BY date_debut ASC, heure_debut ASC NULLS LAST
+                LIMIT 30
+            `, [ownerId, today, dateFinStr]);
             data = rows;
         }
 

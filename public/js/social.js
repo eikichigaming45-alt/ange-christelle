@@ -62,6 +62,17 @@ function _ouvrirModaleConseil(texte) {
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
+// ── Formater une date YYYY-MM-DD en label lisible ─────────────
+function _labelDate(dateStr) {
+    const today    = new Date(); today.setHours(0,0,0,0);
+    const demain   = new Date(today); demain.setDate(today.getDate() + 1);
+    const d        = new Date(dateStr + 'T00:00:00');
+    if (d.getTime() === today.getTime())  return "Aujourd'hui";
+    if (d.getTime() === demain.getTime()) return 'Demain';
+    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+             .toUpperCase();
+}
+
 // ============================================================
 // WIDGET SOCIAL (contenu reçu — affiché dans l'onglet Quotidien)
 // ============================================================
@@ -306,74 +317,95 @@ document.addEventListener('click', e => {
     _ouvrirModaleConseil(decodeURIComponent(btn.dataset.conseilComplet));
 });
 
-// ── Bloc Agenda ───────────────────────────────────────────────
+// ── Couleurs et icônes catégories agenda ──────────────────────
+const _CAT_COLORS = {
+    'Travail'       : '#f4a261',
+    'Mission'       : '#ce93d8',
+    'Repos'         : '#90caf9',
+    'Médical'       : '#f87171',
+    'Sport'         : '#34d399',
+    'Sortie'        : '#fbbf24',
+    'Famille'       : '#f9a8d4',
+    'Administratif' : '#94a3b8',
+    'Voyage'        : '#60a5fa',
+    'Autre'         : '#bcaaa4'
+};
+const _CAT_ICONS = {
+    'Travail'       : '💼',
+    'Mission'       : '🧳',
+    'Repos'         : '😴',
+    'Médical'       : '🩺',
+    'Sport'         : '🏃',
+    'Sortie'        : '🎉',
+    'Famille'       : '👨‍👩‍👧',
+    'Administratif' : '📋',
+    'Voyage'        : '✈️',
+    'Autre'         : '📌'
+};
+
+// ── Bloc Agenda — groupé par date sur 5 jours ─────────────────
 async function _renderBlocAgenda(ownerId, token) {
     const r = await fetch(`/api/social/data/${ownerId}/agenda`, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     const d = await r.json();
+
+    const titre = `
+        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                    letter-spacing:.5px;margin-bottom:6px">Agenda</div>`;
+
     if (!d.success || !d.data.length) {
         return `
             <div style="margin-bottom:10px">
-                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                            letter-spacing:.5px;margin-bottom:6px">Agenda</div>
-                <div style="font-size:13px;color:#9ca3af">Rien à l'agenda aujourd'hui.</div>
+                ${titre}
+                <div style="font-size:13px;color:#9ca3af">Rien à l'agenda sur les 5 prochains jours.</div>
             </div>`;
     }
 
-    const CAT_COLORS = {
-        'Travail'       : '#f4a261',
-        'Mission'       : '#ce93d8',
-        'Repos'         : '#90caf9',
-        'Médical'       : '#f87171',
-        'Sport'         : '#34d399',
-        'Sortie'        : '#fbbf24',
-        'Famille'       : '#f9a8d4',
-        'Administratif' : '#94a3b8',
-        'Voyage'        : '#60a5fa',
-        'Autre'         : '#bcaaa4'
-    };
-    const CAT_ICONS = {
-        'Travail'       : '💼',
-        'Mission'       : '🧳',
-        'Repos'         : '😴',
-        'Médical'       : '🩺',
-        'Sport'         : '🏃',
-        'Sortie'        : '🎉',
-        'Famille'       : '👨‍👩‍👧',
-        'Administratif' : '📋',
-        'Voyage'        : '✈️',
-        'Autre'         : '📌'
-    };
+    // Grouper par date_debut
+    const parDate = {};
+    d.data.forEach(e => {
+        if (!parDate[e.date_debut]) parDate[e.date_debut] = [];
+        parDate[e.date_debut].push(e);
+    });
 
-    const items = d.data.map(e => {
-        const couleur = CAT_COLORS[e.categorie] || '#bcaaa4';
-        const icone   = CAT_ICONS[e.categorie]  || '📌';
-        const hDebut  = e.heure_debut ? e.heure_debut.slice(0, 5) : null;
-        const hFin    = e.heure_fin   ? e.heure_fin.slice(0, 5)   : null;
+    const blocsDate = Object.entries(parDate).map(([date, evts]) => {
+        const label = _labelDate(date);
+        const items = evts.map(e => {
+            const couleur = _CAT_COLORS[e.categorie] || '#bcaaa4';
+            const icone   = _CAT_ICONS[e.categorie]  || '📌';
+            const hDebut  = e.heure_debut ? e.heure_debut.slice(0, 5) : null;
+            const hFin    = e.heure_fin   ? e.heure_fin.slice(0, 5)   : null;
+            return `
+                <div style="padding:8px 10px;background:${couleur}22;border-left:3px solid ${couleur};
+                            border-radius:8px;margin-bottom:4px;font-size:13px">
+                    <div style="font-weight:600;color:#1f2937">${icone} ${e.titre}</div>
+                    <div style="color:#6b7280;font-size:12px">
+                        ${e.sous_categorie ? `${e.categorie} — ${e.sous_categorie}` : e.categorie}
+                    </div>
+                    ${hDebut
+                        ? `<div style="color:#6b7280;font-size:12px">
+                               ⏰ ${hDebut}${hFin ? ' → ' + hFin : ''}
+                           </div>`
+                        : ''}
+                    ${e.lieu
+                        ? `<div style="color:#9ca3af;font-size:11px">📍 ${e.lieu}</div>`
+                        : ''}
+                </div>`;
+        }).join('');
+
         return `
-            <div style="padding:8px 10px;background:${couleur}22;border-left:3px solid ${couleur};
-                        border-radius:8px;margin-bottom:4px;font-size:13px">
-                <div style="font-weight:600;color:#1f2937">${icone} ${e.titre}</div>
-                <div style="color:#6b7280;font-size:12px">
-                    ${e.sous_categorie ? `${e.categorie} — ${e.sous_categorie}` : e.categorie}
-                </div>
-                ${hDebut
-                    ? `<div style="color:#6b7280;font-size:12px">
-                           ⏰ ${hDebut}${hFin ? ' → ' + hFin : ''}
-                       </div>`
-                    : ''}
-                ${e.lieu
-                    ? `<div style="color:#9ca3af;font-size:11px">📍 ${e.lieu}</div>`
-                    : ''}
+            <div style="margin-bottom:8px">
+                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                            letter-spacing:.4px;margin-bottom:4px">${label}</div>
+                ${items}
             </div>`;
     }).join('');
 
     return `
         <div style="margin-bottom:10px">
-            <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                        letter-spacing:.5px;margin-bottom:6px">Agenda</div>
-            ${items}
+            ${titre}
+            ${blocsDate}
         </div>`;
 }
 
@@ -555,7 +587,7 @@ function _htmlBlocViewer(v, typesDisponibles) {
                         data-existe="${existe}"
                         data-action="toggle-partage"
                         style="opacity:0;width:0;height:0;position:absolute">
-                    <span style="position:absolute;inset:0;border-radius:22px;cursor:pointer;
+                                        <span style="position:absolute;inset:0;border-radius:22px;cursor:pointer;
                                  background:${actif ? '#7c3aed' : '#d1d5db'};transition:background .2s">
                         <span style="position:absolute;top:3px;left:${actif ? '19px' : '3px'};
                                      width:16px;height:16px;border-radius:50%;background:#fff;
@@ -1168,7 +1200,7 @@ function switchNotifTab(tab) {
     if (btnNonlu) {
         btnNonlu.style.color             = tab === 'nonlu' ? '#7c3aed' : '#9ca3af';
         btnNonlu.style.borderBottomColor = tab === 'nonlu' ? '#7c3aed' : 'transparent';
-        btnNonlu.style.fontWeight        = tab === 'nonlu' ? '700'     : '600';
+                btnNonlu.style.fontWeight        = tab === 'nonlu' ? '700' : '600';
     }
 
     _renderNotifs();
