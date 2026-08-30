@@ -47,49 +47,7 @@ router.post('/', async (req, res) => {
     }
 });
 
-// ── PUT /api/cycle/:id ────────────────────────────────────────
-router.put('/:id', async (req, res) => {
-    const { date_debut, duree_regles, duree_cycle, notes } = req.body;
-    if (!date_debut) {
-        return res.status(400).json({ success: false, message: 'La date de début est obligatoire.' });
-    }
-    try {
-        const result = await pool.query(
-            `UPDATE cycles
-             SET date_debut=\$1, duree_regles=\$2, duree_cycle=\$3, notes=\$4
-             WHERE id=\$5 AND user_id=\$6
-             RETURNING *`,
-            [date_debut, duree_regles, duree_cycle, notes, req.params.id, req.user.id]
-        );
-        if (result.rowCount === 0) {
-            return res.status(404).json({ success: false, message: 'Cycle introuvable.' });
-        }
-        res.json({ success: true, cycle: result.rows[0] });
-    } catch (err) {
-        console.error('[CYCLE] PUT /:id :', err.message);
-        res.status(500).json({ success: false, message: 'Erreur serveur.' });
-    }
-});
-
-// ── DELETE /api/cycle/:id ─────────────────────────────────────
-router.delete('/:id', async (req, res) => {
-    try {
-        const result = await pool.query(
-            'DELETE FROM cycles WHERE id=\$1 AND user_id=\$2',
-            [req.params.id, req.user.id]
-        );
-        if (result.rowCount === 0) {
-            return res.status(404).json({ success: false, message: 'Cycle introuvable.' });
-        }
-        res.json({ success: true });
-    } catch (err) {
-        console.error('[CYCLE] DELETE /:id :', err.message);
-        res.status(500).json({ success: false, message: 'Erreur serveur.' });
-    }
-});
-
 // ── GET /api/cycle/journal ────────────────────────────────────
-// Retourne TOUS les rapports du mois (plusieurs par jour possibles).
 router.get('/journal', async (req, res) => {
     const { mois, annee } = req.query;
     if (!mois || !annee) {
@@ -113,9 +71,8 @@ router.get('/journal', async (req, res) => {
 });
 
 // ── POST /api/cycle/journal ───────────────────────────────────
-// INSERT pur — plusieurs rapports par jour autorisés.
 router.post('/journal', async (req, res) => {
-    const { date, rapport, symptomes, notes } = req.body;
+    const { date, humeur, symptomes, notes } = req.body;
     if (!date) {
         return res.status(400).json({ success: false, message: 'La date est obligatoire.' });
     }
@@ -124,7 +81,7 @@ router.post('/journal', async (req, res) => {
             `INSERT INTO cycle_journal (user_id, date, humeur, symptomes, notes)
              VALUES (\$1, \$2, \$3, \$4, \$5)
              RETURNING *`,
-            [req.user.id, date, rapport || null, symptomes || null, notes || null]
+            [req.user.id, date, humeur || null, symptomes || null, notes || null]
         );
         res.json({ success: true, journal: result.rows[0] });
     } catch (err) {
@@ -134,16 +91,15 @@ router.post('/journal', async (req, res) => {
 });
 
 // ── PUT /api/cycle/journal/:id ────────────────────────────────
-// Modification d'un rapport existant par son id.
 router.put('/journal/:id', async (req, res) => {
-    const { rapport, symptomes, notes } = req.body;
+    const { humeur, symptomes, notes } = req.body;
     try {
         const result = await pool.query(
             `UPDATE cycle_journal
              SET humeur=\$1, symptomes=\$2, notes=\$3
              WHERE id=\$4 AND user_id=\$5
              RETURNING *`,
-            [rapport || null, symptomes || null, notes || null, req.params.id, req.user.id]
+            [humeur || null, symptomes || null, notes || null, req.params.id, req.user.id]
         );
         if (result.rowCount === 0) {
             return res.status(404).json({ success: false, message: 'Rapport introuvable.' });
@@ -225,6 +181,47 @@ router.delete('/mood/:id', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error('[CYCLE] DELETE /mood/:id :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── PUT /api/cycle/:id ────────────────────────────────────────
+router.put('/:id', async (req, res) => {
+    const { date_debut, duree_regles, duree_cycle, notes } = req.body;
+    if (!date_debut) {
+        return res.status(400).json({ success: false, message: 'La date de début est obligatoire.' });
+    }
+    try {
+        const result = await pool.query(
+            `UPDATE cycles
+             SET date_debut=\$1, duree_regles=\$2, duree_cycle=\$3, notes=\$4
+             WHERE id=\$5 AND user_id=\$6
+             RETURNING *`,
+            [date_debut, duree_regles, duree_cycle, notes, req.params.id, req.user.id]
+        );
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Cycle introuvable.' });
+        }
+        res.json({ success: true, cycle: result.rows[0] });
+    } catch (err) {
+        console.error('[CYCLE] PUT /:id :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── DELETE /api/cycle/:id ─────────────────────────────────────
+router.delete('/:id', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'DELETE FROM cycles WHERE id=\$1 AND user_id=\$2',
+            [req.params.id, req.user.id]
+        );
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Cycle introuvable.' });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[CYCLE] DELETE /:id :', err.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
