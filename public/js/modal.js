@@ -1,8 +1,7 @@
 // ============================================================
 // public/js/modal.js
 // Modales : météo, prière, islam, tâches, anniversaires,
-// cycle, rendez-vous, planning, profil, admin, astrologie,
-// theme-astral, agenda-unifie.
+// cycle, profil, admin, astrologie, theme-astral, agenda-unifie.
 // Onglet Profil : infos + heure/lieu naissance + géocodage.
 // Onglet Santé  : sexe, taille, poids, groupe sanguin,
 //                 niveau activité, objectif santé, signe zodiaque,
@@ -16,17 +15,16 @@ const JOURS_MODAL = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 async function openModal(type) {
     document.getElementById('overlay').classList.add('on');
+    document.body.classList.add('modal-open');
     const titres = {
         meteo          : 'Météo du jour',
         priere         : 'Prière du jour',
         islam          : 'Prières & Hadiths',
         taches         : 'Tâches du jour',
-        planning       : 'Mon Planning',
         anniversaires  : 'Anniversaires',
         profil         : 'Mon Profil',
         admin          : 'Administration',
         cycle          : 'Suivi du cycle',
-        rendezvous     : 'Rendez-vous médicaux',
         astrologie     : 'Astrologie',
         'theme-astral' : 'Thème Astral',
         'agenda-unifie': 'Mon Agenda',
@@ -175,20 +173,6 @@ async function openModal(type) {
     } else if (type === 'cycle') {
         document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
         await Cycle.ouvrirModalCalendrier();
-
-    // ── Rendez-vous ───────────────────────────────────────────
-    } else if (type === 'rendezvous') {
-        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
-        await Rendezvous.ouvrirListe();
-
-    // ── Planning ──────────────────────────────────────────────
-    } else if (type === 'planning') {
-        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
-        if (typeof ouvrirPlanningModal === 'function') {
-            await ouvrirPlanningModal();
-        } else {
-            document.getElementById('modal-body').innerHTML = '<p style="color:red">Module planning non chargé.</p>';
-        }
 
     // ── Agenda unifié ─────────────────────────────────────────
     } else if (type === 'agenda-unifie') {
@@ -391,8 +375,7 @@ async function openModal(type) {
                                 ).join('')}
                             </select>
                         </div>
-
-                                                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
                                     letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Activité & Objectif</div>
                         <div style="margin-bottom:10px">
                             <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Niveau d'activité</label>
@@ -403,7 +386,7 @@ async function openModal(type) {
                                 <option value="leger"      ${p.niveau_activite === 'leger'      ? 'selected' : ''}>Légèrement actif (1–3 séances/sem)</option>
                                 <option value="modere"     ${p.niveau_activite === 'modere'     ? 'selected' : ''}>Modérément actif (3–5 séances/sem)</option>
                                 <option value="actif"      ${p.niveau_activite === 'actif'      ? 'selected' : ''}>Actif (6–7 séances/sem)</option>
-                                <option value="tres_actif" ${p.niveau_activite === 'tres_actif' ? 'selected' : ''}>Très actif (sport intensif quotidien)</option>
+                                                                <option value="tres_actif" ${p.niveau_activite === 'tres_actif' ? 'selected' : ''}>Très actif (sport intensif quotidien)</option>
                             </select>
                         </div>
                         <div style="margin-bottom:16px">
@@ -661,8 +644,10 @@ function lirePriereModal(e) {
 function closeModal() {
     window.speechSynthesis?.cancel();
     document.getElementById('overlay').classList.remove('on');
+    document.body.classList.remove('modal-open');
 }
 
 function closeOutside(e) {
     if (e.target === document.getElementById('overlay')) closeModal();
 }
+
