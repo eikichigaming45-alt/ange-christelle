@@ -2,7 +2,24 @@
 
 ---
 
-## v1.47 — 30-08-2026
+## v1.48 — 30-08-2026
+
+### ✨ Nouveau
+- Champ Praticien ajouté pour les événements Médicaux — distinct du lieu
+- Champ Lieu / Adresse disponible pour toutes les catégories
+- Les employeurs existants sont proposés en liste déroulante lors d'une entrée Travail ou Mission
+- Lors de la création d'un nouvel employeur, l'adresse et le téléphone peuvent être saisis directement
+- Le lieu (employeur ou praticien) est affiché dans le widget agenda et le widget Social
+
+### 🔧 Corrections
+- Les employeurs ne s'affichaient pas dans la liste déroulante — la route `/api/agenda/employeurs` était interceptée par `/:id` — corrigé
+- "Repos — Repos" s'affichait dans le détail jour et le widget Social — la sous-catégorie identique à la catégorie est désormais masquée
+- Les tirets `—` s'affichaient en caractère unicode large — remplacés par ` - ` partout
+- Le champ Employeur apparaissait en bas du formulaire au lieu d'être après la sous-catégorie — corrigé
+
+---
+
+## v1.47 — 30-08-2026 🏷️ Stable
 
 ### ✨ Nouveau
 - Agenda unifié : les modules Planning et Rendez-vous fusionnent en un seul widget Agenda dans l'onglet Quotidien
