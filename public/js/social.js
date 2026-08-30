@@ -1177,15 +1177,20 @@ function _renderNotifs() {
                 case 'share_request':
                     switchTab('profil');
                     break;
-                case 'like':
+                                case 'like':
                 case 'comment':
                 case 'mention_post':
                 case 'mention_comment':
                     switchTab('accueil');
-                    if (typeof chargerFeed === 'function') chargerFeed();
-                    break;
-                case 'follow':
-                default:
+                    if (typeof chargerFeed === 'function') {
+                        chargerFeed().then(() => {
+                            const refId = el.dataset.notifRef;
+                            if (refId) {
+                                const postEl = document.getElementById(`post-${refId}`);
+                                if (postEl) setTimeout(() => postEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                            }
+                        });
+                    }
                     break;
             }
         });
@@ -1213,6 +1218,7 @@ function _htmlNotif(n) {
     return `
         <div data-notif-id="${n.id}"
              data-notif-type="${n.type}"
+             data-notif-ref="${n.ref_id || ''}"
              style="
             display:flex;align-items:center;gap:12px;
             padding:10px 16px;cursor:pointer;
