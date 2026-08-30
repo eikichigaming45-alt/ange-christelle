@@ -205,8 +205,8 @@ router.get('/data/:ownerId/:type', async (req, res) => {
             return res.status(403).json({ success: false, message: 'Partage non actif.' });
         }
 
-        const today    = new Date().toISOString().split('T')[0];
-        const dateFin  = new Date();
+        const today      = new Date().toISOString().split('T')[0];
+        const dateFin    = new Date();
         dateFin.setDate(dateFin.getDate() + 4);
         const dateFinStr = dateFin.toISOString().split('T')[0];
 
@@ -215,10 +215,10 @@ router.get('/data/:ownerId/:type', async (req, res) => {
         if (type === 'agenda') {
             const { rows } = await pool.query(`
                 SELECT id, titre, categorie, sous_categorie,
-                       TO_CHAR(date_debut, 'YYYY-MM-DD')  AS date_debut,
-                       TO_CHAR(heure_debut, 'HH24:MI')    AS heure_debut,
-                       TO_CHAR(heure_fin,   'HH24:MI')    AS heure_fin,
-                       lieu
+                       TO_CHAR(date_debut, 'YYYY-MM-DD') AS date_debut,
+                       TO_CHAR(heure_debut, 'HH24:MI')   AS heure_debut,
+                       TO_CHAR(heure_fin,   'HH24:MI')   AS heure_fin,
+                       lieu, praticien
                 FROM agenda
                 WHERE user_id = \$1
                   AND date_debut >= \$2
@@ -419,7 +419,7 @@ router.get('/conseil/:ownerId', async (req, res) => {
         if (cycleRes.rows.length) {
             const debut       = new Date(cycleRes.rows[0].date_debut);
             debut.setHours(0, 0, 0, 0);
-            const dureeRegles = cycleRes.rows[0].duree_regles || 5;
+            const dureeRegles = cycleRes.rows[0].duree_regles || 3;
             const dureeCycle  = cycleRes.rows[0].duree_cycle  || 28;
             const now         = new Date(); now.setHours(0, 0, 0, 0);
             const jourCycle   = Math.floor((now - debut) / (1000 * 60 * 60 * 24)) + 1;
@@ -444,11 +444,20 @@ router.get('/conseil/:ownerId', async (req, res) => {
             const enRegles      = now >= debut && now <= finRegles;
             const enFenetre     = now >= debutFertile && now <= finFertile;
             const estOvulation  = now.getTime() === ovulation.getTime();
+            const enRetard      = joursAvant < 0 && !enRegles;
+            const joursRetard   = enRetard ? Math.abs(joursAvant) : 0;
 
-            if (jourCycle <= dureeRegles)                                        phase = 'regles';
-            else if (jourCycle < ovulationJ - 2)                                 phase = 'folliculaire';
-            else if (jourCycle >= ovulationJ - 2 && jourCycle <= ovulationJ + 1) phase = 'ovulation';
-            else                                                                  phase = 'luteale';
+            if (enRetard) {
+                phase = 'luteale';
+            } else if (jourCycle <= dureeRegles) {
+                phase = 'regles';
+            } else if (jourCycle < ovulationJ - 2) {
+                phase = 'folliculaire';
+            } else if (jourCycle >= ovulationJ - 2 && jourCycle <= ovulationJ + 1) {
+                phase = 'ovulation';
+            } else {
+                phase = 'luteale';
+            }
 
             const phaseLabels = {
                 regles      : '🔴 Règles en cours',
@@ -457,29 +466,40 @@ router.get('/conseil/:ownerId', async (req, res) => {
                 luteale     : '🌙 Phase lutéale'
             };
 
-            let labelOvulation, valeurOvulation, labelFenetre, valeurFenetre;
-            if (ovulation < now) {
-                const prochaineOvul = addDays(ovulation, dureeCycle);
-                const prochFertDeb  = addDays(prochaineOvul, -5);
-                const prochFertFin  = addDays(prochaineOvul, 1);
-                labelOvulation  = 'Prochaine ovulation';
-                valeurOvulation = fmt(prochaineOvul);
-                labelFenetre    = 'Prochaine fenêtre fertile';
-                valeurFenetre   = `${fmt(prochFertDeb)} → ${fmt(prochFertFin)}`;
-            } else {
-                labelOvulation  = 'Ovulation estimée';
-                valeurOvulation = fmt(ovulation);
-                labelFenetre    = 'Fenêtre fertile';
-                valeurFenetre   = `${fmt(debutFertile)} → ${fmt(finFertile)}`;
+            // Si retard : gel ovulation et fenêtre fertile
+            let labelOvulation  = null;
+            let valeurOvulation = null;
+            let labelFenetre    = null;
+            let valeurFenetre   = null;
+
+            if (!enRetard) {
+                if (ovulation < now) {
+                    const prochaineOvul = addDays(ovulation, dureeCycle);
+                    const prochFertDeb  = addDays(prochaineOvul, -5);
+                    const prochFertFin  = addDays(prochaineOvul, 1);
+                    labelOvulation  = 'Prochaine ovulation';
+                    valeurOvulation = fmt(prochaineOvul);
+                    labelFenetre    = 'Prochaine fenetre fertile';
+                    valeurFenetre   = `${fmt(prochFertDeb)} - ${fmt(prochFertFin)}`;
+                } else {
+                    labelOvulation  = 'Ovulation estimée';
+                    valeurOvulation = fmt(ovulation);
+                    labelFenetre    = 'Fenetre fertile';
+                    valeurFenetre   = `${fmt(debutFertile)} - ${fmt(finFertile)}`;
+                }
             }
 
             cycleInfo = {
-                phaseLabel      : phaseLabels[phase] || phase,
+                phaseLabel      : enRetard
+                    ? `⏳ Règles en retard - ${joursRetard} jour${joursRetard > 1 ? 's' : ''}`
+                    : (phaseLabels[phase] || phase),
                 jourCycle,
                 dureeCycle,
                 enRegles,
                 enFenetre,
-                estOvulation,
+                enRetard,
+                joursRetard,
+                estOvulation    : enRetard ? false : estOvulation,
                 joursAvantRegles: joursAvant,
                 finRegles       : enRegles ? fmt(finRegles) : null,
                 labelOvulation,

@@ -64,9 +64,9 @@ function _ouvrirModaleConseil(texte) {
 
 // ── Formater une date YYYY-MM-DD en label lisible ─────────────
 function _labelDate(dateStr) {
-    const today    = new Date(); today.setHours(0,0,0,0);
-    const demain   = new Date(today); demain.setDate(today.getDate() + 1);
-    const d        = new Date(dateStr + 'T00:00:00');
+    const today  = new Date(); today.setHours(0,0,0,0);
+    const demain = new Date(today); demain.setDate(today.getDate() + 1);
+    const d      = new Date(dateStr + 'T00:00:00');
     if (d.getTime() === today.getTime())  return "Aujourd'hui";
     if (d.getTime() === demain.getTime()) return 'Demain';
     return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -74,7 +74,7 @@ function _labelDate(dateStr) {
 }
 
 // ============================================================
-// WIDGET SOCIAL (contenu reçu — affiché dans l'onglet Quotidien)
+// WIDGET SOCIAL
 // ============================================================
 
 async function chargerWidgetSocial() {
@@ -185,10 +185,41 @@ async function _renderBlocCycle(ownerId, token) {
 
     const ci = d.cycleInfo;
 
+    const titre = `
+        <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;
+                    letter-spacing:.5px;margin-bottom:6px">Suivi du cycle</div>`;
+
     let carteInfos = '';
     if (ci) {
         const lignes = [];
 
+        // Bandeau retard si applicable
+        if (ci.enRetard) {
+            lignes.push(`
+                <div style="background:#fff7ed;border:1.5px solid #f59e0b;border-radius:10px;
+                            padding:10px 12px;margin-bottom:8px">
+                    <div style="display:flex;align-items:center;gap:6px;font-size:13px;
+                                font-weight:700;color:#92400e;margin-bottom:4px">
+                        <span>⏳</span>
+                        Règles en retard - ${ci.joursRetard} jour${ci.joursRetard > 1 ? 's' : ''}
+                    </div>
+                    <div style="font-size:12px;color:#b45309">
+                        Attendues le ${ci.prochainDebut}. Elle n'a pas encore enregistré ses règles.
+                    </div>
+                </div>`);
+        }
+
+        // Phase + jour cycle — masqué si retard
+        if (!ci.enRetard) {
+            lignes.push(`
+                <div style="display:flex;align-items:center;justify-content:space-between;
+                            margin-bottom:8px">
+                    <span style="font-size:12px;font-weight:700;color:#7c3aed">${ci.phaseLabel}</span>
+                    <span style="font-size:11px;color:#9ca3af">Jour ${ci.jourCycle} / ${ci.dureeCycle}</span>
+                </div>`);
+        }
+
+        // Fin des règles si en cours
         if (ci.enRegles && ci.finRegles) {
             lignes.push(`
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;
@@ -198,57 +229,61 @@ async function _renderBlocCycle(ownerId, token) {
                 </div>`);
         }
 
-        lignes.push(`
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;
-                        padding:5px 0;border-bottom:1px solid #f3f4f6">
-                <span style="font-size:12px;color:#6b7280;flex:1">${ci.labelOvulation}</span>
-                <span style="font-size:12px;font-weight:600;color:#7c3aed;text-align:right">${ci.valeurOvulation}</span>
-            </div>`);
+        // Ovulation + fenêtre — masquées si retard
+        if (!ci.enRetard && ci.labelOvulation) {
+            lignes.push(`
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;
+                            padding:5px 0;border-bottom:1px solid #f3f4f6">
+                    <span style="font-size:12px;color:#6b7280;flex:1">${ci.labelOvulation}</span>
+                    <span style="font-size:12px;font-weight:600;color:#7c3aed;text-align:right">${ci.valeurOvulation}</span>
+                </div>`);
 
-        lignes.push(`
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;
-                        padding:5px 0;border-bottom:1px solid #f3f4f6">
-                <span style="font-size:12px;color:#6b7280;flex:1;padding-right:8px">${ci.labelFenetre}</span>
-                <span style="font-size:12px;font-weight:600;color:#7c3aed;text-align:right;white-space:nowrap">${ci.valeurFenetre}</span>
-            </div>`);
+            lignes.push(`
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;
+                            padding:5px 0;border-bottom:1px solid #f3f4f6">
+                    <span style="font-size:12px;color:#6b7280;flex:1;padding-right:8px">${ci.labelFenetre}</span>
+                    <span style="font-size:12px;font-weight:600;color:#7c3aed;text-align:right;white-space:nowrap">${ci.valeurFenetre}</span>
+                </div>`);
+        }
 
-        lignes.push(`
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0">
-                <span style="font-size:12px;color:#6b7280;flex:1">Prochaines règles</span>
-                <span style="font-size:12px;font-weight:600;color:#6b7280;text-align:right">
-                    ${ci.prochainDebut}
-                    ${ci.joursAvantRegles > 0
-                        ? `<span style="font-size:11px;color:#9ca3af;margin-left:4px">(dans ${ci.joursAvantRegles}j)</span>`
-                        : ''}
-                </span>
-            </div>`);
+        // Prochaines règles — masquées si retard
+        if (!ci.enRetard) {
+            lignes.push(`
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0">
+                    <span style="font-size:12px;color:#6b7280;flex:1">Prochaines règles</span>
+                    <span style="font-size:12px;font-weight:600;color:#6b7280;text-align:right">
+                        ${ci.prochainDebut}
+                        ${ci.joursAvantRegles > 0
+                            ? `<span style="font-size:11px;color:#9ca3af;margin-left:4px">(dans ${ci.joursAvantRegles}j)</span>`
+                            : ''}
+                    </span>
+                </div>`);
+        }
+
+        // Badges fenêtre fertile / ovulation — masqués si retard
+        if (!ci.enRetard) {
+            if (ci.enFenetre) {
+                lignes.push(`
+                    <div style="margin-top:8px;padding:6px 10px;background:#fdf4ff;border-radius:8px;
+                                font-size:12px;color:#7c3aed;font-weight:600;text-align:center">
+                        🌸 Fenêtre fertile en cours
+                    </div>`);
+            }
+            if (ci.estOvulation) {
+                lignes.push(`
+                    <div style="margin-top:8px;padding:6px 10px;background:#fdf4ff;border-radius:8px;
+                                font-size:12px;color:#7c3aed;font-weight:600;text-align:center">
+                        🌟 Jour d'ovulation
+                    </div>`);
+            }
+        }
 
         carteInfos = `
             <div style="background:#fff;border-radius:10px;padding:10px 12px;
                         border:1px solid #ede9fe;margin-bottom:8px">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                    <span style="font-size:12px;font-weight:700;color:#7c3aed">${ci.phaseLabel}</span>
-                    <span style="font-size:11px;color:#9ca3af">Jour ${ci.jourCycle} / ${ci.dureeCycle}</span>
-                </div>
                 ${lignes.join('')}
-                ${ci.enFenetre
-                    ? `<div style="margin-top:8px;padding:6px 10px;background:#fdf4ff;border-radius:8px;
-                                   font-size:12px;color:#7c3aed;font-weight:600;text-align:center">
-                           🌸 Fenêtre fertile en cours
-                       </div>`
-                    : ''}
-                ${ci.estOvulation
-                    ? `<div style="margin-top:8px;padding:6px 10px;background:#fdf4ff;border-radius:8px;
-                                   font-size:12px;color:#7c3aed;font-weight:600;text-align:center">
-                           🌟 Jour d'ovulation
-                       </div>`
-                    : ''}
             </div>`;
     }
-
-    const titre = `
-        <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;
-                    letter-spacing:.5px;margin-bottom:6px">Suivi du cycle</div>`;
 
     if (!d.moodRempli) {
         return `
@@ -343,7 +378,7 @@ const _CAT_ICONS = {
     'Autre'         : '📌'
 };
 
-// ── Bloc Agenda — groupé par date sur 5 jours ─────────────────
+// ── Bloc Agenda ───────────────────────────────────────────────
 async function _renderBlocAgenda(ownerId, token) {
     const r = await fetch(`/api/social/data/${ownerId}/agenda`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -383,14 +418,14 @@ async function _renderBlocAgenda(ownerId, token) {
     const blocsDate = Object.entries(parDate).map(([date, evts]) => {
         const label = _labelDate(date);
         const items = evts.map(e => {
-            const couleur    = _CAT_COLORS[e.categorie] || '#bcaaa4';
-            const icone      = _CAT_ICONS[e.categorie]  || '📌';
-            const hDebut     = e.heure_debut ? e.heure_debut.slice(0, 5) : null;
-            const hFin       = e.heure_fin   ? e.heure_fin.slice(0, 5)   : null;
-            const sousCat    = e.sous_categorie && e.sous_categorie !== e.categorie
+            const couleur  = _CAT_COLORS[e.categorie] || '#bcaaa4';
+            const icone    = _CAT_ICONS[e.categorie]  || '📌';
+            const hDebut   = e.heure_debut ? e.heure_debut.slice(0, 5) : null;
+            const hFin     = e.heure_fin   ? e.heure_fin.slice(0, 5)   : null;
+            const sousCat  = e.sous_categorie && e.sous_categorie !== e.categorie
                 ? `${e.categorie} - ${e.sous_categorie}`
                 : e.categorie;
-            const infoLieu   = e.praticien || e.lieu || null;
+            const infoLieu = e.praticien || e.lieu || null;
 
             return `
                 <div style="padding:8px 10px;background:${couleur}22;border-left:3px solid ${couleur};
@@ -457,11 +492,11 @@ async function _renderBlocTaches(ownerId, token) {
         </div>`;
 }
 
-// ── Envoyer un coucou (délégation) ───────────────────────────
+// ── Envoyer un coucou ─────────────────────────────────────────
 document.addEventListener('click', async e => {
     const btn = e.target.closest('[data-action="envoyer-coucou"]');
     if (!btn) return;
-    const ownerId = btn.dataset.ownerId;
+    const ownerId   = btn.dataset.ownerId;
     const { token } = _socialAuth();
     btn.disabled    = true;
     btn.textContent = 'Envoi...';
@@ -599,7 +634,7 @@ function _htmlBlocViewer(v, typesDisponibles) {
                         data-existe="${existe}"
                         data-action="toggle-partage"
                         style="opacity:0;width:0;height:0;position:absolute">
-                                        <span style="position:absolute;inset:0;border-radius:22px;cursor:pointer;
+                    <span style="position:absolute;inset:0;border-radius:22px;cursor:pointer;
                                  background:${actif ? '#7c3aed' : '#d1d5db'};transition:background .2s">
                         <span style="position:absolute;top:3px;left:${actif ? '19px' : '3px'};
                                      width:16px;height:16px;border-radius:50%;background:#fff;
@@ -828,11 +863,11 @@ async function _socialRechercherUser(q) {
 
 // ── Sélectionner un utilisateur ───────────────────────────────
 async function _socialSelectionnerUser(el) {
-    const userId   = el.dataset.userId;
-    const username = el.dataset.username;
-    const prenom   = el.dataset.prenom;
-    const nom      = el.dataset.nom;
-    const photo    = el.dataset.photo;
+    const userId    = el.dataset.userId;
+    const username  = el.dataset.username;
+    const prenom    = el.dataset.prenom;
+    const nom       = el.dataset.nom;
+    const photo     = el.dataset.photo;
     const { token } = _socialAuth();
 
     document.getElementById('social-search-input').value       = '';
@@ -918,9 +953,9 @@ function _socialAnnulerSelection() {
 // ── Envoyer les partages cochés ───────────────────────────────
 async function _envoyerPartages() {
     const { token } = _socialAuth();
-    const form     = document.getElementById('social-nouveau-form');
-    const viewerId = form?.dataset.viewerId;
-    const msg      = document.getElementById('social-share-msg');
+    const form      = document.getElementById('social-nouveau-form');
+    const viewerId  = form?.dataset.viewerId;
+    const msg       = document.getElementById('social-share-msg');
     if (!viewerId) return;
 
     const types = _SHARE_LABELS_LIST
@@ -1036,7 +1071,7 @@ function _fermerTousPanneaux() {
 
 async function togglePanelNotifs(e) {
     e.stopPropagation();
-    const panel   = document.getElementById('panel-notifs');
+    const panel = document.getElementById('panel-notifs');
     if (!panel) return;
     const etaitOuvert = _panelNotifOuvert;
     _fermerTousPanneaux();
@@ -1114,8 +1149,7 @@ function _renderNotifs() {
     }
 
     if (plusTot.length) {
-        html += `<div style="display:flex;align-items:center;justify-content:space-between;
-                             padding:8px 16px 4px">
+        html += `<div style="padding:8px 16px 4px">
                      <span style="font-size:12px;font-weight:700;color:#6b7280;
                                   text-transform:uppercase;letter-spacing:.5px">Plus tôt</span>
                  </div>`;
@@ -1126,7 +1160,7 @@ function _renderNotifs() {
 
     liste.querySelectorAll('[data-notif-id]').forEach(el => {
         el.addEventListener('click', async () => {
-            const id = el.dataset.notifId;
+            const id        = el.dataset.notifId;
             const { token } = _socialAuth();
             try {
                 await fetch(`/api/social/notifications/${id}/vu`, {
@@ -1160,7 +1194,7 @@ function _htmlNotif(n) {
                ${(prenom?.[0] || '?').toUpperCase()}
            </div>`;
 
-    return `
+        return `
         <div data-notif-id="${n.id}" style="
             display:flex;align-items:center;gap:12px;
             padding:10px 16px;cursor:pointer;
@@ -1212,7 +1246,7 @@ function switchNotifTab(tab) {
     if (btnNonlu) {
         btnNonlu.style.color             = tab === 'nonlu' ? '#7c3aed' : '#9ca3af';
         btnNonlu.style.borderBottomColor = tab === 'nonlu' ? '#7c3aed' : 'transparent';
-                btnNonlu.style.fontWeight        = tab === 'nonlu' ? '700' : '600';
+        btnNonlu.style.fontWeight        = tab === 'nonlu' ? '700'     : '600';
     }
 
     _renderNotifs();
