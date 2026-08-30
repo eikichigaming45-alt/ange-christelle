@@ -2,6 +2,27 @@
 
 ---
 
+## v1.54 — 30-08-2026
+
+### ✨ Nouveau
+- Message bienveillant permanent dans le bandeau de retard — s'affiche dès le
+  chargement selon le nombre de jours de retard, sans nécessiter un clic
+- Message adapté selon le niveau de retard : 1-3 jours (stress/fatigue 🌿),
+  4-7 jours avec vérification des rapports non protégés enregistrés (🤍),
+  8 jours et plus avec recommandation de consulter un médecin ou gynécologue (🩺)
+- "Signaler un retard" enregistre silencieusement dans le journal et affiche
+  une confirmation — le message bienveillant reste toujours visible
+
+### 🔧 Corrections
+- La durée des règles dans le formulaire est désormais calculée depuis
+  l'historique des cycles au lieu d'être fixée à 5 jours par défaut
+- Le bouton "+ Enregistrer mes règles" n'apparaît plus en doublon dans le
+  widget ni dans le calendrier modal lorsqu'un retard est actif
+- Le message 8j+ mentionnait "sage-femme" — corrigé en "gynécologue"
+- Les tirets larges `—` dans l'historique des cycles remplacés par ` - `
+
+---
+
 ## v1.48 — 30-08-2026
 
 ### ✨ Nouveau
