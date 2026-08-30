@@ -10,19 +10,20 @@ const { pool } = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
 // ── Catégories et sous-catégories de base ─────────────────────
-const CATEGORIES = ['Travail', 'Mission', 'Repos', 'Médical', 'Sport', 'Sortie', 'Famille', 'Administratif', 'Voyage', 'Autre'];
+// Triées alphabétiquement, Autre toujours en dernier
+const CATEGORIES = ['Administratif', 'Autre', 'Famille', 'Médical', 'Mission', 'Repos', 'Sortie', 'Sport', 'Travail', 'Voyage'];
 
 const SOUS_CATEGORIES = {
-    'Travail'       : ['CDI', 'CDD', 'Intérim', 'Formation', 'Autre'],
-    'Mission'       : ['Mission', 'Déplacement', 'Autre'],
-    'Repos'         : ['Repos', 'Congé payé', 'RTT', 'Arrêt maladie', 'Autre'],
-    'Médical'       : ['Généraliste', 'Dentiste', 'Gynécologue', 'Ophtalmologue', 'Dermatologue', 'Kinésithérapeute', 'Urgences', 'Autre'],
-    'Sport'         : ['Piscine', 'Salle de sport', 'Course à pied', 'Vélo', 'Autre'],
-    'Sortie'        : ['Entre amis', 'En famille', 'Cinéma', 'Restaurant', 'Concert', 'Autre'],
+    'Administratif' : ['Assurance', 'Banque', 'Mairie', 'Préfecture', 'Autre'],
+    'Autre'         : [],
     'Famille'       : ['Autre'],
-    'Administratif' : ['Préfecture', 'Mairie', 'Banque', 'Assurance', 'Autre'],
-    'Voyage'        : ['Autre'],
-    'Autre'         : []
+    'Médical'       : ['Dentiste', 'Dermatologue', 'Généraliste', 'Gynécologue', 'Kinésithérapeute', 'Ophtalmologue', 'Urgences', 'Autre'],
+    'Mission'       : ['Déplacement', 'Mission', 'Autre'],
+    'Repos'         : ['Arrêt maladie', 'Congé payé', 'Repos', 'RTT', 'Autre'],
+    'Sortie'        : ['Cinéma', 'Concert', 'En famille', 'Entre amis', 'Restaurant', 'Autre'],
+    'Sport'         : ['Course à pied', 'Piscine', 'Salle de sport', 'Vélo', 'Autre'],
+    'Travail'       : ['CDD', 'CDI', 'Formation', 'Intérim', 'Autre'],
+    'Voyage'        : ['Autre']
 };
 
 router.use(authenticateToken);
@@ -46,8 +47,12 @@ router.get('/categories', async (req, res) => {
         Object.keys(SOUS_CATEGORIES).forEach(cat => {
             const base  = SOUS_CATEGORIES[cat];
             const perso = sousPerso[cat] || [];
-            const tout  = [...new Set([...base, ...perso])];
-            sousFinal[cat] = tout.filter(v => v !== 'Autre').concat(['Autre']);
+            // Fusion, dédoublonnage, tri alpha, Autre en dernier
+            const tout      = [...new Set([...base, ...perso])];
+            const sansAutre = tout.filter(v => v !== 'Autre').sort((a, b) =>
+                a.localeCompare(b, 'fr', { sensitivity: 'base' })
+            );
+            sousFinal[cat] = tout.includes('Autre') ? [...sansAutre, 'Autre'] : sansAutre;
         });
 
         res.json({ success: true, categories: CATEGORIES, sous_categories: sousFinal });
@@ -164,7 +169,7 @@ router.get('/', async (req, res) => {
 });
 
 // ── GET /api/agenda/widget ────────────────────────────────────
-// 3 prochains jours ouvrés avec entrée hors-Repos
+// 3 prochains jours avec entrée — Repos inclus si aucun autre événement
 router.get('/widget', async (req, res) => {
     try {
         const aujourd_hui = new Date().toISOString().slice(0, 10);
@@ -186,7 +191,7 @@ router.get('/widget', async (req, res) => {
             [req.user.id, aujourd_hui, dans30j]
         );
 
-        // Grouper par date_debut, priorité entrée hors-Repos
+        // Grouper par date_debut
         const parJour = {};
         rows.forEach(e => {
             const d = e.date_debut;
@@ -194,15 +199,16 @@ router.get('/widget', async (req, res) => {
             parJour[d].push(e);
         });
 
-        const jours = Object.keys(parJour).sort();
+        const jours  = Object.keys(parJour).sort();
         const result = [];
 
         for (const jour of jours) {
             if (result.length >= 3) break;
-            const entries     = parJour[jour];
-            const horsRepos   = entries.filter(e => e.categorie !== 'Repos');
-            const aAfficher   = horsRepos.length > 0 ? horsRepos[0] : null;
-            if (!aAfficher) continue;
+            const entries   = parJour[jour];
+            const horsRepos = entries.filter(e => e.categorie !== 'Repos');
+            // Si événement hors-Repos → afficher le premier
+            // Sinon → afficher le Repos (inclus)
+            const aAfficher = horsRepos.length > 0 ? horsRepos[0] : entries[0];
             result.push({ date: jour, entree: aAfficher });
         }
 

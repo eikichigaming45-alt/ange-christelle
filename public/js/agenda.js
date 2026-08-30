@@ -1,6 +1,6 @@
 // ============================================================
 // public/js/agenda.js
-// Widget agenda unifié — aperçu 3 jours ouvrés + modal CRUD.
+// Widget agenda unifié — aperçu 3 jours + modal CRUD.
 // Catégories, sous-catégories, employeurs mémorisés.
 // ============================================================
 
@@ -34,9 +34,9 @@ const Agenda = (() => {
         'Autre'         : '#bcaaa4'
     };
 
-    const JOURS_FR  = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-    const MOIS_FR   = ['Janvier','Février','Mars','Avril','Mai','Juin',
-                       'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+    const JOURS_FR   = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    const MOIS_FR    = ['Janvier','Février','Mars','Avril','Mai','Juin',
+                        'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
     const MOIS_COURT = ['jan','fév','mar','avr','mai','juin',
                         'juil','août','sep','oct','nov','déc'];
 
@@ -63,9 +63,9 @@ const Agenda = (() => {
     // ── Utilitaires date ──────────────────────────────────────
 
     function _dateStr(d) {
-        const y  = d.getFullYear();
-        const m  = String(d.getMonth() + 1).padStart(2, '0');
-        const j  = String(d.getDate()).padStart(2, '0');
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const j = String(d.getDate()).padStart(2, '0');
         return `${y}-${m}-${j}`;
     }
 
@@ -77,17 +77,11 @@ const Agenda = (() => {
 
     function _labelDateLong(dateStr) {
         const [y, m, j] = dateStr.split('-').map(Number);
-        const d = new Date(y, m - 1, j);
+        const d     = new Date(y, m - 1, j);
         const label = d.toLocaleDateString('fr-FR', {
             weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
         });
         return label.charAt(0).toUpperCase() + label.slice(1);
-    }
-
-    function _estJourOuvre(dateStr) {
-        const [y, m, j] = dateStr.split('-').map(Number);
-        const d = new Date(y, m - 1, j).getDay();
-        return d !== 0 && d !== 6;
     }
 
     function _formatHeure(h) {
@@ -106,6 +100,14 @@ const Agenda = (() => {
         return opts.map(o =>
             `<option value="${o.v}" ${selected === o.v ? 'selected' : ''}>${o.l}</option>`
         ).join('');
+    }
+
+    // ── Tri alphabétique, Autre toujours en dernier ───────────
+    function _trierAvecAutreEnDernier(arr) {
+        const sansAutre = [...arr].filter(v => v !== 'Autre').sort((a, b) =>
+            a.localeCompare(b, 'fr', { sensitivity: 'base' })
+        );
+        return arr.includes('Autre') ? [...sansAutre, 'Autre'] : sansAutre;
     }
 
     // ── Chargement données de référence ───────────────────────
@@ -129,7 +131,7 @@ const Agenda = (() => {
         } catch { /* silencieux */ }
     }
 
-    // ── Widget — aperçu 3 jours ouvrés hors Repos ─────────────
+    // ── Widget — aperçu 3 jours ───────────────────────────────
 
     async function charger() {
         const container = document.getElementById('wc-agenda');
@@ -163,7 +165,7 @@ const Agenda = (() => {
                 const hFin    = _formatHeure(entree.heure_fin);
 
                 html += `
-                    <div onclick="Agenda.ouvrirJour('${date}')" style="
+                    <div onclick="Agenda.ouvrirJour('${date}');document.getElementById('overlay').classList.add('on')" style="
                         display:flex;align-items:center;gap:10px;
                         padding:8px 10px;margin-bottom:6px;
                         background:${couleur}22;
@@ -230,12 +232,11 @@ const Agenda = (() => {
             return;
         }
 
-        const today      = new Date();
-        const offset     = new Date(_anneeActuelle, _moisActuel, 1).getDay();
-        const decalage   = offset === 0 ? 6 : offset - 1;
-        const nbJours    = new Date(_anneeActuelle, _moisActuel + 1, 0).getDate();
+        const today    = new Date();
+        const offset   = new Date(_anneeActuelle, _moisActuel, 1).getDay();
+        const decalage = offset === 0 ? 6 : offset - 1;
+        const nbJours  = new Date(_anneeActuelle, _moisActuel + 1, 0).getDate();
 
-        // Grouper par date
         const parJour = {};
         _agendaMois.forEach(e => {
             const d = e.date_debut;
@@ -421,25 +422,28 @@ const Agenda = (() => {
             } catch { e = {}; }
         }
 
-        const catVal      = e.categorie     || 'Travail';
-        const sousCatVal  = e.sous_categorie || '';
-        const dateDebVal  = e.date_debut    || dateDefaut || '';
-        const dateFinVal  = e.date_fin      || '';
-        const hDebutVal   = e.heure_debut   || '';
-        const hFinVal     = e.heure_fin     || '';
-        const rappelVal   = e.rappel_avant  || 0;
+        const catVal     = e.categorie      || 'Travail';
+        const sousCatVal = e.sous_categorie  || '';
+        const dateDebVal = e.date_debut      || dateDefaut || '';
+        const dateFinVal = e.date_fin        || '';
+        const hDebutVal  = e.heure_debut     || '';
+        const hFinVal    = e.heure_fin       || '';
+        const rappelVal  = e.rappel_avant    || 0;
 
-        const catsOptions = _categories.map(c =>
+        // Catégories triées alphabétiquement, Autre en dernier
+        const catsTriees  = _trierAvecAutreEnDernier(_categories);
+        const catsOptions = catsTriees.map(c =>
             `<option value="${c}" ${catVal === c ? 'selected' : ''}>${CAT_ICONS[c] || ''} ${c}</option>`
         ).join('');
 
-        const sousCatsOptions = (_sousCats[catVal] || []).map(s =>
+        // Sous-catégories triées alphabétiquement, Autre en dernier
+        const sousCatsTriees  = _trierAvecAutreEnDernier(_sousCats[catVal] || []);
+        const sousCatsOptions = sousCatsTriees.map(s =>
             `<option value="${s}" ${sousCatVal === s ? 'selected' : ''}>${s}</option>`
         ).join('');
 
         const afficherEmployeur = ['Travail', 'Mission'].includes(catVal);
         const employeurVal      = e.lieu || '';
-        const empInListe        = _employeurs.find(emp => emp.nom === employeurVal);
 
         const empOptions = _employeurs.map(emp =>
             `<option value="${emp.nom}" ${employeurVal === emp.nom ? 'selected' : ''}>${emp.nom}</option>`
@@ -524,13 +528,13 @@ const Agenda = (() => {
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
                 </div>
 
-                <div style="margin-bottom:10px">
+                                <div style="margin-bottom:10px">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Notes</label>
                     <textarea id="ag-notes" rows="2"
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none;font-family:inherit">${e.notes || ''}</textarea>
                 </div>
 
-                                <div style="margin-bottom:16px">
+                <div style="margin-bottom:16px">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Rappel</label>
                     <select id="ag-rappel"
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
@@ -565,7 +569,8 @@ const Agenda = (() => {
         const empWrap   = document.getElementById('ag-employeur-wrap');
 
         if (sousCatEl) {
-            const opts = (_sousCats[cat] || []).map(s =>
+            const triees = _trierAvecAutreEnDernier(_sousCats[cat] || []);
+            const opts   = triees.map(s =>
                 `<option value="${s}">${s}</option>`
             ).join('');
             sousCatEl.innerHTML = `<option value="">-- Aucune --</option>${opts}`;
