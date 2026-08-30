@@ -124,6 +124,8 @@ const Agenda = (() => {
         } catch { /* silencieux */ }
     }
 
+    // ── Widget — aperçu 3 jours ───────────────────────────────
+
     async function charger() {
         const container = document.getElementById('wc-agenda');
         if (!container) return;
@@ -181,7 +183,7 @@ const Agenda = (() => {
                                     : ''}
                                 ${hDebut
                                     ? `<div style="font-size:12px;color:#666">
-                                           ⏰ ${hDebut}${hFin ? ' → ' + hFin : ''}
+                                           ⏰ ${hDebut}${hFin ? ' - ' + hFin : ''}
                                        </div>`
                                     : ''}
                             </div>
@@ -196,6 +198,8 @@ const Agenda = (() => {
             container.innerHTML = `<p style="color:#ef4444;font-size:13px">Erreur de chargement.</p>`;
         }
     }
+
+    // ── Modal — calendrier mensuel ────────────────────────────
 
     async function ouvrirModal() {
         _moisActuel    = new Date().getMonth();
@@ -267,7 +271,7 @@ const Agenda = (() => {
                     border:2px solid ${isToday ? '#7c3aed' : (couleur ? couleur + '99' : '#e5e7eb')};
                     font-size:12px;font-weight:600;color:#333;transition:opacity .15s">
                     <div style="font-size:11px;font-weight:700;color:${isToday ? '#7c3aed' : '#444'}">${j}</div>
-                                        ${icone ? `<div style="font-size:14px;line-height:1">${icone}</div>` : ''}
+                    ${icone ? `<div style="font-size:14px;line-height:1">${icone}</div>` : ''}
                     ${plus}
                 </div>`;
         }
@@ -313,6 +317,8 @@ const Agenda = (() => {
         await _afficherCalendrier();
     }
 
+    // ── Détail d'un jour ──────────────────────────────────────
+
     async function ouvrirJour(dateStr) {
         const body      = document.getElementById('modal-body');
         const dateLabel = _labelDateLong(dateStr);
@@ -341,6 +347,9 @@ const Agenda = (() => {
                 const icone   = CAT_ICONS[e.categorie]  || '📌';
                 const hDebut  = _formatHeure(e.heure_debut);
                 const hFin    = _formatHeure(e.heure_fin);
+                const sousCatLabel = e.sous_categorie && e.sous_categorie !== e.categorie
+                    ? `${e.categorie} - ${e.sous_categorie}`
+                    : e.categorie;
 
                 html += `
                     <div style="background:${couleur}22;border-left:4px solid ${couleur};
@@ -348,18 +357,16 @@ const Agenda = (() => {
                         <div style="font-size:16px;font-weight:700;color:#1f2937">
                             ${icone} ${e.titre}
                         </div>
-                        ${e.sous_categorie
-                            ? `<div style="font-size:12px;color:#666;margin-top:2px">${e.categorie} — ${e.sous_categorie}</div>`
-                            : `<div style="font-size:12px;color:#666;margin-top:2px">${e.categorie}</div>`}
-                        ${e.date_fin && e.date_fin !== e.date_debut
-                            ? `<div style="font-size:13px;color:#666;margin-top:4px">📅 Du ${e.date_debut} au ${e.date_fin}</div>`
-                            : hDebut
-                                ? `<div style="font-size:13px;color:#666;margin-top:4px">⏰ ${hDebut}${hFin ? ' → ' + hFin : ''}</div>`
+                        <div style="font-size:12px;color:#666;margin-top:2px">${sousCatLabel}</div>
+                        ${hDebut
+                            ? `<div style="font-size:13px;color:#666;margin-top:4px">⏰ ${hDebut}${hFin ? ' - ' + hFin : ''}</div>`
+                            : e.date_fin && e.date_fin !== e.date_debut
+                                ? `<div style="font-size:13px;color:#666;margin-top:4px">📅 Du ${e.date_debut} au ${e.date_fin}</div>`
                                 : ''}
                         ${e.lieu  ? `<div style="font-size:12px;color:#999;margin-top:2px">📍 ${e.lieu}</div>`  : ''}
                         ${e.notes ? `<div style="font-size:12px;color:#999;margin-top:4px">📝 ${e.notes}</div>` : ''}
                         ${e.rappel_avant > 0
-                            ? `<div style="font-size:12px;color:#999;margin-top:2px">⏰ Rappel ${e.rappel_avant >= 60 ? e.rappel_avant / 60 + 'h' : e.rappel_avant + ' min'} avant</div>`
+                            ? `<div style="font-size:12px;color:#999;margin-top:2px">🔔 Rappel ${e.rappel_avant >= 60 ? e.rappel_avant / 60 + 'h' : e.rappel_avant + ' min'} avant</div>`
                             : ''}
                         <div style="display:flex;gap:8px;margin-top:10px">
                             <button onclick="Agenda.ouvrirFormulaire(${e.id},'${dateStr}')" style="
@@ -398,6 +405,8 @@ const Agenda = (() => {
         document.getElementById('modal-body').innerHTML = html;
     }
 
+    // ── Formulaire ajout / édition ────────────────────────────
+
     async function ouvrirFormulaire(id = null, dateDefaut = null) {
         const body = document.getElementById('modal-body');
         body.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>';
@@ -414,13 +423,18 @@ const Agenda = (() => {
             } catch { e = {}; }
         }
 
-        const catVal     = e.categorie      || 'Travail';
-        const sousCatVal = e.sous_categorie  || '';
-        const dateDebVal = e.date_debut      || dateDefaut || '';
-        const dateFinVal = e.date_fin        || '';
-        const hDebutVal  = e.heure_debut     || '';
-        const hFinVal    = e.heure_fin       || '';
-        const rappelVal  = e.rappel_avant    || 0;
+        const catVal     = e.categorie     || 'Travail';
+        const sousCatVal = e.sous_categorie || '';
+        const dateDebVal = e.date_debut     || dateDefaut || '';
+        const dateFinVal = e.date_fin       || '';
+        const hDebutVal  = e.heure_debut    || '';
+        const hFinVal    = e.heure_fin      || '';
+        const rappelVal  = e.rappel_avant   || 0;
+        const lieuVal    = e.lieu           || '';
+        const notesVal   = e.notes          || '';
+
+        const afficherEmployeur = ['Travail', 'Mission'].includes(catVal);
+        const afficherMedecin   = catVal === 'Médical';
 
         const catsTriees  = _trierAvecAutreEnDernier(_categories);
         const catsOptions = catsTriees.map(c =>
@@ -432,12 +446,9 @@ const Agenda = (() => {
             `<option value="${s}" ${sousCatVal === s ? 'selected' : ''}>${s}</option>`
         ).join('');
 
-        const afficherEmployeur = ['Travail', 'Mission'].includes(catVal);
-        const employeurVal      = e.lieu || '';
-
         const empOptions = _employeurs.map(emp =>
-            `<option value="${emp.nom}" ${employeurVal === emp.nom ? 'selected' : ''}>${emp.nom}</option>`
-        ).join('') + `<option value="__nouveau__">➕ Saisir manuellement...</option>`;
+            `<option value="${emp.nom}" ${lieuVal === emp.nom ? 'selected' : ''}>${emp.nom}</option>`
+        ).join('') + `<option value="__nouveau__">+ Saisir manuellement...</option>`;
 
         document.getElementById('modal-title').textContent = id ? 'Modifier' : 'Nouvel événement';
         body.innerHTML = `
@@ -459,18 +470,42 @@ const Agenda = (() => {
 
                 <div style="margin-bottom:10px">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Sous-catégorie</label>
-                    <div style="display:flex;gap:8px">
-                        <select id="ag-sous-cat"
-                            style="flex:1;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff">
-                            <option value="">-- Aucune --</option>
-                            ${sousCatsOptions}
-                        </select>
+                    <select id="ag-sous-cat"
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff;margin-bottom:6px">
+                        <option value="">-- Aucune --</option>
+                        ${sousCatsOptions}
+                    </select>
+                    <input type="text" id="ag-sous-cat-nouveau"
+                        placeholder="Ou saisir une nouvelle sous-catégorie..."
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
+                </div>
+
+                <div id="ag-employeur-wrap" style="margin-bottom:10px;display:${afficherEmployeur ? 'block' : 'none'}">
+                    <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Employeur</label>
+                    <select id="ag-employeur-select"
+                        onchange="Agenda._onEmployeurChange()"
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff;margin-bottom:6px">
+                        <option value="">-- Aucun --</option>
+                        ${empOptions}
+                    </select>
+                    <div id="ag-employeur-nouveau-wrap" style="display:none">
+                        <input type="text" id="ag-employeur-nouveau"
+                            placeholder="Nom de l'employeur"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #4f46e5;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:6px">
+                        <input type="text" id="ag-employeur-adresse"
+                            placeholder="Adresse (optionnel)"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:6px">
+                        <input type="text" id="ag-employeur-telephone"
+                            placeholder="Téléphone (optionnel)"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
                     </div>
-                    <div style="display:flex;gap:8px;margin-top:6px">
-                        <input type="text" id="ag-sous-cat-nouveau"
-                            placeholder="Ou saisir une nouvelle sous-catégorie..."
-                            style="flex:1;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
-                    </div>
+                </div>
+
+                <div id="ag-medecin-wrap" style="margin-bottom:10px;display:${afficherMedecin ? 'block' : 'none'}">
+                    <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Praticien</label>
+                    <input type="text" id="ag-medecin" value="${afficherMedecin ? lieuVal : ''}"
+                        placeholder="Dr. Nom, cabinet..."
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
                 </div>
 
                 <div style="margin-bottom:10px">
@@ -479,7 +514,7 @@ const Agenda = (() => {
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
                 </div>
 
-                <div style="margin-bottom:10px">
+                                <div style="margin-bottom:10px">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Date de fin</label>
                     <input type="date" id="ag-date-fin" value="${dateFinVal}"
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
@@ -498,23 +533,17 @@ const Agenda = (() => {
                     </div>
                 </div>
 
-                <div id="ag-employeur-wrap" style="margin-bottom:10px;display:${afficherEmployeur ? 'block' : 'none'}">
-                    <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Employeur</label>
-                    <select id="ag-employeur-select"
-                        onchange="document.getElementById('ag-employeur-nouveau').style.display=this.value==='__nouveau__'?'block':'none'"
-                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff;margin-bottom:6px">
-                        <option value="">-- Aucun --</option>
-                        ${empOptions}
-                    </select>
-                    <input type="text" id="ag-employeur-nouveau"
-                        placeholder="Nom du nouvel employeur"
-                        style="display:none;width:100%;padding:10px 12px;border:1.5px solid #4f46e5;border-radius:10px;font-size:14px;box-sizing:border-box">
+                <div style="margin-bottom:10px">
+                    <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Lieu / Adresse</label>
+                    <input type="text" id="ag-lieu" value="${!afficherEmployeur && !afficherMedecin ? lieuVal : ''}"
+                        placeholder="Adresse, salle, endroit..."
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
                 </div>
 
                 <div style="margin-bottom:10px">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Notes</label>
                     <textarea id="ag-notes" rows="2"
-                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none;font-family:inherit">${e.notes || ''}</textarea>
+                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none;font-family:inherit">${notesVal}</textarea>
                 </div>
 
                 <div style="margin-bottom:16px">
@@ -548,18 +577,22 @@ const Agenda = (() => {
         const cat       = document.getElementById('ag-categorie')?.value;
         const sousCatEl = document.getElementById('ag-sous-cat');
         const empWrap   = document.getElementById('ag-employeur-wrap');
+        const medWrap   = document.getElementById('ag-medecin-wrap');
 
         if (sousCatEl) {
             const triees = _trierAvecAutreEnDernier(_sousCats[cat] || []);
-            const opts   = triees.map(s =>
-                `<option value="${s}">${s}</option>`
-            ).join('');
-            sousCatEl.innerHTML = `<option value="">-- Aucune --</option>${opts}`;
+            sousCatEl.innerHTML = `<option value="">-- Aucune --</option>` +
+                triees.map(s => `<option value="${s}">${s}</option>`).join('');
         }
 
-        if (empWrap) {
-            empWrap.style.display = ['Travail', 'Mission'].includes(cat) ? 'block' : 'none';
-        }
+        if (empWrap) empWrap.style.display = ['Travail', 'Mission'].includes(cat) ? 'block' : 'none';
+        if (medWrap) medWrap.style.display = cat === 'Médical' ? 'block' : 'none';
+    }
+
+    function _onEmployeurChange() {
+        const sel     = document.getElementById('ag-employeur-select');
+        const wrap    = document.getElementById('ag-employeur-nouveau-wrap');
+        if (wrap) wrap.style.display = sel?.value === '__nouveau__' ? 'block' : 'none';
     }
 
     async function sauvegarder(id = null, dateRetour = '') {
@@ -571,19 +604,27 @@ const Agenda = (() => {
         const sousCatNouveau = document.getElementById('ag-sous-cat-nouveau')?.value?.trim();
         const sous_categorie = sousCatNouveau || sousCatSelect || null;
         const date_debut     = document.getElementById('ag-date-debut')?.value;
-        const date_fin       = document.getElementById('ag-date-fin')?.value       || null;
-        const heure_debut    = document.getElementById('ag-heure-debut')?.value    || null;
-        const heure_fin      = document.getElementById('ag-heure-fin')?.value      || null;
-        const notes          = document.getElementById('ag-notes')?.value?.trim()  || null;
+        const date_fin       = document.getElementById('ag-date-fin')?.value    || null;
+        const heure_debut    = document.getElementById('ag-heure-debut')?.value || null;
+        const heure_fin      = document.getElementById('ag-heure-fin')?.value   || null;
+        const notes          = document.getElementById('ag-notes')?.value?.trim() || null;
         const rappel_avant   = parseInt(document.getElementById('ag-rappel')?.value) || 0;
 
         const empSelect  = document.getElementById('ag-employeur-select');
         const empNouveau = document.getElementById('ag-employeur-nouveau');
-        const employeur  = empSelect?.value === '__nouveau__'
-            ? empNouveau?.value?.trim()
-            : empSelect?.value || null;
+        const medecin    = document.getElementById('ag-medecin');
+        const lieuInput  = document.getElementById('ag-lieu');
 
-        const lieu = ['Travail', 'Mission'].includes(categorie) ? (employeur || null) : null;
+        let lieu = null;
+        if (['Travail', 'Mission'].includes(categorie)) {
+            lieu = empSelect?.value === '__nouveau__'
+                ? empNouveau?.value?.trim() || null
+                : empSelect?.value || null;
+        } else if (categorie === 'Médical') {
+            lieu = medecin?.value?.trim() || null;
+        } else {
+            lieu = lieuInput?.value?.trim() || null;
+        }
 
         if (!titre) {
             if (msg) msg.textContent = 'Le titre est obligatoire.'; return;
@@ -592,7 +633,7 @@ const Agenda = (() => {
             if (msg) msg.textContent = 'La date de début est obligatoire.'; return;
         }
 
-        const body = {
+        const bodyData = {
             titre, categorie, sous_categorie,
             date_debut, date_fin,
             heure_debut, heure_fin,
@@ -605,7 +646,7 @@ const Agenda = (() => {
             const res    = await fetch(url, {
                 method,
                 headers : _headers(),
-                body    : JSON.stringify(body)
+                body    : JSON.stringify(bodyData)
             });
             const data = await res.json();
             if (!data.success) {
@@ -621,12 +662,17 @@ const Agenda = (() => {
                 }).catch(() => {});
             }
 
-            if (['Travail', 'Mission'].includes(categorie) && empSelect?.value === '__nouveau__' && employeur) {
-                fetch('/api/agenda/employeurs', {
-                    method  : 'POST',
-                    headers : _headers(),
-                    body    : JSON.stringify({ nom: employeur })
-                }).catch(() => {});
+            if (['Travail', 'Mission'].includes(categorie) && empSelect?.value === '__nouveau__') {
+                const nomEmp = empNouveau?.value?.trim();
+                const adr    = document.getElementById('ag-employeur-adresse')?.value?.trim() || null;
+                const tel    = document.getElementById('ag-employeur-telephone')?.value?.trim() || null;
+                if (nomEmp) {
+                    fetch('/api/agenda/employeurs', {
+                        method  : 'POST',
+                        headers : _headers(),
+                        body    : JSON.stringify({ nom: nomEmp, adresse: adr, telephone: tel })
+                    }).catch(() => {});
+                }
             }
 
             charger();
@@ -680,7 +726,8 @@ const Agenda = (() => {
         _afficherCalendrier,
         _moisPrec,
         _moisSuiv,
-        _onCatChange
+        _onCatChange,
+        _onEmployeurChange
     };
 
 })();
