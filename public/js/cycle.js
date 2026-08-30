@@ -8,7 +8,6 @@
 // Mood inline dans le widget, sans modal.
 // Sauvegarde manuelle, bouton explicite, pas de timer.
 // Retard détecté si joursAvantRegles < 0 — gel ovulation/fenêtre.
-// Message bienveillant permanent selon jours de retard.
 // Durée règles formulaire calculée depuis historique.
 // ============================================================
 
@@ -84,15 +83,17 @@ const Cycle = (() => {
         }
     ];
 
+    // Minuit heure locale — jamais influencé par UTC ou le fuseau serveur
     function _aujourdHuiLocal() {
         const n = new Date();
         return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
     }
 
+    // Durée moyenne des règles calculée depuis l'historique
     function calculerDureeReglesMoyenne(cycles) {
-        if (!cycles.length) return 3;
+        if (!cycles.length) return 5;
         const durees = cycles.map(c => c.duree_regles).filter(d => d > 0);
-        if (!durees.length) return 3;
+        if (!durees.length) return 5;
         return Math.round(durees.reduce((a, b) => a + b, 0) / durees.length);
     }
 
@@ -182,13 +183,14 @@ const Cycle = (() => {
         return Math.round(durees.reduce((a, b) => a + b, 0) / durees.length);
     }
 
+    // Périodes réelles (estSaisie:true) + projetées (estSaisie:false)
     function calculerToutesPeriodes(cycles, dureeMoyenne) {
-        const periodes       = [];
-        const dureeCycleRef  = dureeMoyenne || (cycles[0]?.duree_cycle) || 28;
+        const periodes      = [];
+        const dureeCycleRef = dureeMoyenne || (cycles[0]?.duree_cycle) || 28;
         const dureeReglesRef = calculerDureeReglesMoyenne(cycles);
 
         cycles.forEach(c => {
-            const debut       = parseDateLocale(c.date_debut.split('T')[0]);
+            const debut      = parseDateLocale(c.date_debut.split('T')[0]);
             const dureeRegles = c.duree_regles || dureeReglesRef;
             const dureeCycle  = dureeMoyenne || c.duree_cycle || 28;
             periodes.push({
@@ -303,103 +305,7 @@ const Cycle = (() => {
         } catch { _journalCache = {}; }
     }
 
-    function _infoBienveillantRetard(joursRetard, calc) {
-        if (joursRetard <= 3) {
-            return {
-                icone  : '🌿',
-                message: `Le stress, la fatigue ou un changement de routine peuvent décaler tes règles de quelques jours. C'est tout à fait normal.`
-            };
-        }
-
-        if (joursRetard <= 7) {
-            const aRapportNonProtege = calc
-                ? Object.entries(_journalCache).some(([dateStr, rapports]) => {
-                    const date = parseDateLocale(dateStr);
-                    return date >= calc.debut && rapports.some(r => r.humeur === 'non_protege');
-                })
-                : false;
-
-            const message = aRapportNonProtege
-                ? `Un retard de ${joursRetard} jours peut avoir plusieurs causes. Tu as eu des rapports non protégés - un test de grossesse peut t'apporter une réponse claire.`
-                : `Un retard de ${joursRetard} jours peut avoir plusieurs causes. Le stress ou un changement hormonal peuvent en être la raison.`;
-
-            return { icone: '🤍', message };
-        }
-
-        return {
-            icone  : '🩺',
-            message: `Un retard de ${joursRetard} jours mérite attention. Pense à consulter un médecin ou un gynécologue pour en savoir plus.`
-        };
-    }
-
-    function renderBandeauRetard(calc) {
-        const today = formatDateInput(_aujourdHuiLocal());
-        const info  = _infoBienveillantRetard(calc.joursRetard, calc);
-        return `
-            <div class="cycle-bandeau-retard">
-                <div class="cycle-bandeau-retard-titre">
-                    <span style="font-size:20px">⏳</span>
-                    Règles non arrivées - ${calc.joursRetard} jour${calc.joursRetard > 1 ? 's' : ''} de retard
-                </div>
-                <div class="cycle-bandeau-retard-sub">
-                    Attendues le ${formatDate(calc.prochainDebut)}.
-                    Si elles démarrent aujourd'hui, enregistre-les ci-dessous.
-                </div>
-                <div class="cycle-bandeau-retard-actions">
-                    <button class="btn-retard-primaire"
-                        onclick="Cycle.ouvrirModalAjout(null, true)">
-                        🩸 Mes règles ont démarré
-                    </button>
-                    <button class="btn-retard-secondaire"
-                        onclick="Cycle._signalerRetard('${today}', ${calc.joursRetard})">
-                        📋 Signaler un retard
-                    </button>
-                </div>
-                <div style="margin-top:10px;background:#fffbeb;border-radius:10px;
-                            padding:12px 14px;border-left:3px solid #f59e0b">
-                    <div style="display:flex;align-items:flex-start;gap:8px">
-                        <span style="font-size:18px;flex-shrink:0">${info.icone}</span>
-                        <span style="font-size:12px;color:#92400e;line-height:1.5">${info.message}</span>
-                    </div>
-                </div>
-                <div id="cycle-retard-message"></div>
-            </div>`;
-    }
-
-    async function _signalerRetard(dateStr, joursRetard) {
-        try {
-            await fetch('/api/cycle/journal', {
-                method : 'POST',
-                headers: authHeaders(),
-                body   : JSON.stringify({
-                    date     : dateStr,
-                    rapport  : null,
-                    symptomes: null,
-                    notes    : `Retard signalé - ${joursRetard} jour${joursRetard > 1 ? 's' : ''}`
-                })
-            });
-            const [ry, rm] = dateStr.split('-').map(Number);
-            await chargerJournal(rm, ry);
-        } catch { /* silencieux */ }
-
-        const zone = document.getElementById('cycle-retard-message');
-        if (zone) {
-            zone.innerHTML = `
-                <div style="font-size:11px;color:#10b981;font-weight:600;margin-top:8px;
-                            display:flex;align-items:center;gap:4px">
-                    ✓ Retard enregistré dans ton journal
-                </div>`;
-        }
-    }
-
     function renderCalendrier(calc) {
-        // Guard : _moisAffiche peut être null si init() n'a pas encore tourné
-        if (!_moisAffiche) {
-            const n = _aujourdHuiLocal();
-            _moisAffiche = new Date(n.getFullYear(), n.getMonth(), 1);
-            _moisAffiche.setHours(0, 0, 0, 0);
-        }
-
         const aujourd_hui = _aujourdHuiLocal();
         const moisRef     = new Date(_moisAffiche.getFullYear(), _moisAffiche.getMonth(), 1);
         const moisNom     = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -502,660 +408,899 @@ const Cycle = (() => {
     async function naviguerCalendrier(offset) {
         if (!_moisAffiche) return;
         _moisAffiche = new Date(_moisAffiche.getFullYear(), _moisAffiche.getMonth() + offset, 1);
-        _moisAffiche.setHours(0, 0, 0, 0);
         await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
-        const zone = document.getElementById('cycle-calendrier');
-        if (zone) zone.innerHTML = renderCalendrier(_calcCourant);
-        const zoneModal = document.getElementById('cycle-calendrier-modal');
-        if (zoneModal) zoneModal.innerHTML = renderCalendrier(_calcCourant);
+        const container = document.getElementById('cal-container');
+        if (container) container.innerHTML = renderCalendrier(_calcCourant);
     }
 
-    function ouvrirCalendrier() {
-        const body = `
-            <div id="cycle-calendrier-modal">
-                ${renderCalendrier(_calcCourant)}
-            </div>
-            <div style="margin-top:12px;display:flex;gap:8px">
-                ${!_calcCourant?.enRetard ? `
-                <button class="btn-cycle-primaire" style="flex:1"
-                    onclick="Cycle.ouvrirModalAjout(null, false)">
-                    + Enregistrer mes règles
-                </button>` : ''}
-                <button class="btn-cycle-secondaire" ${!_calcCourant?.enRetard ? '' : 'style="width:100%"'}
-                    onclick="Cycle.afficherHistorique()">
-                    Historique (${_cyclesCourants.length})
-                </button>
-            </div>`;
-        document.getElementById('modal-title').textContent = 'Suivi du cycle';
-        document.getElementById('modal-body').innerHTML = body;
-        document.getElementById('overlay').classList.add('on');
-    }
+    const LABELS_SYMPTOMES = {
+        je_me_sens_bien    : 'Je me sens bien',
+        crampes_abdominales: 'Crampes abdominales',
+        seins_douloureux   : 'Seins douloureux',
+        douleurs_lombaires : 'Douleurs lombaires',
+        pertes_claires     : 'Pertes claires',
+        fievre             : 'Fièvre',
+        fatigue            : 'Fatigue',
+        humeur_irritable   : 'Humeur irritable'
+    };
 
-    function ouvrirJournal(dateStr) {
-        const rapports    = _journalCache[dateStr] || [];
+    const SYMPTOMES_LIST = [
+        { key: 'je_me_sens_bien',     label: 'Je me sens bien',     icon: '😊' },
+        { key: 'crampes_abdominales', label: 'Crampes abdominales', icon: '🤰' },
+        { key: 'seins_douloureux',    label: 'Seins douloureux',    icon: '👙' },
+        { key: 'douleurs_lombaires',  label: 'Douleurs lombaires',  icon: '🔙' },
+        { key: 'pertes_claires',      label: 'Pertes claires',      icon: '💧' },
+        { key: 'fievre',              label: 'Fièvre',              icon: '🌡️' },
+        { key: 'fatigue',             label: 'Fatigue',             icon: '😴' },
+        { key: 'humeur_irritable',    label: 'Humeur irritable',    icon: '😤' },
+    ];
+
+    async function ouvrirJournal(dateStr) {
+        const [ry, rm] = dateStr.split('-').map(Number);
+        await chargerJournal(rm, ry);
+        if (_moisAffiche) _moisAffiche = new Date(ry, rm - 1, 1);
+
+        const rapports = _journalCache[dateStr] || [];
+        const dateAff  = new Date(ry, rm - 1, parseInt(dateStr.split('-')[2]))
+            .toLocaleDateString('fr-FR', {
+                weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+            });
+
         const phaseDuJour = getPhaseDuJour(dateStr);
-        const phaseLabel  = phaseDuJour ? `${phaseDuJour.emoji} ${phaseDuJour.label}` : '';
+        let contenu = '';
 
-        let listeRapports = '';
-        rapports.forEach((r, i) => {
-            const typeLabel = r.humeur === 'non_protege' ? '🔓 Non protégé' :
-                              r.humeur === 'protege'     ? '🔒 Protégé'     : r.humeur || '';
-                    listeRapports += `
-                                <div style="display:flex;align-items:center;justify-content:space-between;
-                            background:#fdf4ff;border-radius:8px;padding:8px 10px;margin-bottom:6px">
-                    <span style="font-size:13px">♥ ${typeLabel}
-                        ${r.notes ? `<span style="color:#888;font-size:11px"> — ${r.notes}</span>` : ''}
-                        ${r.symptomes ? `<span style="color:#7c3aed;font-size:11px"> ● ${r.symptomes}</span>` : ''}
-                    </span>
-                    <button onclick="Cycle._supprimerRapport(${r.id}, '${dateStr}')"
-                        style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:16px">🗑</button>
+        if (phaseDuJour) {
+            contenu += `
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;
+                            background:${phaseDuJour.color}18;border-left:4px solid ${phaseDuJour.color};
+                            border-radius:8px;padding:10px 12px">
+                    <span style="font-size:20px">${phaseDuJour.emoji}</span>
+                    <span style="font-size:13px;font-weight:700;color:${phaseDuJour.color}">${phaseDuJour.label}</span>
+                </div>`;
+        }
+
+        if (rapports.length === 0 && !phaseDuJour) {
+            contenu += `<p style="color:#9ca3af;font-size:13px;margin-bottom:4px">Aucun enregistrement pour ce jour.</p>`;
+        }
+
+        rapports.forEach((r, idx) => {
+            const heure = r.created_at
+                ? new Date(r.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                : null;
+            const symptomes    = r.symptomes ? r.symptomes.split(',').filter(Boolean) : [];
+            const rapportLabel = r.humeur === 'protege'
+                ? '🛡️ Protégé'
+                : r.humeur === 'non_protege'
+                    ? '♥ Non protégé'
+                    : null;
+
+                        contenu += `
+                <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <span style="font-size:11px;color:#9ca3af">
+                            Rapport${rapports.length > 1 ? ` #${idx + 1}` : ''}${heure ? ` · ${heure}` : ''}
+                        </span>
+                        <div style="display:flex;gap:6px">
+                            <button class="btn-edit-small"
+                                onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', ${r.id})">✏️</button>
+                            <button class="btn-edit-small" style="color:#ef4444"
+                                onclick="Cycle._supprimerJournal(${r.id}, '${dateStr}')">🗑️</button>
+                        </div>
+                    </div>
+                    ${rapportLabel ? `
+                        <span style="background:#fce7f3;color:#db2777;border-radius:20px;
+                                     padding:4px 10px;font-size:12px;font-weight:600;
+                                     display:inline-block;margin-bottom:6px">
+                            ${rapportLabel}
+                        </span>` : ''}
+                    ${symptomes.length > 0 ? `
+                        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">
+                            ${symptomes.map(s =>
+                                `<span style="background:#ede9fe;color:#7c3aed;border-radius:20px;
+                                              padding:3px 8px;font-size:11px;font-weight:600">
+                                    ${LABELS_SYMPTOMES[s] || s}
+                                </span>`
+                            ).join('')}
+                        </div>` : ''}
+                    ${r.notes ? `<div style="font-size:12px;color:#6b7280;line-height:1.4">${r.notes}</div>` : ''}
                 </div>`;
         });
 
-        const body = `
-            <div style="font-size:12px;color:#888;margin-bottom:4px">${dateStr}</div>
-            ${phaseLabel ? `<div style="font-size:13px;color:#7c3aed;margin-bottom:12px">${phaseLabel}</div>` : ''}
-            <div style="font-weight:600;font-size:13px;margin-bottom:8px">♥ Rapports enregistrés</div>
-            ${listeRapports || '<div style="color:#aaa;font-size:12px;margin-bottom:8px">Aucun rapport enregistré</div>'}
-            <div style="margin-top:12px">
-                <div style="font-weight:600;font-size:13px;margin-bottom:8px">Ajouter un rapport</div>
-                <div style="display:flex;gap:8px;margin-bottom:10px">
-                    <button class="btn-rapport-type" data-type="protege"
-                        onclick="Cycle._selectionnerTypeRapport(this)"
-                        style="flex:1;padding:8px;border-radius:8px;border:2px solid #e5e7eb;
-                               background:#fff;cursor:pointer;font-size:12px">
-                        🔒 Protégé
+        document.getElementById('modal-title').textContent = dateAff;
+        document.getElementById('modal-body').innerHTML = `
+            <div class="journal-form">
+                ${contenu}
+                <div class="modal-actions" style="margin-top:16px">
+                    <button class="btn-save"
+                        onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', null)">
+                        + Enregistrer un rapport
                     </button>
-                    <button class="btn-rapport-type" data-type="non_protege"
-                        onclick="Cycle._selectionnerTypeRapport(this)"
-                        style="flex:1;padding:8px;border-radius:8px;border:2px solid #e5e7eb;
-                               background:#fff;cursor:pointer;font-size:12px">
-                        🔓 Non protégé
-                    </button>
+                    <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
                 </div>
-                <input id="journal-notes" type="text" placeholder="Notes (optionnel)"
-                    style="width:100%;border:1px solid #e5e7eb;border-radius:8px;
-                           padding:8px 10px;font-size:12px;box-sizing:border-box;margin-bottom:8px">
-                <input id="journal-symptomes" type="text" placeholder="Symptômes (optionnel)"
-                    style="width:100%;border:1px solid #e5e7eb;border-radius:8px;
-                           padding:8px 10px;font-size:12px;box-sizing:border-box;margin-bottom:12px">
-                <button onclick="Cycle._enregistrerRapport('${dateStr}')"
-                    style="width:100%;background:#7c3aed;color:#fff;border:none;border-radius:10px;
-                           padding:10px;font-size:13px;font-weight:600;cursor:pointer">
-                    Enregistrer
-                </button>
             </div>`;
-
-        document.getElementById('modal-title').textContent = 'Journal du ' + formatDate(parseDateLocale(dateStr));
-        document.getElementById('modal-body').innerHTML = body;
         document.getElementById('overlay').classList.add('on');
     }
 
-    function _selectionnerTypeRapport(btn) {
-        document.querySelectorAll('.btn-rapport-type').forEach(b => {
-            b.style.borderColor = '#e5e7eb';
-            b.style.background  = '#fff';
-            b.style.color       = '#333';
+    async function _ouvrirFormulaireJournal(dateStr, rapportId) {
+        const rapports        = _journalCache[dateStr] || [];
+        const journal         = rapportId ? rapports.find(r => r.id === rapportId) || {} : {};
+        const isEdit          = !!rapportId;
+        const [y, m, d]       = dateStr.split('-').map(Number);
+        const dateAff         = new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
+            weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
         });
-        btn.style.borderColor = '#7c3aed';
-        btn.style.background  = '#f5f3ff';
-        btn.style.color       = '#7c3aed';
-        btn.dataset.selected  = 'true';
+        const symptomesActifs = journal.symptomes ? journal.symptomes.split(',').filter(Boolean) : [];
+
+        document.getElementById('modal-title').textContent = isEdit
+            ? 'Modifier le rapport'
+            : 'Enregistrer un rapport';
+        document.getElementById('modal-body').innerHTML = `
+            <div class="journal-form">
+                <div style="font-size:12px;color:#9ca3af;margin-bottom:12px">${dateAff}</div>
+                <div class="journal-section-title">Rapport sexuel</div>
+                <div class="journal-rapport-btns">
+                    <button class="btn-rapport ${journal.humeur === 'protege' ? 'active' : ''}"
+                        onclick="Cycle._toggleRapport(this)">🛡️ Protégé</button>
+                    <button class="btn-rapport ${journal.humeur === 'non_protege' ? 'active' : ''}"
+                        onclick="Cycle._toggleRapport(this)">♥ Non protégé</button>
+                </div>
+                <div class="journal-section-title" style="margin-top:14px">Symptômes</div>
+                <div class="journal-symptomes">
+                    ${SYMPTOMES_LIST.map(s => `
+                        <label class="symptome-chip ${symptomesActifs.includes(s.key) ? 'active' : ''}"
+                            onclick="var cb=this.querySelector('input');cb.checked=!cb.checked;this.classList.toggle('active',cb.checked)">
+                            <input type="checkbox" value="${s.key}" ${symptomesActifs.includes(s.key) ? 'checked' : ''}>
+                            <span class="symptome-chip-icon">${s.icon}</span>
+                            <span class="symptome-chip-label">${s.label}</span>
+                        </label>
+                    `).join('')}
+                </div>
+                <div class="journal-section-title" style="margin-top:14px">Notes libres</div>
+                <textarea id="journal-notes" rows="3"
+                    placeholder="Autre chose à noter...">${journal.notes || ''}</textarea>
+                <div class="modal-actions" style="margin-top:16px">
+                    <button class="btn-save"
+                        onclick="Cycle._sauvegarderJournal('${dateStr}', ${rapportId || 'null'})">
+                        💾 Sauvegarder
+                    </button>
+                    <button class="btn-cancel" onclick="Cycle.ouvrirJournal('${dateStr}')">Annuler</button>
+                </div>
+            </div>`;
+        document.getElementById('overlay').classList.add('on');
     }
 
-    async function _enregistrerRapport(dateStr) {
-        const typeBtn = document.querySelector('.btn-rapport-type[data-selected="true"]');
-        if (!typeBtn) { alert('Sélectionne le type de rapport.'); return; }
-        const humeur    = typeBtn.dataset.type;
-        const notes     = document.getElementById('journal-notes')?.value?.trim()     || null;
-        const symptomes = document.getElementById('journal-symptomes')?.value?.trim() || null;
+    function _toggleRapport(btn) {
+        const estDejaActif = btn.classList.contains('active');
+        document.querySelectorAll('.btn-rapport').forEach(b => b.classList.remove('active'));
+        if (!estDejaActif) btn.classList.add('active');
+    }
+
+    async function _sauvegarderJournal(dateStr, rapportId) {
+        const rapportBtn = document.querySelector('.btn-rapport.active');
+        const rapport    = rapportBtn
+            ? (rapportBtn.textContent.includes('Protégé') ? 'protege' : 'non_protege')
+            : null;
+        const symptomes = [...document.querySelectorAll('.journal-symptomes input:checked')]
+            .map(i => i.value).join(',');
+        const notes     = document.getElementById('journal-notes').value;
+        const [ry, rm]  = dateStr.split('-').map(Number);
+        try {
+            if (rapportId) {
+                await fetch(`/api/cycle/journal/${rapportId}`, {
+                    method : 'PUT',
+                    headers: authHeaders(),
+                    body   : JSON.stringify({ rapport, symptomes, notes })
+                });
+            } else {
+                await fetch('/api/cycle/journal', {
+                    method : 'POST',
+                    headers: authHeaders(),
+                    body   : JSON.stringify({ date: dateStr, rapport, symptomes, notes })
+                });
+            }
+            await chargerJournal(rm, ry);
+            if (_moisAffiche) _moisAffiche = new Date(ry, rm - 1, 1);
+            ouvrirJournal(dateStr);
+        } catch {
+            document.getElementById('modal-title').textContent = 'Erreur';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel"
+                        onclick="Cycle._ouvrirFormulaireJournal('${dateStr}', ${rapportId || 'null'})">
+                        Retour
+                    </button>
+                </div>`;
+        }
+    }
+
+    async function _supprimerJournal(id, dateStr) {
+        confirmerSuppression(
+            async () => {
+                const [ry, rm] = dateStr.split('-').map(Number);
+                try {
+                    await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
+                    await chargerJournal(rm, ry);
+                    if (_moisAffiche) _moisAffiche = new Date(ry, rm - 1, 1);
+                    ouvrirJournal(dateStr);
+                } catch {
+                    document.getElementById('modal-title').textContent = 'Erreur';
+                    document.getElementById('modal-body').innerHTML = `
+                        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
+                        <div class="modal-actions">
+                            <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
+                        </div>`;
+                }
+            },
+            () => ouvrirJournal(dateStr)
+        );
+    }
+
+    // ── Mood inline widget ────────────────────────────────────
+    async function _afficherMoodInline(calc) {
+        const zone = document.getElementById('cycle-mood-zone');
+        if (!zone || !calc) return;
+
+        const today     = formatDateInput(_aujourdHuiLocal());
+        const jourCycle = calculerJourCycle(calc);
+        const phaseMood = getPhaseMood(jourCycle, calc);
+
+        _moodsActifsCache = [];
+        try {
+            const res = await fetch(`/api/cycle/mood?date=${today}`, { headers: authHeaders() });
+            const d   = await res.json();
+            if (d.mood?.moods) {
+                _moodsActifsCache = d.mood.moods.split(',').filter(s => s.trim() !== '');
+            }
+        } catch { /* silencieux */ }
+
+        _renderMoodZone(zone, phaseMood, _moodsActifsCache, today);
+    }
+
+    function _renderMoodZone(zone, phaseMood, moodsActifs, today) {
+        const aDejaHumeur = moodsActifs.length > 0;
+
+        if (aDejaHumeur) {
+            const chipsRemplies = moodsActifs.map(item => {
+                const icone = MOOD_ICONS[item] || '💭';
+                return `<button
+                    class="mood-chip-filled"
+                    onclick="Cycle._ouvrirEditionMood('${today}')"
+                    title="Modifier mon humeur"
+                    style="display:inline-flex;align-items:center;gap:6px;
+                           border:1.5px solid #7c3aed;background:#ede9fe;
+                           color:#7c3aed;border-radius:20px;padding:5px 12px;
+                           font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">
+                    <span style="font-size:15px;line-height:1">${icone}</span>
+                    <span>${item}</span>
+                </button>`;
+            }).join('');
+
+            zone.innerHTML = `
+                <div style="border-top:1px solid #f0e6ff;margin-top:12px;padding-top:10px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;
+                                gap:6px;margin-bottom:8px">
+                        <span style="font-size:11px;color:#10b981;font-weight:600">✓ Humeur enregistrée</span>
+                        <button onclick="Cycle._ouvrirEditionMood('${today}')"
+                            style="background:none;border:none;cursor:pointer;
+                                   font-size:11px;color:#9ca3af;text-decoration:underline;padding:0">
+                            Modifier
+                        </button>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px">${chipsRemplies}</div>
+                </div>`;
+        } else {
+            zone.innerHTML = `
+                <div style="border-top:1px solid #f0e6ff;margin-top:12px;padding-top:10px">
+                    <button onclick="Cycle._ouvrirEditionMood('${today}')"
+                        style="width:100%;display:flex;align-items:center;justify-content:space-between;
+                               background:#faf5ff;border:1.5px dashed #c4b5fd;border-radius:10px;
+                               padding:10px 14px;cursor:pointer;transition:background .2s">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:18px">💭</span>
+                            <span style="font-size:13px;color:#7c3aed;font-weight:600">
+                                Comment tu te sens aujourd'hui ?
+                            </span>
+                        </div>
+                        ${phaseMood ? `
+                            <span style="font-size:10px;background:#f5f3ff;color:#7c3aed;
+                                border-radius:10px;padding:2px 7px;font-weight:600;
+                                white-space:nowrap;flex-shrink:0">
+                                ${phaseMood.label}
+                            </span>` : ''}
+                    </button>
+                </div>`;
+        }
+    }
+
+    function _ouvrirEditionMood(today) {
+        const zone = document.getElementById('cycle-mood-zone');
+        if (!zone) return;
+
+        const moodsActuels = _moodsActifsCache;
+        const jourCycle    = _calcCourant ? calculerJourCycle(_calcCourant) : null;
+        const phaseMood    = _calcCourant ? getPhaseMood(jourCycle, _calcCourant) : null;
+        const itemsPhase   = phaseMood?.items || [];
+
+        const chipsPhase = itemsPhase.map(item => {
+            const icone = MOOD_ICONS[item] || '💭';
+            const sel   = moodsActuels.includes(item);
+            return _chipEditHtml(item, icone, sel);
+        }).join('');
+
+        zone.innerHTML = `
+            <div style="border-top:1px solid #f0e6ff;margin-top:12px;padding-top:10px">
+                ${phaseMood ? `
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                    <span style="font-size:11px;color:#9ca3af">Humeurs liées à ta phase actuelle</span>
+                    <span style="font-size:10px;background:#f5f3ff;color:#7c3aed;
+                        border-radius:10px;padding:2px 7px;font-weight:600;white-space:nowrap">
+                        ${phaseMood.label}
+                    </span>
+                </div>
+                <div id="cycle-mood-chips-phase" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+                    ${chipsPhase}
+                </div>` : ''}
+                <button onclick="Cycle._sauvegarderMoodManuel('${today}')"
+                    style="width:100%;padding:9px;background:#7c3aed;color:#fff;border:none;
+                           border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;
+                           transition:background .2s">
+                    💾 Sauvegarder mon humeur
+                </button>
+            </div>`;
+    }
+
+    function _chipEditHtml(item, icone, sel) {
+        return `<button
+            data-mood="${item}"
+            data-selected="${sel ? '1' : '0'}"
+            onclick="Cycle._toggleMoodChip(this)"
+            style="display:inline-flex;align-items:center;gap:6px;
+                   border:1.5px solid ${sel ? '#7c3aed' : '#e5e7eb'};
+                   background:${sel ? '#ede9fe' : '#f9fafb'};
+                   color:${sel ? '#7c3aed' : '#6b7280'};
+                   border-radius:20px;padding:5px 12px;font-size:12px;
+                   font-weight:${sel ? '600' : '400'};cursor:pointer;transition:all .15s">
+            <span style="font-size:15px;line-height:1">${icone}</span>
+            <span>${item}</span>
+        </button>`;
+    }
+
+    function _toggleMoodChip(btn) {
+        const estActif       = btn.dataset.selected === '1';
+        btn.dataset.selected = estActif ? '0' : '1';
+        const sel            = btn.dataset.selected === '1';
+        btn.style.border     = `1.5px solid ${sel ? '#7c3aed' : '#e5e7eb'}`;
+        btn.style.background = sel ? '#ede9fe' : '#f9fafb';
+        btn.style.color      = sel ? '#7c3aed' : '#6b7280';
+        btn.style.fontWeight = sel ? '600' : '400';
+    }
+
+    async function _sauvegarderMoodManuel(today) {
+        const chips  = [...document.querySelectorAll('#cycle-mood-chips-phase button')];
+        const actifs = chips
+            .filter(b => b.dataset.selected === '1')
+            .map(b => b.dataset.mood);
+
+        const btn = document.querySelector(
+            '#cycle-mood-zone button[onclick*="_sauvegarderMoodManuel"]'
+        );
+        if (btn) { btn.textContent = '...'; btn.disabled = true; }
+
+        try {
+            await fetch('/api/cycle/mood', {
+                method : 'POST',
+                headers: authHeaders(),
+                body   : JSON.stringify({ date: today, moods: actifs.join(',') })
+            });
+        } catch { /* silencieux */ }
+
+        if (_calcCourant) await _afficherMoodInline(_calcCourant);
+    }
+
+    async function ouvrirModalMood(calc) {
+        await _afficherMoodInline(calc);
+    }
+
+    async function _sauvegarderMood(date) {
+        const moods = [...document.querySelectorAll('.journal-symptomes input:checked')]
+            .map(i => i.value).join(',');
+        try {
+            await fetch('/api/cycle/mood', {
+                method : 'POST',
+                headers: authHeaders(),
+                body   : JSON.stringify({ date, moods })
+            });
+            charger();
+            closeModal();
+        } catch {
+            document.getElementById('modal-title').textContent = 'Erreur';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+                </div>`;
+        }
+    }
+
+    function renderBlocMood() {
+        return `<div id="cycle-mood-zone"></div>`;
+    }
+
+    // ── Message bienveillant selon nb jours de retard ─────────
+    function _messageBienveillantRetard(joursRetard) {
+        if (joursRetard <= 3) {
+            return `Le stress, la fatigue ou un changement de routine peuvent décaler tes règles de quelques jours. C'est tout à fait normal.`;
+        } else if (joursRetard <= 7) {
+            return `Un retard de ${joursRetard} jours peut avoir plusieurs causes. Si tu as eu des rapports non protégés, un test de grossesse peut t'apporter une réponse claire.`;
+        } else {
+            return `Un retard de ${joursRetard} jours mérite attention. Pense à consulter un médecin ou une sage-femme pour en savoir plus.`;
+        }
+    }
+
+    function _iconeBienveillantRetard(joursRetard) {
+        if (joursRetard <= 3) return '🌿';
+        if (joursRetard <= 7) return '🤍';
+        return '🩺';
+    }
+
+    // ── Bandeau retard ────────────────────────────────────────
+    function renderBandeauRetard(calc) {
+        const today = formatDateInput(_aujourdHuiLocal());
+        return `
+            <div class="cycle-bandeau-retard">
+                <div class="cycle-bandeau-retard-titre">
+                    <span style="font-size:20px">⏳</span>
+                    Règles non arrivées - ${calc.joursRetard} jour${calc.joursRetard > 1 ? 's' : ''} de retard
+                </div>
+                <div class="cycle-bandeau-retard-sub">
+                    Attendues le ${formatDate(calc.prochainDebut)}.
+                    Si elles démarrent aujourd'hui, enregistre-les ci-dessous.
+                </div>
+                <div class="cycle-bandeau-retard-actions">
+                    <button class="btn-retard-primaire"
+                        onclick="Cycle.ouvrirModalAjout(null, true)">
+                        🩸 Mes règles ont démarré
+                    </button>
+                    <button class="btn-retard-secondaire"
+                        onclick="Cycle._signalerRetard('${today}', ${calc.joursRetard})">
+                        📋 Signaler un retard
+                    </button>
+                </div>
+                <div id="cycle-retard-message"></div>
+            </div>`;
+    }
+
+    // ── Signaler retard ───────────────────────────────────────
+    async function _signalerRetard(dateStr, joursRetard) {
         try {
             await fetch('/api/cycle/journal', {
                 method : 'POST',
                 headers: authHeaders(),
-                body   : JSON.stringify({ date: dateStr, humeur, notes, symptomes })
+                body   : JSON.stringify({
+                    date     : dateStr,
+                    rapport  : null,
+                    symptomes: null,
+                    notes    : `Retard signalé - ${joursRetard} jour${joursRetard > 1 ? 's' : ''}`
+                })
             });
-            const [y, m] = dateStr.split('-').map(Number);
-            await chargerJournal(m, y);
-            ouvrirJournal(dateStr);
-            const zone = document.getElementById('cycle-calendrier');
-            if (zone) zone.innerHTML = renderCalendrier(_calcCourant);
-            const zoneModal = document.getElementById('cycle-calendrier-modal');
-            if (zoneModal) zoneModal.innerHTML = renderCalendrier(_calcCourant);
-        } catch { alert('Erreur enregistrement.'); }
-    }
+            const [ry, rm] = dateStr.split('-').map(Number);
+            await chargerJournal(rm, ry);
+        } catch { /* silencieux */ }
 
-    async function _supprimerRapport(id, dateStr) {
-        confirmerSuppression(async () => {
-            try {
-                await fetch(`/api/cycle/journal/${id}`, { method: 'DELETE', headers: authHeaders() });
-                const [y, m] = dateStr.split('-').map(Number);
-                await chargerJournal(m, y);
-                ouvrirJournal(dateStr);
-                const zone = document.getElementById('cycle-calendrier');
-                if (zone) zone.innerHTML = renderCalendrier(_calcCourant);
-                const zoneModal = document.getElementById('cycle-calendrier-modal');
-                if (zoneModal) zoneModal.innerHTML = renderCalendrier(_calcCourant);
-            } catch { alert('Erreur suppression.'); }
-        }, () => {
-            document.getElementById('overlay').classList.remove('on');
-            ouvrirJournal(dateStr);
-        });
-    }
-
-    function ouvrirModalAjout(cycleExistant = null, dateReadOnly = false) {
-        const aujourd_hui       = formatDateInput(_aujourdHuiLocal());
-        const dureeReglesDefaut = calculerDureeReglesMoyenne(_cyclesCourants);
-        const dureeDefault      = cycleExistant?.duree_regles || dureeReglesDefaut;
-        const cycleDefault      = cycleExistant?.duree_cycle  || _calcCourant?.dureeCycle || 28;
-        const dateDefault       = cycleExistant
-            ? cycleExistant.date_debut.split('T')[0]
-            : aujourd_hui;
-
-        const body = `
-            <div style="display:flex;flex-direction:column;gap:14px">
-                <div>
-                    <label style="font-size:12px;font-weight:600;color:#555;text-transform:uppercase;
-                                  letter-spacing:.5px;display:block;margin-bottom:6px">
-                        DATE DE DÉBUT DES RÈGLES *
-                    </label>
-                    <input type="date" id="cycle-date-debut" value="${dateDefault}"
-                        ${dateReadOnly
-                            ? 'readonly style="background:#f3f4f6;cursor:not-allowed;width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box"'
-                            : 'style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box"'}>
-                </div>
-                <div>
-                    <label style="font-size:12px;font-weight:600;color:#555;text-transform:uppercase;
-                                  letter-spacing:.5px;display:block;margin-bottom:6px">
-                        DURÉE DES RÈGLES (JOURS)
-                    </label>
-                    <input type="number" id="cycle-duree-regles" value="${dureeDefault}" min="1" max="10"
-                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;
-                               font-size:14px;box-sizing:border-box">
-                </div>
-                <div>
-                    <label style="font-size:12px;font-weight:600;color:#555;text-transform:uppercase;
-                                  letter-spacing:.5px;display:block;margin-bottom:6px">
-                        DURÉE DU CYCLE (JOURS) — SERA RECALCULÉE AUTOMATIQUEMENT APRÈS 2 CYCLES
-                    </label>
-                    <input type="number" id="cycle-duree-cycle" value="${cycleDefault}" min="20" max="45"
-                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;
-                               font-size:14px;box-sizing:border-box">
-                </div>
-                <div>
-                    <label style="font-size:12px;font-weight:600;color:#555;text-transform:uppercase;
-                                  letter-spacing:.5px;display:block;margin-bottom:6px">
-                        NOTES (OPTIONNEL)
-                    </label>
-                    <textarea id="cycle-notes" rows="3" placeholder="Douleurs, humeur, symptômes..."
-                        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;
-                               font-size:14px;box-sizing:border-box;resize:vertical"
-                    >${cycleExistant?.notes || ''}</textarea>
-                </div>
-                <div style="display:flex;gap:10px">
-                    <button onclick="Cycle._sauvegarderCycle(${cycleExistant?.id || 'null'})"
-                        style="flex:1;background:#7c3aed;color:#fff;border:none;border-radius:10px;
-                               padding:12px;font-size:14px;font-weight:600;cursor:pointer">
-                        Enregistrer
-                    </button>
-                    <button onclick="document.getElementById('overlay').classList.remove('on')"
-                        style="padding:12px 20px;border:1px solid #e5e7eb;border-radius:10px;
-                               background:#fff;font-size:14px;cursor:pointer">
-                        Annuler
-                    </button>
-                </div>
-                ${cycleExistant ? `
-                <div style="text-align:center">
-                    <button onclick="Cycle._supprimerCycle(${cycleExistant.id})"
-                        style="background:none;border:none;color:#e74c3c;font-size:12px;
-                               cursor:pointer;text-decoration:underline">
-                        Supprimer ce cycle
-                    </button>
-                </div>` : ''}
-            </div>`;
-
-        document.getElementById('modal-title').textContent = cycleExistant
-            ? 'Modifier le cycle'
-            : 'Enregistrer mes règles';
-        document.getElementById('modal-body').innerHTML = body;
-        document.getElementById('overlay').classList.add('on');
-    }
-
-    async function _sauvegarderCycle(idExistant = null) {
-        const dateDebut   = document.getElementById('cycle-date-debut')?.value;
-        const dureeRegles = parseInt(document.getElementById('cycle-duree-regles')?.value) || 3;
-        const dureeCycle  = parseInt(document.getElementById('cycle-duree-cycle')?.value)  || 28;
-        const notes       = document.getElementById('cycle-notes')?.value?.trim() || null;
-
-        if (!dateDebut) { alert('La date de début est obligatoire.'); return; }
-
-        const payload = { date_debut: dateDebut, duree_regles: dureeRegles, duree_cycle: dureeCycle, notes };
-        try {
-            if (idExistant) {
-                await fetch(`/api/cycle/${idExistant}`, {
-                    method : 'PUT',
-                    headers: authHeaders(),
-                    body   : JSON.stringify(payload)
-                });
-            } else {
-                await fetch('/api/cycle', {
-                    method : 'POST',
-                    headers: authHeaders(),
-                    body   : JSON.stringify(payload)
-                });
-            }
-            document.getElementById('overlay').classList.remove('on');
-            await init();
-        } catch { alert('Erreur sauvegarde.'); }
-    }
-
-    async function _supprimerCycle(id) {
-        confirmerSuppression(async () => {
-            try {
-                await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
-                document.getElementById('overlay').classList.remove('on');
-                await init();
-            } catch { alert('Erreur suppression.'); }
-        }, () => {
-            document.getElementById('overlay').classList.remove('on');
-        });
-    }
-
-    function afficherHistorique() {
-        const lignes = _cyclesCourants.map(c => {
-            const dateLabel = formatDate(parseDateLocale(c.date_debut.split('T')[0]));
-            return `
-                <div style="display:flex;align-items:center;justify-content:space-between;
-                            padding:12px 0;border-bottom:1px solid #f3f4f6">
-                    <div>
-                        <div style="font-weight:600;font-size:14px;color:#1f2937">${dateLabel}</div>
-                        <div style="font-size:12px;color:#9ca3af;margin-top:2px">
-                            Règles : ${c.duree_regles}j - Cycle: ${c.duree_cycle}j
-                        </div>
+        const zone = document.getElementById('cycle-retard-message');
+        if (zone) {
+            const icone   = _iconeBienveillantRetard(joursRetard);
+            const message = _messageBienveillantRetard(joursRetard);
+            zone.innerHTML = `
+                <div style="margin-top:10px;background:#fffbeb;border-radius:10px;
+                            padding:12px 14px;border-left:3px solid #f59e0b">
+                    <div style="display:flex;align-items:flex-start;gap:8px">
+                        <span style="font-size:18px;flex-shrink:0">${icone}</span>
+                        <span style="font-size:12px;color:#92400e;line-height:1.5">${message}</span>
                     </div>
-                    <button onclick="Cycle.ouvrirModalAjout(${JSON.stringify(c).replace(/"/g, '&quot;')})"
-                        style="background:none;border:none;cursor:pointer;font-size:18px">✏️</button>
-                </div>`;
-        }).join('');
-
-        const dureeMoyenne = calculerDureeMoyenne(_cyclesCourants);
-        const body = `
-            <div style="background:#f5f3ff;border-radius:10px;padding:10px 14px;
-                        margin-bottom:16px;font-size:13px;color:#7c3aed;font-weight:600">
-                Durée moyenne calculée : ${dureeMoyenne ? `${dureeMoyenne} jours` : 'Pas encore calculée'}
-            </div>
-            ${lignes || '<div style="color:#aaa;font-size:13px">Aucun cycle enregistré.</div>'}
-            <div style="display:flex;gap:8px;margin-top:16px">
-                <button onclick="Cycle.ouvrirModalAjout()"
-                    style="flex:1;background:#e91e8c;color:#fff;border:none;border-radius:10px;
-                           padding:12px;font-size:13px;font-weight:600;cursor:pointer">
-                    + Nouveau cycle
-                </button>
-                <button onclick="Cycle.ouvrirCalendrier()"
-                    style="padding:12px 16px;border:1px solid #e5e7eb;border-radius:10px;
-                           background:#fff;font-size:13px;cursor:pointer">
-                    ← Retour
-                </button>
-            </div>`;
-
-        document.getElementById('modal-title').textContent = 'Historique des cycles';
-        document.getElementById('modal-body').innerHTML = body;
-        document.getElementById('overlay').classList.add('on');
-    }
-
-    function renderMoodInline(calc) {
-        const aujourd_hui = _aujourdHuiLocal();
-        const dateStr     = formatDateInput(aujourd_hui);
-        const rapports    = _journalCache[dateStr] || [];
-        const moodsHere   = rapports.filter(r => r.humeur && !['protege','non_protege'].includes(r.humeur));
-        const jourCycle   = calculerJourCycle(calc);
-        const phaseDef    = getPhaseMood(jourCycle, calc);
-
-        if (!phaseDef) return '';
-
-        const moodsActifs = moodsHere.map(r => r.humeur);
-        _moodsActifsCache = moodsActifs;
-
-        const aHumeur = moodsActifs.length > 0;
-
-        if (aHumeur) {
-            const chips = moodsActifs.map(m => {
-                const icon = MOOD_ICONS[m] || '•';
-                return `<span style="display:inline-flex;align-items:center;gap:4px;background:#ede9fe;
-                                     color:#5b21b6;border-radius:20px;padding:4px 10px;font-size:12px;
-                                     font-weight:500">${icon} ${m}</span>`;
-            }).join('');
-            return `
-                <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                        <span style="font-size:12px;color:#10b981;font-weight:600">✓ Humeur enregistrée</span>
-                        <span style="font-size:12px;color:#7c3aed;cursor:pointer;text-decoration:underline"
-                              onclick="Cycle._ouvrirMoodEditor('${dateStr}')">Modifier</span>
-                    </div>
-                    <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
-                    <div style="margin-top:8px;font-size:11px;color:#9ca3af;text-align:right;cursor:pointer"
-                         onclick="Cycle._ouvrirGestionMood()">Cliquez pour gérer</div>
-                </div>`;
-        }
-
-        return `
-            <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6">
-                <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer"
-                     onclick="Cycle._ouvrirMoodEditor('${dateStr}')">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span style="font-size:22px">🌙</span>
-                        <div>
-                            <div style="font-size:13px;font-weight:600;color:#1f2937">
-                                Comment tu te sens aujourd'hui ?
-                            </div>
-                            <div style="font-size:11px;color:#7c3aed">${phaseDef.label}</div>
-                        </div>
-                    </div>
-                    <span style="font-size:11px;color:#9ca3af">Cliquez pour gérer</span>
-                </div>
-            </div>`;
-    }
-
-    function _ouvrirMoodEditor(dateStr) {
-        const jourCycle = calculerJourCycle(_calcCourant);
-        const phaseDef  = getPhaseMood(jourCycle, _calcCourant);
-        if (!phaseDef) return;
-
-        const existants = _moodsActifsCache;
-
-        const items = phaseDef.items.map(m => {
-            const icon     = MOOD_ICONS[m] || '•';
-            const selected = existants.includes(m);
-            return `
-                <div class="mood-chip ${selected ? 'mood-selected' : ''}"
-                     data-mood="${m}"
-                     onclick="Cycle._toggleMoodChip(this)"
-                     style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;
-                            border-radius:20px;border:2px solid ${selected ? '#7c3aed' : '#e5e7eb'};
-                            background:${selected ? '#ede9fe' : '#fff'};color:${selected ? '#5b21b6' : '#555'};
-                            cursor:pointer;font-size:12px;font-weight:500;margin:3px">
-                    ${icon} ${m}
-                </div>`;
-        }).join('');
-
-        const body = `
-            <div style="font-size:12px;color:#7c3aed;font-weight:600;margin-bottom:12px">
-                ${phaseDef.label}
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px">${items}</div>
-            <button onclick="Cycle._sauvegarderMood('${dateStr}')"
-                style="width:100%;background:#7c3aed;color:#fff;border:none;border-radius:10px;
-                       padding:12px;font-size:14px;font-weight:600;cursor:pointer">
-                Enregistrer mon humeur
-            </button>`;
-
-        document.getElementById('modal-title').textContent = 'Comment tu te sens ?';
-        document.getElementById('modal-body').innerHTML = body;
-        document.getElementById('overlay').classList.add('on');
-    }
-
-    function _toggleMoodChip(el) {
-        const selected = el.classList.toggle('mood-selected');
-        el.style.borderColor = selected ? '#7c3aed' : '#e5e7eb';
-        el.style.background  = selected ? '#ede9fe' : '#fff';
-        el.style.color       = selected ? '#5b21b6' : '#555';
-    }
-
-    async function _sauvegarderMood(dateStr) {
-        const chips = document.querySelectorAll('.mood-chip.mood-selected');
-        const moods = Array.from(chips).map(c => c.dataset.mood);
-        if (!moods.length) { alert('Sélectionne au moins une humeur.'); return; }
-
-        try {
-            const anciens = (_journalCache[dateStr] || []).filter(r =>
-                r.humeur && !['protege','non_protege'].includes(r.humeur)
-            );
-            for (const r of anciens) {
-                await fetch(`/api/cycle/journal/${r.id}`, { method: 'DELETE', headers: authHeaders() });
-            }
-            for (const mood of moods) {
-                await fetch('/api/cycle/journal', {
-                    method : 'POST',
-                    headers: authHeaders(),
-                    body   : JSON.stringify({ date: dateStr, humeur: mood, notes: null, symptomes: null })
-                });
-            }
-            const [y, m] = dateStr.split('-').map(Number);
-            await chargerJournal(m, y);
-            document.getElementById('overlay').classList.remove('on');
-            await _rafraichirWidget();
-        } catch { alert('Erreur sauvegarde humeur.'); }
-    }
-
-    function _ouvrirGestionMood() {
-        const dateStr = formatDateInput(_aujourdHuiLocal());
-        _ouvrirMoodEditor(dateStr);
-    }
-
-    async function _rafraichirWidget() {
-        const zone = document.getElementById('cycle-widget');
-        if (!zone) return;
-        zone.innerHTML = await _buildWidget();
-    }
-
-    async function _buildWidget() {
-        if (!_calcCourant) {
-            return `
-                <div style="text-align:center;padding:20px">
-                    <div style="font-size:40px;margin-bottom:12px">🌸</div>
-                    <div style="font-size:15px;font-weight:600;color:#1f2937;margin-bottom:8px">
-                        Commence ton suivi de cycle
-                    </div>
-                    <div style="font-size:13px;color:#6b7280;margin-bottom:16px">
-                        Enregistre tes règles pour suivre ton cycle et anticiper tes prochaines dates.
-                    </div>
-                    <button onclick="Cycle.ouvrirModalAjout()"
-                        style="background:#e91e8c;color:#fff;border:none;border-radius:10px;
-                               padding:12px 24px;font-size:14px;font-weight:600;cursor:pointer">
-                        + Enregistrer mes premières règles
-                    </button>
-                </div>`;
-        }
-
-        const calc      = _calcCourant;
-        const phase     = getPhase(calc);
-        const jourCycle = calculerJourCycle(calc);
-        const progression = Math.min(100, Math.round(((jourCycle - 1) / calc.dureeCycle) * 100));
-
-        let bandeauPhase = '';
-        if (calc.enRetard) {
-            bandeauPhase = renderBandeauRetard(calc);
-        } else {
-            bandeauPhase = `
-                <div style="background:linear-gradient(135deg,#f5f3ff,#fce7f3);border-radius:12px;
-                            padding:14px 16px;margin-bottom:14px;border-left:4px solid ${phase.color}">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span style="font-size:22px">${phase.emoji}</span>
-                        <div>
-                            <div style="font-weight:700;font-size:15px;color:#1f2937">${phase.label}</div>
-                            ${calc.joursAvantRegles === 0
-                                ? `<div style="font-size:12px;color:#e74c3c;font-weight:600">Règles attendues aujourd'hui</div>`
-                                : calc.joursAvantRegles > 0
-                                    ? `<div style="font-size:12px;color:#6b7280">Dans ${calc.joursAvantRegles} jour${calc.joursAvantRegles > 1 ? 's' : ''}</div>`
-                                    : ''}
-                        </div>
+                    <div style="font-size:11px;color:#10b981;font-weight:600;margin-top:8px">
+                        ✓ Retard enregistré dans ton journal
                     </div>
                 </div>`;
         }
-
-        let boutonsAction = '';
-        if (!calc.enRetard) {
-            boutonsAction = `
-                <div style="display:flex;gap:8px;margin-top:14px">
-                    <button onclick="Cycle.ouvrirModalAjout()"
-                        class="btn-cycle-primaire" style="flex:1">
-                        + Enregistrer mes règles
-                    </button>
-                    <button onclick="Cycle.afficherHistorique()"
-                        class="btn-cycle-secondaire">
-                        Historique (${_cyclesCourants.length})
-                    </button>
-                </div>`;
-        } else {
-            boutonsAction = `
-                <div style="display:flex;gap:8px;margin-top:14px">
-                    <button onclick="Cycle.afficherHistorique()"
-                        class="btn-cycle-secondaire" style="width:100%">
-                        Historique (${_cyclesCourants.length})
-                    </button>
-                </div>`;
-        }
-
-        const moodHtml = renderMoodInline(calc);
-
-        return `
-            ${bandeauPhase}
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-                <div style="background:#f9fafb;border-radius:10px;padding:10px 12px">
-                    <div style="font-size:10px;font-weight:700;color:#9ca3af;
-                                text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
-                        📅 Dernier début
-                    </div>
-                    <div style="font-size:13px;font-weight:600;color:#1f2937">
-                        ${formatDate(calc.debut)}
-                    </div>
-                </div>
-                <div style="background:#f9fafb;border-radius:10px;padding:10px 12px">
-                    <div style="font-size:10px;font-weight:700;color:#9ca3af;
-                                text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
-                        🔄 Durée cycle (calculée)
-                    </div>
-                    <div style="font-size:13px;font-weight:600;color:#1f2937">
-                        ${calc.dureeCycle} jours
-                    </div>
-                </div>
-                <div style="background:#f9fafb;border-radius:10px;padding:10px 12px;
-                            ${calc.enRetard ? 'opacity:.4' : ''}">
-                    <div style="font-size:10px;font-weight:700;color:#9ca3af;
-                                text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
-                        🌿 Prochaine fenêtre fertile
-                    </div>
-                    <div style="font-size:13px;font-weight:600;
-                                color:${calc.enRetard ? '#9ca3af' : '#10b981'}">
-                        ${calc.enRetard
-                            ? `<span style="color:#d1d5db">-</span>`
-                            : `${formatDate(calc.debutFertile)}<br>
-                               <span style="font-size:11px;font-weight:400">
-                                   - ${formatDate(calc.finFertile)}
-                               </span>`}
-                    </div>
-                </div>
-                <div style="background:#f9fafb;border-radius:10px;padding:10px 12px;
-                            ${calc.enRetard ? 'opacity:.4' : ''}">
-                    <div style="font-size:10px;font-weight:700;color:#9ca3af;
-                                text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
-                        ✨ Prochaine ovulation
-                    </div>
-                    <div style="font-size:13px;font-weight:600;
-                                color:${calc.enRetard ? '#9ca3af' : '#f59e0b'}">
-                        ${calc.enRetard
-                            ? `<span style="color:#d1d5db">-</span>`
-                            : formatDate(calc.ovulation)}
-                    </div>
-                </div>
-            </div>
-            <div style="margin-bottom:14px">
-                <div style="font-size:11px;color:#9ca3af;margin-bottom:6px;font-weight:500">
-                    Progression du cycle (${calc.dureeCycle} jours)
-                </div>
-                <div style="background:#f3f4f6;border-radius:999px;height:8px;overflow:hidden">
-                    <div style="height:100%;border-radius:999px;width:${progression}%;
-                                background:${calc.enRetard
-                                                                        ? 'linear-gradient(90deg,#f59e0b,#fbbf24)'
-                                    : 'linear-gradient(90deg,#e91e8c,#7c3aed)'}">
-                    </div>
-                </div>
-            </div>
-
-            ${boutonsAction}
-            ${moodHtml}`;
     }
 
-    async function init(containerId = 'cycle-widget') {
-        const zone = document.getElementById(containerId);
-        if (!zone) return;
+    function renderWidget(cycles, dureeMoyenne) {
+        const dernierCycle      = cycles.length > 0 ? cycles[0] : null;
+        const calc              = calculerCycle(dernierCycle, dureeMoyenne);
+        const phase             = getPhase(calc);
+        const dureeReglesMoy    = calculerDureeReglesMoyenne(cycles);
 
-        zone.innerHTML = '<div style="padding:20px;color:#9ca3af;font-size:13px">Chargement...</div>';
+        let labelOvulation, valeurOvulation, labelFenetre, valeurFenetre;
+        let infosGrisees = false;
 
-        try {
-            const res       = await fetch('/api/cycle?limit=10', { headers: authHeaders() });
-            const data      = await res.json();
-            _cyclesCourants = data.cycles || [];
-        } catch {
-            _cyclesCourants = [];
-        }
-
-        try {
-            const dureeMoyenne = calculerDureeMoyenne(_cyclesCourants);
-            _calcCourant       = calculerCycle(_cyclesCourants[0], dureeMoyenne);
-            _toutesLesP        = calculerToutesPeriodes(_cyclesCourants, dureeMoyenne);
-
+        if (calc && !calc.enRetard) {
             const aujourd_hui = _aujourdHuiLocal();
-            _moisAffiche      = new Date(aujourd_hui.getFullYear(), aujourd_hui.getMonth(), 1);
-            _moisAffiche.setHours(0, 0, 0, 0);
+            if (calc.ovulation < aujourd_hui) {
+                const prochaineOvulation    = addDays(calc.ovulation, calc.dureeCycle);
+                const prochaineFenetreDebut = addDays(prochaineOvulation, -5);
+                const prochaineFenetreFin   = addDays(prochaineOvulation, 1);
+                labelOvulation  = 'Prochaine ovulation';
+                valeurOvulation = formatDate(prochaineOvulation);
+                labelFenetre    = 'Prochaine fenetre fertile';
+                valeurFenetre   = `${formatDate(prochaineFenetreDebut)} - ${formatDate(prochaineFenetreFin)}`;
+            } else {
+                labelOvulation  = 'Ovulation estimée';
+                valeurOvulation = formatDate(calc.ovulation);
+                labelFenetre    = 'Fenetre fertile';
+                valeurFenetre   = `${formatDate(calc.debutFertile)} - ${formatDate(calc.finFertile)}`;
+            }
+        } else if (calc?.enRetard) {
+            infosGrisees    = true;
+            labelOvulation  = 'Ovulation estimée';
+            valeurOvulation = formatDate(calc.ovulation);
+            labelFenetre    = 'Fenetre fertile';
+            valeurFenetre   = `${formatDate(calc.debutFertile)} - ${formatDate(calc.finFertile)}`;
+        }
 
-            await chargerJournal(aujourd_hui.getMonth() + 1, aujourd_hui.getFullYear());
+        // Boutons bas widget — supprimés si retard actif
+        const boutonsWidget = calc?.enRetard ? '' : `
+            <div class="cycle-actions">
+                <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
+                    + Enregistrer mes règles
+                </button>
+                ${cycles.length > 0
+                    ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">
+                           Historique (${cycles.length})
+                       </button>`
+                    : ''}
+            </div>`;
 
-            zone.innerHTML = await _buildWidget();
-        } catch (e) {
-            console.error('[Cycle] init error:', e);
-            zone.innerHTML = '<div style="padding:20px;color:#e74c3c;font-size:13px">Erreur chargement cycle.</div>';
+        // Bouton historique seul si retard
+        const boutonHistoriqueRetard = calc?.enRetard && cycles.length > 0 ? `
+            <div style="margin-top:8px">
+                <button class="btn-cycle-secondary" style="width:100%"
+                    onclick="Cycle.ouvrirHistorique()">
+                    Historique (${cycles.length})
+                </button>
+            </div>` : '';
+
+        return `
+            <div class="widget-cycle">
+                ${calc?.enRetard ? renderBandeauRetard(calc) : `
+                <div class="cycle-phase" style="border-left:4px solid ${phase.color}">
+                    <span class="cycle-phase-emoji">${phase.emoji}</span>
+                    <div>
+                        <div class="cycle-phase-label">${phase.label}</div>
+                        ${calc ? `<div class="cycle-phase-sub">
+                            ${calc.enRegles
+                                ? `Fin estimée le ${formatDate(calc.finRegles)}`
+                                : calc.joursAvantRegles > 0
+                                    ? `Prochaines règles dans <strong>${calc.joursAvantRegles} jour${calc.joursAvantRegles > 1 ? 's' : ''}</strong>`
+                                    : `Règles attendues aujourd'hui`}
+                        </div>` : ''}
+                    </div>
+                </div>`}
+                ${calc ? `
+                <div class="cycle-infos">
+                    <div class="cycle-info-item">
+                        <span class="cycle-info-icon">📅</span>
+                        <div>
+                            <div class="cycle-info-label">Dernier début</div>
+                            <div class="cycle-info-value">${formatDate(calc.debut)}</div>
+                        </div>
+                    </div>
+                    <div class="cycle-info-item">
+                        <span class="cycle-info-icon">🔄</span>
+                        <div>
+                            <div class="cycle-info-label">Durée cycle ${dureeMoyenne ? '(calculée)' : '(estimée)'}</div>
+                            <div class="cycle-info-value">${calc.dureeCycle} jours</div>
+                        </div>
+                    </div>
+                    <div class="cycle-info-item${infosGrisees ? ' grise' : ''}">
+                        <span class="cycle-info-icon">🌿</span>
+                        <div>
+                            <div class="cycle-info-label">${labelFenetre}</div>
+                            <div class="cycle-info-value">${valeurFenetre}</div>
+                        </div>
+                    </div>
+                    <div class="cycle-info-item${infosGrisees ? ' grise' : ''}">
+                        <span class="cycle-info-icon">✨</span>
+                        <div>
+                            <div class="cycle-info-label">${labelOvulation}</div>
+                            <div class="cycle-info-value">${valeurOvulation}</div>
+                        </div>
+                    </div>
+                </div>
+                                <div class="cycle-progress-wrap">
+                    <div class="cycle-progress-label">Progression du cycle (${calc.dureeCycle} jours)</div>
+                    <div class="cycle-progress-bar">
+                        <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0,
+                            Math.round((_aujourdHuiLocal() - calc.debut) / (1000 * 60 * 60 * 24)
+                            / calc.dureeCycle * 100)))}%;background:${phase.color}">
+                        </div>
+                    </div>
+                </div>` : ''}
+                ${boutonsWidget}
+                ${boutonHistoriqueRetard}
+                ${renderBlocMood()}
+            </div>`;
+    }
+
+    async function charger() {
+        const container = document.getElementById('widget-cycle-content');
+        if (!container) return;
+        const user = JSON.parse(localStorage.getItem('moadja_user'));
+        if (!user?.token) { setTimeout(() => charger(), 300); return; }
+        try {
+            const res = await fetch('/api/cycle', { headers: authHeaders() });
+            if (!res.ok) throw new Error();
+            const d            = await res.json();
+            const cycles       = d.cycles || [];
+            const dureeMoyenne = calculerDureeMoyenne(cycles);
+            const dernierCycle = cycles.length > 0 ? cycles[0] : null;
+            const calc         = calculerCycle(dernierCycle, dureeMoyenne);
+
+            _calcCourant  = calc;
+            _cyclesCourants = cycles;
+            _toutesLesP   = calculerToutesPeriodes(cycles, dureeMoyenne);
+            container.innerHTML = renderWidget(cycles, dureeMoyenne);
+
+            if (calc) await _afficherMoodInline(calc);
+        } catch {
+            container.innerHTML = `<p class="cycle-error">Erreur de chargement du cycle.</p>`;
         }
     }
 
-    function getDataForSocial() {
-        if (!_calcCourant) return null;
-        const calc      = _calcCourant;
-        const phase     = getPhase(calc);
-        const jourCycle = calculerJourCycle(calc);
-        const phaseDef  = getPhaseMood(jourCycle, calc);
-        const today     = formatDateInput(_aujourdHuiLocal());
-        const rapports  = _journalCache[today] || [];
-        const moods     = rapports
-            .filter(r => r.humeur && !['protege','non_protege'].includes(r.humeur))
-            .map(r => r.humeur);
+    async function ouvrirModalCalendrier() {
+        try {
+            const res          = await fetch('/api/cycle', { headers: authHeaders() });
+            const d            = await res.json();
+            const cycles       = d.cycles || [];
+            const dureeMoyenne = calculerDureeMoyenne(cycles);
+            const dernierCycle = cycles.length > 0 ? cycles[0] : null;
+            const calc         = calculerCycle(dernierCycle, dureeMoyenne);
+            const phase        = getPhase(calc);
 
-        return {
-            phase         : phase.label,
-            phaseEmoji    : phase.emoji,
-            jourCycle,
-            dureeCycle    : calc.dureeCycle,
-            prochainDebut : calc.prochainDebut,
-            ovulation     : calc.ovulation,
-            debutFertile  : calc.debutFertile,
-            finFertile    : calc.finFertile,
-            enRetard      : calc.enRetard,
-            joursRetard   : calc.joursRetard,
-            moods,
-            phaseMoodLabel: phaseDef?.label || '',
-        };
+            _calcCourant    = calc;
+            _cyclesCourants = cycles;
+            const auj        = _aujourdHuiLocal();
+            _moisAffiche     = new Date(auj.getFullYear(), auj.getMonth(), 1);
+            _toutesLesP      = calculerToutesPeriodes(cycles, dureeMoyenne);
+
+            await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+
+            const bandeauTop = calc?.enRetard
+                ? renderBandeauRetard(calc)
+                : calc ? `
+                    <div class="cycle-phase" style="border-left:4px solid ${phase.color};margin-bottom:16px">
+                        <span class="cycle-phase-emoji">${phase.emoji}</span>
+                        <div>
+                            <div class="cycle-phase-label">${phase.label}</div>
+                            <div class="cycle-phase-sub">
+                                ${calc.enRegles
+                                    ? `Fin estimée le ${formatDate(calc.finRegles)}`
+                                    : calc.joursAvantRegles > 0
+                                        ? `Prochaines règles dans <strong>${calc.joursAvantRegles} jour${calc.joursAvantRegles > 1 ? 's' : ''}</strong>`
+                                        : `Règles attendues aujourd'hui`}
+                            </div>
+                        </div>
+                    </div>` : '<p style="color:#9ca3af;margin-bottom:16px">Aucun cycle enregistré.</p>';
+
+            document.getElementById('modal-title').textContent = 'Suivi du cycle';
+            document.getElementById('modal-body').innerHTML = `
+                <div class="modal-cycle-main">
+                    ${bandeauTop}
+                    ${dureeMoyenne
+                        ? `<div class="cycle-duree-info" style="margin-bottom:12px">
+                               Durée moyenne calculée : <strong>${dureeMoyenne} jours</strong> (sur ${cycles.length} cycles)
+                           </div>`
+                        : ''}
+                    <div id="cal-container">${renderCalendrier(calc)}</div>
+                    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+                        ${!calc?.enRetard
+                            ? `<button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
+                                   + Enregistrer mes règles
+                               </button>`
+                            : ''}
+                        ${cycles.length > 0
+                            ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">
+                                   Historique (${cycles.length})
+                               </button>`
+                            : ''}
+                    </div>
+                </div>`;
+            document.getElementById('overlay').classList.add('on');
+        } catch {
+            document.getElementById('modal-title').textContent = 'Erreur';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur de chargement.</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+                </div>`;
+        }
+    }
+
+    // ouvrirModalAjout — prefillAujourdhui=true depuis bandeau retard
+    // date pré-remplie aujourd'hui + readonly + durée calculée depuis historique
+    function ouvrirModalAjout(cycleExistant = null, prefillAujourdhui = false) {
+        const isEdit          = !!cycleExistant;
+        const today           = formatDateInput(_aujourdHuiLocal());
+        const dureeReglesMoy  = calculerDureeReglesMoyenne(_cyclesCourants);
+
+        document.getElementById('modal-title').textContent = prefillAujourdhui
+            ? 'Mes règles ont démarré aujourd\'hui'
+            : isEdit
+                ? 'Modifier le cycle'
+                : 'Enregistrer mes règles';
+
+        document.getElementById('modal-body').innerHTML = `
+            <div class="modal-cycle-form">
+                <label>Date de début des règles *</label>
+                <input type="date" id="cycle-date-debut"
+                    value="${isEdit
+                        ? formatDateInput(parseDateLocale(cycleExistant.date_debut.split('T')[0]))
+                        : today}"
+                    max="${today}"
+                    ${prefillAujourdhui ? 'readonly style="background:#f3f4f6;color:#9ca3af;cursor:not-allowed"' : ''} />
+                <label>Durée des règles (jours)</label>
+                <input type="number" id="cycle-duree-regles" min="1" max="10"
+                    value="${isEdit ? cycleExistant.duree_regles : dureeReglesMoy}" />
+                <label>Durée du cycle (jours) - sera recalculée automatiquement après 2 cycles</label>
+                <input type="number" id="cycle-duree-cycle" min="21" max="45"
+                    value="${isEdit ? cycleExistant.duree_cycle : (calculerDureeMoyenne(_cyclesCourants) || 28)}" />
+                <label>Notes (optionnel)</label>
+                <textarea id="cycle-notes" rows="3"
+                    placeholder="Douleurs, humeur, symptômes...">${isEdit ? (cycleExistant.notes || '') : ''}</textarea>
+                <div class="modal-actions">
+                    <button class="btn-save" onclick="Cycle.sauvegarder(${isEdit ? cycleExistant.id : 'null'})">
+                        ${isEdit ? 'Modifier' : 'Enregistrer'}
+                    </button>
+                    ${isEdit
+                        ? `<button class="btn-delete" onclick="Cycle.supprimer(${cycleExistant.id})">Supprimer</button>`
+                        : ''}
+                    <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Annuler</button>
+                </div>
+            </div>`;
+        document.getElementById('overlay').classList.add('on');
+    }
+
+    async function sauvegarder(id = null) {
+        const date_debut   = document.getElementById('cycle-date-debut').value;
+        const duree_regles = parseInt(document.getElementById('cycle-duree-regles').value);
+        const duree_cycle  = parseInt(document.getElementById('cycle-duree-cycle').value);
+        const notes        = document.getElementById('cycle-notes').value;
+        if (!date_debut) {
+            document.getElementById('modal-body').innerHTML += `
+                <p style="color:#ef4444;font-size:13px;margin-top:8px">La date de début est obligatoire.</p>`;
+            return;
+        }
+        const method = id ? 'PUT' : 'POST';
+        const url    = id ? `/api/cycle/${id}` : '/api/cycle';
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: authHeaders(),
+                body   : JSON.stringify({ date_debut, duree_regles, duree_cycle, notes })
+            });
+            if (!res.ok) throw new Error();
+            charger();
+            ouvrirModalCalendrier();
+        } catch {
+            document.getElementById('modal-title').textContent = 'Erreur';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la sauvegarde.</p>
+                <div class="modal-actions">
+                    <button class="btn-cancel"
+                        onclick="Cycle.ouvrirModalAjout(${id ? id : 'null'})">Retour</button>
+                </div>`;
+        }
+    }
+
+    async function supprimer(id) {
+        confirmerSuppression(
+            async () => {
+                try {
+                    await fetch(`/api/cycle/${id}`, { method: 'DELETE', headers: authHeaders() });
+                    charger();
+                    ouvrirHistorique();
+                } catch {
+                    document.getElementById('modal-title').textContent = 'Erreur';
+                    document.getElementById('modal-body').innerHTML = `
+                        <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur lors de la suppression.</p>
+                        <div class="modal-actions">
+                            <button class="btn-cancel" onclick="Cycle.ouvrirHistorique()">Retour</button>
+                        </div>`;
+                }
+            },
+            () => ouvrirHistorique()
+        );
+    }
+
+    async function ouvrirHistorique(page = 0) {
+        try {
+            const res          = await fetch('/api/cycle', { headers: authHeaders() });
+            const d            = await res.json();
+            const cycles       = d.cycles || [];
+            const dureeMoyenne = calculerDureeMoyenne(cycles);
+
+            const totalPages  = Math.ceil(cycles.length / PAGE_SIZE);
+            const cyclesPaged = cycles.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+            const lignes = cyclesPaged.map(c => `
+                <div class="cycle-historique-item">
+                    <div>
+                        <strong>${formatDate(parseDateLocale(c.date_debut.split('T')[0]))}</strong>
+                        <span class="cycle-histo-detail">Règles : ${c.duree_regles}j - Cycle : ${c.duree_cycle}j</span>
+                        ${c.notes ? `<span class="cycle-histo-notes">${c.notes}</span>` : ''}
+                    </div>
+                    <button class="btn-edit-small"
+                        onclick="Cycle.ouvrirModalAjout(${JSON.stringify(c).replace(/"/g, '&quot;')})">✏️</button>
+                </div>
+            `).join('');
+
+            const pagination = totalPages > 1 ? `
+                <div class="rdv-pagination">
+                    ${page > 0
+                        ? `<button class="btn-cycle-secondary"
+                               onclick="Cycle.ouvrirHistorique(${page - 1})">← Précédent</button>`
+                        : ''}
+                    <span>${page + 1} / ${totalPages}</span>
+                    ${page < totalPages - 1
+                        ? `<button class="btn-cycle-secondary"
+                               onclick="Cycle.ouvrirHistorique(${page + 1})">Suivant →</button>`
+                        : ''}
+                </div>` : '';
+
+            document.getElementById('modal-title').textContent = 'Historique des cycles';
+            document.getElementById('modal-body').innerHTML = `
+                <div class="cycle-historique">
+                    ${dureeMoyenne
+                        ? `<div class="cycle-duree-info" style="margin-bottom:12px">
+                               Durée moyenne calculée : <strong>${dureeMoyenne} jours</strong>
+                           </div>`
+                        : ''}
+                    ${lignes || '<p>Aucun cycle enregistré.</p>'}
+                    ${pagination}
+                    <div style="display:flex;gap:8px;margin-top:12px">
+                        <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">+ Nouveau cycle</button>
+                        <button class="btn-cycle-secondary" onclick="Cycle.ouvrirModalCalendrier()">← Retour</button>
+                    </div>
+                </div>`;
+            document.getElementById('overlay').classList.add('on');
+        } catch {
+            document.getElementById('modal-title').textContent = 'Erreur';
+            document.getElementById('modal-body').innerHTML = `
+                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">
+                    Erreur de chargement de l'historique.
+                </p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="Cycle.ouvrirModalCalendrier()">Retour</button>
+                </div>`;
+        }
+    }
+
+    function _getCalcCourant() {
+        return _calcCourant;
     }
 
     return {
-        init,
-        charger                : init,
-        ouvrirCalendrier,
-        ouvrirModalCalendrier  : ouvrirCalendrier,
-        ouvrirJournal,
+        charger,
         ouvrirModalAjout,
-        afficherHistorique,
+        ouvrirModalCalendrier,
         naviguerCalendrier,
-        getDataForSocial,
-        _signalerRetard,
-        _supprimerRapport,
-        _enregistrerRapport,
-        _selectionnerTypeRapport,
-        _toggleMoodChip,
+        sauvegarder,
+        supprimer,
+        ouvrirHistorique,
+        ouvrirJournal,
+        _ouvrirFormulaireJournal,
+        ouvrirModalMood,
+        _toggleRapport,
+        _sauvegarderJournal,
+        _supprimerJournal,
         _sauvegarderMood,
-        _ouvrirMoodEditor,
-        _ouvrirGestionMood,
-        _sauvegarderCycle,
-        _supprimerCycle,
+        _toggleMoodChip,
+        _sauvegarderMoodManuel,
+        _ouvrirEditionMood,
+        _signalerRetard,
+        _ouvrirMoodDepuisWidget : async function() {},
+        _getCalcCourant
     };
 
 })();
