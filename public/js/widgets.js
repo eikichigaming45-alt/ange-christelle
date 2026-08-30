@@ -15,7 +15,7 @@ function resetGrid() {
 const WIDGETS_PAR_ONGLET = {
     quotidien : ['agenda', 'taches', 'priere', 'islam', 'anniversaires', 'social'],
     bienetre  : ['cycle', 'sante'],
-    sport     : [],
+    astral    : ['astrologie', 'theme-astral'],
     profil    : ['profil', 'admin'],
     apropos   : ['faq', 'changelog']
 };
@@ -90,7 +90,7 @@ async function buildGrid() {
 
     await buildTabGrid('quotidien', defs, ordre, widgetsCaches, user);
     await buildTabGrid('bienetre',  defs, ordre, widgetsCaches, user);
-    await buildTabGrid('sport',     defs, ordre, widgetsCaches, user);
+    await buildTabGrid('astral',    defs, ordre, widgetsCaches, user);
     await buildTabGrid('profil',    defs, ordre, widgetsCaches, user);
     await buildTabGrid('apropos',   defs, ordre, widgetsCaches, user);
 

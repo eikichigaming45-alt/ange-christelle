@@ -207,7 +207,7 @@ const ONGLET_TITRES = {
     accueil  : 'MoaDja',
     quotidien: 'Mon Quotidien',
     bienetre : 'Bien-être',
-    sport    : 'Sport',
+    astral   : 'Astral',
     profil   : 'Profil'
 };
 
@@ -260,7 +260,7 @@ function logout() {
     document.getElementById('username').value           = '';
     document.getElementById('password').value           = '';
 
-    ['quotidien','bienetre','sport','profil'].forEach(o => {
+    ['quotidien','bienetre','astral','profil'].forEach(o => {
         const g = document.getElementById(`grid-${o}`);
         if (g) g.innerHTML = '';
     });
