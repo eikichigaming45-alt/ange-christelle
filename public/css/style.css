@@ -1,6 +1,7 @@
 ﻿/* ===================== BASE ===================== */
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(180deg,#F3E8FF 0%,#D8B4FE 100%) fixed;min-height:100vh;display:flex;justify-content:center;align-items:center}
+body.modal-open{overflow:hidden;position:fixed;width:100%}
 
 /* ===================== LOGIN ===================== */
 .login-card{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);width:100%;max-width:380px;text-align:center;align-self:center;display:flex;flex-direction:column;align-items:center}
@@ -93,6 +94,9 @@ input:focus{border-color:#7C3AED}
 .mclos{position:absolute;top:16px;right:16px;background:#f3f4f6;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px}
 .mclos:hover{background:#e5e7eb}
 .modal-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+@media(max-width:480px){
+  .modal{width:95%;padding:20px 16px;max-height:92vh;border-radius:16px}
+}
 
 /* ===================== BOUTONS GÉNÉRIQUES ===================== */
 .btn-save,.save-btn,.add-btn{padding:10px 14px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
