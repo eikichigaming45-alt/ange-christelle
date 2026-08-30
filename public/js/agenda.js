@@ -6,7 +6,6 @@
 
 const Agenda = (() => {
 
-    // ── Icônes par catégorie ──────────────────────────────────
     const CAT_ICONS = {
         'Travail'       : '💼',
         'Mission'       : '🧳',
@@ -20,7 +19,6 @@ const Agenda = (() => {
         'Autre'         : '📌'
     };
 
-    // ── Couleurs par catégorie ────────────────────────────────
     const CAT_COLORS = {
         'Travail'       : '#f4a261',
         'Mission'       : '#ce93d8',
@@ -59,8 +57,6 @@ const Agenda = (() => {
             'Authorization': `Bearer ${token}`
         };
     }
-
-    // ── Utilitaires date ──────────────────────────────────────
 
     function _dateStr(d) {
         const y = d.getFullYear();
@@ -102,15 +98,12 @@ const Agenda = (() => {
         ).join('');
     }
 
-    // ── Tri alphabétique, Autre toujours en dernier ───────────
     function _trierAvecAutreEnDernier(arr) {
         const sansAutre = [...arr].filter(v => v !== 'Autre').sort((a, b) =>
             a.localeCompare(b, 'fr', { sensitivity: 'base' })
         );
         return arr.includes('Autre') ? [...sansAutre, 'Autre'] : sansAutre;
     }
-
-    // ── Chargement données de référence ───────────────────────
 
     async function _chargerCategories() {
         try {
@@ -130,11 +123,6 @@ const Agenda = (() => {
             if (data.success) _employeurs = data.employeurs;
         } catch { /* silencieux */ }
     }
-
-    // ── Widget — aperçu 3 jours ───────────────────────────────
-    // Clic sur une entrée → ouvrirJour directement
-    // Toutes les entrées hors-Repos affichées par jour
-    // Repos affiché uniquement si aucune autre entrée
 
     async function charger() {
         const container = document.getElementById('wc-agenda');
@@ -209,8 +197,6 @@ const Agenda = (() => {
         }
     }
 
-    // ── Modal — calendrier mensuel ────────────────────────────
-
     async function ouvrirModal() {
         _moisActuel    = new Date().getMonth();
         _anneeActuelle = new Date().getFullYear();
@@ -242,7 +228,7 @@ const Agenda = (() => {
             return;
         }
 
-                const today    = new Date();
+        const today    = new Date();
         const offset   = new Date(_anneeActuelle, _moisActuel, 1).getDay();
         const decalage = offset === 0 ? 6 : offset - 1;
         const nbJours  = new Date(_anneeActuelle, _moisActuel + 1, 0).getDate();
@@ -281,7 +267,7 @@ const Agenda = (() => {
                     border:2px solid ${isToday ? '#7c3aed' : (couleur ? couleur + '99' : '#e5e7eb')};
                     font-size:12px;font-weight:600;color:#333;transition:opacity .15s">
                     <div style="font-size:11px;font-weight:700;color:${isToday ? '#7c3aed' : '#444'}">${j}</div>
-                    ${icone ? `<div style="font-size:14px;line-height:1">${icone}</div>` : ''}
+                                        ${icone ? `<div style="font-size:14px;line-height:1">${icone}</div>` : ''}
                     ${plus}
                 </div>`;
         }
@@ -326,8 +312,6 @@ const Agenda = (() => {
         if (_moisActuel > 11) { _moisActuel = 0; _anneeActuelle++; }
         await _afficherCalendrier();
     }
-
-    // ── Détail d'un jour ──────────────────────────────────────
 
     async function ouvrirJour(dateStr) {
         const body      = document.getElementById('modal-body');
@@ -413,8 +397,6 @@ const Agenda = (() => {
 
         document.getElementById('modal-body').innerHTML = html;
     }
-
-    // ── Formulaire ajout / édition ────────────────────────────
 
     async function ouvrirFormulaire(id = null, dateDefaut = null) {
         const body = document.getElementById('modal-body');
@@ -530,13 +512,6 @@ const Agenda = (() => {
                 </div>
 
                 <div style="margin-bottom:10px">
-                    <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Lieu / Adresse</label>
-                    <input type="text" id="ag-lieu" value="${e.lieu || ''}"
-                        placeholder="Adresse, cabinet, salle..."
-                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
-                </div>
-
-                <div style="margin-bottom:10px">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Notes</label>
                     <textarea id="ag-notes" rows="2"
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none;font-family:inherit">${e.notes || ''}</textarea>
@@ -569,8 +544,6 @@ const Agenda = (() => {
             </div>`;
     }
 
-    // ── Mise à jour sous-catégories au changement de catégorie ─
-
     function _onCatChange() {
         const cat       = document.getElementById('ag-categorie')?.value;
         const sousCatEl = document.getElementById('ag-sous-cat');
@@ -589,8 +562,6 @@ const Agenda = (() => {
         }
     }
 
-    // ── Sauvegarde ────────────────────────────────────────────
-
     async function sauvegarder(id = null, dateRetour = '') {
         const msg = document.getElementById('ag-msg');
 
@@ -603,7 +574,6 @@ const Agenda = (() => {
         const date_fin       = document.getElementById('ag-date-fin')?.value       || null;
         const heure_debut    = document.getElementById('ag-heure-debut')?.value    || null;
         const heure_fin      = document.getElementById('ag-heure-fin')?.value      || null;
-        const lieu           = document.getElementById('ag-lieu')?.value?.trim()   || null;
         const notes          = document.getElementById('ag-notes')?.value?.trim()  || null;
         const rappel_avant   = parseInt(document.getElementById('ag-rappel')?.value) || 0;
 
@@ -612,6 +582,8 @@ const Agenda = (() => {
         const employeur  = empSelect?.value === '__nouveau__'
             ? empNouveau?.value?.trim()
             : empSelect?.value || null;
+
+        const lieu = ['Travail', 'Mission'].includes(categorie) ? (employeur || null) : null;
 
         if (!titre) {
             if (msg) msg.textContent = 'Le titre est obligatoire.'; return;
@@ -624,8 +596,7 @@ const Agenda = (() => {
             titre, categorie, sous_categorie,
             date_debut, date_fin,
             heure_debut, heure_fin,
-            lieu : ['Travail', 'Mission'].includes(categorie) ? (employeur || lieu) : lieu,
-            notes, rappel_avant
+            lieu, notes, rappel_avant
         };
 
         try {
@@ -669,8 +640,6 @@ const Agenda = (() => {
         }
     }
 
-    // ── Suppression ───────────────────────────────────────────
-
     async function supprimer(id, dateRetour) {
         document.getElementById('modal-title').textContent = 'Confirmation';
         document.getElementById('modal-body').innerHTML = `
@@ -700,8 +669,6 @@ const Agenda = (() => {
             }
         };
     }
-
-    // ── API publique ──────────────────────────────────────────
 
     return {
         charger,

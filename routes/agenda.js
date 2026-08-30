@@ -9,8 +9,6 @@ const router   = express.Router();
 const { pool } = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
-// ── Catégories et sous-catégories de base ─────────────────────
-// Triées alphabétiquement, Autre toujours en dernier
 const CATEGORIES = ['Administratif', 'Autre', 'Famille', 'Médical', 'Mission', 'Repos', 'Sortie', 'Sport', 'Travail', 'Voyage'];
 
 const SOUS_CATEGORIES = {
@@ -29,7 +27,6 @@ const SOUS_CATEGORIES = {
 router.use(authenticateToken);
 
 // ── GET /api/agenda/categories ────────────────────────────────
-// Retourne catégories de base + sous-catégories personnalisées
 router.get('/categories', async (req, res) => {
     try {
         const { rows } = await pool.query(
@@ -62,7 +59,6 @@ router.get('/categories', async (req, res) => {
 });
 
 // ── POST /api/agenda/categories ───────────────────────────────
-// Mémorise une sous-catégorie personnalisée
 router.post('/categories', async (req, res) => {
     const { niveau, nom } = req.body;
     if (!niveau || !nom?.trim()) {
@@ -134,43 +130,7 @@ router.delete('/employeurs/:id', async (req, res) => {
     }
 });
 
-// ── GET /api/agenda ───────────────────────────────────────────
-// Paramètres optionnels : date_debut, date_fin (YYYY-MM-DD)
-// Sans paramètres : retourne les 90 prochains jours
-router.get('/', async (req, res) => {
-    try {
-        const debut = req.query.date_debut || new Date().toISOString().slice(0, 10);
-        const fin   = req.query.date_fin   || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
-        const { rows } = await pool.query(
-            `SELECT
-                id, titre, categorie, sous_categorie,
-                TO_CHAR(date_debut, 'YYYY-MM-DD') AS date_debut,
-                TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin,
-                TO_CHAR(heure_debut, 'HH24:MI')   AS heure_debut,
-                TO_CHAR(heure_fin,   'HH24:MI')   AS heure_fin,
-                lieu, notes, rappel_avant, created_at
-             FROM agenda
-             WHERE user_id = \$1
-               AND (
-                 (date_fin IS NULL AND date_debut BETWEEN \$2 AND \$3)
-                 OR
-                 (date_fin IS NOT NULL AND date_debut <= \$3 AND date_fin >= \$2)
-               )
-             ORDER BY date_debut ASC, heure_debut ASC NULLS LAST`,
-            [req.user.id, debut, fin]
-        );
-        res.json({ success: true, agenda: rows });
-    } catch (err) {
-        console.error('[AGENDA] GET / :', err.message);
-        res.status(500).json({ success: false, message: 'Erreur serveur.' });
-    }
-});
-
 // ── GET /api/agenda/widget ────────────────────────────────────
-// 3 prochains jours avec entrée.
-// Si entrées hors-Repos → toutes affichées.
-// Si seulement Repos → Repos affiché.
 router.get('/widget', async (req, res) => {
     try {
         const aujourd_hui = new Date().toISOString().slice(0, 10);
@@ -206,15 +166,44 @@ router.get('/widget', async (req, res) => {
             if (result.length >= 3) break;
             const entries   = parJour[jour];
             const horsRepos = entries.filter(e => e.categorie !== 'Repos');
-            // Si entrées hors-Repos → toutes affichées
-            // Sinon → le Repos seul
-            const entrees = horsRepos.length > 0 ? horsRepos : [entries[0]];
+            const entrees   = horsRepos.length > 0 ? horsRepos : [entries[0]];
             result.push({ date: jour, entrees });
         }
 
         res.json({ success: true, jours: result });
     } catch (err) {
         console.error('[AGENDA] GET /widget :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ── GET /api/agenda ───────────────────────────────────────────
+router.get('/', async (req, res) => {
+    try {
+        const debut = req.query.date_debut || new Date().toISOString().slice(0, 10);
+        const fin   = req.query.date_fin   || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+        const { rows } = await pool.query(
+            `SELECT
+                id, titre, categorie, sous_categorie,
+                TO_CHAR(date_debut, 'YYYY-MM-DD') AS date_debut,
+                TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin,
+                TO_CHAR(heure_debut, 'HH24:MI')   AS heure_debut,
+                TO_CHAR(heure_fin,   'HH24:MI')   AS heure_fin,
+                lieu, notes, rappel_avant, created_at
+             FROM agenda
+             WHERE user_id = \$1
+               AND (
+                 (date_fin IS NULL AND date_debut BETWEEN \$2 AND \$3)
+                 OR
+                 (date_fin IS NOT NULL AND date_debut <= \$3 AND date_fin >= \$2)
+               )
+             ORDER BY date_debut ASC, heure_debut ASC NULLS LAST`,
+            [req.user.id, debut, fin]
+        );
+        res.json({ success: true, agenda: rows });
+    } catch (err) {
+        console.error('[AGENDA] GET / :', err.message);
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 });
