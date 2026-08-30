@@ -132,6 +132,9 @@ const Agenda = (() => {
     }
 
     // ── Widget — aperçu 3 jours ───────────────────────────────
+    // Clic sur une entrée → ouvrirJour directement
+    // Toutes les entrées hors-Repos affichées par jour
+    // Repos affiché uniquement si aucune autre entrée
 
     async function charger() {
         const container = document.getElementById('wc-agenda');
@@ -156,41 +159,48 @@ const Agenda = (() => {
             }
 
             let html = '';
-            data.jours.forEach(({ date, entree }) => {
-                const couleur = CAT_COLORS[entree.categorie] || '#bcaaa4';
-                const icone   = CAT_ICONS[entree.categorie]  || '📌';
+            data.jours.forEach(({ date, entrees }) => {
                 const aujourd = _dateStr(new Date());
                 const label   = date === aujourd ? "Aujourd'hui" : _labelDate(date);
-                const hDebut  = _formatHeure(entree.heure_debut);
-                const hFin    = _formatHeure(entree.heure_fin);
 
-                html += `
-                    <div onclick="Agenda.ouvrirJour('${date}');document.getElementById('overlay').classList.add('on')" style="
-                        display:flex;align-items:center;gap:10px;
-                        padding:8px 10px;margin-bottom:6px;
-                        background:${couleur}22;
-                        border-left:4px solid ${couleur};
-                        border-radius:8px;cursor:pointer">
-                        <span style="font-size:20px">${icone}</span>
-                        <div style="flex:1;min-width:0">
-                            <div style="font-size:11px;color:#888;font-weight:600;
-                                        text-transform:uppercase;letter-spacing:.5px">
-                                ${label}
+                entrees.forEach((entree, idx) => {
+                    const couleur = CAT_COLORS[entree.categorie] || '#bcaaa4';
+                    const icone   = CAT_ICONS[entree.categorie]  || '📌';
+                    const hDebut  = _formatHeure(entree.heure_debut);
+                    const hFin    = _formatHeure(entree.heure_fin);
+
+                    html += `
+                        <div onclick="Agenda.ouvrirJour('${date}');document.getElementById('overlay').classList.add('on')" style="
+                            display:flex;align-items:center;gap:10px;
+                            padding:8px 10px;margin-bottom:4px;
+                            background:${couleur}22;
+                            border-left:4px solid ${couleur};
+                            border-radius:8px;cursor:pointer">
+                            <span style="font-size:20px">${icone}</span>
+                            <div style="flex:1;min-width:0">
+                                ${idx === 0
+                                    ? `<div style="font-size:11px;color:#888;font-weight:600;
+                                                  text-transform:uppercase;letter-spacing:.5px">
+                                           ${label}
+                                       </div>`
+                                    : ''}
+                                <div style="font-size:14px;font-weight:700;color:#333;
+                                            white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                    ${entree.titre}
+                                </div>
+                                ${entree.sous_categorie
+                                    ? `<div style="font-size:11px;color:#888">${entree.sous_categorie}</div>`
+                                    : ''}
+                                ${hDebut
+                                    ? `<div style="font-size:12px;color:#666">
+                                           ⏰ ${hDebut}${hFin ? ' → ' + hFin : ''}
+                                       </div>`
+                                    : ''}
                             </div>
-                            <div style="font-size:14px;font-weight:700;color:#333;
-                                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                                ${entree.titre}
-                            </div>
-                            ${entree.sous_categorie
-                                ? `<div style="font-size:11px;color:#888">${entree.sous_categorie}</div>`
-                                : ''}
-                            ${hDebut
-                                ? `<div style="font-size:12px;color:#666">
-                                       ⏰ ${hDebut}${hFin ? ' → ' + hFin : ''}
-                                   </div>`
-                                : ''}
-                        </div>
-                    </div>`;
+                        </div>`;
+                });
+
+                html += `<div style="margin-bottom:8px"></div>`;
             });
 
             container.innerHTML = html;
@@ -232,7 +242,7 @@ const Agenda = (() => {
             return;
         }
 
-        const today    = new Date();
+                const today    = new Date();
         const offset   = new Date(_anneeActuelle, _moisActuel, 1).getDay();
         const decalage = offset === 0 ? 6 : offset - 1;
         const nbJours  = new Date(_anneeActuelle, _moisActuel + 1, 0).getDate();
@@ -368,7 +378,7 @@ const Agenda = (() => {
                             ? `<div style="font-size:12px;color:#999;margin-top:2px">⏰ Rappel ${e.rappel_avant >= 60 ? e.rappel_avant / 60 + 'h' : e.rappel_avant + ' min'} avant</div>`
                             : ''}
                         <div style="display:flex;gap:8px;margin-top:10px">
-                            <button onclick="Agenda.ouvrirFormulaire(${e.id})" style="
+                            <button onclick="Agenda.ouvrirFormulaire(${e.id},'${dateStr}')" style="
                                 flex:1;padding:8px;background:#4f46e5;color:white;
                                 border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">
                                 ✏️ Modifier
@@ -430,13 +440,11 @@ const Agenda = (() => {
         const hFinVal    = e.heure_fin       || '';
         const rappelVal  = e.rappel_avant    || 0;
 
-        // Catégories triées alphabétiquement, Autre en dernier
         const catsTriees  = _trierAvecAutreEnDernier(_categories);
         const catsOptions = catsTriees.map(c =>
             `<option value="${c}" ${catVal === c ? 'selected' : ''}>${CAT_ICONS[c] || ''} ${c}</option>`
         ).join('');
 
-        // Sous-catégories triées alphabétiquement, Autre en dernier
         const sousCatsTriees  = _trierAvecAutreEnDernier(_sousCats[catVal] || []);
         const sousCatsOptions = sousCatsTriees.map(s =>
             `<option value="${s}" ${sousCatVal === s ? 'selected' : ''}>${s}</option>`
@@ -528,7 +536,7 @@ const Agenda = (() => {
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
                 </div>
 
-                                <div style="margin-bottom:10px">
+                <div style="margin-bottom:10px">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Notes</label>
                     <textarea id="ag-notes" rows="2"
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;resize:none;font-family:inherit">${e.notes || ''}</textarea>
@@ -634,7 +642,6 @@ const Agenda = (() => {
                 return;
             }
 
-            // Mémoriser sous-catégorie personnalisée si nouvelle
             if (sousCatNouveau && categorie) {
                 fetch('/api/agenda/categories', {
                     method  : 'POST',
@@ -643,7 +650,6 @@ const Agenda = (() => {
                 }).catch(() => {});
             }
 
-            // Mémoriser employeur si nouveau
             if (['Travail', 'Mission'].includes(categorie) && empSelect?.value === '__nouveau__' && employeur) {
                 fetch('/api/agenda/employeurs', {
                     method  : 'POST',

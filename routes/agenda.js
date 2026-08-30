@@ -45,9 +45,8 @@ router.get('/categories', async (req, res) => {
 
         const sousFinal = {};
         Object.keys(SOUS_CATEGORIES).forEach(cat => {
-            const base  = SOUS_CATEGORIES[cat];
-            const perso = sousPerso[cat] || [];
-            // Fusion, dédoublonnage, tri alpha, Autre en dernier
+            const base      = SOUS_CATEGORIES[cat];
+            const perso     = sousPerso[cat] || [];
             const tout      = [...new Set([...base, ...perso])];
             const sansAutre = tout.filter(v => v !== 'Autre').sort((a, b) =>
                 a.localeCompare(b, 'fr', { sensitivity: 'base' })
@@ -169,7 +168,9 @@ router.get('/', async (req, res) => {
 });
 
 // ── GET /api/agenda/widget ────────────────────────────────────
-// 3 prochains jours avec entrée — Repos inclus si aucun autre événement
+// 3 prochains jours avec entrée.
+// Si entrées hors-Repos → toutes affichées.
+// Si seulement Repos → Repos affiché.
 router.get('/widget', async (req, res) => {
     try {
         const aujourd_hui = new Date().toISOString().slice(0, 10);
@@ -191,7 +192,6 @@ router.get('/widget', async (req, res) => {
             [req.user.id, aujourd_hui, dans30j]
         );
 
-        // Grouper par date_debut
         const parJour = {};
         rows.forEach(e => {
             const d = e.date_debut;
@@ -206,10 +206,10 @@ router.get('/widget', async (req, res) => {
             if (result.length >= 3) break;
             const entries   = parJour[jour];
             const horsRepos = entries.filter(e => e.categorie !== 'Repos');
-            // Si événement hors-Repos → afficher le premier
-            // Sinon → afficher le Repos (inclus)
-            const aAfficher = horsRepos.length > 0 ? horsRepos[0] : entries[0];
-            result.push({ date: jour, entree: aAfficher });
+            // Si entrées hors-Repos → toutes affichées
+            // Sinon → le Repos seul
+            const entrees = horsRepos.length > 0 ? horsRepos : [entries[0]];
+            result.push({ date: jour, entrees });
         }
 
         res.json({ success: true, jours: result });
