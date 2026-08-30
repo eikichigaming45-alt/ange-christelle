@@ -80,7 +80,6 @@ async function initDB() {
             );
         `);
 
-        // FIX multi-device : UNIQUE sur (user_id, endpoint), pas sur user_id seul
         await pool.query(`
             CREATE TABLE IF NOT EXISTS push_subscriptions (
                 id           SERIAL PRIMARY KEY,
@@ -89,7 +88,7 @@ async function initDB() {
                 updated_at   TIMESTAMP DEFAULT NOW()
             );
         `);
-        // Index unique sur l'endpoint extrait du JSON — garantit 1 ligne par appareil
+
         await pool.query(`
             CREATE UNIQUE INDEX IF NOT EXISTS idx_push_sub_user_endpoint
             ON push_subscriptions (user_id, (subscription::json->>'endpoint'));
@@ -131,78 +130,76 @@ async function initDB() {
             );
         `);
 
+        // ── Agenda unifié ─────────────────────────────────────
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS rendezvous (
-                id           SERIAL PRIMARY KEY,
-                user_id      INTEGER   NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                titre        VARCHAR(255) NOT NULL,
-                date_rdv     TIMESTAMP NOT NULL,
-                praticien    VARCHAR(255),
-                lieu         VARCHAR(255),
-                type_rdv     VARCHAR(100),
-                notes        TEXT,
-                rappel_avant INTEGER   DEFAULT 0,
-                created_at   TIMESTAMP DEFAULT NOW()
+            CREATE TABLE IF NOT EXISTS agenda (
+                id             SERIAL PRIMARY KEY,
+                user_id        INTEGER      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                titre          VARCHAR(255) NOT NULL,
+                categorie      VARCHAR(100) NOT NULL,
+                sous_categorie VARCHAR(100),
+                date_debut     DATE         NOT NULL,
+                date_fin       DATE,
+                heure_debut    TIME,
+                heure_fin      TIME,
+                lieu           VARCHAR(255),
+                notes          TEXT,
+                rappel_avant   INTEGER      DEFAULT 0,
+                created_at     TIMESTAMP    DEFAULT NOW()
             );
         `);
 
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS planning (
-                id                  SERIAL PRIMARY KEY,
-                user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                date                DATE    NOT NULL,
-                type                VARCHAR(50) NOT NULL,
-                heure_debut         TIME,
-                heure_fin           TIME,
-                employeur           VARCHAR(255),
-                adresse             VARCHAR(255),
-                telephone           VARCHAR(50),
-                notes               TEXT,
-                rappel_avant        INTEGER   DEFAULT 120,
-                created_at          TIMESTAMP DEFAULT NOW()
-            );
+            CREATE INDEX IF NOT EXISTS idx_agenda_user_date
+            ON agenda (user_id, date_debut);
         `);
 
+        // ── Catégories personnalisées mémorisées par user ─────
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS planning_employeurs (
+            CREATE TABLE IF NOT EXISTS agenda_categories (
                 id         SERIAL PRIMARY KEY,
-                user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                user_id    INTEGER      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                niveau     VARCHAR(10)  NOT NULL DEFAULT 'sub',
+                nom        VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP    DEFAULT NOW(),
+                UNIQUE(user_id, niveau, nom)
+            );
+        `);
+
+        // ── Employeurs mémorisés (Travail / Mission) ──────────
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS agenda_employeurs (
+                id         SERIAL PRIMARY KEY,
+                user_id    INTEGER      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 nom        VARCHAR(255) NOT NULL,
                 adresse    VARCHAR(255),
                 telephone  VARCHAR(50),
-                created_at TIMESTAMP DEFAULT NOW(),
+                created_at TIMESTAMP    DEFAULT NOW(),
                 UNIQUE(user_id, nom)
             );
         `);
 
         // ── Migrations ────────────────────────────────────────
-        await pool.query(`ALTER TABLE users      ADD COLUMN IF NOT EXISTS must_change_password  BOOLEAN      DEFAULT FALSE;`);
-        await pool.query(`ALTER TABLE users      ADD COLUMN IF NOT EXISTS last_login             TIMESTAMP;`);
-        await pool.query(`ALTER TABLE users      ADD COLUMN IF NOT EXISTS created_at             TIMESTAMPTZ  DEFAULT NOW();`);
-        await pool.query(`ALTER TABLE taches     ADD COLUMN IF NOT EXISTS rappel_avant           INTEGER      DEFAULT 0;`);
-        await pool.query(`ALTER TABLE rendezvous ADD COLUMN IF NOT EXISTS rappel_avant           INTEGER      DEFAULT 0;`);
-        await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS widgets_visibles       TEXT[];`);
-        await pool.query(`ALTER TABLE profiles   ADD COLUMN IF NOT EXISTS signe_zodiaque         VARCHAR(20);`);
-        await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS categorie              VARCHAR(50);`);
-        await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS libelle_personnalise   TEXT;`);
-        await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS date_debut             DATE;`);
-        await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS date_fin               DATE;`);
-        await pool.query(`ALTER TABLE planning   ADD COLUMN IF NOT EXISTS rappel_avant_shift     INTEGER      DEFAULT 0;`);
+        await pool.query(`ALTER TABLE users    ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN     DEFAULT FALSE;`);
+        await pool.query(`ALTER TABLE users    ADD COLUMN IF NOT EXISTS last_login            TIMESTAMP;`);
+        await pool.query(`ALTER TABLE users    ADD COLUMN IF NOT EXISTS created_at            TIMESTAMPTZ DEFAULT NOW();`);
+        await pool.query(`ALTER TABLE taches   ADD COLUMN IF NOT EXISTS rappel_avant          INTEGER     DEFAULT 0;`);
+        await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS widgets_visibles      TEXT[];`);
+        await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS signe_zodiaque        VARCHAR(20);`);
         await pool.query(`ALTER TABLE posts         ADD COLUMN IF NOT EXISTS mentions INTEGER[] DEFAULT '{}';`);
         await pool.query(`ALTER TABLE post_comments ADD COLUMN IF NOT EXISTS mentions INTEGER[] DEFAULT '{}';`);
 
-        // FIX multi-device : supprimer l'ancienne contrainte UNIQUE sur user_id seule si elle existe
         await pool.query(`
             ALTER TABLE push_subscriptions
             DROP CONSTRAINT IF EXISTS push_subscriptions_user_id_key;
         `);
 
-        // ── Purge planning > 6 mois ───────────────────────────
+        // ── Purge agenda > 12 mois ────────────────────────────
         await pool.query(`
-            DELETE FROM planning
-            WHERE COALESCE(date_fin, date_debut, date) < NOW() - INTERVAL '6 months'
+            DELETE FROM agenda
+            WHERE COALESCE(date_fin, date_debut) < NOW() - INTERVAL '12 months'
         `);
-        console.log('[DB] Purge planning effectuée.');
+
         console.log('[DB] Tables initialisées.');
 
     } catch (err) {

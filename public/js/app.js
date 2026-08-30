@@ -4,7 +4,7 @@
 // navigation onglets, utilitaires date/version, refresh widgets.
 // ============================================================
 
-// ===================== STATE GLOBAL ==========================
+// ── State global ──────────────────────────────────────────────
 let meteoData       = null;
 let priere          = null;
 let profilCache     = null;
@@ -15,38 +15,36 @@ let cropperInstance = null;
 let _appInitialisee = false;
 let _ongletActif    = 'accueil';
 
-// ===================== DÉFINITION DES WIDGETS ================
+// ── Définition des widgets ────────────────────────────────────
 const WIDGETS_DEF = [
-    { id:'meteo',         label:'Météo du jour',      icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',  foot:'Cliquez pour les détails',         refresh:true },
-    { id:'priere',        label:'Prière du jour',     icon:'🙏',  cls:'w-priere',        desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
-    { id:'islam',         label:'Prières & Hadiths',  icon:'🌙',  cls:'w-islam',         desc:'Chargement...',  foot:'Cliquez pour la version complète', refresh:true },
+    { id:'agenda',        label:'Agenda',             icon:'📅', cls:'w-agenda',        desc:'Chargement...',  foot:'Cliquez pour gérer',                refresh:true },
+    { id:'meteo',         label:'Météo du jour',      icon:'🌤️', cls:'w-meteo',         desc:'Chargement...',  foot:'Cliquez pour les détails',          refresh:true },
+    { id:'priere',        label:'Prière du jour',     icon:'🙏',  cls:'w-priere',        desc:'Chargement...',  foot:'Cliquez pour la version complète',  refresh:true },
+    { id:'islam',         label:'Prières & Hadiths',  icon:'🌙',  cls:'w-islam',         desc:'Chargement...',  foot:'Cliquez pour la version complète',  refresh:true },
     { id:'taches',        label:'Tâches du jour',     icon:'✅',  cls:'w-taches',        desc:'Chargement...',  foot:'Cliquez pour gérer' },
-    { id:'cycle',         label:'Suivi du cycle',     icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
-    { id:'rendezvous',    label:'Rendez-vous',        icon:'🩺',  cls:'w-rdv',           desc:'Chargement...',  foot:'Cliquez pour gérer',               refresh:true },
-    { id:'planning',      label:'Planning',           icon:'📋',  cls:'w-planning',      desc:'',               foot:'Cliquez pour gérer' },
+    { id:'cycle',         label:'Suivi du cycle',     icon:'🌸',  cls:'w-cycle',         desc:'Chargement...',  foot:'Cliquez pour gérer',                refresh:true },
     { id:'anniversaires', label:'Anniversaires',      icon:'🎂',  cls:'w-anniversaires', desc:'Chargement...',  foot:'Cliquez pour gérer' },
-    { id:'astrologie',    label:'Astrologie',         icon:'✨',  cls:'w-astrologie',    desc:'Chargement...',  foot:'Cliquez pour votre horoscope',     refresh:true },
-    { id:'theme-astral',  label:'Thème Astral',       icon:'🔮',  cls:'w-theme-astral',  desc:'Chargement...',  foot:'Cliquez pour votre thème natal',   refresh:true },
+    { id:'astrologie',    label:'Astrologie',         icon:'✨',  cls:'w-astrologie',    desc:'Chargement...',  foot:'Cliquez pour votre horoscope',      refresh:true },
+    { id:'theme-astral',  label:'Thème Astral',       icon:'🔮',  cls:'w-theme-astral',  desc:'Chargement...',  foot:'Cliquez pour votre thème natal',    refresh:true },
     { id:'social',        label:'Social',             icon:'🤝',  cls:'w-social',        desc:'Chargement...',  foot:'Ce que mes proches partagent avec moi' },
     { id:'profil',        label:'Mon Profil',         icon:'👤',  cls:'w-profil',        desc:'',               foot:'Cliquez pour gérer' },
     { id:'sante',         label:'Santé',              icon:'🥗',  cls:'w-sante',         desc:'Chargement...',  foot:'Calculs & plan nutritionnel' },
 ];
 
 const TOUS_WIDGETS = [
+    { slug:'agenda',        label:'Agenda',            icon:'📅' },
     { slug:'anniversaires', label:'Anniversaires',     icon:'🎂' },
     { slug:'astrologie',    label:'Astrologie',        icon:'✨' },
     { slug:'cycle',         label:'Suivi du cycle',    icon:'🌸' },
     { slug:'islam',         label:'Prières & Hadiths', icon:'🌙' },
-    { slug:'planning',      label:'Planning',          icon:'📋' },
     { slug:'priere',        label:'Prière du jour',    icon:'🙏' },
-    { slug:'rendezvous',    label:'Rendez-vous',       icon:'🩺' },
     { slug:'sante',         label:'Santé',             icon:'🥗' },
     { slug:'social',        label:'Social',            icon:'🤝' },
     { slug:'taches',        label:'Tâches',            icon:'✅' },
     { slug:'theme-astral',  label:'Thème Astral',      icon:'🔮' },
 ];
 
-// ===================== CODES MÉTÉO ===========================
+// ── Codes météo ───────────────────────────────────────────────
 const codes = {
     0:'Ciel dégagé ☀️', 1:'Principalement dégagé 🌤️', 2:'Partiellement nuageux ⛅',
     3:'Couvert ☁️', 45:'Brouillard 🌫️', 48:'Brouillard givrant 🌫️',
@@ -55,14 +53,14 @@ const codes = {
     95:'Orage ⛈️', 99:'Orage avec grêle ⛈️'
 };
 
-// ===================== UTILITAIRE SESSION ====================
+// ── Utilitaire session ────────────────────────────────────────
 function getUser() {
     try {
         return JSON.parse(localStorage.getItem('moadja_user')) || null;
     } catch { return null; }
 }
 
-// ===================== MENU UTILISATEUR (header) =============
+// ── Menu utilisateur header ───────────────────────────────────
 function toggleUserMenu(e) {
     e.stopPropagation();
     const menu      = document.getElementById('user-menu');
@@ -81,7 +79,6 @@ function fermerUserMenu() {
     if (menu) menu.style.display = 'none';
 }
 
-// Fermeture du menu au clic en dehors
 document.addEventListener('click', function(e) {
     const menu = document.getElementById('user-menu');
     const btn  = document.getElementById('btn-profil-header');
@@ -91,7 +88,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// ===================== AFFICHAGE RAPIDE ======================
+// ── Affichage rapide ──────────────────────────────────────────
 (function() {
     const user = getUser();
     if (user?.token) {
@@ -103,7 +100,6 @@ document.addEventListener('click', function(e) {
             document.body.style.background = '#f3f4f6';
             document.body.style.alignItems = 'stretch';
         }
-
         try {
             const cached = JSON.parse(localStorage.getItem('moadja_profil'));
             const btn    = document.getElementById('btn-profil-header');
@@ -117,7 +113,7 @@ document.addEventListener('click', function(e) {
     }
 })();
 
-// ===================== INIT AU CHARGEMENT ====================
+// ── Init au chargement ────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
     const user = getUser();
     if (user?.token) {
@@ -127,7 +123,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// ===================== LOGIN =================================
+// ── Login ─────────────────────────────────────────────────────
 document.getElementById('login-form').addEventListener('submit', async e => {
     e.preventDefault();
     const username = document.getElementById('username').value.trim();
@@ -161,7 +157,7 @@ document.getElementById('login-form').addEventListener('submit', async e => {
     }
 });
 
-// ===================== SHOW APP ==============================
+// ── Show app ──────────────────────────────────────────────────
 async function showApp() {
     if (_appInitialisee) return;
     _appInitialisee = true;
@@ -205,7 +201,7 @@ async function showApp() {
     if (typeof chargerBadgeNotifs === 'function') chargerBadgeNotifs();
 }
 
-// ===================== NAVIGATION ONGLETS ====================
+// ── Navigation onglets ────────────────────────────────────────
 
 const ONGLET_TITRES = {
     accueil  : 'MoaDja',
@@ -243,7 +239,7 @@ function switchTab(onglet, silent = false) {
     }
 }
 
-// ===================== LOGOUT ================================
+// ── Logout ────────────────────────────────────────────────────
 function logout() {
     fermerUserMenu();
 
@@ -285,7 +281,7 @@ function logout() {
     switchTab('accueil', true);
 }
 
-// ===================== ACTUALISER ============================
+// ── Actualiser ────────────────────────────────────────────────
 function actualiser() {
     afficherDate();
     chargerPriere();
@@ -299,22 +295,21 @@ function actualiser() {
     if (typeof chargerWidgetSante      === 'function') chargerWidgetSante();
     if (typeof chargerThemeAstral      === 'function') chargerThemeAstral();
     chargerWidgetAnniversaires();
-    chargerWidgetPlanning();
-    if (typeof Cycle      !== 'undefined') Cycle.charger();
-    if (typeof Rendezvous !== 'undefined') Rendezvous.charger();
+    if (typeof Agenda !== 'undefined') Agenda.charger();
+    if (typeof Cycle  !== 'undefined') Cycle.charger();
     if (typeof chargerBadgeNotifs === 'function') chargerBadgeNotifs();
     const user = getUser();
     if (user?.role === 'admin') chargerWidgetAdmin();
 }
 
-// ===================== CHANGEMENT MDP OBLIGATOIRE ============
+// ── Changement MDP obligatoire ────────────────────────────────
 function afficherModaleChangementMdpObligatoire(userId) {
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display        = 'flex';
     document.body.style.background                      = '#f3f4f6';
     document.body.style.alignItems                      = 'stretch';
     document.getElementById('overlay').classList.add('on');
-    document.getElementById('modal-title').textContent  = '🔑 Changement de mot de passe requis';
+    document.getElementById('modal-title').textContent  = '🔒 Changement de mot de passe requis';
     document.getElementById('modal-body').innerHTML = `
         <div style="background:#fff7ed;border-radius:12px;padding:16px;margin-bottom:20px;
                     border-left:4px solid #f59e0b;font-size:13px;color:#92400e">
@@ -343,7 +338,7 @@ function afficherModaleChangementMdpObligatoire(userId) {
             style="width:100%;padding:13px;background:linear-gradient(135deg,#f59e0b,#d97706);
                    color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;
                    cursor:pointer;box-shadow:0 4px 10px rgba(245,158,11,0.3)">
-            🔑 Changer le mot de passe
+            🔒 Changer le mot de passe
         </button>
         <div id="force-mdp-msg" style="text-align:center;margin-top:12px;font-size:13px;min-height:18px"></div>
     `;
@@ -391,7 +386,7 @@ async function validerChangementMdpObligatoire(userId) {
     }
 }
 
-// ===================== DATE & VERSION ========================
+// ── Date & version ────────────────────────────────────────────
 function afficherDate() {
     const now = new Date();
     const el  = document.getElementById('date-display');
@@ -412,23 +407,22 @@ async function afficherVersion() {
     } catch { /* silencieux */ }
 }
 
-// ===================== REFRESH WIDGET ========================
+// ── Refresh widget ────────────────────────────────────────────
 function refreshWidget(id) {
     switch (id) {
-        case 'meteo'        : chargerMeteoAuto();                                                        break;
-        case 'priere'       : chargerPriere();                                                           break;
-        case 'islam'        : if (typeof window.chargerIslam   === 'function') window.chargerIslam();    break;
-        case 'astrologie'   : if (typeof chargerAstrologie     === 'function') chargerAstrologie();      break;
-        case 'theme-astral' : if (typeof chargerThemeAstral    === 'function') chargerThemeAstral();     break;
-        case 'cycle'        : if (typeof Cycle      !== 'undefined') Cycle.charger();                    break;
-        case 'rendezvous'   : if (typeof Rendezvous !== 'undefined') Rendezvous.charger();               break;
-        case 'planning'     : chargerWidgetPlanning();                                                   break;
-        case 'social'       : if (typeof chargerWidgetSocial   === 'function') chargerWidgetSocial();    break;
-        case 'sante'        : if (typeof chargerWidgetSante    === 'function') chargerWidgetSante();     break;
+        case 'meteo'        : chargerMeteoAuto();                                                     break;
+        case 'priere'       : chargerPriere();                                                        break;
+        case 'islam'        : if (typeof window.chargerIslam === 'function') window.chargerIslam();   break;
+        case 'astrologie'   : if (typeof chargerAstrologie   === 'function') chargerAstrologie();     break;
+        case 'theme-astral' : if (typeof chargerThemeAstral  === 'function') chargerThemeAstral();    break;
+        case 'cycle'        : if (typeof Cycle  !== 'undefined') Cycle.charger();                     break;
+        case 'agenda'       : if (typeof Agenda !== 'undefined') Agenda.charger();                    break;
+        case 'social'       : if (typeof chargerWidgetSocial === 'function') chargerWidgetSocial();   break;
+        case 'sante'        : if (typeof chargerWidgetSante  === 'function') chargerWidgetSante();    break;
     }
 }
 
-// ===================== SERVICE WORKER ========================
+// ── Service worker ────────────────────────────────────────────
 function enregistrerServiceWorker() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
