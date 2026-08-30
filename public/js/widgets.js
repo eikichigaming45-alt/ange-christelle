@@ -10,12 +10,12 @@ function resetGrid() {
     gridConstruit = false;
 }
 
-// ===================== DÉFINITION PAR ONGLET =================
+// ── Définition par onglet ─────────────────────────────────────
 
 const WIDGETS_PAR_ONGLET = {
-    quotidien : ['priere', 'islam', 'cycle', 'agenda-unifie', 'anniversaires'],
-    bienetre  : ['sante'],
-    sport     : ['astrologie', 'theme-astral'],
+    quotidien : ['agenda', 'taches', 'priere', 'islam', 'anniversaires'],
+    bienetre  : ['cycle', 'sante'],
+    sport     : [],
     profil    : ['profil', 'admin'],
     apropos   : ['faq', 'changelog']
 };
@@ -27,7 +27,7 @@ function getOngletWidget(id) {
     return null;
 }
 
-// ===================== TRACKING OUVERTURE ====================
+// ── Tracking ouverture ────────────────────────────────────────
 
 function _trackerOuverture(widgetId) {
     const user = getUser();
@@ -42,7 +42,7 @@ function _trackerOuverture(widgetId) {
     }).catch(() => {});
 }
 
-// ===================== BUILD PRINCIPAL =======================
+// ── Build principal ───────────────────────────────────────────
 
 async function buildGrid() {
     if (gridConstruit) return;
@@ -97,11 +97,11 @@ async function buildGrid() {
     _buildAccueilMeteo();
 
     if (typeof chargerProfilHeader        === 'function') chargerProfilHeader();
+    if (typeof Agenda                     !== 'undefined') Agenda.charger();
     if (typeof Cycle                      !== 'undefined') Cycle.charger();
     if (typeof chargerWidgetSocial        === 'function')  chargerWidgetSocial();
     if (typeof chargerWidgetSante         === 'function')  chargerWidgetSante();
     if (typeof chargerThemeAstral         === 'function')  chargerThemeAstral();
-    if (typeof chargerAgendaUnifie        === 'function')  chargerAgendaUnifie();
     if (typeof chargerWidgetAnniversaires === 'function')  chargerWidgetAnniversaires();
     if (typeof chargerWidgetAdmin         === 'function')  chargerWidgetAdmin();
     if (typeof chargerAstrologie          === 'function')  chargerAstrologie();
@@ -143,7 +143,7 @@ async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
     defs.forEach(def => grid.appendChild(creerWidget(def, gridId)));
 }
 
-// ===================== MÉTÉO ONGLET ACCUEIL ==================
+// ── Météo onglet accueil ──────────────────────────────────────
 
 function _buildAccueilMeteo() {
     const el = document.getElementById('accueil-meteo');
@@ -156,7 +156,7 @@ function _buildAccueilMeteo() {
     if (typeof chargerMeteoAuto === 'function') chargerMeteoAuto();
 }
 
-// ===================== CRÉER WIDGET ==========================
+// ── Créer widget ──────────────────────────────────────────────
 
 function creerWidget(def, gridId) {
     const div        = document.createElement('div');
@@ -166,6 +166,7 @@ function creerWidget(def, gridId) {
     div.draggable    = true;
 
     let contentHtml = def.desc || '';
+    if (def.id === 'agenda')        contentHtml = '<div id="wc-agenda">Chargement...</div>';
     if (def.id === 'cycle')         contentHtml = '<div id="widget-cycle-content">Chargement...</div>';
     if (def.id === 'profil')        contentHtml = '<div id="wc-profil"></div>';
     if (def.id === 'astrologie')    contentHtml = '<div id="wc-astrologie">Chargement...</div>';
@@ -174,7 +175,6 @@ function creerWidget(def, gridId) {
     if (def.id === 'social')        contentHtml = '<div id="wc-social">Chargement...</div>';
     if (def.id === 'sante')         contentHtml = '<div id="wc-sante">Chargement...</div>';
     if (def.id === 'anniversaires') contentHtml = '<div id="wc-anniversaires">Chargement...</div>';
-    if (def.id === 'agenda-unifie') contentHtml = '<div id="wc-agenda-unifie">Chargement...</div>';
 
     div.innerHTML = `
         <span class="drag-handle" title="Déplacer">⠿</span>
@@ -193,9 +193,13 @@ function creerWidget(def, gridId) {
     div.addEventListener('click', e => {
         if (e.target.classList.contains('drag-handle')) return;
         if (e.target.closest('button'))                 return;
-        if (e.target.closest('.rdv-card'))              return;
         if (SANS_MODAL.includes(def.id))                return;
         _trackerOuverture(def.id);
+        if (def.id === 'agenda') {
+            Agenda.ouvrirModal();
+            document.getElementById('overlay').classList.add('on');
+            return;
+        }
         openModal(def.id);
     });
 
@@ -210,7 +214,7 @@ function creerWidget(def, gridId) {
     return div;
 }
 
-// ===================== DRAG & DROP SOURIS ====================
+// ── Drag & drop souris ────────────────────────────────────────
 
 function onDragStart(e) {
     dragSrc = this;
@@ -248,7 +252,7 @@ function onDragEnd() {
     document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
 }
 
-// ===================== DRAG & DROP TACTILE ===================
+// ── Drag & drop tactile ───────────────────────────────────────
 
 function ajouterTouchDrag(el) {
     let startX, startY, clone, origRect;
@@ -322,7 +326,7 @@ function ajouterTouchDrag(el) {
     }, { passive: true });
 }
 
-// ===================== SAUVEGARDE ORDRE ======================
+// ── Sauvegarde ordre ──────────────────────────────────────────
 
 async function sauvegarderOrdre() {
     const user  = getUser();
@@ -345,7 +349,7 @@ async function sauvegarderOrdre() {
     } catch { /* silencieux */ }
 }
 
-// ===================== APPLIQUER WIDGETS VISIBLES ============
+// ── Appliquer widgets visibles ────────────────────────────────
 
 function appliquerWidgetsVisibles(widgetsCaches) {
     const user              = getUser();

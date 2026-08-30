@@ -1,0 +1,200 @@
+/* ============================================================
+   public/css/agenda.css
+   Styles widget et modal agenda unifié.
+   ============================================================ */
+
+/* ── Widget ─────────────────────────────────────────────────── */
+.w-agenda .wi { background: #ede9fe; }
+.widget.w-agenda { background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%); }
+
+.btn-agenda-primary {
+    width: 100%;
+    padding: 9px;
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s;
+    margin-top: 8px;
+}
+.btn-agenda-primary:hover { background: #6d28d9; }
+
+/* ── Carte événement widget ──────────────────────────────────── */
+.agenda-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity .15s;
+}
+.agenda-card:hover { opacity: .85; }
+.agenda-card-label {
+    font-size: 11px;
+    color: #888;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+.agenda-card-titre {
+    font-size: 14px;
+    font-weight: 700;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.agenda-card-sub {
+    font-size: 11px;
+    color: #888;
+}
+.agenda-card-heure {
+    font-size: 12px;
+    color: #666;
+}
+
+/* ── Calendrier modal ────────────────────────────────────────── */
+.agenda-cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+.agenda-cal-nav button {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 8px;
+    color: #374151;
+    transition: background .15s;
+}
+.agenda-cal-nav button:hover { background: #f3f4f6; }
+.agenda-cal-nav-title {
+    font-weight: 700;
+    font-size: 16px;
+    color: #1f2937;
+}
+
+.agenda-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 4px;
+}
+.agenda-cal-header {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #9ca3af;
+    padding: 4px 0;
+}
+.agenda-cal-cell {
+    aspect-ratio: 1;
+    min-height: 44px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    transition: opacity .15s;
+    border: 2px solid #e5e7eb;
+    background: #f9fafb;
+}
+.agenda-cal-cell:hover { opacity: .8; }
+.agenda-cal-cell.today { border-color: #7c3aed; }
+.agenda-cal-cell-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: #444;
+}
+.agenda-cal-cell.today .agenda-cal-cell-num { color: #7c3aed; }
+.agenda-cal-cell-icon { font-size: 14px; line-height: 1; }
+.agenda-cal-cell-plus { font-size: 9px; color: #666; }
+
+/* ── Détail jour ─────────────────────────────────────────────── */
+.agenda-detail-titre {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: #1f2937;
+}
+.agenda-detail-card {
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+.agenda-detail-card-titre {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+}
+.agenda-detail-card-cat {
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+}
+.agenda-detail-card-info {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+.agenda-detail-card-meta {
+    font-size: 12px;
+    color: #999;
+    margin-top: 2px;
+}
+.agenda-detail-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* ── Formulaire ──────────────────────────────────────────────── */
+.agenda-form-label {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+.agenda-form-input,
+.agenda-form-select,
+.agenda-form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 14px;
+    box-sizing: border-box;
+    font-family: inherit;
+    background: #fff;
+    outline: none;
+}
+.agenda-form-input:focus,
+.agenda-form-select:focus,
+.agenda-form-textarea:focus { border-color: #7c3aed; }
+
+/* ── États vide / erreur ─────────────────────────────────────── */
+.agenda-empty {
+    color: #9ca3af;
+    font-size: 13px;
+    text-align: center;
+    padding: 20px 0;
+}
+.agenda-error {
+    color: #ef4444;
+    font-size: 13px;
+    text-align: center;
+}
