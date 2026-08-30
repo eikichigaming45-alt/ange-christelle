@@ -474,7 +474,7 @@ const Cycle = (() => {
                     ? '♥ Non protégé'
                     : null;
 
-                        contenu += `
+            contenu += `
                 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                         <span style="font-size:11px;color:#9ca3af">
@@ -521,7 +521,7 @@ const Cycle = (() => {
         document.getElementById('overlay').classList.add('on');
     }
 
-    async function _ouvrirFormulaireJournal(dateStr, rapportId) {
+        async function _ouvrirFormulaireJournal(dateStr, rapportId) {
         const rapports        = _journalCache[dateStr] || [];
         const journal         = rapportId ? rapports.find(r => r.id === rapportId) || {} : {};
         const isEdit          = !!rapportId;
@@ -834,7 +834,7 @@ const Cycle = (() => {
         } else if (joursRetard <= 7) {
             return `Un retard de ${joursRetard} jours peut avoir plusieurs causes. Si tu as eu des rapports non protégés, un test de grossesse peut t'apporter une réponse claire.`;
         } else {
-            return `Un retard de ${joursRetard} jours mérite attention. Pense à consulter un médecin ou une sage-femme pour en savoir plus.`;
+            return `Un retard de ${joursRetard} jours mérite attention. Pense à consulter un médecin ou un gynécologue pour en savoir plus.`;
         }
     }
 
@@ -846,7 +846,9 @@ const Cycle = (() => {
 
     // ── Bandeau retard ────────────────────────────────────────
     function renderBandeauRetard(calc) {
-        const today = formatDateInput(_aujourdHuiLocal());
+        const today   = formatDateInput(_aujourdHuiLocal());
+        const icone   = _iconeBienveillantRetard(calc.joursRetard);
+        const message = _messageBienveillantRetard(calc.joursRetard);
         return `
             <div class="cycle-bandeau-retard">
                 <div class="cycle-bandeau-retard-titre">
@@ -866,6 +868,13 @@ const Cycle = (() => {
                         onclick="Cycle._signalerRetard('${today}', ${calc.joursRetard})">
                         📋 Signaler un retard
                     </button>
+                </div>
+                <div style="margin-top:10px;background:#fffbeb;border-radius:10px;
+                            padding:12px 14px;border-left:3px solid #f59e0b">
+                    <div style="display:flex;align-items:flex-start;gap:8px">
+                        <span style="font-size:18px;flex-shrink:0">${icone}</span>
+                        <span style="font-size:12px;color:#92400e;line-height:1.5">${message}</span>
+                    </div>
                 </div>
                 <div id="cycle-retard-message"></div>
             </div>`;
@@ -890,27 +899,19 @@ const Cycle = (() => {
 
         const zone = document.getElementById('cycle-retard-message');
         if (zone) {
-            const icone   = _iconeBienveillantRetard(joursRetard);
-            const message = _messageBienveillantRetard(joursRetard);
             zone.innerHTML = `
-                <div style="margin-top:10px;background:#fffbeb;border-radius:10px;
-                            padding:12px 14px;border-left:3px solid #f59e0b">
-                    <div style="display:flex;align-items:flex-start;gap:8px">
-                        <span style="font-size:18px;flex-shrink:0">${icone}</span>
-                        <span style="font-size:12px;color:#92400e;line-height:1.5">${message}</span>
-                    </div>
-                    <div style="font-size:11px;color:#10b981;font-weight:600;margin-top:8px">
-                        ✓ Retard enregistré dans ton journal
-                    </div>
+                <div style="font-size:11px;color:#10b981;font-weight:600;margin-top:8px;
+                            display:flex;align-items:center;gap:4px">
+                    ✓ Retard enregistré dans ton journal
                 </div>`;
         }
     }
 
     function renderWidget(cycles, dureeMoyenne) {
-        const dernierCycle      = cycles.length > 0 ? cycles[0] : null;
-        const calc              = calculerCycle(dernierCycle, dureeMoyenne);
-        const phase             = getPhase(calc);
-        const dureeReglesMoy    = calculerDureeReglesMoyenne(cycles);
+        const dernierCycle   = cycles.length > 0 ? cycles[0] : null;
+        const calc           = calculerCycle(dernierCycle, dureeMoyenne);
+        const phase          = getPhase(calc);
+        const dureeReglesMoy = calculerDureeReglesMoyenne(cycles);
 
         let labelOvulation, valeurOvulation, labelFenetre, valeurFenetre;
         let infosGrisees = false;
@@ -939,7 +940,6 @@ const Cycle = (() => {
             valeurFenetre   = `${formatDate(calc.debutFertile)} - ${formatDate(calc.finFertile)}`;
         }
 
-        // Boutons bas widget — supprimés si retard actif
         const boutonsWidget = calc?.enRetard ? '' : `
             <div class="cycle-actions">
                 <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
@@ -952,7 +952,6 @@ const Cycle = (() => {
                     : ''}
             </div>`;
 
-        // Bouton historique seul si retard
         const boutonHistoriqueRetard = calc?.enRetard && cycles.length > 0 ? `
             <div style="margin-top:8px">
                 <button class="btn-cycle-secondary" style="width:100%"
@@ -1008,7 +1007,7 @@ const Cycle = (() => {
                         </div>
                     </div>
                 </div>
-                                <div class="cycle-progress-wrap">
+                <div class="cycle-progress-wrap">
                     <div class="cycle-progress-label">Progression du cycle (${calc.dureeCycle} jours)</div>
                     <div class="cycle-progress-bar">
                         <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0,
@@ -1037,9 +1036,9 @@ const Cycle = (() => {
             const dernierCycle = cycles.length > 0 ? cycles[0] : null;
             const calc         = calculerCycle(dernierCycle, dureeMoyenne);
 
-            _calcCourant  = calc;
+            _calcCourant    = calc;
             _cyclesCourants = cycles;
-            _toutesLesP   = calculerToutesPeriodes(cycles, dureeMoyenne);
+            _toutesLesP     = calculerToutesPeriodes(cycles, dureeMoyenne);
             container.innerHTML = renderWidget(cycles, dureeMoyenne);
 
             if (calc) await _afficherMoodInline(calc);
@@ -1088,7 +1087,7 @@ const Cycle = (() => {
                 <div class="modal-cycle-main">
                     ${bandeauTop}
                     ${dureeMoyenne
-                        ? `<div class="cycle-duree-info" style="margin-bottom:12px">
+                                                ? `<div class="cycle-duree-info" style="margin-bottom:12px">
                                Durée moyenne calculée : <strong>${dureeMoyenne} jours</strong> (sur ${cycles.length} cycles)
                            </div>`
                         : ''}
@@ -1117,12 +1116,10 @@ const Cycle = (() => {
         }
     }
 
-    // ouvrirModalAjout — prefillAujourdhui=true depuis bandeau retard
-    // date pré-remplie aujourd'hui + readonly + durée calculée depuis historique
     function ouvrirModalAjout(cycleExistant = null, prefillAujourdhui = false) {
-        const isEdit          = !!cycleExistant;
-        const today           = formatDateInput(_aujourdHuiLocal());
-        const dureeReglesMoy  = calculerDureeReglesMoyenne(_cyclesCourants);
+        const isEdit         = !!cycleExistant;
+        const today          = formatDateInput(_aujourdHuiLocal());
+        const dureeReglesMoy = calculerDureeReglesMoyenne(_cyclesCourants);
 
         document.getElementById('modal-title').textContent = prefillAujourdhui
             ? 'Mes règles ont démarré aujourd\'hui'
