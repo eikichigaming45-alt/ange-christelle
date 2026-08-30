@@ -10,7 +10,7 @@ function resetGrid() {
     gridConstruit = false;
 }
 
-// ── Définition par onglet ─────────────────────────────────────
+// ── Définition par onglet ─────────────────────────────────────────────
 
 const WIDGETS_PAR_ONGLET = {
     quotidien : ['agenda', 'taches', 'priere', 'islam', 'anniversaires'],
@@ -27,7 +27,7 @@ function getOngletWidget(id) {
     return null;
 }
 
-// ── Tracking ouverture ────────────────────────────────────────
+// ── Tracking ouverture ────────────────────────────────────────────────
 
 function _trackerOuverture(widgetId) {
     const user = getUser();
@@ -42,7 +42,7 @@ function _trackerOuverture(widgetId) {
     }).catch(() => {});
 }
 
-// ── Build principal ───────────────────────────────────────────
+// ── Build principal ───────────────────────────────────────────────────
 
 async function buildGrid() {
     if (gridConstruit) return;
@@ -143,7 +143,7 @@ async function buildTabGrid(onglet, allDefs, ordre, widgetsCaches, user) {
     defs.forEach(def => grid.appendChild(creerWidget(def, gridId)));
 }
 
-// ── Météo onglet accueil ──────────────────────────────────────
+// ── Météo onglet accueil ──────────────────────────────────────────────
 
 function _buildAccueilMeteo() {
     const el = document.getElementById('accueil-meteo');
@@ -156,7 +156,7 @@ function _buildAccueilMeteo() {
     if (typeof chargerMeteoAuto === 'function') chargerMeteoAuto();
 }
 
-// ── Créer widget ──────────────────────────────────────────────
+// ── Créer widget ──────────────────────────────────────────────────────
 
 function creerWidget(def, gridId) {
     const div        = document.createElement('div');
@@ -194,12 +194,24 @@ function creerWidget(def, gridId) {
         if (e.target.classList.contains('drag-handle')) return;
         if (e.target.closest('button'))                 return;
         if (SANS_MODAL.includes(def.id))                return;
-        _trackerOuverture(def.id);
+
+        // ── Agenda : les cartes du widget gèrent leur propre clic.
+        // Un clic sur le footer "Cliquez pour gérer" ouvre le calendrier.
+        // Un clic sur une carte enfant (div avec onclick) est déjà géré,
+        // on ne propage pas au conteneur.
         if (def.id === 'agenda') {
-            Agenda.ouvrirModal();
-            document.getElementById('overlay').classList.add('on');
+            const clickedCard = e.target.closest('#wc-agenda > div[onclick]');
+            if (clickedCard) return; // laisse le onclick inline de la carte agir
+            // Clic sur le footer ou la zone vide → ouvre le calendrier
+            if (e.target.closest('.wf') || !e.target.closest('#wc-agenda')) {
+                _trackerOuverture(def.id);
+                Agenda.ouvrirModal();
+                document.getElementById('overlay').classList.add('on');
+            }
             return;
         }
+
+        _trackerOuverture(def.id);
         openModal(def.id);
     });
 
@@ -214,7 +226,7 @@ function creerWidget(def, gridId) {
     return div;
 }
 
-// ── Drag & drop souris ────────────────────────────────────────
+// ── Drag & drop souris ────────────────────────────────────────────────
 
 function onDragStart(e) {
     dragSrc = this;
@@ -252,7 +264,7 @@ function onDragEnd() {
     document.querySelectorAll('.widget').forEach(w => w.classList.remove('drag-over'));
 }
 
-// ── Drag & drop tactile ───────────────────────────────────────
+// ── Drag & drop tactile ───────────────────────────────────────────────
 
 function ajouterTouchDrag(el) {
     let startX, startY, clone, origRect;
@@ -326,7 +338,7 @@ function ajouterTouchDrag(el) {
     }, { passive: true });
 }
 
-// ── Sauvegarde ordre ──────────────────────────────────────────
+// ── Sauvegarde ordre ──────────────────────────────────────────────────
 
 async function sauvegarderOrdre() {
     const user  = getUser();
@@ -349,7 +361,7 @@ async function sauvegarderOrdre() {
     } catch { /* silencieux */ }
 }
 
-// ── Appliquer widgets visibles ────────────────────────────────
+// ── Appliquer widgets visibles ────────────────────────────────────────
 
 function appliquerWidgetsVisibles(widgetsCaches) {
     const user              = getUser();
