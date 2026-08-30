@@ -173,8 +173,7 @@ const Cycle = (() => {
         return Math.round(durees.reduce((a, b) => a + b, 0) / durees.length);
     }
 
-    // Retourne les périodes réelles (saisies) + projetées (futures)
-    // Les périodes saisies ont estSaisie:true, les projetées estSaisie:false
+    // Périodes réelles (estSaisie:true) + projetées (estSaisie:false)
     function calculerToutesPeriodes(cycles, dureeMoyenne) {
         const periodes      = [];
         const dureeCycleRef = dureeMoyenne || (cycles[0]?.duree_cycle) || 28;
@@ -236,7 +235,6 @@ const Cycle = (() => {
         const joursAvantRegles = Math.round((prochainDebut - aujourd_hui) / (1000 * 60 * 60 * 24));
         const enRegles         = aujourd_hui >= debut && aujourd_hui <= finRegles;
         const enFenetre        = aujourd_hui >= debutFertile && aujourd_hui <= finFertile;
-        // Retard détecté si joursAvantRegles < 0 et pas en règles
         const enRetard         = joursAvantRegles < 0 && !enRegles;
         const joursRetard      = enRetard ? Math.abs(joursAvantRegles) : 0;
         return {
@@ -258,9 +256,9 @@ const Cycle = (() => {
         const jourCycle    = Math.round((aujourd_hui - calc.debut) / (1000 * 60 * 60 * 24)) + 1;
         const debutLuteale = calc.dureeCycle - 14;
         const debutSPM     = calc.dureeCycle - 7;
-        if (jourCycle >= debutSPM)      return { label: 'Lutéale fin - SPM',  emoji: '🌙', color: '#8b5cf6' };
-        if (jourCycle >= debutLuteale)  return { label: 'Phase lutéale',       emoji: '🌙', color: '#a78bfa' };
-        if (jourCycle > calc.dureeRegles) return { label: 'Phase folliculaire', emoji: '🌱', color: '#10b981' };
+        if (jourCycle >= debutSPM)        return { label: 'Lutéale fin - SPM',   emoji: '🌙', color: '#8b5cf6' };
+        if (jourCycle >= debutLuteale)    return { label: 'Phase lutéale',        emoji: '🌙', color: '#a78bfa' };
+        if (jourCycle > calc.dureeRegles) return { label: 'Phase folliculaire',   emoji: '🌱', color: '#10b981' };
         return { label: 'Phase de repos', emoji: '🔵', color: '#3498db' };
     }
 
@@ -311,16 +309,19 @@ const Cycle = (() => {
             cases += `<div class="cal-day cal-empty"></div>`;
         }
 
+        // Période projetée la plus proche (première non saisie)
+        const periodeProchaine = _toutesLesP.find(p => !p.estSaisie);
+
         for (let j = 1; j <= nbJours; j++) {
             const date = new Date(moisRef.getFullYear(), moisRef.getMonth(), j);
             date.setHours(0, 0, 0, 0);
             const dateStr = formatDateInput(date);
 
-            let estReglesSaisies  = false;
-            let estReglesPrevu    = false;
-            let estRetard         = false;
-            let estFertile        = false;
-            let estOvul           = false;
+            let estReglesSaisies = false;
+            let estReglesPrevu   = false;
+            let estRetard        = false;
+            let estFertile       = false;
+            let estOvul          = false;
 
             for (const p of _toutesLesP) {
                 if (date >= p.debutRegles && date <= p.finRegles) {
@@ -331,13 +332,14 @@ const Cycle = (() => {
                 if (memeJour(date, p.ovulation)) estOvul = true;
             }
 
-            // Jours de retard : après date prévue des règles, avant aujourd'hui, sans règles saisies
-            if (calc?.enRetard && date <= aujourd_hui && !estReglesSaisies) {
-                const periodeProchaine = _toutesLesP.find(p => !p.estSaisie);
-                if (periodeProchaine && date >= periodeProchaine.debutRegles && date <= periodeProchaine.finRegles) {
-                    estRetard      = true;
-                    estReglesPrevu = false;
-                }
+            // Jours de retard : jours prévus non saisis déjà passés ou aujourd'hui
+            if (calc?.enRetard && periodeProchaine &&
+                date >= periodeProchaine.debutRegles &&
+                date <= periodeProchaine.finRegles &&
+                date <= aujourd_hui &&
+                !estReglesSaisies) {
+                estRetard      = true;
+                estReglesPrevu = false;
             }
 
             const estAujourdhui = memeJour(date, aujourd_hui);
@@ -350,10 +352,10 @@ const Cycle = (() => {
             let badge = '';
             let icons = '';
 
-            if (estReglesSaisies)     cls += ' cal-regles';
-            else if (estRetard)       cls += ' cal-retard';
-            else if (estReglesPrevu)  cls += ' cal-regles-prevu';
-            else if (estFertile)      cls += ' cal-fertile';
+            if (estReglesSaisies)    cls += ' cal-regles';
+            else if (estRetard)      cls += ' cal-retard';
+            else if (estReglesPrevu) cls += ' cal-regles-prevu';
+            else if (estFertile)     cls += ' cal-fertile';
 
             if (estAujourdhui) cls += ' cal-today';
 
@@ -369,7 +371,6 @@ const Cycle = (() => {
             cases += `<div class="${cls}" onclick="Cycle.ouvrirJournal('${dateStr}')">${j}${badge}${icons ? `<div class="cal-day-icons">${icons}</div>` : ''}</div>`;
         }
 
-        // Légende adaptée selon présence de retard
         const legendeRetard = calc?.enRetard
             ? `<span class="cal-leg-item"><span class="cal-leg-dot-retard"></span> Retard</span>
                <span class="cal-leg-item"><span class="cal-leg-dot-dashed"></span> Prévu</span>`
@@ -819,14 +820,30 @@ const Cycle = (() => {
         return `<div id="cycle-mood-zone"></div>`;
     }
 
-    // ── Bandeau retard ────────────────────────────────────────
+    // ── Bandeau retard — message bienveillant selon nb jours ──
+    function _messageBienveillantRetard(joursRetard) {
+        if (joursRetard <= 3) {
+            return `Le stress, la fatigue ou un changement de routine peuvent décaler tes règles de quelques jours. C'est tout à fait normal.`;
+        } else if (joursRetard <= 7) {
+            return `Un retard de ${joursRetard} jours peut avoir plusieurs causes. Si tu as eu des rapports non protégés, un test de grossesse peut t'apporter une réponse claire.`;
+        } else {
+            return `Un retard de ${joursRetard} jours mérite attention. Pense à consulter un médecin ou une sage-femme pour en savoir plus.`;
+        }
+    }
+
+    function _iconeBienveillantRetard(joursRetard) {
+        if (joursRetard <= 3) return '🌿';
+        if (joursRetard <= 7) return '🤍';
+        return '🩺';
+    }
+
     function renderBandeauRetard(calc) {
         const today = formatDateInput(_aujourdHuiLocal());
         return `
             <div class="cycle-bandeau-retard">
                 <div class="cycle-bandeau-retard-titre">
                     <span style="font-size:20px">⏳</span>
-                    Règles non arrivées — ${calc.joursRetard} jour${calc.joursRetard > 1 ? 's' : ''} de retard
+                    Règles non arrivées - ${calc.joursRetard} jour${calc.joursRetard > 1 ? 's' : ''} de retard
                 </div>
                 <div class="cycle-bandeau-retard-sub">
                     Attendues le ${formatDate(calc.prochainDebut)}.
@@ -838,15 +855,16 @@ const Cycle = (() => {
                         🩸 Mes règles ont démarré
                     </button>
                     <button class="btn-retard-secondaire"
-                        onclick="Cycle._signalerRetard('${today}')">
+                        onclick="Cycle._signalerRetard('${today}', ${calc.joursRetard})">
                         📋 Signaler un retard
                     </button>
                 </div>
+                <div id="cycle-retard-message"></div>
             </div>`;
     }
 
-    // ── Signaler retard — note dans le journal sans créer de cycle
-    async function _signalerRetard(dateStr) {
+    // ── Signaler retard — note journal + message bienveillant ─
+    async function _signalerRetard(dateStr, joursRetard) {
         try {
             await fetch('/api/cycle/journal', {
                 method : 'POST',
@@ -855,18 +873,27 @@ const Cycle = (() => {
                     date     : dateStr,
                     rapport  : null,
                     symptomes: null,
-                    notes    : 'Retard signalé — règles non arrivées'
+                    notes    : `Retard signalé - ${joursRetard} jour${joursRetard > 1 ? 's' : ''}`
                 })
             });
             const [ry, rm] = dateStr.split('-').map(Number);
             await chargerJournal(rm, ry);
         } catch { /* silencieux */ }
 
-        const zone = document.getElementById('cycle-retard-confirme');
+        const zone = document.getElementById('cycle-retard-message');
         if (zone) {
+            const icone   = _iconeBienveillantRetard(joursRetard);
+            const message = _messageBienveillantRetard(joursRetard);
             zone.innerHTML = `
-                <div style="font-size:12px;color:#10b981;font-weight:600;text-align:center;margin-top:6px">
-                    ✓ Retard signalé
+                <div style="margin-top:10px;background:#fffbeb;border-radius:10px;
+                            padding:12px 14px;border-left:3px solid #f59e0b">
+                    <div style="display:flex;align-items:flex-start;gap:8px">
+                        <span style="font-size:18px;flex-shrink:0">${icone}</span>
+                        <span style="font-size:12px;color:#92400e;line-height:1.5">${message}</span>
+                    </div>
+                    <div style="font-size:11px;color:#10b981;font-weight:600;margin-top:8px">
+                        ✓ Retard enregistré dans ton journal
+                    </div>
                 </div>`;
         }
     }
@@ -876,7 +903,6 @@ const Cycle = (() => {
         const calc         = calculerCycle(dernierCycle, dureeMoyenne);
         const phase        = getPhase(calc);
 
-        // Si retard : on gèle fenêtre fertile et ovulation
         let labelOvulation, valeurOvulation, labelFenetre, valeurFenetre;
         let infosGrisees = false;
 
@@ -888,21 +914,20 @@ const Cycle = (() => {
                 const prochaineFenetreFin   = addDays(prochaineOvulation, 1);
                 labelOvulation  = 'Prochaine ovulation';
                 valeurOvulation = formatDate(prochaineOvulation);
-                labelFenetre    = 'Prochaine fenêtre fertile';
-                valeurFenetre   = `${formatDate(prochaineFenetreDebut)} → ${formatDate(prochaineFenetreFin)}`;
+                labelFenetre    = 'Prochaine fenetre fertile';
+                valeurFenetre   = `${formatDate(prochaineFenetreDebut)} - ${formatDate(prochaineFenetreFin)}`;
             } else {
                 labelOvulation  = 'Ovulation estimée';
                 valeurOvulation = formatDate(calc.ovulation);
-                labelFenetre    = 'Fenêtre fertile';
-                valeurFenetre   = `${formatDate(calc.debutFertile)} → ${formatDate(calc.finFertile)}`;
+                labelFenetre    = 'Fenetre fertile';
+                valeurFenetre   = `${formatDate(calc.debutFertile)} - ${formatDate(calc.finFertile)}`;
             }
         } else if (calc?.enRetard) {
-            // Gel — valeurs grisées
             infosGrisees    = true;
             labelOvulation  = 'Ovulation estimée';
             valeurOvulation = formatDate(calc.ovulation);
-            labelFenetre    = 'Fenêtre fertile';
-            valeurFenetre   = `${formatDate(calc.debutFertile)} → ${formatDate(calc.finFertile)}`;
+            labelFenetre    = 'Fenetre fertile';
+            valeurFenetre   = `${formatDate(calc.debutFertile)} - ${formatDate(calc.finFertile)}`;
         }
 
         return `
@@ -971,7 +996,6 @@ const Cycle = (() => {
                            </button>`
                         : ''}
                 </div>
-                <div id="cycle-retard-confirme"></div>
                 ${renderBlocMood()}
             </div>`;
     }
@@ -1017,7 +1041,6 @@ const Cycle = (() => {
 
             await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
 
-            // Bandeau retard ou phase normale
             const bandeauTop = calc?.enRetard
                 ? renderBandeauRetard(calc)
                 : calc ? `
@@ -1035,11 +1058,10 @@ const Cycle = (() => {
                         </div>
                     </div>` : '<p style="color:#9ca3af;margin-bottom:16px">Aucun cycle enregistré.</p>';
 
-            document.getElementById('modal-title').textContent = 'Suivi du cycle';
+                        document.getElementById('modal-title').textContent = 'Suivi du cycle';
             document.getElementById('modal-body').innerHTML = `
                 <div class="modal-cycle-main">
                     ${bandeauTop}
-                    <div id="cycle-retard-confirme"></div>
                     ${dureeMoyenne
                         ? `<div class="cycle-duree-info" style="margin-bottom:12px">
                                Durée moyenne calculée : <strong>${dureeMoyenne} jours</strong> (sur ${cycles.length} cycles)
@@ -1068,7 +1090,7 @@ const Cycle = (() => {
         }
     }
 
-        function ouvrirModalAjout(cycleExistant = null) {
+    function ouvrirModalAjout(cycleExistant = null) {
         const isEdit = !!cycleExistant;
         const today  = formatDateInput(_aujourdHuiLocal());
         document.getElementById('modal-title').textContent = isEdit
@@ -1085,7 +1107,7 @@ const Cycle = (() => {
                 <label>Durée des règles (jours)</label>
                 <input type="number" id="cycle-duree-regles" min="1" max="10"
                     value="${isEdit ? cycleExistant.duree_regles : 3}" />
-                <label>Durée du cycle (jours) — sera recalculée automatiquement après 2 cycles</label>
+                <label>Durée du cycle (jours) - sera recalculée automatiquement après 2 cycles</label>
                 <input type="number" id="cycle-duree-cycle" min="21" max="45"
                     value="${isEdit ? cycleExistant.duree_cycle : 28}" />
                 <label>Notes (optionnel)</label>
@@ -1170,7 +1192,7 @@ const Cycle = (() => {
                 <div class="cycle-historique-item">
                     <div>
                         <strong>${formatDate(parseDateLocale(c.date_debut.split('T')[0]))}</strong>
-                        <span class="cycle-histo-detail">Règles : ${c.duree_regles}j — Cycle : ${c.duree_cycle}j</span>
+                        <span class="cycle-histo-detail">Règles : ${c.duree_regles}j - Cycle : ${c.duree_cycle}j</span>
                         ${c.notes ? `<span class="cycle-histo-notes">${c.notes}</span>` : ''}
                     </div>
                     <button class="btn-edit-small"
