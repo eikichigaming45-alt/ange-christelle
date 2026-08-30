@@ -9,6 +9,7 @@
 // Sauvegarde manuelle, bouton explicite, pas de timer.
 // Retard détecté si joursAvantRegles < 0 — gel ovulation/fenêtre.
 // Durée règles formulaire calculée depuis historique.
+// Message 4-7j retard conditionnel selon rapports non protégés en base.
 // ============================================================
 
 const Cycle = (() => {
@@ -83,13 +84,11 @@ const Cycle = (() => {
         }
     ];
 
-    // Minuit heure locale — jamais influencé par UTC ou le fuseau serveur
     function _aujourdHuiLocal() {
         const n = new Date();
         return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
     }
 
-    // Durée moyenne des règles calculée depuis l'historique
     function calculerDureeReglesMoyenne(cycles) {
         if (!cycles.length) return 5;
         const durees = cycles.map(c => c.duree_regles).filter(d => d > 0);
@@ -183,14 +182,13 @@ const Cycle = (() => {
         return Math.round(durees.reduce((a, b) => a + b, 0) / durees.length);
     }
 
-    // Périodes réelles (estSaisie:true) + projetées (estSaisie:false)
     function calculerToutesPeriodes(cycles, dureeMoyenne) {
-        const periodes      = [];
-        const dureeCycleRef = dureeMoyenne || (cycles[0]?.duree_cycle) || 28;
+        const periodes       = [];
+        const dureeCycleRef  = dureeMoyenne || (cycles[0]?.duree_cycle) || 28;
         const dureeReglesRef = calculerDureeReglesMoyenne(cycles);
 
         cycles.forEach(c => {
-            const debut      = parseDateLocale(c.date_debut.split('T')[0]);
+            const debut       = parseDateLocale(c.date_debut.split('T')[0]);
             const dureeRegles = c.duree_regles || dureeReglesRef;
             const dureeCycle  = dureeMoyenne || c.duree_cycle || 28;
             periodes.push({
@@ -303,6 +301,37 @@ const Cycle = (() => {
                 _journalCache[key].push(r);
             });
         } catch { _journalCache = {}; }
+    }
+
+    // Charge le journal de deux mois si le cycle chevauche deux mois calendaires
+    async function _chargerJournalDepuisDebut(calc) {
+        if (!calc) return;
+        const debutMois  = calc.debut.getMonth() + 1;
+        const debutAnnee = calc.debut.getFullYear();
+        const aujourd    = _aujourdHuiLocal();
+        const moisCourant  = aujourd.getMonth() + 1;
+        const anneeCourante = aujourd.getFullYear();
+
+        await chargerJournal(moisCourant, anneeCourante);
+
+        if (debutMois !== moisCourant || debutAnnee !== anneeCourante) {
+            try {
+                const res = await fetch(`/api/cycle/journal?mois=${debutMois}&annee=${debutAnnee}`, { headers: authHeaders() });
+                const d   = await res.json();
+                (d.journal || []).forEach(r => {
+                    const key = r.date.split('T')[0];
+                    if (!_journalCache[key]) _journalCache[key] = [];
+                    const dejaDedans = _journalCache[key].some(x => x.id === r.id);
+                    if (!dejaDedans) _journalCache[key].push(r);
+                });
+            } catch { /* silencieux */ }
+        }
+    }
+
+    // Vérifie si un rapport non protégé existe dans le cache depuis le début du cycle
+    function _aRapportNonProtege(calc) {
+        if (!calc) return false;
+        return Object.values(_journalCache).flat().some(r => r.humeur === 'non_protege');
     }
 
     function renderCalendrier(calc) {
@@ -521,7 +550,7 @@ const Cycle = (() => {
         document.getElementById('overlay').classList.add('on');
     }
 
-        async function _ouvrirFormulaireJournal(dateStr, rapportId) {
+    async function _ouvrirFormulaireJournal(dateStr, rapportId) {
         const rapports        = _journalCache[dateStr] || [];
         const journal         = rapportId ? rapports.find(r => r.id === rapportId) || {} : {};
         const isEdit          = !!rapportId;
@@ -827,12 +856,17 @@ const Cycle = (() => {
         return `<div id="cycle-mood-zone"></div>`;
     }
 
-    // ── Message bienveillant selon nb jours de retard ─────────
+    // ── Message bienveillant conditionnel selon rapports non protégés ─
     function _messageBienveillantRetard(joursRetard) {
         if (joursRetard <= 3) {
             return `Le stress, la fatigue ou un changement de routine peuvent décaler tes règles de quelques jours. C'est tout à fait normal.`;
         } else if (joursRetard <= 7) {
-            return `Un retard de ${joursRetard} jours peut avoir plusieurs causes. Si tu as eu des rapports non protégés, un test de grossesse peut t'apporter une réponse claire.`;
+            const aRapportNP = _aRapportNonProtege(_calcCourant);
+            if (aRapportNP) {
+                return `Un retard de ${joursRetard} jours peut avoir plusieurs causes. Tu as eu des rapports non protégés ce cycle — un test de grossesse peut t'apporter une réponse claire.`;
+            } else {
+                return `Un retard de ${joursRetard} jours peut avoir plusieurs causes : stress, fatigue ou variation hormonale. Écoute ton corps et surveille les jours à venir.`;
+            }
         } else {
             return `Un retard de ${joursRetard} jours mérite attention. Pense à consulter un médecin ou un gynécologue pour en savoir plus.`;
         }
@@ -842,6 +876,36 @@ const Cycle = (() => {
         if (joursRetard <= 3) return '🌿';
         if (joursRetard <= 7) return '🤍';
         return '🩺';
+    }
+
+    // Vérifie si un rapport non protégé existe dans le cache depuis le début du cycle
+    function _aRapportNonProtege() {
+        return Object.values(_journalCache).flat().some(r => r.humeur === 'non_protege');
+    }
+
+    // Charge le journal de deux mois si le cycle chevauche deux mois calendaires
+    async function _chargerJournalDepuisDebut(calc) {
+        if (!calc) return;
+        const debutMois     = calc.debut.getMonth() + 1;
+        const debutAnnee    = calc.debut.getFullYear();
+        const aujourd       = _aujourdHuiLocal();
+        const moisCourant   = aujourd.getMonth() + 1;
+        const anneeCourante = aujourd.getFullYear();
+
+        await chargerJournal(moisCourant, anneeCourante);
+
+        if (debutMois !== moisCourant || debutAnnee !== anneeCourante) {
+            try {
+                const res = await fetch(`/api/cycle/journal?mois=${debutMois}&annee=${debutAnnee}`, { headers: authHeaders() });
+                const d   = await res.json();
+                (d.journal || []).forEach(r => {
+                    const key = r.date.split('T')[0];
+                    if (!_journalCache[key]) _journalCache[key] = [];
+                    const dejaDedans = _journalCache[key].some(x => x.id === r.id);
+                    if (!dejaDedans) _journalCache[key].push(r);
+                });
+            } catch { /* silencieux */ }
+        }
     }
 
     // ── Bandeau retard ────────────────────────────────────────
@@ -1013,7 +1077,7 @@ const Cycle = (() => {
                         <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0,
                             Math.round((_aujourdHuiLocal() - calc.debut) / (1000 * 60 * 60 * 24)
                             / calc.dureeCycle * 100)))}%;background:${phase.color}">
-                        </div>
+                                                </div>
                     </div>
                 </div>` : ''}
                 ${boutonsWidget}
@@ -1039,6 +1103,9 @@ const Cycle = (() => {
             _calcCourant    = calc;
             _cyclesCourants = cycles;
             _toutesLesP     = calculerToutesPeriodes(cycles, dureeMoyenne);
+
+            if (calc?.enRetard) await _chargerJournalDepuisDebut(calc);
+
             container.innerHTML = renderWidget(cycles, dureeMoyenne);
 
             if (calc) await _afficherMoodInline(calc);
@@ -1063,7 +1130,8 @@ const Cycle = (() => {
             _moisAffiche     = new Date(auj.getFullYear(), auj.getMonth(), 1);
             _toutesLesP      = calculerToutesPeriodes(cycles, dureeMoyenne);
 
-            await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
+            if (calc?.enRetard) await _chargerJournalDepuisDebut(calc);
+            else await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
 
             const bandeauTop = calc?.enRetard
                 ? renderBandeauRetard(calc)
@@ -1087,7 +1155,7 @@ const Cycle = (() => {
                 <div class="modal-cycle-main">
                     ${bandeauTop}
                     ${dureeMoyenne
-                                                ? `<div class="cycle-duree-info" style="margin-bottom:12px">
+                        ? `<div class="cycle-duree-info" style="margin-bottom:12px">
                                Durée moyenne calculée : <strong>${dureeMoyenne} jours</strong> (sur ${cycles.length} cycles)
                            </div>`
                         : ''}
