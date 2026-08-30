@@ -362,9 +362,21 @@ async function _renderBlocAgenda(ownerId, token) {
             </div>`;
     }
 
-    // Grouper par date_debut
+        // Grouper par date_debut — Repos exclus
+    const evtsFiltres = d.data.filter(e =>
+        e.categorie !== 'Repos' && e.sous_categorie !== 'Repos' && e.titre !== 'Repos'
+    );
+
+    if (!evtsFiltres.length) {
+        return `
+            <div style="margin-bottom:10px">
+                ${titre}
+                <div style="font-size:13px;color:#9ca3af">Rien de prévu sur les 5 prochains jours.</div>
+            </div>`;
+    }
+
     const parDate = {};
-    d.data.forEach(e => {
+    evtsFiltres.forEach(e => {
         if (!parDate[e.date_debut]) parDate[e.date_debut] = [];
         parDate[e.date_debut].push(e);
     });
