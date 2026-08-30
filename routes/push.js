@@ -1,5 +1,8 @@
 // ============================================================
 // routes/push.js
+// Notifications push : abonnement VAPID + polling serveur.
+// Rappels : tâches, agenda (remplace rendezvous + planning),
+// anniversaires.
 // ============================================================
 
 const express  = require('express');
@@ -8,16 +11,8 @@ const webpush  = require('web-push');
 const { pool } = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
-// ── Utilitaire : convertir date locale "YYYY-MM-DD" + heure "HH:MM"
-// en un timestamp UTC comparable à Date.now()
-function _localToUTC(dateStr, heureStr) {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const [h, min]  = heureStr.split(':').map(Number);
-    return { y, m, d, h, min, totalMin: d * 1440 + h * 60 + min };
-}
-
 // ── envoyerPush : multi-device, purge 410/404 ────────────────
-async function envoyerPush(userId, titre, corps, tag = 'mydaily') {
+async function envoyerPush(userId, titre, corps, tag = 'moadja') {
     try {
         const { rows } = await pool.query(
             `SELECT id, subscription FROM push_subscriptions WHERE user_id = \$1`,
@@ -58,7 +53,6 @@ router.post('/subscribe', authenticateToken, async (req, res) => {
     const endpoint = subscription.endpoint;
 
     try {
-        // Cherche une subscription existante pour ce user + cet endpoint
         const { rows } = await pool.query(`
             SELECT id FROM push_subscriptions
             WHERE user_id = \$1
@@ -67,14 +61,12 @@ router.post('/subscribe', authenticateToken, async (req, res) => {
         `, [req.user.id, endpoint]);
 
         if (rows.length > 0) {
-            // Mise à jour de la subscription existante (clés p256dh/auth peuvent tourner)
             await pool.query(`
                 UPDATE push_subscriptions
                 SET subscription = \$1, updated_at = NOW()
                 WHERE id = \$2
             `, [subStr, rows[0].id]);
         } else {
-            // Nouveau device / nouveau navigateur
             await pool.query(`
                 INSERT INTO push_subscriptions (user_id, subscription, updated_at)
                 VALUES (\$1, \$2, NOW())
@@ -96,10 +88,12 @@ router.post('/check', authenticateToken, async (req, res) => {
             return res.status(400).json({ success: false, message: 'dateLocale et heureLocale requis.' });
         }
 
-        const heureActuelle = heureLocale.substring(0, 5);
-        const annee         = parseInt(dateLocale.split('-')[0]);
-        const user_id       = req.user.id;
-        const [ah, amin]    = heureActuelle.split(':').map(Number);
+        const heureActuelle    = heureLocale.substring(0, 5);
+        const annee            = parseInt(dateLocale.split('-')[0]);
+        const user_id          = req.user.id;
+        const [ah, amin]       = heureActuelle.split(':').map(Number);
+        const [cy, cm, cd]     = dateLocale.split('-').map(Number);
+        const clientTs         = Date.UTC(cy, cm - 1, cd, ah, amin);
 
         console.log(`[PUSH] /check — local ${dateLocale} ${heureActuelle}`);
 
@@ -115,63 +109,54 @@ router.post('/check', authenticateToken, async (req, res) => {
         `, [user_id]);
 
         for (const t of taches) {
-            const dateTache  = t.date.toISOString().split('T')[0];
-            const heureTache = t.heure.substring(0, 5);
+            const dateTache    = t.date.toISOString().split('T')[0];
+            const heureTache   = t.heure.substring(0, 5);
             const [ty, tm, td] = dateTache.split('-').map(Number);
             const [th, tmin]   = heureTache.split(':').map(Number);
-
-            const tacheTs  = Date.UTC(ty, tm - 1, td, th, tmin);
-            const rappel   = t.rappel_avant || 0;
-            const notifTs  = tacheTs - rappel * 60 * 1000;
-
-            const [cy, cm, cd] = dateLocale.split('-').map(Number);
-            const clientTs = Date.UTC(cy, cm - 1, cd, ah, amin);
-
+            const tacheTs      = Date.UTC(ty, tm - 1, td, th, tmin);
+            const rappel       = t.rappel_avant || 0;
+            const notifTs      = tacheTs - rappel * 60 * 1000;
             if (Math.abs(clientTs - notifTs) > 60000) continue;
             const label = rappel >= 60 ? `${rappel / 60}h` : `${rappel}min`;
             await envoyerPush(user_id, '✅ Rappel de tâche', `${t.titre} — dans ${label}`, `tache-${t.id}`);
         }
 
-        // ── Rendez-vous ───────────────────────────────────────
-        const { rows: rdvs } = await pool.query(`
-            SELECT id, titre, date_rdv, rappel_avant
-            FROM rendezvous
-            WHERE user_id = \$1 AND date_rdv IS NOT NULL AND rappel_avant > 0
-        `, [user_id]);
-
-        for (const rdv of rdvs) {
-            const rappel   = rdv.rappel_avant || 0;
-            const rdvTs    = new Date(rdv.date_rdv).getTime();
-            const notifTs  = rdvTs - rappel * 60 * 1000;
-            const [cy, cm, cd] = dateLocale.split('-').map(Number);
-            const clientTs = Date.UTC(cy, cm - 1, cd, ah, amin);
-            if (Math.abs(clientTs - notifTs) > 60000) continue;
-            const label = rappel >= 1440 ? 'demain' : rappel >= 60 ? `dans ${rappel / 60}h` : `dans ${rappel}min`;
-            await envoyerPush(user_id, '🩺 Rappel rendez-vous', `${rdv.titre} — ${label}`, `rdv-${rdv.id}`);
-        }
-
-        // ── Planning ──────────────────────────────────────────
-        const { rows: shifts } = await pool.query(`
-            SELECT id, type, heure_debut, rappel_avant_shift, employeur
-            FROM planning
+        // ── Agenda (remplace rendezvous + planning) ───────────
+        // Récupère toutes les entrées agenda du jour avec rappel
+        const { rows: entrees } = await pool.query(`
+            SELECT id, titre, categorie, sous_categorie,
+                   date_debut, heure_debut, rappel_avant
+            FROM agenda
             WHERE user_id = \$1
-              AND date = \$2
+              AND date_debut = \$2
               AND heure_debut IS NOT NULL
-              AND rappel_avant_shift > 0
+              AND rappel_avant > 0
         `, [user_id, dateLocale]);
 
-        for (const p of shifts) {
-            const [ph, pm]     = p.heure_debut.substring(0, 5).split(':').map(Number);
-            const [cy, cm, cd] = dateLocale.split('-').map(Number);
-            const debutTs      = Date.UTC(cy, cm - 1, cd, ph, pm);
-            const notifTs      = debutTs - p.rappel_avant_shift * 60 * 1000;
-            const clientTs     = Date.UTC(cy, cm - 1, cd, ah, amin);
+        for (const e of entrees) {
+            const heure    = e.heure_debut.substring(0, 5);
+            const [eh, em] = heure.split(':').map(Number);
+            const entreeTs = Date.UTC(cy, cm - 1, cd, eh, em);
+            const rappel   = e.rappel_avant || 0;
+            const notifTs  = entreeTs - rappel * 60 * 1000;
             if (Math.abs(clientTs - notifTs) > 60000) continue;
-            const label = p.rappel_avant_shift >= 60
-                ? `${p.rappel_avant_shift / 60}h`
-                : `${p.rappel_avant_shift}min`;
-            const corps = `${p.type || ''} — dans ${label} (${p.heure_debut.slice(0, 5)})${p.employeur ? ' — ' + p.employeur : ''}`;
-            await envoyerPush(user_id, '📋 Rappel Planning', corps, `planning-${p.id}`);
+            const label     = rappel >= 1440 ? 'demain'
+                            : rappel >= 60   ? `dans ${rappel / 60}h`
+                            : `dans ${rappel}min`;
+            const sousCat   = e.sous_categorie ? ` — ${e.sous_categorie}` : '';
+            const icones    = {
+                'Travail': '💼', 'Mission': '🧳', 'Repos': '😴',
+                'Médical': '🩺', 'Sport': '🏃', 'Sortie': '🎉',
+                'Famille': '👨‍👩‍👧', 'Administratif': '📋',
+                'Voyage': '✈️', 'Autre': '📌'
+            };
+            const icone = icones[e.categorie] || '📅';
+            await envoyerPush(
+                user_id,
+                `${icone} ${e.categorie}${sousCat}`,
+                `${e.titre} — ${label} (${heure})`,
+                `agenda-${e.id}`
+            );
         }
 
         // ── Anniversaires (08:00 locale) ──────────────────────
@@ -182,8 +167,7 @@ router.post('/check', authenticateToken, async (req, res) => {
                 WHERE user_id = \$1
             `, [user_id]);
 
-            const [cy, cm, cd] = dateLocale.split('-').map(Number);
-            const demain       = new Date(Date.UTC(cy, cm - 1, cd + 1));
+            const demain = new Date(Date.UTC(cy, cm - 1, cd + 1));
 
             for (const a of annivs) {
                 const nom = `${a.prenom}${a.nom ? ' ' + a.nom : ''}`;
