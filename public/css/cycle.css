@@ -26,6 +26,69 @@
 .cycle-error{color:#ef4444}
 .cycle-duree-info{font-size:12px;color:#7c3aed;background:#f5f3ff;padding:8px 12px;border-radius:8px;font-weight:600}
 
+/* ===================== BANDEAU RETARD ===================== */
+.cycle-bandeau-retard{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    background:linear-gradient(135deg,#fff7ed,#fff3e0);
+    border:1.5px solid #f59e0b;
+    border-radius:12px;
+    padding:14px;
+}
+.cycle-bandeau-retard-titre{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:14px;
+    font-weight:700;
+    color:#92400e;
+}
+.cycle-bandeau-retard-sub{
+    font-size:12px;
+    color:#b45309;
+    line-height:1.5;
+}
+.cycle-bandeau-retard-actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+}
+.btn-retard-primaire{
+    flex:1;
+    background:#e83e8c;
+    color:#fff;
+    border:none;
+    padding:9px 12px;
+    border-radius:8px;
+    font-weight:600;
+    font-size:12px;
+    cursor:pointer;
+    transition:background .2s;
+    white-space:nowrap;
+}
+.btn-retard-primaire:hover{background:#d63384}
+.btn-retard-secondaire{
+    flex:1;
+    background:#fff7ed;
+    color:#92400e;
+    border:1.5px solid #f59e0b;
+    padding:9px 12px;
+    border-radius:8px;
+    font-weight:600;
+    font-size:12px;
+    cursor:pointer;
+    transition:background .2s;
+    white-space:nowrap;
+}
+.btn-retard-secondaire:hover{background:#fef3c7}
+
+/* ===================== INFOS GRISÉES EN CAS DE RETARD ===================== */
+.cycle-info-item.grise{
+    opacity:.4;
+    pointer-events:none;
+}
+
 /* ===================== MODALE CYCLE — LAYOUT ===================== */
 .modal-cycle-main{display:flex;flex-direction:column;gap:0}
 .modal-cycle-form{display:flex;flex-direction:column;gap:8px}
@@ -44,7 +107,6 @@
 .cal-nav-btn{background:#f5f3ff;border:none;border-radius:8px;width:34px;height:34px;font-size:20px;cursor:pointer;color:#7c3aed;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
 .cal-nav-btn:hover{background:#ede9fe}
 
-/* ── GRILLE — c'est ici le fix du bug ── */
 .cal-grid{
     display:grid;
     grid-template-columns:repeat(7,1fr);
@@ -74,12 +136,34 @@
 .cal-empty{background:transparent;cursor:default;pointer-events:none}
 .cal-empty:hover{background:transparent;transform:none}
 
+/* Règles saisies réelles — rose plein */
 .cal-day.cal-regles{background:#fca5a5;color:#7f1d1d;font-weight:700}
 .cal-day.cal-regles:hover{background:#f87171}
+
+/* Règles prévues non saisies — rose pâle + bordure pointillée */
+.cal-day.cal-regles-prevu{
+    background:#fde8e8;
+    color:#9b1c1c;
+    font-weight:600;
+    border:2px dashed #fca5a5;
+}
+.cal-day.cal-regles-prevu:hover{background:#fecaca}
+
+/* Jours de retard — orangé */
+.cal-day.cal-retard{
+    background:#fed7aa;
+    color:#7c2d12;
+    font-weight:700;
+    border:2px solid #f97316;
+}
+.cal-day.cal-retard:hover{background:#fdba74}
+
 .cal-day.cal-fertile{background:#fde68a;color:#78350f;font-weight:600}
 .cal-day.cal-fertile:hover{background:#fcd34d}
 .cal-day.cal-today{outline:3px solid #4f46e5;outline-offset:-2px;font-weight:800;color:#4f46e5;z-index:1}
 .cal-day.cal-regles.cal-today{color:#4f46e5}
+.cal-day.cal-regles-prevu.cal-today{color:#4f46e5}
+.cal-day.cal-retard.cal-today{color:#4f46e5}
 .cal-day.cal-fertile.cal-today{color:#4f46e5}
 
 .cal-ovulation-star{position:absolute;top:1px;right:3px;font-size:9px;color:#f59e0b;line-height:1}
@@ -93,6 +177,14 @@
 .cal-legende{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 .cal-leg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#6b7280}
 .cal-leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block}
+.cal-leg-dot-dashed{
+    width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block;
+    background:#fde8e8;border:2px dashed #fca5a5;box-sizing:border-box;
+}
+.cal-leg-dot-retard{
+    width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block;
+    background:#fed7aa;border:2px solid #f97316;box-sizing:border-box;
+}
 
 /* ===================== JOURNAL / FORMULAIRE ===================== */
 .journal-form{display:flex;flex-direction:column;gap:6px}
