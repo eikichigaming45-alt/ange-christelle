@@ -105,6 +105,11 @@ const Agenda = (() => {
         return arr.includes('Autre') ? [...sansAutre, 'Autre'] : sansAutre;
     }
 
+    function _sousCatLabel(categorie, sous_categorie) {
+        if (!sous_categorie || sous_categorie === categorie) return categorie;
+        return `${categorie} - ${sous_categorie}`;
+    }
+
     async function _chargerCategories() {
         try {
             const res  = await fetch('/api/agenda/categories', { headers: _headers() });
@@ -154,10 +159,11 @@ const Agenda = (() => {
                 const label   = date === aujourd ? "Aujourd'hui" : _labelDate(date);
 
                 entrees.forEach((entree, idx) => {
-                    const couleur = CAT_COLORS[entree.categorie] || '#bcaaa4';
-                    const icone   = CAT_ICONS[entree.categorie]  || '📌';
-                    const hDebut  = _formatHeure(entree.heure_debut);
-                    const hFin    = _formatHeure(entree.heure_fin);
+                    const couleur  = CAT_COLORS[entree.categorie] || '#bcaaa4';
+                    const icone    = CAT_ICONS[entree.categorie]  || '📌';
+                    const hDebut   = _formatHeure(entree.heure_debut);
+                    const hFin     = _formatHeure(entree.heure_fin);
+                    const infoLieu = entree.praticien || entree.lieu || null;
 
                     html += `
                         <div onclick="Agenda.ouvrirJour('${date}');document.getElementById('overlay').classList.add('on')" style="
@@ -178,13 +184,14 @@ const Agenda = (() => {
                                             white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                                     ${entree.titre}
                                 </div>
-                                ${entree.sous_categorie
+                                ${entree.sous_categorie && entree.sous_categorie !== entree.categorie
                                     ? `<div style="font-size:11px;color:#888">${entree.sous_categorie}</div>`
                                     : ''}
+                                ${infoLieu
+                                    ? `<div style="font-size:11px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 ${infoLieu}</div>`
+                                    : ''}
                                 ${hDebut
-                                    ? `<div style="font-size:12px;color:#666">
-                                           ⏰ ${hDebut}${hFin ? ' - ' + hFin : ''}
-                                       </div>`
+                                    ? `<div style="font-size:12px;color:#666">⏰ ${hDebut}${hFin ? ' - ' + hFin : ''}</div>`
                                     : ''}
                             </div>
                         </div>`;
@@ -218,7 +225,6 @@ const Agenda = (() => {
             const premierJour = `${_anneeActuelle}-${String(_moisActuel + 1).padStart(2, '0')}-01`;
             const dernierJour = new Date(_anneeActuelle, _moisActuel + 1, 0);
             const dernierStr  = _dateStr(dernierJour);
-
             const res  = await fetch(
                 `/api/agenda?date_debut=${premierJour}&date_fin=${dernierStr}`,
                 { headers: _headers() }
@@ -255,7 +261,7 @@ const Agenda = (() => {
                            && _moisActuel === today.getMonth()
                            && _anneeActuelle === today.getFullYear();
             const entries   = parJour[dateStr] || [];
-            const horsRepos = entries.filter(e => e.categorie !== 'Repos');
+                        const horsRepos = entries.filter(e => e.categorie !== 'Repos');
             const e0        = horsRepos.length > 0 ? horsRepos[0] : entries[0];
             const couleur   = e0 ? (CAT_COLORS[e0.categorie] || '#bcaaa4') : null;
             const icone     = e0 ? (CAT_ICONS[e0.categorie]  || '📌')      : null;
@@ -343,11 +349,11 @@ const Agenda = (() => {
             html += `<p style="color:#9ca3af;text-align:center;padding:20px">Aucun événement ce jour.</p>`;
         } else {
             entries.forEach(e => {
-                const couleur = CAT_COLORS[e.categorie] || '#bcaaa4';
-                const icone   = CAT_ICONS[e.categorie]  || '📌';
-                const hDebut  = _formatHeure(e.heure_debut);
-                const hFin    = _formatHeure(e.heure_fin);
-                const sousCatLabel = e.sous_categorie && e.sous_categorie !== e.categorie
+                const couleur  = CAT_COLORS[e.categorie] || '#bcaaa4';
+                const icone    = CAT_ICONS[e.categorie]  || '📌';
+                const hDebut   = _formatHeure(e.heure_debut);
+                const hFin     = _formatHeure(e.heure_fin);
+                const sousCat  = e.sous_categorie && e.sous_categorie !== e.categorie
                     ? `${e.categorie} - ${e.sous_categorie}`
                     : e.categorie;
 
@@ -357,14 +363,15 @@ const Agenda = (() => {
                         <div style="font-size:16px;font-weight:700;color:#1f2937">
                             ${icone} ${e.titre}
                         </div>
-                        <div style="font-size:12px;color:#666;margin-top:2px">${sousCatLabel}</div>
+                        <div style="font-size:12px;color:#666;margin-top:2px">${sousCat}</div>
                         ${hDebut
                             ? `<div style="font-size:13px;color:#666;margin-top:4px">⏰ ${hDebut}${hFin ? ' - ' + hFin : ''}</div>`
                             : e.date_fin && e.date_fin !== e.date_debut
                                 ? `<div style="font-size:13px;color:#666;margin-top:4px">📅 Du ${e.date_debut} au ${e.date_fin}</div>`
                                 : ''}
-                        ${e.lieu  ? `<div style="font-size:12px;color:#999;margin-top:2px">📍 ${e.lieu}</div>`  : ''}
-                        ${e.notes ? `<div style="font-size:12px;color:#999;margin-top:4px">📝 ${e.notes}</div>` : ''}
+                        ${e.praticien ? `<div style="font-size:12px;color:#999;margin-top:2px">🩺 ${e.praticien}</div>` : ''}
+                        ${e.lieu      ? `<div style="font-size:12px;color:#999;margin-top:2px">📍 ${e.lieu}</div>`      : ''}
+                        ${e.notes     ? `<div style="font-size:12px;color:#999;margin-top:4px">📝 ${e.notes}</div>`     : ''}
                         ${e.rappel_avant > 0
                             ? `<div style="font-size:12px;color:#999;margin-top:2px">🔔 Rappel ${e.rappel_avant >= 60 ? e.rappel_avant / 60 + 'h' : e.rappel_avant + ' min'} avant</div>`
                             : ''}
@@ -431,6 +438,7 @@ const Agenda = (() => {
         const hFinVal    = e.heure_fin      || '';
         const rappelVal  = e.rappel_avant   || 0;
         const lieuVal    = e.lieu           || '';
+        const praticienVal = e.praticien    || '';
         const notesVal   = e.notes          || '';
 
         const afficherEmployeur = ['Travail', 'Mission'].includes(catVal);
@@ -482,8 +490,7 @@ const Agenda = (() => {
 
                 <div id="ag-employeur-wrap" style="margin-bottom:10px;display:${afficherEmployeur ? 'block' : 'none'}">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Employeur</label>
-                    <select id="ag-employeur-select"
-                        onchange="Agenda._onEmployeurChange()"
+                    <select id="ag-employeur-select" onchange="Agenda._onEmployeurChange()"
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;background:#fff;margin-bottom:6px">
                         <option value="">-- Aucun --</option>
                         ${empOptions}
@@ -503,7 +510,7 @@ const Agenda = (() => {
 
                 <div id="ag-medecin-wrap" style="margin-bottom:10px;display:${afficherMedecin ? 'block' : 'none'}">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Praticien</label>
-                    <input type="text" id="ag-medecin" value="${afficherMedecin ? lieuVal : ''}"
+                    <input type="text" id="ag-praticien" value="${praticienVal}"
                         placeholder="Dr. Nom, cabinet..."
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
                 </div>
@@ -514,7 +521,7 @@ const Agenda = (() => {
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
                 </div>
 
-                                <div style="margin-bottom:10px">
+                <div style="margin-bottom:10px">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Date de fin</label>
                     <input type="date" id="ag-date-fin" value="${dateFinVal}"
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
@@ -535,7 +542,7 @@ const Agenda = (() => {
 
                 <div style="margin-bottom:10px">
                     <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Lieu / Adresse</label>
-                    <input type="text" id="ag-lieu" value="${!afficherEmployeur && !afficherMedecin ? lieuVal : ''}"
+                    <input type="text" id="ag-lieu" value="${lieuVal}"
                         placeholder="Adresse, salle, endroit..."
                         style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box">
                 </div>
@@ -574,7 +581,7 @@ const Agenda = (() => {
     }
 
     function _onCatChange() {
-        const cat       = document.getElementById('ag-categorie')?.value;
+        const cat     = document.getElementById('ag-categorie')?.value;
         const sousCatEl = document.getElementById('ag-sous-cat');
         const empWrap   = document.getElementById('ag-employeur-wrap');
         const medWrap   = document.getElementById('ag-medecin-wrap');
@@ -584,14 +591,13 @@ const Agenda = (() => {
             sousCatEl.innerHTML = `<option value="">-- Aucune --</option>` +
                 triees.map(s => `<option value="${s}">${s}</option>`).join('');
         }
-
         if (empWrap) empWrap.style.display = ['Travail', 'Mission'].includes(cat) ? 'block' : 'none';
         if (medWrap) medWrap.style.display = cat === 'Médical' ? 'block' : 'none';
     }
 
     function _onEmployeurChange() {
-        const sel     = document.getElementById('ag-employeur-select');
-        const wrap    = document.getElementById('ag-employeur-nouveau-wrap');
+        const sel  = document.getElementById('ag-employeur-select');
+        const wrap = document.getElementById('ag-employeur-nouveau-wrap');
         if (wrap) wrap.style.display = sel?.value === '__nouveau__' ? 'block' : 'none';
     }
 
@@ -607,23 +613,18 @@ const Agenda = (() => {
         const date_fin       = document.getElementById('ag-date-fin')?.value    || null;
         const heure_debut    = document.getElementById('ag-heure-debut')?.value || null;
         const heure_fin      = document.getElementById('ag-heure-fin')?.value   || null;
-        const notes          = document.getElementById('ag-notes')?.value?.trim() || null;
-        const rappel_avant   = parseInt(document.getElementById('ag-rappel')?.value) || 0;
+        const notes          = document.getElementById('ag-notes')?.value?.trim()     || null;
+        const rappel_avant   = parseInt(document.getElementById('ag-rappel')?.value)  || 0;
+        const praticien      = document.getElementById('ag-praticien')?.value?.trim() || null;
+        const lieu           = document.getElementById('ag-lieu')?.value?.trim()      || null;
 
         const empSelect  = document.getElementById('ag-employeur-select');
         const empNouveau = document.getElementById('ag-employeur-nouveau');
-        const medecin    = document.getElementById('ag-medecin');
-        const lieuInput  = document.getElementById('ag-lieu');
-
-        let lieu = null;
+        let employeurNom = null;
         if (['Travail', 'Mission'].includes(categorie)) {
-            lieu = empSelect?.value === '__nouveau__'
+            employeurNom = empSelect?.value === '__nouveau__'
                 ? empNouveau?.value?.trim() || null
                 : empSelect?.value || null;
-        } else if (categorie === 'Médical') {
-            lieu = medecin?.value?.trim() || null;
-        } else {
-            lieu = lieuInput?.value?.trim() || null;
         }
 
         if (!titre) {
@@ -637,7 +638,9 @@ const Agenda = (() => {
             titre, categorie, sous_categorie,
             date_debut, date_fin,
             heure_debut, heure_fin,
-            lieu, notes, rappel_avant
+            lieu : ['Travail', 'Mission'].includes(categorie) ? employeurNom : lieu,
+            praticien : categorie === 'Médical' ? praticien : null,
+            notes, rappel_avant
         };
 
         try {
@@ -664,7 +667,7 @@ const Agenda = (() => {
 
             if (['Travail', 'Mission'].includes(categorie) && empSelect?.value === '__nouveau__') {
                 const nomEmp = empNouveau?.value?.trim();
-                const adr    = document.getElementById('ag-employeur-adresse')?.value?.trim() || null;
+                const adr    = document.getElementById('ag-employeur-adresse')?.value?.trim()   || null;
                 const tel    = document.getElementById('ag-employeur-telephone')?.value?.trim() || null;
                 if (nomEmp) {
                     fetch('/api/agenda/employeurs', {

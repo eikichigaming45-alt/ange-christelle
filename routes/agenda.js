@@ -33,13 +33,11 @@ router.get('/categories', async (req, res) => {
             `SELECT niveau, nom FROM agenda_categories WHERE user_id = \$1 ORDER BY nom ASC`,
             [req.user.id]
         );
-
         const sousPerso = {};
         rows.forEach(r => {
             if (!sousPerso[r.niveau]) sousPerso[r.niveau] = [];
             sousPerso[r.niveau].push(r.nom);
         });
-
         const sousFinal = {};
         Object.keys(SOUS_CATEGORIES).forEach(cat => {
             const base      = SOUS_CATEGORIES[cat];
@@ -50,7 +48,6 @@ router.get('/categories', async (req, res) => {
             );
             sousFinal[cat] = tout.includes('Autre') ? [...sansAutre, 'Autre'] : sansAutre;
         });
-
         res.json({ success: true, categories: CATEGORIES, sous_categories: sousFinal });
     } catch (err) {
         console.error('[AGENDA] GET /categories :', err.message);
@@ -143,7 +140,7 @@ router.get('/widget', async (req, res) => {
                 TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin,
                 TO_CHAR(heure_debut, 'HH24:MI')   AS heure_debut,
                 TO_CHAR(heure_fin,   'HH24:MI')   AS heure_fin,
-                lieu, notes, rappel_avant
+                lieu, praticien, notes, rappel_avant
              FROM agenda
              WHERE user_id = \$1
                AND date_debut >= \$2
@@ -190,7 +187,7 @@ router.get('/', async (req, res) => {
                 TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin,
                 TO_CHAR(heure_debut, 'HH24:MI')   AS heure_debut,
                 TO_CHAR(heure_fin,   'HH24:MI')   AS heure_fin,
-                lieu, notes, rappel_avant, created_at
+                lieu, praticien, notes, rappel_avant, created_at
              FROM agenda
              WHERE user_id = \$1
                AND (
@@ -218,7 +215,7 @@ router.get('/:id', async (req, res) => {
                 TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin,
                 TO_CHAR(heure_debut, 'HH24:MI')   AS heure_debut,
                 TO_CHAR(heure_fin,   'HH24:MI')   AS heure_fin,
-                lieu, notes, rappel_avant, created_at
+                lieu, praticien, notes, rappel_avant, created_at
              FROM agenda
              WHERE id = \$1 AND user_id = \$2`,
             [req.params.id, req.user.id]
@@ -239,7 +236,7 @@ router.post('/', async (req, res) => {
         titre, categorie, sous_categorie,
         date_debut, date_fin,
         heure_debut, heure_fin,
-        lieu, notes, rappel_avant
+        lieu, praticien, notes, rappel_avant
     } = req.body;
 
     if (!titre?.trim()) {
@@ -257,8 +254,8 @@ router.post('/', async (req, res) => {
             `INSERT INTO agenda
                 (user_id, titre, categorie, sous_categorie,
                  date_debut, date_fin, heure_debut, heure_fin,
-                 lieu, notes, rappel_avant)
-             VALUES (\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10,\$11)
+                 lieu, praticien, notes, rappel_avant)
+             VALUES (\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10,\$11,\$12)
              RETURNING *,
                 TO_CHAR(date_debut, 'YYYY-MM-DD') AS date_debut,
                 TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin,
@@ -274,6 +271,7 @@ router.post('/', async (req, res) => {
                 heure_debut    || null,
                 heure_fin      || null,
                 lieu           || null,
+                praticien      || null,
                 notes          || null,
                 rappel_avant   || 0
             ]
@@ -291,7 +289,7 @@ router.put('/:id', async (req, res) => {
         titre, categorie, sous_categorie,
         date_debut, date_fin,
         heure_debut, heure_fin,
-        lieu, notes, rappel_avant
+        lieu, praticien, notes, rappel_avant
     } = req.body;
 
     if (!titre?.trim()) {
@@ -315,9 +313,10 @@ router.put('/:id', async (req, res) => {
                 heure_debut    = \$6,
                 heure_fin      = \$7,
                 lieu           = \$8,
-                notes          = \$9,
-                rappel_avant   = \$10
-             WHERE id = \$11 AND user_id = \$12
+                praticien      = \$9,
+                notes          = \$10,
+                rappel_avant   = \$11
+             WHERE id = \$12 AND user_id = \$13
              RETURNING *,
                 TO_CHAR(date_debut, 'YYYY-MM-DD') AS date_debut,
                 TO_CHAR(date_fin,   'YYYY-MM-DD') AS date_fin,
@@ -332,6 +331,7 @@ router.put('/:id', async (req, res) => {
                 heure_debut    || null,
                 heure_fin      || null,
                 lieu           || null,
+                praticien      || null,
                 notes          || null,
                 rappel_avant   || 0,
                 req.params.id,
