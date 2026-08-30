@@ -393,6 +393,13 @@ const Cycle = (() => {
     }
 
     function renderCalendrier(calc) {
+        // Guard : _moisAffiche peut être null si init() n'a pas encore tourné
+        if (!_moisAffiche) {
+            const n = _aujourdHuiLocal();
+            _moisAffiche = new Date(n.getFullYear(), n.getMonth(), 1);
+            _moisAffiche.setHours(0, 0, 0, 0);
+        }
+
         const aujourd_hui = _aujourdHuiLocal();
         const moisRef     = new Date(_moisAffiche.getFullYear(), _moisAffiche.getMonth(), 1);
         const moisNom     = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -534,7 +541,7 @@ const Cycle = (() => {
             const typeLabel = r.humeur === 'non_protege' ? '🔓 Non protégé' :
                               r.humeur === 'protege'     ? '🔒 Protégé'     : r.humeur || '';
                     listeRapports += `
-                <div style="display:flex;align-items:center;justify-content:space-between;
+                                <div style="display:flex;align-items:center;justify-content:space-between;
                             background:#fdf4ff;border-radius:8px;padding:8px 10px;margin-bottom:6px">
                     <span style="font-size:13px">♥ ${typeLabel}
                         ${r.notes ? `<span style="color:#888;font-size:11px"> — ${r.notes}</span>` : ''}
@@ -1052,15 +1059,14 @@ const Cycle = (() => {
                     </div>
                 </div>
             </div>
-
-                        <div style="margin-bottom:14px">
+            <div style="margin-bottom:14px">
                 <div style="font-size:11px;color:#9ca3af;margin-bottom:6px;font-weight:500">
                     Progression du cycle (${calc.dureeCycle} jours)
                 </div>
                 <div style="background:#f3f4f6;border-radius:999px;height:8px;overflow:hidden">
                     <div style="height:100%;border-radius:999px;width:${progression}%;
                                 background:${calc.enRetard
-                                    ? 'linear-gradient(90deg,#f59e0b,#fbbf24)'
+                                                                        ? 'linear-gradient(90deg,#f59e0b,#fbbf24)'
                                     : 'linear-gradient(90deg,#e91e8c,#7c3aed)'}">
                     </div>
                 </div>
