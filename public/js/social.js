@@ -362,7 +362,6 @@ async function _renderBlocAgenda(ownerId, token) {
             </div>`;
     }
 
-        // Grouper par date_debut — Repos exclus
     const evtsFiltres = d.data.filter(e =>
         e.categorie !== 'Repos' && e.sous_categorie !== 'Repos' && e.titre !== 'Repos'
     );
@@ -384,24 +383,25 @@ async function _renderBlocAgenda(ownerId, token) {
     const blocsDate = Object.entries(parDate).map(([date, evts]) => {
         const label = _labelDate(date);
         const items = evts.map(e => {
-            const couleur = _CAT_COLORS[e.categorie] || '#bcaaa4';
-            const icone   = _CAT_ICONS[e.categorie]  || '📌';
-            const hDebut  = e.heure_debut ? e.heure_debut.slice(0, 5) : null;
-            const hFin    = e.heure_fin   ? e.heure_fin.slice(0, 5)   : null;
+            const couleur    = _CAT_COLORS[e.categorie] || '#bcaaa4';
+            const icone      = _CAT_ICONS[e.categorie]  || '📌';
+            const hDebut     = e.heure_debut ? e.heure_debut.slice(0, 5) : null;
+            const hFin       = e.heure_fin   ? e.heure_fin.slice(0, 5)   : null;
+            const sousCat    = e.sous_categorie && e.sous_categorie !== e.categorie
+                ? `${e.categorie} - ${e.sous_categorie}`
+                : e.categorie;
+            const infoLieu   = e.praticien || e.lieu || null;
+
             return `
                 <div style="padding:8px 10px;background:${couleur}22;border-left:3px solid ${couleur};
                             border-radius:8px;margin-bottom:4px;font-size:13px">
                     <div style="font-weight:600;color:#1f2937">${icone} ${e.titre}</div>
-                    <div style="color:#6b7280;font-size:12px">
-                        ${e.sous_categorie ? `${e.categorie} — ${e.sous_categorie}` : e.categorie}
-                    </div>
+                    <div style="color:#6b7280;font-size:12px">${sousCat}</div>
                     ${hDebut
-                        ? `<div style="color:#6b7280;font-size:12px">
-                               ⏰ ${hDebut}${hFin ? ' → ' + hFin : ''}
-                           </div>`
+                        ? `<div style="color:#6b7280;font-size:12px">⏰ ${hDebut}${hFin ? ' - ' + hFin : ''}</div>`
                         : ''}
-                    ${e.lieu
-                        ? `<div style="color:#9ca3af;font-size:11px">📍 ${e.lieu}</div>`
+                    ${infoLieu
+                        ? `<div style="color:#9ca3af;font-size:11px">📍 ${infoLieu}</div>`
                         : ''}
                 </div>`;
         }).join('');
