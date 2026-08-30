@@ -8,6 +8,7 @@
 // Mood inline dans le widget, sans modal.
 // Sauvegarde manuelle, bouton explicite, pas de timer.
 // Retard détecté si joursAvantRegles < 0 — gel ovulation/fenêtre.
+// Durée règles formulaire calculée depuis historique.
 // ============================================================
 
 const Cycle = (() => {
@@ -76,8 +77,9 @@ const Cycle = (() => {
         },
         {
             label: '🌙 Lutéale fin - SPM',
-            items: ['Irritabilité','Hypersensibilité','Bonne humeur','Je me sens bien','Stress facile',"Baisse d'énergie",
-                    "Besoin d'isolement",'Moins de patience','Pensées négatives','Sensation de surcharge']
+            items: ['Irritabilité','Hypersensibilité','Bonne humeur','Je me sens bien','Stress facile',
+                    "Baisse d'énergie","Besoin d'isolement",'Moins de patience',
+                    'Pensées négatives','Sensation de surcharge']
         }
     ];
 
@@ -85,6 +87,14 @@ const Cycle = (() => {
     function _aujourdHuiLocal() {
         const n = new Date();
         return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
+    }
+
+    // Durée moyenne des règles calculée depuis l'historique
+    function calculerDureeReglesMoyenne(cycles) {
+        if (!cycles.length) return 5;
+        const durees = cycles.map(c => c.duree_regles).filter(d => d > 0);
+        if (!durees.length) return 5;
+        return Math.round(durees.reduce((a, b) => a + b, 0) / durees.length);
     }
 
     function calculerBornesPhases(dureeRegles, dureeCycle) {
@@ -177,10 +187,11 @@ const Cycle = (() => {
     function calculerToutesPeriodes(cycles, dureeMoyenne) {
         const periodes      = [];
         const dureeCycleRef = dureeMoyenne || (cycles[0]?.duree_cycle) || 28;
+        const dureeReglesRef = calculerDureeReglesMoyenne(cycles);
 
         cycles.forEach(c => {
-            const debut       = parseDateLocale(c.date_debut.split('T')[0]);
-            const dureeRegles = c.duree_regles || 3;
+            const debut      = parseDateLocale(c.date_debut.split('T')[0]);
+            const dureeRegles = c.duree_regles || dureeReglesRef;
             const dureeCycle  = dureeMoyenne || c.duree_cycle || 28;
             periodes.push({
                 debutRegles  : debut,
@@ -195,8 +206,7 @@ const Cycle = (() => {
         });
 
         if (cycles.length > 0) {
-            const dernierDebut   = parseDateLocale(cycles[0].date_debut.split('T')[0]);
-            const dureeReglesRef = cycles[0].duree_regles || 3;
+            const dernierDebut = parseDateLocale(cycles[0].date_debut.split('T')[0]);
             for (let i = 1; i <= 3; i++) {
                 const debut = addDays(dernierDebut, dureeCycleRef * i);
                 periodes.push({
@@ -216,6 +226,7 @@ const Cycle = (() => {
     }
 
     let _calcCourant      = null;
+    let _cyclesCourants   = [];
     let _moisAffiche      = null;
     let _journalCache     = {};
     let _toutesLesP       = [];
@@ -256,9 +267,9 @@ const Cycle = (() => {
         const jourCycle    = Math.round((aujourd_hui - calc.debut) / (1000 * 60 * 60 * 24)) + 1;
         const debutLuteale = calc.dureeCycle - 14;
         const debutSPM     = calc.dureeCycle - 7;
-        if (jourCycle >= debutSPM)        return { label: 'Lutéale fin - SPM',   emoji: '🌙', color: '#8b5cf6' };
-        if (jourCycle >= debutLuteale)    return { label: 'Phase lutéale',        emoji: '🌙', color: '#a78bfa' };
-        if (jourCycle > calc.dureeRegles) return { label: 'Phase folliculaire',   emoji: '🌱', color: '#10b981' };
+        if (jourCycle >= debutSPM)        return { label: 'Lutéale fin - SPM',  emoji: '🌙', color: '#8b5cf6' };
+        if (jourCycle >= debutLuteale)    return { label: 'Phase lutéale',       emoji: '🌙', color: '#a78bfa' };
+        if (jourCycle > calc.dureeRegles) return { label: 'Phase folliculaire',  emoji: '🌱', color: '#10b981' };
         return { label: 'Phase de repos', emoji: '🔵', color: '#3498db' };
     }
 
@@ -309,7 +320,6 @@ const Cycle = (() => {
             cases += `<div class="cal-day cal-empty"></div>`;
         }
 
-        // Période projetée la plus proche (première non saisie)
         const periodeProchaine = _toutesLesP.find(p => !p.estSaisie);
 
         for (let j = 1; j <= nbJours; j++) {
@@ -332,7 +342,6 @@ const Cycle = (() => {
                 if (memeJour(date, p.ovulation)) estOvul = true;
             }
 
-            // Jours de retard : jours prévus non saisis déjà passés ou aujourd'hui
             if (calc?.enRetard && periodeProchaine &&
                 date >= periodeProchaine.debutRegles &&
                 date <= periodeProchaine.finRegles &&
@@ -358,8 +367,6 @@ const Cycle = (() => {
             else if (estFertile)     cls += ' cal-fertile';
 
             if (estAujourdhui) cls += ' cal-today';
-
-            // Ovulation masquée si retard en cours
             if (estOvul && !calc?.enRetard) badge = '<span class="cal-ovulation-star">★</span>';
 
             if (aRapport) {
@@ -467,7 +474,7 @@ const Cycle = (() => {
                     ? '♥ Non protégé'
                     : null;
 
-            contenu += `
+                        contenu += `
                 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                         <span style="font-size:11px;color:#9ca3af">
@@ -514,7 +521,7 @@ const Cycle = (() => {
         document.getElementById('overlay').classList.add('on');
     }
 
-        async function _ouvrirFormulaireJournal(dateStr, rapportId) {
+    async function _ouvrirFormulaireJournal(dateStr, rapportId) {
         const rapports        = _journalCache[dateStr] || [];
         const journal         = rapportId ? rapports.find(r => r.id === rapportId) || {} : {};
         const isEdit          = !!rapportId;
@@ -820,7 +827,7 @@ const Cycle = (() => {
         return `<div id="cycle-mood-zone"></div>`;
     }
 
-    // ── Bandeau retard — message bienveillant selon nb jours ──
+    // ── Message bienveillant selon nb jours de retard ─────────
     function _messageBienveillantRetard(joursRetard) {
         if (joursRetard <= 3) {
             return `Le stress, la fatigue ou un changement de routine peuvent décaler tes règles de quelques jours. C'est tout à fait normal.`;
@@ -837,6 +844,7 @@ const Cycle = (() => {
         return '🩺';
     }
 
+    // ── Bandeau retard ────────────────────────────────────────
     function renderBandeauRetard(calc) {
         const today = formatDateInput(_aujourdHuiLocal());
         return `
@@ -851,7 +859,7 @@ const Cycle = (() => {
                 </div>
                 <div class="cycle-bandeau-retard-actions">
                     <button class="btn-retard-primaire"
-                        onclick="Cycle.ouvrirModalAjout()">
+                        onclick="Cycle.ouvrirModalAjout(null, true)">
                         🩸 Mes règles ont démarré
                     </button>
                     <button class="btn-retard-secondaire"
@@ -863,7 +871,7 @@ const Cycle = (() => {
             </div>`;
     }
 
-    // ── Signaler retard — note journal + message bienveillant ─
+    // ── Signaler retard ───────────────────────────────────────
     async function _signalerRetard(dateStr, joursRetard) {
         try {
             await fetch('/api/cycle/journal', {
@@ -899,9 +907,10 @@ const Cycle = (() => {
     }
 
     function renderWidget(cycles, dureeMoyenne) {
-        const dernierCycle = cycles.length > 0 ? cycles[0] : null;
-        const calc         = calculerCycle(dernierCycle, dureeMoyenne);
-        const phase        = getPhase(calc);
+        const dernierCycle      = cycles.length > 0 ? cycles[0] : null;
+        const calc              = calculerCycle(dernierCycle, dureeMoyenne);
+        const phase             = getPhase(calc);
+        const dureeReglesMoy    = calculerDureeReglesMoyenne(cycles);
 
         let labelOvulation, valeurOvulation, labelFenetre, valeurFenetre;
         let infosGrisees = false;
@@ -929,6 +938,28 @@ const Cycle = (() => {
             labelFenetre    = 'Fenetre fertile';
             valeurFenetre   = `${formatDate(calc.debutFertile)} - ${formatDate(calc.finFertile)}`;
         }
+
+        // Boutons bas widget — supprimés si retard actif
+        const boutonsWidget = calc?.enRetard ? '' : `
+            <div class="cycle-actions">
+                <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
+                    + Enregistrer mes règles
+                </button>
+                ${cycles.length > 0
+                    ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">
+                           Historique (${cycles.length})
+                       </button>`
+                    : ''}
+            </div>`;
+
+        // Bouton historique seul si retard
+        const boutonHistoriqueRetard = calc?.enRetard && cycles.length > 0 ? `
+            <div style="margin-top:8px">
+                <button class="btn-cycle-secondary" style="width:100%"
+                    onclick="Cycle.ouvrirHistorique()">
+                    Historique (${cycles.length})
+                </button>
+            </div>` : '';
 
         return `
             <div class="widget-cycle">
@@ -977,7 +1008,7 @@ const Cycle = (() => {
                         </div>
                     </div>
                 </div>
-                <div class="cycle-progress-wrap">
+                                <div class="cycle-progress-wrap">
                     <div class="cycle-progress-label">Progression du cycle (${calc.dureeCycle} jours)</div>
                     <div class="cycle-progress-bar">
                         <div class="cycle-progress-fill" style="width:${Math.min(100, Math.max(0,
@@ -986,16 +1017,8 @@ const Cycle = (() => {
                         </div>
                     </div>
                 </div>` : ''}
-                <div class="cycle-actions">
-                    <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
-                        + Enregistrer mes règles
-                    </button>
-                    ${cycles.length > 0
-                        ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">
-                               Historique (${cycles.length})
-                           </button>`
-                        : ''}
-                </div>
+                ${boutonsWidget}
+                ${boutonHistoriqueRetard}
                 ${renderBlocMood()}
             </div>`;
     }
@@ -1014,8 +1037,9 @@ const Cycle = (() => {
             const dernierCycle = cycles.length > 0 ? cycles[0] : null;
             const calc         = calculerCycle(dernierCycle, dureeMoyenne);
 
-            _calcCourant = calc;
-            _toutesLesP  = calculerToutesPeriodes(cycles, dureeMoyenne);
+            _calcCourant  = calc;
+            _cyclesCourants = cycles;
+            _toutesLesP   = calculerToutesPeriodes(cycles, dureeMoyenne);
             container.innerHTML = renderWidget(cycles, dureeMoyenne);
 
             if (calc) await _afficherMoodInline(calc);
@@ -1034,10 +1058,11 @@ const Cycle = (() => {
             const calc         = calculerCycle(dernierCycle, dureeMoyenne);
             const phase        = getPhase(calc);
 
-            _calcCourant = calc;
-            const auj    = _aujourdHuiLocal();
-            _moisAffiche = new Date(auj.getFullYear(), auj.getMonth(), 1);
-            _toutesLesP  = calculerToutesPeriodes(cycles, dureeMoyenne);
+            _calcCourant    = calc;
+            _cyclesCourants = cycles;
+            const auj        = _aujourdHuiLocal();
+            _moisAffiche     = new Date(auj.getFullYear(), auj.getMonth(), 1);
+            _toutesLesP      = calculerToutesPeriodes(cycles, dureeMoyenne);
 
             await chargerJournal(_moisAffiche.getMonth() + 1, _moisAffiche.getFullYear());
 
@@ -1058,7 +1083,7 @@ const Cycle = (() => {
                         </div>
                     </div>` : '<p style="color:#9ca3af;margin-bottom:16px">Aucun cycle enregistré.</p>';
 
-                        document.getElementById('modal-title').textContent = 'Suivi du cycle';
+            document.getElementById('modal-title').textContent = 'Suivi du cycle';
             document.getElementById('modal-body').innerHTML = `
                 <div class="modal-cycle-main">
                     ${bandeauTop}
@@ -1069,9 +1094,11 @@ const Cycle = (() => {
                         : ''}
                     <div id="cal-container">${renderCalendrier(calc)}</div>
                     <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
-                        <button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
-                            + Enregistrer mes règles
-                        </button>
+                        ${!calc?.enRetard
+                            ? `<button class="btn-cycle-primary" onclick="Cycle.ouvrirModalAjout()">
+                                   + Enregistrer mes règles
+                               </button>`
+                            : ''}
                         ${cycles.length > 0
                             ? `<button class="btn-cycle-secondary" onclick="Cycle.ouvrirHistorique()">
                                    Historique (${cycles.length})
@@ -1090,12 +1117,19 @@ const Cycle = (() => {
         }
     }
 
-    function ouvrirModalAjout(cycleExistant = null) {
-        const isEdit = !!cycleExistant;
-        const today  = formatDateInput(_aujourdHuiLocal());
-        document.getElementById('modal-title').textContent = isEdit
-            ? 'Modifier le cycle'
-            : 'Enregistrer mes règles';
+    // ouvrirModalAjout — prefillAujourdhui=true depuis bandeau retard
+    // date pré-remplie aujourd'hui + readonly + durée calculée depuis historique
+    function ouvrirModalAjout(cycleExistant = null, prefillAujourdhui = false) {
+        const isEdit          = !!cycleExistant;
+        const today           = formatDateInput(_aujourdHuiLocal());
+        const dureeReglesMoy  = calculerDureeReglesMoyenne(_cyclesCourants);
+
+        document.getElementById('modal-title').textContent = prefillAujourdhui
+            ? 'Mes règles ont démarré aujourd\'hui'
+            : isEdit
+                ? 'Modifier le cycle'
+                : 'Enregistrer mes règles';
+
         document.getElementById('modal-body').innerHTML = `
             <div class="modal-cycle-form">
                 <label>Date de début des règles *</label>
@@ -1103,13 +1137,14 @@ const Cycle = (() => {
                     value="${isEdit
                         ? formatDateInput(parseDateLocale(cycleExistant.date_debut.split('T')[0]))
                         : today}"
-                    max="${today}" />
+                    max="${today}"
+                    ${prefillAujourdhui ? 'readonly style="background:#f3f4f6;color:#9ca3af;cursor:not-allowed"' : ''} />
                 <label>Durée des règles (jours)</label>
                 <input type="number" id="cycle-duree-regles" min="1" max="10"
-                    value="${isEdit ? cycleExistant.duree_regles : 3}" />
+                    value="${isEdit ? cycleExistant.duree_regles : dureeReglesMoy}" />
                 <label>Durée du cycle (jours) - sera recalculée automatiquement après 2 cycles</label>
                 <input type="number" id="cycle-duree-cycle" min="21" max="45"
-                    value="${isEdit ? cycleExistant.duree_cycle : 28}" />
+                    value="${isEdit ? cycleExistant.duree_cycle : (calculerDureeMoyenne(_cyclesCourants) || 28)}" />
                 <label>Notes (optionnel)</label>
                 <textarea id="cycle-notes" rows="3"
                     placeholder="Douleurs, humeur, symptômes...">${isEdit ? (cycleExistant.notes || '') : ''}</textarea>
