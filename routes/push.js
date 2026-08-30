@@ -12,7 +12,7 @@ const { pool } = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
 // ── envoyerPush : multi-device, purge 410/404 ────────────────
-async function envoyerPush(userId, titre, corps, tag = 'moadja') {
+async function envoyerPush(userId, titre, corps, tag = 'moadja', url = '/') {
     try {
         const { rows } = await pool.query(
             `SELECT id, subscription FROM push_subscriptions WHERE user_id = \$1`,
@@ -24,7 +24,7 @@ async function envoyerPush(userId, titre, corps, tag = 'moadja') {
             try {
                 const subscription = JSON.parse(row.subscription);
                 await webpush.sendNotification(subscription, JSON.stringify({
-                    titre, corps, tag, url: '/'
+                    titre, corps, tag, url
                 }));
                 console.log(`[PUSH] Envoyé user ${userId} — ${tag}`);
             } catch (e) {
@@ -118,11 +118,16 @@ router.post('/check', authenticateToken, async (req, res) => {
             const notifTs      = tacheTs - rappel * 60 * 1000;
             if (Math.abs(clientTs - notifTs) > 60000) continue;
             const label = rappel >= 60 ? `${rappel / 60}h` : `${rappel}min`;
-            await envoyerPush(user_id, '✅ Rappel de tâche', `${t.titre} — dans ${label}`, `tache-${t.id}`);
+            await envoyerPush(
+                user_id,
+                '✅ Rappel de tâche',
+                `${t.titre} — dans ${label}`,
+                `tache-${t.id}`,
+                '/?onglet=quotidien'
+            );
         }
 
-        // ── Agenda (remplace rendezvous + planning) ───────────
-        // Récupère toutes les entrées agenda du jour avec rappel
+        // ── Agenda ────────────────────────────────────────────
         const { rows: entrees } = await pool.query(`
             SELECT id, titre, categorie, sous_categorie,
                    date_debut, heure_debut, rappel_avant
@@ -155,7 +160,8 @@ router.post('/check', authenticateToken, async (req, res) => {
                 user_id,
                 `${icone} ${e.categorie}${sousCat}`,
                 `${e.titre} — ${label} (${heure})`,
-                `agenda-${e.id}`
+                `agenda-${e.id}`,
+                '/?onglet=quotidien'
             );
         }
 
@@ -173,10 +179,22 @@ router.post('/check', authenticateToken, async (req, res) => {
                 const nom = `${a.prenom}${a.nom ? ' ' + a.nom : ''}`;
                 if (a.jour === cd && a.mois === cm) {
                     const age = a.annee ? ` — ${annee - a.annee} ans` : '';
-                    await envoyerPush(user_id, "🎂 Anniversaire aujourd'hui !", `${nom}${age}`, `anniv-${a.id}`);
+                    await envoyerPush(
+                        user_id,
+                        "🎂 Anniversaire aujourd'hui !",
+                        `${nom}${age}`,
+                        `anniv-${a.id}`,
+                        '/?onglet=quotidien'
+                    );
                 } else if (a.jour === demain.getUTCDate() && a.mois === demain.getUTCMonth() + 1) {
                     const ageDemain = a.annee ? ` — ${annee - a.annee} ans demain` : '';
-                    await envoyerPush(user_id, '🎂 Anniversaire demain !', `${nom}${ageDemain}`, `anniv-veille-${a.id}`);
+                    await envoyerPush(
+                        user_id,
+                        '🎂 Anniversaire demain !',
+                        `${nom}${ageDemain}`,
+                        `anniv-veille-${a.id}`,
+                        '/?onglet=quotidien'
+                    );
                 }
             }
         }

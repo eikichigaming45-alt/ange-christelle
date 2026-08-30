@@ -193,7 +193,6 @@ async function _renderBlocCycle(ownerId, token) {
     if (ci) {
         const lignes = [];
 
-        // Bandeau retard si applicable
         if (ci.enRetard) {
             lignes.push(`
                 <div style="background:#fff7ed;border:1.5px solid #f59e0b;border-radius:10px;
@@ -209,7 +208,6 @@ async function _renderBlocCycle(ownerId, token) {
                 </div>`);
         }
 
-        // Phase + jour cycle — masqué si retard
         if (!ci.enRetard) {
             lignes.push(`
                 <div style="display:flex;align-items:center;justify-content:space-between;
@@ -219,7 +217,6 @@ async function _renderBlocCycle(ownerId, token) {
                 </div>`);
         }
 
-        // Fin des règles si en cours
         if (ci.enRegles && ci.finRegles) {
             lignes.push(`
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;
@@ -229,7 +226,6 @@ async function _renderBlocCycle(ownerId, token) {
                 </div>`);
         }
 
-        // Ovulation + fenêtre — masquées si retard
         if (!ci.enRetard && ci.labelOvulation) {
             lignes.push(`
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;
@@ -246,7 +242,6 @@ async function _renderBlocCycle(ownerId, token) {
                 </div>`);
         }
 
-        // Prochaines règles — masquées si retard
         if (!ci.enRetard) {
             lignes.push(`
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0">
@@ -260,7 +255,6 @@ async function _renderBlocCycle(ownerId, token) {
                 </div>`);
         }
 
-        // Badges fenêtre fertile / ovulation — masqués si retard
         if (!ci.enRetard) {
             if (ci.enFenetre) {
                 lignes.push(`
@@ -613,7 +607,7 @@ function _htmlBlocViewer(v, typesDisponibles) {
                ${(v.prenom?.[0] || v.username[0]).toUpperCase()}
            </div>`;
 
-    const lignes = typesDisponibles.map(l => {
+        const lignes = typesDisponibles.map(l => {
         const partage = v.partages.find(p => p.resource_type === l.type);
         const existe  = !!partage;
         const actif   = partage?.active ?? false;
@@ -1161,6 +1155,7 @@ function _renderNotifs() {
     liste.querySelectorAll('[data-notif-id]').forEach(el => {
         el.addEventListener('click', async () => {
             const id        = el.dataset.notifId;
+            const type      = el.dataset.notifType;
             const { token } = _socialAuth();
             try {
                 await fetch(`/api/social/notifications/${id}/vu`, {
@@ -1172,6 +1167,27 @@ function _renderNotifs() {
                 _renderNotifs();
                 chargerBadgeNotifs();
             } catch { /* silencieux */ }
+
+            // ── Redirection selon type ────────────────────────
+            _fermerTousPanneaux();
+            switch (type) {
+                case 'coucou':
+                    switchTab('bienetre');
+                    break;
+                case 'share_request':
+                    switchTab('profil');
+                    break;
+                case 'like':
+                case 'comment':
+                case 'mention_post':
+                case 'mention_comment':
+                    switchTab('accueil');
+                    if (typeof chargerFeed === 'function') chargerFeed();
+                    break;
+                case 'follow':
+                default:
+                    break;
+            }
         });
     });
 }
@@ -1194,8 +1210,10 @@ function _htmlNotif(n) {
                ${(prenom?.[0] || '?').toUpperCase()}
            </div>`;
 
-        return `
-        <div data-notif-id="${n.id}" style="
+    return `
+        <div data-notif-id="${n.id}"
+             data-notif-type="${n.type}"
+             style="
             display:flex;align-items:center;gap:12px;
             padding:10px 16px;cursor:pointer;
             background:${nonLu ? '#f5f3ff' : '#fff'};
@@ -1205,7 +1223,7 @@ function _htmlNotif(n) {
            onmouseout="this.style.background='${nonLu ? '#f5f3ff' : '#fff'}'">
             <div style="position:relative;flex-shrink:0">
                 ${avatar}
-                <div style="position:absolute;bottom:-2px;right:-2px;
+                                <div style="position:absolute;bottom:-2px;right:-2px;
                             width:20px;height:20px;border-radius:50%;
                             background:#fff;border:2px solid #fff;
                             display:flex;align-items:center;justify-content:center;

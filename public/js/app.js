@@ -170,7 +170,13 @@ async function showApp() {
     afficherDate();
     afficherVersion();
 
-    const saved = localStorage.getItem('moadja_onglet') || 'accueil';
+    // ── Lecture onglet depuis URL (push natif) ────────────────
+    const params       = new URLSearchParams(window.location.search);
+    const ongletPush   = params.get('onglet');
+    const saved        = ongletPush || localStorage.getItem('moadja_onglet') || 'accueil';
+    if (ongletPush) {
+        history.replaceState(null, '', '/');
+    }
 
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     const paneImmediat = document.getElementById(`tab-${saved}`);
