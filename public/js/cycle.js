@@ -84,17 +84,16 @@ const Cycle = (() => {
         }
     ];
 
-    // Minuit heure locale — jamais influencé par UTC ou le fuseau serveur
     function _aujourdHuiLocal() {
         const n = new Date();
         return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
     }
 
-    // Durée moyenne des règles calculée depuis l'historique
+    // FIX 2 : fallback 3 au lieu de 5
     function calculerDureeReglesMoyenne(cycles) {
-        if (!cycles.length) return 5;
+        if (!cycles.length) return 3;
         const durees = cycles.map(c => c.duree_regles).filter(d => d > 0);
-        if (!durees.length) return 5;
+        if (!durees.length) return 3;
         return Math.round(durees.reduce((a, b) => a + b, 0) / durees.length);
     }
 
@@ -184,7 +183,6 @@ const Cycle = (() => {
         return Math.round(durees.reduce((a, b) => a + b, 0) / durees.length);
     }
 
-    // Périodes réelles (estSaisie:true) + projetées (estSaisie:false)
     function calculerToutesPeriodes(cycles, dureeMoyenne) {
         const periodes       = [];
         const dureeCycleRef  = dureeMoyenne || (cycles[0]?.duree_cycle) || 28;
@@ -306,8 +304,6 @@ const Cycle = (() => {
         } catch { _journalCache = {}; }
     }
 
-    // ── Message bienveillant permanent selon jours de retard ──
-    // Vérifie _journalCache pour les rapports non protégés depuis calc.debut
     function _infoBienveillantRetard(joursRetard, calc) {
         if (joursRetard <= 3) {
             return {
@@ -337,7 +333,6 @@ const Cycle = (() => {
         };
     }
 
-    // ── Bandeau retard — message permanent dès le chargement ──
     function renderBandeauRetard(calc) {
         const today = formatDateInput(_aujourdHuiLocal());
         const info  = _infoBienveillantRetard(calc.joursRetard, calc);
@@ -372,7 +367,6 @@ const Cycle = (() => {
             </div>`;
     }
 
-    // ── Signaler retard — enregistrement journal + confirmation ──
     async function _signalerRetard(dateStr, joursRetard) {
         try {
             await fetch('/api/cycle/journal', {
@@ -499,7 +493,7 @@ const Cycle = (() => {
             </div>`;
     }
 
-        async function naviguerCalendrier(offset) {
+    async function naviguerCalendrier(offset) {
         if (!_moisAffiche) return;
         _moisAffiche = new Date(_moisAffiche.getFullYear(), _moisAffiche.getMonth() + offset, 1);
         _moisAffiche.setHours(0, 0, 0, 0);
@@ -510,17 +504,19 @@ const Cycle = (() => {
         if (zoneModal) zoneModal.innerHTML = renderCalendrier(_calcCourant);
     }
 
+    // FIX 4 : bouton "+ Enregistrer mes règles" masqué en mode retard
     function ouvrirCalendrier() {
         const body = `
             <div id="cycle-calendrier-modal">
                 ${renderCalendrier(_calcCourant)}
             </div>
             <div style="margin-top:12px;display:flex;gap:8px">
+                ${!_calcCourant?.enRetard ? `
                 <button class="btn-cycle-primaire" style="flex:1"
-                    onclick="Cycle.ouvrirModalAjout(null, ${_calcCourant?.enRetard || false})">
+                    onclick="Cycle.ouvrirModalAjout(null, false)">
                     + Enregistrer mes règles
-                </button>
-                <button class="btn-cycle-secondaire"
+                </button>` : ''}
+                <button class="btn-cycle-secondaire" ${!_calcCourant?.enRetard ? '' : 'style="width:100%"'}
                     onclick="Cycle.afficherHistorique()">
                     Historique (${_cyclesCourants.length})
                 </button>
@@ -531,11 +527,11 @@ const Cycle = (() => {
     }
 
     function ouvrirJournal(dateStr) {
-        const rapports   = _journalCache[dateStr] || [];
+        const rapports    = _journalCache[dateStr] || [];
         const phaseDuJour = getPhaseDuJour(dateStr);
         const phaseLabel  = phaseDuJour ? `${phaseDuJour.emoji} ${phaseDuJour.label}` : '';
 
-        let listeRapports = '';
+                let listeRapports = '';
         rapports.forEach((r, i) => {
             const typeLabel = r.humeur === 'non_protege' ? '🔓 Non protégé' :
                               r.humeur === 'protege'     ? '🔒 Protégé'     : r.humeur || '';
@@ -643,11 +639,11 @@ const Cycle = (() => {
     }
 
     function ouvrirModalAjout(cycleExistant = null, dateReadOnly = false) {
-        const aujourd_hui   = formatDateInput(_aujourdHuiLocal());
+        const aujourd_hui       = formatDateInput(_aujourdHuiLocal());
         const dureeReglesDefaut = calculerDureeReglesMoyenne(_cyclesCourants);
-        const dureeDefault  = cycleExistant?.duree_regles || dureeReglesDefaut;
-        const cycleDefault  = cycleExistant?.duree_cycle  || _calcCourant?.dureeCycle || 28;
-        const dateDefault   = cycleExistant
+        const dureeDefault      = cycleExistant?.duree_regles || dureeReglesDefaut;
+        const cycleDefault      = cycleExistant?.duree_cycle  || _calcCourant?.dureeCycle || 28;
+        const dateDefault       = cycleExistant
             ? cycleExistant.date_debut.split('T')[0]
             : aujourd_hui;
 
@@ -659,8 +655,9 @@ const Cycle = (() => {
                         DATE DE DÉBUT DES RÈGLES *
                     </label>
                     <input type="date" id="cycle-date-debut" value="${dateDefault}"
-                        ${dateReadOnly ? 'readonly style="background:#f3f4f6;cursor:not-allowed;width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box"'
-                                       : 'style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box"'}>
+                        ${dateReadOnly
+                            ? 'readonly style="background:#f3f4f6;cursor:not-allowed;width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box"'
+                            : 'style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;box-sizing:border-box"'}>
                 </div>
                 <div>
                     <label style="font-size:12px;font-weight:600;color:#555;text-transform:uppercase;
@@ -720,10 +717,10 @@ const Cycle = (() => {
     }
 
     async function _sauvegarderCycle(idExistant = null) {
-        const dateDebut    = document.getElementById('cycle-date-debut')?.value;
-        const dureeRegles  = parseInt(document.getElementById('cycle-duree-regles')?.value) || 3;
-        const dureeCycle   = parseInt(document.getElementById('cycle-duree-cycle')?.value)  || 28;
-        const notes        = document.getElementById('cycle-notes')?.value?.trim() || null;
+        const dateDebut   = document.getElementById('cycle-date-debut')?.value;
+        const dureeRegles = parseInt(document.getElementById('cycle-duree-regles')?.value) || 3;
+        const dureeCycle  = parseInt(document.getElementById('cycle-duree-cycle')?.value)  || 28;
+        const notes       = document.getElementById('cycle-notes')?.value?.trim() || null;
 
         if (!dateDebut) { alert('La date de début est obligatoire.'); return; }
 
@@ -759,6 +756,7 @@ const Cycle = (() => {
         });
     }
 
+    // FIX 3 : tirets — remplacés par -
     function afficherHistorique() {
         const lignes = _cyclesCourants.map(c => {
             const dateLabel = formatDate(parseDateLocale(c.date_debut.split('T')[0]));
@@ -768,7 +766,7 @@ const Cycle = (() => {
                     <div>
                         <div style="font-weight:600;font-size:14px;color:#1f2937">${dateLabel}</div>
                         <div style="font-size:12px;color:#9ca3af;margin-top:2px">
-                            Règles : ${c.duree_regles}j — Cycle: ${c.duree_cycle}j
+                            Règles : ${c.duree_regles}j - Cycle: ${c.duree_cycle}j
                         </div>
                     </div>
                     <button onclick="Cycle.ouvrirModalAjout(${JSON.stringify(c).replace(/"/g, '&quot;')})"
@@ -900,19 +898,17 @@ const Cycle = (() => {
     }
 
     async function _sauvegarderMood(dateStr) {
-        const chips  = document.querySelectorAll('.mood-chip.mood-selected');
-        const moods  = Array.from(chips).map(c => c.dataset.mood);
+        const chips = document.querySelectorAll('.mood-chip.mood-selected');
+        const moods = Array.from(chips).map(c => c.dataset.mood);
         if (!moods.length) { alert('Sélectionne au moins une humeur.'); return; }
 
         try {
-            // Supprimer anciens moods du jour
             const anciens = (_journalCache[dateStr] || []).filter(r =>
                 r.humeur && !['protege','non_protege'].includes(r.humeur)
             );
             for (const r of anciens) {
                 await fetch(`/api/cycle/journal/${r.id}`, { method: 'DELETE', headers: authHeaders() });
             }
-            // Enregistrer nouveaux
             for (const mood of moods) {
                 await fetch('/api/cycle/journal', {
                     method : 'POST',
@@ -957,14 +953,12 @@ const Cycle = (() => {
                 </div>`;
         }
 
-        const calc    = _calcCourant;
-        const phase   = getPhase(calc);
+        const calc      = _calcCourant;
+        const phase     = getPhase(calc);
         const jourCycle = calculerJourCycle(calc);
 
-        // Progression
         const progression = Math.min(100, Math.round(((jourCycle - 1) / calc.dureeCycle) * 100));
 
-        // Bandeau phase ou retard
         let bandeauPhase = '';
         if (calc.enRetard) {
             bandeauPhase = renderBandeauRetard(calc);
@@ -986,18 +980,7 @@ const Cycle = (() => {
                 </div>`;
         }
 
-        // Infos cycle
-        const debutFertileStr  = formatDate(calc.debutFertile);
-        const finFertileStr    = formatDate(calc.finFertile);
-        const ovulationStr     = formatDate(calc.ovulation);
-        const prochainDebutStr = formatDate(calc.prochainDebut);
-
-        const infoFertile  = calc.enRetard ? `<span style="color:#d1d5db">—</span>` : `${debutFertileStr} — ${finFertileStr}`;
-        const infoOvul     = calc.enRetard ? `<span style="color:#d1d5db">—</span>` : ovulationStr;
-        const colorFertile = calc.enRetard ? '#d1d5db' : '#10b981';
-        const colorOvul    = calc.enRetard ? '#d1d5db' : '#f59e0b';
-
-        // Boutons action — PAS de doublon quand retard actif
+        // FIX 4 : boutons sans doublon en mode retard
         let boutonsAction = '';
         if (!calc.enRetard) {
             boutonsAction = `
@@ -1021,7 +1004,7 @@ const Cycle = (() => {
                 </div>`;
         }
 
-                const moodHtml = renderMoodInline(calc);
+        const moodHtml = renderMoodInline(calc);
 
         return `
             ${bandeauPhase}
@@ -1035,7 +1018,7 @@ const Cycle = (() => {
                         ${formatDate(calc.debut)}
                     </div>
                 </div>
-                <div style="background:#f9fafb;border-radius:10px;padding:10px 12px">
+                                <div style="background:#f9fafb;border-radius:10px;padding:10px 12px">
                     <div style="font-size:10px;font-weight:700;color:#9ca3af;
                                 text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
                         🔄 Durée cycle (calculée)
@@ -1098,16 +1081,16 @@ const Cycle = (() => {
         if (!zone) return;
 
         try {
-            const res    = await fetch('/api/cycle?limit=10', { headers: authHeaders() });
-            const data   = await res.json();
+            const res       = await fetch('/api/cycle?limit=10', { headers: authHeaders() });
+            const data      = await res.json();
             _cyclesCourants = data.cycles || [];
         } catch {
             _cyclesCourants = [];
         }
 
-        const dureeMoyenne  = calculerDureeMoyenne(_cyclesCourants);
-        _calcCourant        = calculerCycle(_cyclesCourants[0], dureeMoyenne);
-        _toutesLesP         = calculerToutesPeriodes(_cyclesCourants, dureeMoyenne);
+        const dureeMoyenne = calculerDureeMoyenne(_cyclesCourants);
+        _calcCourant       = calculerCycle(_cyclesCourants[0], dureeMoyenne);
+        _toutesLesP        = calculerToutesPeriodes(_cyclesCourants, dureeMoyenne);
 
         const aujourd_hui = _aujourdHuiLocal();
         _moisAffiche      = new Date(aujourd_hui.getFullYear(), aujourd_hui.getMonth(), 1);
@@ -1149,8 +1132,10 @@ const Cycle = (() => {
         };
     }
 
+    // FIX 1 : charger ajouté comme alias de init
     return {
         init,
+        charger            : init,
         ouvrirCalendrier,
         ouvrirJournal,
         ouvrirModalAjout,
