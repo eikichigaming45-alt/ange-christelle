@@ -7,7 +7,6 @@
 (function () {
     'use strict';
 
-    // ── Constantes ────────────────────────────────────────────
     const LIMITE_PAR_PAGE = 40;
 
     // ── Conversion raccourcis → emojis ────────────────────────
@@ -77,10 +76,9 @@
         return `conv_${Math.min(u1, u2)}_${Math.max(u1, u2)}`;
     }
 
-    // FIX TRIGRAME : identique à construireTrigramme(prenom, nom) de profil.js
-    // username remplace nom quand nom n'est pas disponible dans le tchat
-    function _trigrame(prenom, username) {
-        const mots = [...(prenom || '').split(/\s+/), ...(username || '').split(/\s+/)]
+    // ── TRIGRAME — identique à construireTrigramme(prenom, nom) de profil.js ──
+    function _trigrame(prenom, nom) {
+        const mots = [...(prenom || '').split(/\s+/), ...(nom || '').split(/\s+/)]
             .map(m => m.trim())
             .filter(Boolean);
         return mots.slice(0, 3).map(m => m[0].toUpperCase()).join('') || '?';
@@ -99,14 +97,15 @@
         return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
     }
 
-    function _avatarHTML(photo, prenom, username, taille = 42) {
+    // photo, prenom, nom — nom est maintenant fourni par l'API
+    function _avatarHTML(photo, prenom, nom, taille = 42) {
         if (photo) {
-            return `<img src="${photo}" alt="${prenom || username}"
+            return `<img src="${photo}" alt="${_echapper(prenom || nom || '')}"
                 style="width:${taille}px;height:${taille}px;border-radius:50%;object-fit:cover;position:absolute;top:2px;left:2px;">`;
         }
         return `<div class="tchat-avatar-initiale"
-            style="width:${taille-4}px;height:${taille-4}px;font-size:${Math.round(taille*.28)}px;">
-            ${_trigrame(prenom, username)}</div>`;
+            style="width:${taille - 4}px;height:${taille - 4}px;font-size:${Math.round(taille * .28)}px;">
+            ${_trigrame(prenom, nom)}</div>`;
     }
 
     function _echapper(str) {
@@ -214,7 +213,6 @@
         });
 
         btnEnv.addEventListener('click', _envoyerMessage);
-
         document.addEventListener('click', _fermerMenuContextuel);
     }
 
@@ -223,7 +221,7 @@
         _replyTo = msg;
         const preview = document.getElementById('tchat-reply-preview');
         const texte   = document.getElementById('tchat-reply-texte');
-        const nom     = msg.reply_sender_prenom || msg.sender_prenom || msg.sender_username || 'Message';
+        const nom     = msg.sender_prenom || msg.sender_username || 'Message';
         texte.innerHTML = `<strong>${_echapper(nom)}</strong> ${_echapper((msg.content || '').substring(0, 80))}`;
         preview.style.display = 'flex';
         document.getElementById('tchat-input').focus();
@@ -235,13 +233,14 @@
         document.getElementById('tchat-reply-texte').innerHTML = '';
     }
 
-    // ── Menu contextuel message ───────────────────────────────
+    // ── Menu contextuel ───────────────────────────────────────
     function _ouvrirMenuContextuel(e, wrap, msg, moi) {
         e.preventDefault();
         e.stopPropagation();
         _fermerMenuContextuel();
 
-        const sortant = msg.sender_id === moi;
+        // Cast Number pour éviter string vs number
+        const sortant = Number(msg.sender_id) === Number(moi);
         const menu    = document.createElement('div');
         menu.className = 'tchat-menu-contextuel';
 
@@ -250,7 +249,11 @@
         if (sortant) {
             items.push({ label: '✏️ Modifier', action: () => _editerMessage(wrap, msg) });
         }
-        items.push({ label: '🗑️ Supprimer', danger: true, action: () => _supprimerMessage(wrap, msg.id) });
+        items.push({
+            label: '🗑️ Supprimer',
+            danger: true,
+            action: () => _supprimerMessageConfirm(wrap, msg.id)
+        });
 
         menu.innerHTML = items.map((item, i) =>
             `<button class="tchat-menu-item${item.danger ? ' danger' : ''}" data-idx="${i}">
@@ -292,7 +295,7 @@
             background:#fff;color:#1f2937;box-sizing:border-box;margin-top:4px;`;
 
         const actions = document.createElement('div');
-        actions.style.cssText = 'display:flex;gap:8px;margin-top:6px;justify-content:flex-end;';
+                actions.style.cssText = 'display:flex;gap:8px;margin-top:6px;justify-content:flex-end;';
         actions.innerHTML = `
             <button class="tchat-edit-annuler" style="
                 background:none;border:1px solid #e5e7eb;border-radius:8px;
@@ -339,7 +342,7 @@
                     actions.remove();
                     let modifTag = wrap.querySelector('.tchat-msg-modifie');
                     if (!modifTag) {
-                        modifTag = document.createElement('span');
+                        modifTag             = document.createElement('span');
                         modifTag.className   = 'tchat-msg-modifie';
                         modifTag.textContent = 'modifié';
                         wrap.querySelector('.tchat-msg-meta').prepend(modifTag);
@@ -355,7 +358,52 @@
         });
     }
 
-    // ── Supprimer message ─────────────────────────────────────
+    // ── Confirmation suppression inline ───────────────────────
+    function _supprimerMessageConfirm(wrap, msgId) {
+        // Empêcher double confirm
+        if (wrap.querySelector('.tchat-confirm-suppr')) return;
+
+        const confirm = document.createElement('div');
+        confirm.className = 'tchat-confirm-suppr';
+        confirm.style.cssText = `
+            position:absolute;inset:0;background:rgba(255,255,255,0.96);
+            border-radius:inherit;display:flex;flex-direction:column;
+            align-items:center;justify-content:center;gap:8px;
+            font-size:13px;color:#374151;z-index:10;padding:10px;
+            border:1.5px solid #fca5a5;`;
+        confirm.innerHTML = `
+            <span style="font-weight:600;color:#111827;text-align:center;">
+                Supprimer ce message ?
+            </span>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+                <button class="tchat-suppr-oui" style="
+                    background:#ef4444;color:#fff;border:none;border-radius:8px;
+                    padding:5px 16px;font-size:12px;font-weight:600;cursor:pointer;">
+                    Supprimer
+                </button>
+                <button class="tchat-suppr-non" style="
+                    background:#f3f4f6;color:#374151;border:none;border-radius:8px;
+                    padding:5px 16px;font-size:12px;font-weight:600;cursor:pointer;">
+                    Annuler
+                </button>
+            </div>`;
+
+        wrap.style.position = 'relative';
+        wrap.appendChild(confirm);
+
+        confirm.querySelector('.tchat-suppr-non').addEventListener('click', (e) => {
+            e.stopPropagation();
+            confirm.remove();
+        });
+
+        confirm.querySelector('.tchat-suppr-oui').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            confirm.remove();
+            await _supprimerMessage(wrap, msgId);
+        });
+    }
+
+    // ── Supprimer message (après confirmation) ────────────────
     async function _supprimerMessage(wrap, msgId) {
         try {
             const r = await fetch(`/api/tchat/messages/${msgId}`, {
@@ -406,7 +454,7 @@
             if (
                 _interlocuteurActif &&
                 (
-                    (msg.sender_id === moi && msg.receiver_id === _interlocuteurActif.id) ||
+                    (msg.sender_id === moi    && msg.receiver_id === _interlocuteurActif.id) ||
                     (msg.sender_id === _interlocuteurActif.id && msg.receiver_id === moi)
                 )
             ) {
@@ -434,7 +482,7 @@
             if (bulle) bulle.innerHTML = _convertirEmojis(_echapper(msg.content));
             let modifTag = wrap.querySelector('.tchat-msg-modifie');
             if (!modifTag) {
-                modifTag = document.createElement('span');
+                modifTag             = document.createElement('span');
                 modifTag.className   = 'tchat-msg-modifie';
                 modifTag.textContent = 'modifié';
                 wrap.querySelector('.tchat-msg-meta')?.prepend(modifTag);
@@ -518,10 +566,12 @@
         document.getElementById('tchat-vue-conv').classList.add('active');
         document.getElementById('tchat-header-titre').textContent = '';
         document.getElementById('tchat-conv-nom-label').textContent =
-            interlocuteur.prenom || interlocuteur.username;
+            interlocuteur.prenom
+                ? `${interlocuteur.prenom}${interlocuteur.nom ? ' ' + interlocuteur.nom : ''}`
+                : interlocuteur.username;
         document.getElementById('tchat-conv-avatar-wrap')
             .querySelector('#tchat-conv-avatar-img').innerHTML =
-            _avatarHTML(interlocuteur.photo, interlocuteur.prenom, interlocuteur.username, 36);
+            _avatarHTML(interlocuteur.photo, interlocuteur.prenom, interlocuteur.nom, 36);
         document.getElementById('tchat-conv-statut').textContent = '';
 
         const scroll = document.getElementById('tchat-messages-scroll');
@@ -558,23 +608,28 @@
 
             liste.innerHTML = d.conversations.map(c => {
                 const moi    = _userId();
-                const nom    = c.prenom || c.username;
+                const nom    = c.prenom
+                    ? `${c.prenom}${c.nom ? ' ' + c.nom : ''}`
+                    : c.username;
                 const apercu = c.dernier_message
-                    ? (c.dernier_sender_id === moi ? `Vous : ${c.dernier_message}` : c.dernier_message)
+                    ? (c.dernier_sender_id === moi
+                        ? `Vous : ${c.dernier_message}`
+                        : c.dernier_message)
                     : 'Aucun message';
-                const heure  = c.dernier_message_at ? _formatHeure(c.dernier_message_at) : '';
-                const nonLu  = c.non_lus > 0;
+                const heure = c.dernier_message_at ? _formatHeure(c.dernier_message_at) : '';
+                const nonLu = c.non_lus > 0;
                 return `
                     <div class="tchat-conv-item"
                          data-id="${c.interlocuteur_id}"
-                         data-username="${c.username}"
-                         data-prenom="${c.prenom || ''}"
-                         data-photo="${c.photo || ''}">
+                         data-username="${_echapper(c.username)}"
+                         data-prenom="${_echapper(c.prenom || '')}"
+                         data-nom="${_echapper(c.nom || '')}"
+                         data-photo="${_echapper(c.photo || '')}">
                         <div class="tchat-conv-avatar">
-                            ${_avatarHTML(c.photo, c.prenom, c.username, 42)}
+                            ${_avatarHTML(c.photo, c.prenom, c.nom, 42)}
                         </div>
                         <div class="tchat-conv-infos">
-                            <div class="tchat-conv-nom">${nom}</div>
+                            <div class="tchat-conv-nom">${_echapper(nom)}</div>
                             <div class="tchat-conv-apercu${nonLu ? ' non-lu' : ''}">
                                 ${_echapper(apercu.substring(0, 60))}
                             </div>
@@ -595,10 +650,11 @@
                 el.addEventListener('click', (e) => {
                     if (e.target.closest('.tchat-conv-suppr')) return;
                     _afficherVueConv({
-                        id       : parseInt(el.dataset.id, 10),
-                        username : el.dataset.username,
-                        prenom   : el.dataset.prenom || null,
-                        photo    : el.dataset.photo  || null
+                        id      : parseInt(el.dataset.id, 10),
+                        username: el.dataset.username,
+                        prenom  : el.dataset.prenom || null,
+                        nom     : el.dataset.nom    || null,
+                        photo   : el.dataset.photo  || null
                     });
                 });
             });
@@ -609,12 +665,13 @@
                     _supprimerConversation(parseInt(btn.dataset.id, 10));
                 });
             });
+
         } catch (err) {
             console.error('[TCHAT] chargerConversations :', err.message);
         }
     }
 
-        // ── Messages ──────────────────────────────────────────────
+    // ── Messages ──────────────────────────────────────────────
     async function _chargerMessages(avant = null) {
         if (_chargementEnCours || !_interlocuteurActif) return;
         _chargementEnCours = true;
@@ -687,7 +744,7 @@
             const dateMsg = new Date(msg.created_at).toDateString();
             if (dateMsg !== dernDate) {
                 dernDate = dateMsg;
-                const sep = document.createElement('div');
+                const sep       = document.createElement('div');
                 sep.className   = 'tchat-date-sep';
                 sep.textContent = _formatDateSep(msg.created_at);
                 fragment.appendChild(sep);
@@ -699,8 +756,8 @@
     }
 
     function _creerBulleDom(msg, moi) {
-        const sortant  = msg.sender_id === moi;
-        const supprime = Array.isArray(msg.deleted_for) && msg.deleted_for.includes(moi);
+        const sortant  = Number(msg.sender_id) === Number(moi);
+        const supprime = Array.isArray(msg.deleted_for) && msg.deleted_for.includes(Number(moi));
         const wrap     = document.createElement('div');
         wrap.className     = `tchat-msg ${sortant ? 'sortant' : 'entrant'}`;
         wrap.dataset.msgId = msg.id;
@@ -723,7 +780,6 @@
                 </div>`;
         }
 
-        // Conversion emojis AVANT échappement HTML
         const contenu = supprime
             ? '<em style="color:#d1d5db">Message supprimé</em>'
             : _convertirEmojis(_echapper(msg.content));
@@ -770,10 +826,11 @@
         const moi       = _userId();
         const dernBulle = scroll.querySelectorAll('.tchat-msg');
         if (dernBulle.length) {
-            const dernDate = new Date(parseInt(dernBulle[dernBulle.length - 1].dataset.msgId || 0));
+            const dernEl   = dernBulle[dernBulle.length - 1];
+            const dernDate = new Date(parseInt(dernEl.dataset.msgId || 0));
             const nouvDate = new Date(msg.created_at);
             if (dernDate.toDateString() !== nouvDate.toDateString()) {
-                const sep = document.createElement('div');
+                const sep       = document.createElement('div');
                 sep.className   = 'tchat-date-sep';
                 sep.textContent = _formatDateSep(msg.created_at);
                 scroll.appendChild(sep);
@@ -800,10 +857,7 @@
         btnEnv.disabled    = true;
 
         try {
-            const body = {
-                receiver_id: _interlocuteurActif.id,
-                content    : texte
-            };
+            const body = { receiver_id: _interlocuteurActif.id, content: texte };
             if (_replyTo) body.reply_to_id = _replyTo.id;
 
             const r = await fetch('/api/tchat/messages', {
@@ -844,7 +898,7 @@
         }
     }
 
-    // ── Sélecteur utilisateur (nouvelle conv) ─────────────────
+    // ── Sélecteur utilisateur ─────────────────────────────────
     async function _ouvrirSelectUser() {
         try {
             const r = await fetch('/api/tchat/users', { headers: _authHeaders() });
@@ -863,21 +917,26 @@
                         Nouvelle conversation
                     </div>
                 </div>
-                ${d.users.map(u => `
+                ${d.users.map(u => {
+                    const affichage = u.prenom
+                        ? `${u.prenom}${u.nom ? ' ' + u.nom : ''}`
+                        : u.username;
+                    return `
                     <div class="tchat-conv-item"
                          data-id="${u.id}"
-                         data-username="${u.username}"
-                         data-prenom="${u.prenom || ''}"
-                         data-photo="${u.photo || ''}">
+                         data-username="${_echapper(u.username)}"
+                         data-prenom="${_echapper(u.prenom || '')}"
+                         data-nom="${_echapper(u.nom || '')}"
+                         data-photo="${_echapper(u.photo || '')}">
                         <div class="tchat-conv-avatar">
-                            ${_avatarHTML(u.photo, u.prenom, u.username, 42)}
+                            ${_avatarHTML(u.photo, u.prenom, u.nom, 42)}
                         </div>
                         <div class="tchat-conv-infos">
-                            <div class="tchat-conv-nom">${u.prenom || u.username}</div>
-                            <div class="tchat-conv-apercu">@${u.username}</div>
+                            <div class="tchat-conv-nom">${_echapper(affichage)}</div>
+                            <div class="tchat-conv-apercu">@${_echapper(u.username)}</div>
                         </div>
-                    </div>`).join('')}
-            `;
+                    </div>`;
+                }).join('')}`;
 
             document.getElementById('tchat-retour-select')
                 .addEventListener('click', _afficherVueListe);
@@ -885,10 +944,11 @@
             liste.querySelectorAll('.tchat-conv-item').forEach(el => {
                 el.addEventListener('click', () => {
                     _afficherVueConv({
-                        id       : parseInt(el.dataset.id, 10),
-                        username : el.dataset.username,
-                        prenom   : el.dataset.prenom || null,
-                        photo    : el.dataset.photo  || null
+                        id      : parseInt(el.dataset.id, 10),
+                        username: el.dataset.username,
+                        prenom  : el.dataset.prenom || null,
+                        nom     : el.dataset.nom    || null,
+                        photo   : el.dataset.photo  || null
                     });
                 });
             });
@@ -926,7 +986,7 @@
         } catch { /* silencieux */ }
     }
 
-    // ── API publique ──────────────────────────────────────────
+        // ── API publique ──────────────────────────────────────────
     window.Tchat = {
         ouvrirConversation(interlocuteur) {
             if (!_ouvert) _ouvrirTchat();
