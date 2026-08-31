@@ -8,11 +8,11 @@ const router                = express.Router();
 const { pool }              = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 const { find }              = require('geo-tz');
-const moment                = require('moment-timezone');
 
-const FREEASTRO_URL = 'https://json.freeastrologyapi.com/western/planets';
-const GROQ_URL      = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL    = 'openai/gpt-oss-20b';
+const FREEASTRO_URL     = 'https://json.freeastrologyapi.com/western/planets';
+const FREEASTRO_TZ_URL  = 'https://json.freeastrologyapi.com/timezone-with-dst';
+const GROQ_URL          = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL        = 'openai/gpt-oss-20b';
 
 // ── Mappings FR ───────────────────────────────────────────────
 const PLANETES_FR = {
@@ -61,22 +61,26 @@ const SIGNES_EMOJI = {
     Sagittarius:'♐', Capricorn:'♑', Aquarius:'♒', Pisces:'♓'
 };
 
-// ── Convertir heure locale → UTC via moment-timezone (DST historique) ─
-// Retourne { utcHours, utcMinutes, utcDay, utcMonth, utcYear }
-function localToUTC(tzName, year, month, day, hours, minutes) {
+// ── Récupérer l'offset UTC réel via l'API (DST historique exact) ─
+async function getTimezoneOffset(tzName, year, month, day, hour, minute) {
     try {
-        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')} ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`;
-        const m       = moment.tz(dateStr, tzName);
-        const utc     = m.utc();
-        return {
-            utcYear   : utc.year(),
-            utcMonth  : utc.month() + 1,
-            utcDay    : utc.date(),
-            utcHours  : utc.hours(),
-            utcMinutes: utc.minutes()
-        };
-    } catch {
-        return { utcYear: year, utcMonth: month, utcDay: day, utcHours: hours, utcMinutes: minutes };
+        const res = await fetch(FREEASTRO_TZ_URL, {
+            method : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key'   : process.env.FREEASTROAPI_KEY
+            },
+            body: JSON.stringify({ timezone: tzName, year, month, day, hour, minute })
+        });
+        if (!res.ok) throw new Error(`TZ API error: ${res.status}`);
+        const data = await res.json();
+        const offset = data?.timezone_with_dst?.timezone_offset_hours;
+        if (offset == null) throw new Error('offset null');
+        console.log(`[THEME-ASTRAL] TZ offset pour ${tzName} ${year}-${month}-${day} ${hour}:${minute} → ${offset}h`);
+        return offset;
+    } catch (e) {
+        console.warn('[THEME-ASTRAL] getTimezoneOffset fallback UTC+0 :', e.message);
+        return 0;
     }
 }
 
@@ -173,24 +177,22 @@ router.get('/', authenticateToken, async (req, res) => {
         const lat = parseFloat(profil.naissance_lat);
         const lng = parseFloat(profil.naissance_lon);
 
-        const tzNames = find(lat, lng);
-        const tzName  = tzNames?.[0] || 'UTC';
+        const tzNames  = find(lat, lng);
+        const tzName   = tzNames?.[0] || 'UTC';
 
-        // Convertir en UTC avec DST historique exact via moment-timezone
-        // timezone: 0 → l'API ne recalcule rien
-        const { utcYear, utcMonth, utcDay, utcHours, utcMinutes } =
-            localToUTC(tzName, year, month, day, hh, mm);
+        // Récupérer l'offset DST historique exact depuis l'API elle-même
+        const timezone = await getTimezoneOffset(tzName, year, month, day, hh, mm);
 
         const payload = {
-            year     : utcYear,
-            month    : utcMonth,
-            date     : utcDay,
-            hours    : utcHours,
-            minutes  : utcMinutes,
+            year,
+            month,
+            date     : day,
+            hours    : hh,
+            minutes  : mm,
             seconds  : 0,
             latitude : lat,
             longitude: lng,
-            timezone : 0
+            timezone
         };
 
         console.log('[THEME-ASTRAL] Payload envoyé:', JSON.stringify(payload));
