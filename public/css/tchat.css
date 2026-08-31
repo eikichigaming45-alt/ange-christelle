@@ -1,7 +1,7 @@
 /* ============================================================
    public/css/tchat.css
    Tchat MoaDja — bulle flottante · bottom sheet mobile ·
-   tiroir latéral desktop · "Atelier Flottant" ready v1.59
+   tiroir latéral desktop · "Atelier Flottant"
    ============================================================ */
 
 /* ── Variables ─────────────────────────────────────────────── */
@@ -754,4 +754,266 @@
     .tchat-msg {
         max-width: 88%;
     }
+}
+
+/* ════════════════════════════════════════════════════════════
+   13. MENU CONTEXTUEL MESSAGE
+   ════════════════════════════════════════════════════════════ */
+.tchat-menu-contextuel {
+    position: fixed;
+    z-index: 9999;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow:
+        0 8px 32px rgba(99, 74, 140, 0.18),
+        0 2px 8px rgba(0,0,0,0.08);
+    padding: 6px;
+    min-width: 160px;
+    animation: tchat-menu-in 0.14s cubic-bezier(.32,1,.32,1);
+}
+
+@keyframes tchat-menu-in {
+    from { opacity: 0; transform: scale(0.92) translateY(-4px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+.tchat-menu-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 9px 14px;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1f2937;
+    cursor: pointer;
+    text-align: left;
+    gap: 8px;
+    transition: background 0.12s;
+    font-family: inherit;
+}
+
+.tchat-menu-item:hover {
+    background: rgba(167,139,250,0.10);
+}
+
+.tchat-menu-item.danger {
+    color: #ef4444;
+}
+
+.tchat-menu-item.danger:hover {
+    background: rgba(239,68,68,0.08);
+}
+
+/* ════════════════════════════════════════════════════════════
+   14. CITATION (REPLY)
+   ════════════════════════════════════════════════════════════ */
+
+/* Bloc de citation dans la bulle */
+.tchat-reply-cite {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    border-radius: 10px;
+    border-left: 3px solid var(--tchat-violet);
+    background: rgba(167,139,250,0.10);
+    max-width: 100%;
+}
+
+.tchat-msg.sortant .tchat-reply-cite {
+    border-left-color: rgba(124,58,237,0.50);
+    background: rgba(124,58,237,0.08);
+}
+
+.tchat-reply-cite-nom {
+    font-size: 11px;
+    font-weight: 700;
+    color: #7c3aed;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tchat-reply-cite-texte {
+    font-size: 12px;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Prévisualisation reply dans la barre de saisie */
+#tchat-reply-preview {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: rgba(167,139,250,0.08);
+    border-top: 1px solid rgba(167,139,250,0.15);
+    flex-shrink: 0;
+}
+
+#tchat-reply-texte {
+    flex: 1;
+    font-size: 12px;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-left: 3px solid var(--tchat-violet);
+    padding-left: 8px;
+    border-radius: 2px;
+}
+
+#tchat-reply-texte strong {
+    color: #7c3aed;
+    font-weight: 700;
+    display: block;
+    font-size: 11px;
+    margin-bottom: 1px;
+}
+
+#tchat-reply-annuler {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 6px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.14s;
+}
+
+#tchat-reply-annuler:hover {
+    color: #ef4444;
+}
+
+/* ════════════════════════════════════════════════════════════
+   15. TAG "MODIFIÉ"
+   ════════════════════════════════════════════════════════════ */
+.tchat-msg-modifie {
+    font-size: 10px;
+    color: #c4b5fd;
+    font-style: italic;
+    font-weight: 400;
+}
+
+/* ════════════════════════════════════════════════════════════
+   16. MESSAGE SUPPRIMÉ
+   ════════════════════════════════════════════════════════════ */
+.tchat-msg-supprime .tchat-msg-bulle {
+    background: #f9fafb;
+    border: 1px dashed #e5e7eb;
+    color: #d1d5db;
+    font-style: italic;
+    box-shadow: none;
+}
+
+.tchat-msg-supprime.sortant .tchat-msg-bulle {
+    background: #faf5ff;
+    border: 1px dashed #e9d5ff;
+}
+
+/* ════════════════════════════════════════════════════════════
+   17. BOUTON SUPPRIMER CONVERSATION (liste)
+   ════════════════════════════════════════════════════════════ */
+.tchat-conv-suppr {
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.tchat-conv-item:hover .tchat-conv-suppr {
+    opacity: 1;
+}
+
+/* Sur mobile : toujours visible (pas de hover) */
+@media (max-width: 767px) {
+    .tchat-conv-suppr {
+        opacity: 0.45;
+    }
+}
+
+.tchat-conv-suppr:hover {
+    color: #ef4444 !important;
+    background: rgba(239,68,68,0.08) !important;
+}
+
+/* ════════════════════════════════════════════════════════════
+   18. AVATAR INITIALE — classe globale tchat
+   ════════════════════════════════════════════════════════════ */
+.tchat-avatar-initiale {
+    background: linear-gradient(135deg, #e9d5ff, #fbcfe8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #7c3aed;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   19. ICÔNE TCHAT TOPBAR — badge non-lus mobile
+   ════════════════════════════════════════════════════════════ */
+#tchat-topbar-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 8px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px;
+    border: 2px solid #fff;
+    line-height: 1;
+    pointer-events: none;
+}
+
+/* ════════════════════════════════════════════════════════════
+   20. ANIMATION ENTRÉE MESSAGE
+   ════════════════════════════════════════════════════════════ */
+.tchat-msg {
+    animation: tchat-msg-in 0.18s cubic-bezier(.32,1,.32,1);
+}
+
+@keyframes tchat-msg-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* ════════════════════════════════════════════════════════════
+   21. INPUT ÉDITION INLINE
+   ════════════════════════════════════════════════════════════ */
+.tchat-edit-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid var(--tchat-violet);
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    background: #fff;
+    color: #1f2937;
+    box-sizing: border-box;
+    margin-top: 4px;
+    transition: box-shadow 0.15s;
+}
+
+.tchat-edit-input:focus {
+    box-shadow: 0 0 0 3px rgba(167,139,250,0.15);
 }

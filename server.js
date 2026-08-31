@@ -4,22 +4,24 @@
 
 require('dotenv').config();
 
-const express  = require('express');
-const http     = require('http');
+const express    = require('express');
+const http       = require('http');
 const { Server } = require('socket.io');
-const webpush  = require('web-push');
-const jwt      = require('jsonwebtoken');
-const { pool, initDB } = require('./db/pool');
+const webpush    = require('web-push');
+const jwt        = require('jsonwebtoken');
+const { pool, initDB }          = require('./db/pool');
+const { router: tchatRouter,
+        purgerMessages }        = require('./routes/tchat');
 
 const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, {
-    cors: { origin: false },
+    cors      : { origin: false },
     transports: ['websocket', 'polling']
 });
-const PORT   = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-// ── Set des userIds connectés au tchat (pour éviter push inutile)
+// ── Set des userIds connectés au tchat ────────────────────────
 const tchatConnectedUsers = new Set();
 
 app.set('trust proxy', 1);
@@ -29,7 +31,6 @@ app.set('tchatConnectedUsers', tchatConnectedUsers);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
 app.use(express.static('public', { etag: true, lastModified: true }));
 
 app.use('/api', (req, res, next) => {
@@ -69,14 +70,14 @@ app.use('/api/theme-astral',  require('./routes/theme-astral'));
 app.use('/api/feed',          require('./routes/feed'));
 app.use('/api/social',        require('./routes/social'));
 app.use('/api/eclats',        require('./routes/eclats'));
-app.use('/api/tchat',         require('./routes/tchat'));
+app.use('/api/tchat',         tchatRouter);
 
 // ── Socket.io — authentification middleware ───────────────────
 io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('Token manquant'));
     try {
-        const user = jwt.verify(token, process.env.JWT_SECRET);
+        const user    = jwt.verify(token, process.env.JWT_SECRET);
         socket.userId = user.id;
         next();
     } catch {
@@ -90,14 +91,12 @@ io.on('connection', (socket) => {
     tchatConnectedUsers.add(userId);
     console.log(`[SOCKET] User ${userId} connecté — socket ${socket.id}`);
 
-    // Rejoindre une room de conversation
     socket.on('tchat:rejoindre', ({ room }) => {
         if (!_roomValide(room, userId)) return;
         socket.join(room);
         console.log(`[SOCKET] User ${userId} rejoint room ${room}`);
     });
 
-    // Quitter une room de conversation
     socket.on('tchat:quitter', ({ room }) => {
         socket.leave(room);
         console.log(`[SOCKET] User ${userId} quitte room ${room}`);
@@ -111,12 +110,19 @@ io.on('connection', (socket) => {
 
 // ── Valide qu'une room appartient bien à userId ───────────────
 function _roomValide(room, userId) {
-    // Format attendu : conv_<minId>_<maxId>
     const match = room.match(/^conv_(\d+)_(\d+)$/);
     if (!match) return false;
     const u1 = parseInt(match[1], 10);
     const u2 = parseInt(match[2], 10);
     return userId === u1 || userId === u2;
+}
+
+// ── Cron purge messages > 90j — toutes les 24h ───────────────
+function _lancerCronPurge() {
+    const VINGT_QUATRE_HEURES = 24 * 60 * 60 * 1000;
+    purgerMessages(); // premier passage au démarrage
+    setInterval(purgerMessages, VINGT_QUATRE_HEURES);
+    console.log('[TCHAT] Cron purge 90j activé');
 }
 
 // ── Middleware erreurs global ─────────────────────────────────
@@ -129,6 +135,7 @@ app.use((err, req, res, next) => {
 (async () => {
     try {
         await initDB();
+        _lancerCronPurge();
         server.listen(PORT, () => console.log(`[SERVER] Démarré sur le port ${PORT}`));
     } catch (err) {
         console.error('[SERVER] Échec initDB — arrêt :', err.message);
