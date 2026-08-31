@@ -615,7 +615,7 @@
                             <span class="tchat-conv-heure">${heure}</span>
                             ${nonLu ? `<span class="tchat-conv-badge">${c.non_lus}</span>` : ''}
                         </div>
-                                                <button class="tchat-conv-suppr" data-id="${c.interlocuteur_id}"
+                        <button class="tchat-conv-suppr" data-id="${c.interlocuteur_id}"
                                 title="Supprimer la conversation"
                                 aria-label="Supprimer la conversation">🗑️</button>
                     </div>`;
@@ -700,7 +700,7 @@
                 scroll.appendChild(_construireFragment(msgs));
                 _scrollBasMessages();
             }
-        } catch (err) {
+                } catch (err) {
             console.error('[TCHAT] chargerMessages :', err.message);
         } finally {
             _chargementEnCours = false;
@@ -760,7 +760,6 @@
             ? '<em style="color:#d1d5db">Message supprimé</em>'
             : _convertirEmojis(_echapper(msg.content));
 
-        // Boutons actions inline (visibles au hover/tap)
         const actionsHTML = !supprime ? `
             <div class="tchat-msg-actions">
                 <button class="tchat-msg-btn-reply" title="Répondre">↩</button>
@@ -829,7 +828,6 @@
         if (scroll) scroll.scrollTop = scroll.scrollHeight;
     }
 
-    // ── Envoyer ───────────────────────────────────────────────
     async function _envoyerMessage() {
         const input  = document.getElementById('tchat-input');
         const btnEnv = document.getElementById('tchat-btn-envoyer');
@@ -868,7 +866,6 @@
         }
     }
 
-    // ── Marquer lu ────────────────────────────────────────────
     async function _marquerLu(interlocuteurId) {
         try {
             await fetch('/api/tchat/messages/lus', {
@@ -882,7 +879,6 @@
         }
     }
 
-    // ── Sélecteur utilisateur ─────────────────────────────────
     async function _ouvrirSelectUser() {
         try {
             const r = await fetch('/api/tchat/users', { headers: _authHeaders() });
@@ -941,7 +937,6 @@
         }
     }
 
-    // ── Badge bulle + topbar ──────────────────────────────────
     async function _rafraichirBadgeBulle() {
         try {
             const r = await fetch('/api/tchat/non-lus', { headers: _authHeaders() });
@@ -970,7 +965,6 @@
         } catch { /* silencieux */ }
     }
 
-    // ── API publique ──────────────────────────────────────────
     window.Tchat = {
         ouvrirConversation(interlocuteur) {
             if (!_ouvert) _ouvrirTchat();
