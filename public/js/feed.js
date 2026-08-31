@@ -10,9 +10,9 @@ let feedFollowing = [];
 let feedHashtag = null;
 
 const RESONANCES = [
-    { type: 'douceur', label: 'Douceur', icone: '🩷', couleur: '#f9a8d4' },
-    { type: 'energie', label: 'Énergie', icone: '⚡', couleur: '#fcd34d' },
-    { type: 'calme', label: 'Calme', icone: '🌙', couleur: '#a5b4fc' },
+    { type: 'douceur',     label: 'Douceur',     icone: '🩷', couleur: '#f9a8d4' },
+    { type: 'energie',     label: 'Énergie',     icone: '⚡', couleur: '#fcd34d' },
+    { type: 'calme',       label: 'Calme',       icone: '🌙', couleur: '#a5b4fc' },
     { type: 'inspiration', label: 'Inspiration', icone: '✨', couleur: '#6ee7b7' }
 ];
 
@@ -333,6 +333,11 @@ function _fermerDropdown(dropEl) {
     }
 }
 
+// ── DÉTECTION MOBILE ──────────────────────────────────────────
+function _isMobile() {
+    return window.matchMedia('(pointer: coarse)').matches;
+}
+
 // ── RENDER RÉSONANCES BOUTON BAS ──────────────────────────────
 function _renderResonanceBouton(postId, maResonance, resonancesStats) {
     const stats = resonancesStats || [];
@@ -416,8 +421,7 @@ function renderPost(p) {
             <div class="feed-photo-wrap" id="photo-wrap-${p.id}"
                  data-post-id="${p.id}"
                  data-photo-url="${escapeHtml(p.photo_url)}"
-                 data-ma-resonance="${escapeHtml(p.ma_resonance || '')}"
-                 data-long-press-opened="0">
+                 data-ma-resonance="${escapeHtml(p.ma_resonance || '')}">
                 <img src="${p.photo_url}" class="feed-photo" alt="">
                 <div class="feed-arc-resonance" id="arc-${p.id}" style="display:none">
                     <div class="feed-arc-label">Résonances</div>
@@ -457,75 +461,49 @@ function renderPost(p) {
     `;
 }
 
-// ── BIND RÉSONANCES — mobile propre + desktop ────────────────
+// ── BIND RÉSONANCES ───────────────────────────────────────────
+// Desktop : arc sur photo au survol souris
+// Mobile  : tap photo = ouvre photo uniquement, arc = footer uniquement
 function _bindResonances() {
     document.querySelectorAll('.feed-photo-wrap[data-post-id]').forEach(wrap => {
         const postId = wrap.dataset.postId;
         const arc = document.getElementById(`arc-${postId}`);
         const img = wrap.querySelector('.feed-photo');
-        if (!arc || !img) return;
+        if (!img) return;
 
-        let longPressTimer = null;
-        let longPressTriggered = false;
-        let touchMoved = false;
-
-        const clearPress = () => {
-            clearTimeout(longPressTimer);
-            longPressTimer = null;
-        };
-
-        wrap.addEventListener('touchstart', e => {
-            if (e.target.closest('.feed-arc-resonance')) return;
-            longPressTriggered = false;
-            touchMoved = false;
-            wrap.dataset.longPressOpened = '0';
-            clearPress();
-            longPressTimer = setTimeout(() => {
-                longPressTriggered = true;
-                wrap.dataset.longPressOpened = '1';
-                _ouvrirArc(postId);
-                if (navigator.vibrate) navigator.vibrate(30);
-            }, 380);
-        }, { passive: true });
-
-        wrap.addEventListener('touchmove', () => {
-            touchMoved = true;
-            clearPress();
-        }, { passive: true });
-
-        wrap.addEventListener('touchend', () => {
-            clearPress();
-        }, { passive: true });
-
-        wrap.addEventListener('touchcancel', () => {
-            clearPress();
-        }, { passive: true });
-
-        img.addEventListener('click', e => {
-            if (wrap.dataset.longPressOpened === '1' || longPressTriggered || touchMoved) {
-                e.preventDefault();
+        if (_isMobile()) {
+            // Mobile : tap simple = ouvre photo, pas d'arc sur la photo
+            img.addEventListener('click', e => {
                 e.stopPropagation();
-                wrap.dataset.longPressOpened = '0';
-                return;
+                ouvrirPhoto(wrap.dataset.photoUrl);
+            });
+        } else {
+            // Desktop : survol = ouvre arc sur photo
+            if (arc) {
+                wrap.addEventListener('mouseenter', e => {
+                    if (e.target.closest('.feed-arc-resonance')) return;
+                    _ouvrirArc(postId);
+                });
+                wrap.addEventListener('mouseleave', e => {
+                    if (e.relatedTarget && wrap.contains(e.relatedTarget)) return;
+                    _fermerArc(postId);
+                });
             }
-            ouvrirPhoto(wrap.dataset.photoUrl);
-        });
-
-        wrap.addEventListener('mouseenter', e => {
-            if (e.target.closest('.feed-arc-resonance')) return;
-            _ouvrirArc(postId);
-        });
-
-        wrap.addEventListener('mouseleave', e => {
-            if (e.relatedTarget && wrap.contains(e.relatedTarget)) return;
-            _fermerArc(postId);
-        });
+            img.addEventListener('click', e => {
+                e.stopPropagation();
+                ouvrirPhoto(wrap.dataset.photoUrl);
+            });
+        }
     });
 
     if (!window._feedResonanceOutsideBound) {
         window._feedResonanceOutsideBound = true;
         document.addEventListener('click', e => {
-            if (!e.target.closest('.feed-photo-wrap') && !e.target.closest('.feed-resonance-btn') && !e.target.closest('.feed-resonance-count-btn')) {
+            if (
+                !e.target.closest('.feed-photo-wrap') &&
+                !e.target.closest('.feed-resonance-btn') &&
+                !e.target.closest('.feed-resonance-count-btn')
+            ) {
                 document.querySelectorAll('.feed-arc-resonance').forEach(a => a.style.display = 'none');
                 document.querySelectorAll('.feed-arc-inline').forEach(a => a.remove());
             }
@@ -559,7 +537,7 @@ function ouvrirArcResonance(btn, e) {
     const postId = wrap?.dataset.postId;
     if (!postId) return;
     const photoWrap = document.getElementById(`photo-wrap-${postId}`);
-    if (photoWrap) {
+    if (!_isMobile() && photoWrap) {
         const arc = document.getElementById(`arc-${postId}`);
         if (arc && arc.style.display === 'flex') {
             _fermerArc(postId);
@@ -638,7 +616,6 @@ async function choisirResonance(postId, type, btn, e) {
         const photoWrap = document.getElementById(`photo-wrap-${postId}`);
         if (photoWrap) {
             photoWrap.dataset.maResonance = d.ma_resonance || '';
-            photoWrap.dataset.longPressOpened = '0';
         }
     } catch {}
 }
@@ -711,7 +688,7 @@ function editerPost(postId) {
             </label>
             <input type="file" id="edit-post-photo" accept="image/*" style="font-size:13px;color:#374151">
         </div>
-                <div id="edit-post-preview" style="margin-top:10px"></div>
+        <div id="edit-post-preview" style="margin-top:10px"></div>
         <button onclick="sauvegarderEditionPost(${postId})"
             style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
                    color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
@@ -1356,7 +1333,7 @@ async function partagerPost(postId) {
         }
     } else {
         try {
-                        await navigator.clipboard.writeText(`${text}\n${photoUrl || location.origin}`);
+            await navigator.clipboard.writeText(`${text}\n${photoUrl || location.origin}`);
             document.getElementById('modal-title').textContent = 'Lien copié';
             document.getElementById('modal-body').innerHTML = `
                 <p style="text-align:center;color:#374151;padding:20px 0">Le lien a été copié dans le presse-papier.</p>
