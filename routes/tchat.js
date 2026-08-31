@@ -4,7 +4,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db/pool');
-const auth    = require('../middleware/auth');
+const { authenticateToken: auth } = require('../middleware/auth');
 
 // ── GET /api/tchat/conversations ─────────────────────────────
 router.get('/conversations', auth, async (req, res) => {
@@ -68,16 +68,15 @@ router.get('/messages/:interlocuteurId', auth, async (req, res) => {
                 su.username  AS sender_username,
                 sp.prenom    AS sender_prenom,
                 sp.nom       AS sender_nom,
-                rp.content   AS reply_content,
+                rpm.content  AS reply_content,
                 ru.username  AS reply_sender_username,
                 rp2.prenom   AS reply_sender_prenom,
                 rp2.nom      AS reply_sender_nom
             FROM private_messages pm
-            JOIN users su        ON su.id = pm.sender_id
+            JOIN users su         ON su.id = pm.sender_id
             LEFT JOIN profiles sp ON sp.user_id = pm.sender_id
             LEFT JOIN private_messages rpm ON rpm.id = pm.reply_to_id
             LEFT JOIN users ru        ON ru.id  = rpm.sender_id
-            LEFT JOIN profiles rp     ON rp.user_id = rpm.sender_id
             LEFT JOIN profiles rp2    ON rp2.user_id = rpm.sender_id
             WHERE (
                 (pm.sender_id = \$1 AND pm.receiver_id = \$2) OR
@@ -112,7 +111,6 @@ router.post('/messages', auth, async (req, res) => {
 
         const msg = rows[0];
 
-        // Enrichir pour Socket.io
         const { rows: extra } = await pool.query(`
             SELECT
                 u.username  AS sender_username,
@@ -126,7 +124,6 @@ router.post('/messages', auth, async (req, res) => {
 
         const enriched = { ...msg, ...extra[0] };
 
-        // Récupérer reply si besoin
         if (reply_to_id) {
             const { rows: rRows } = await pool.query(`
                 SELECT pm.content AS reply_content,
@@ -141,20 +138,18 @@ router.post('/messages', auth, async (req, res) => {
             if (rRows[0]) Object.assign(enriched, rRows[0]);
         }
 
-        // Émettre via Socket.io
         const io   = req.app.get('io');
         const room = `conv_${Math.min(moi, receiver_id)}_${Math.max(moi, receiver_id)}`;
         if (io) io.to(room).emit('tchat:message', enriched);
 
-        // Push notification
         try {
             const { rows: subs } = await pool.query(
                 'SELECT * FROM push_subscriptions WHERE user_id = \$1', [receiver_id]
             );
             if (subs.length) {
-                const webpush  = require('web-push');
+                const webpush    = require('web-push');
                 const expediteur = extra[0]?.prenom || 'Quelqu\'un';
-                const payload  = JSON.stringify({
+                const payload    = JSON.stringify({
                     title: `💬 ${expediteur}`,
                     body : content.trim().substring(0, 80),
                     url  : '/'
@@ -246,8 +241,8 @@ router.patch('/messages/:id', auth, async (req, res) => {
         `, [content, msgId, moi]);
         if (!rows.length) return res.status(403).json({ success: false, message: 'Interdit.' });
 
-        const msg = rows[0];
-        const io  = req.app.get('io');
+        const msg  = rows[0];
+        const io   = req.app.get('io');
         const room = `conv_${Math.min(moi, msg.receiver_id)}_${Math.max(moi, msg.receiver_id)}`;
         if (io) io.to(room).emit('tchat:modifie', { id: msg.id, content: msg.content, edited_at: msg.edited_at });
 
@@ -272,8 +267,8 @@ router.delete('/messages/:id', auth, async (req, res) => {
         `, [moi, msgId]);
         if (!rows.length) return res.status(403).json({ success: false, message: 'Interdit.' });
 
-        const msg = rows[0];
-        const io  = req.app.get('io');
+        const msg  = rows[0];
+        const io   = req.app.get('io');
         const room = `conv_${Math.min(moi, msg.receiver_id)}_${Math.max(moi, msg.receiver_id)}`;
         if (io) io.to(room).emit('tchat:supprime', { id: msg.id, par: moi });
 
