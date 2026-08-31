@@ -53,6 +53,14 @@ router.post('/subscribe', authenticateToken, async (req, res) => {
     const endpoint = subscription.endpoint;
 
     try {
+        // Supprimer toute subscription existante avec le même endpoint
+        // quel que soit le user — un appareil = un seul user à la fois
+        await pool.query(`
+            DELETE FROM push_subscriptions
+            WHERE subscription::json->>'endpoint' = \$1
+              AND user_id != \$2
+        `, [endpoint, req.user.id]);
+
         const { rows } = await pool.query(`
             SELECT id FROM push_subscriptions
             WHERE user_id = \$1

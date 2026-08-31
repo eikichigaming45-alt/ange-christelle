@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'moadja-cache-v1.58.1';
+﻿const CACHE_NAME = 'moadja-cache-v1.58';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
