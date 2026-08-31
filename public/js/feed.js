@@ -5,14 +5,14 @@
 // Dépend de : app.js (getUser)
 // ============================================================
 
-let feedFilter    = 'all';
+let feedFilter = 'all';
 let feedFollowing = [];
-let feedHashtag   = null;
+let feedHashtag = null;
 
 const RESONANCES = [
-    { type: 'douceur',     label: 'Douceur',     icone: '🩷', couleur: '#f9a8d4' },
-    { type: 'energie',     label: 'Énergie',     icone: '⚡', couleur: '#fcd34d' },
-    { type: 'calme',       label: 'Calme',       icone: '🌙', couleur: '#a5b4fc' },
+    { type: 'douceur', label: 'Douceur', icone: '🩷', couleur: '#f9a8d4' },
+    { type: 'energie', label: 'Énergie', icone: '⚡', couleur: '#fcd34d' },
+    { type: 'calme', label: 'Calme', icone: '🌙', couleur: '#a5b4fc' },
     { type: 'inspiration', label: 'Inspiration', icone: '✨', couleur: '#6ee7b7' }
 ];
 
@@ -112,7 +112,7 @@ function renderContenuAvecMentions(contenu, mentionsData) {
         if (!m || !m.id) continue;
         const full = `${m.prenom || ''} ${m.nom || ''}`.trim();
         if (!full) continue;
-        const tag         = `@${full}`;
+        const tag = `@${full}`;
         const placeholder = `%%MENTION_${m.id}%%`;
         if (result.includes(tag)) {
             result = result.split(tag).join(placeholder);
@@ -152,7 +152,7 @@ document.addEventListener('click', e => {
 
 // ── FILTRE HASHTAG ────────────────────────────────────────────
 async function filtrerParHashtag(tag) {
-    feedFilter  = 'hashtag';
+    feedFilter = 'hashtag';
     feedHashtag = tag;
     document.querySelectorAll('.feed-filter-btn').forEach(b => b.classList.remove('active'));
     const list = document.getElementById('feed-list');
@@ -165,7 +165,7 @@ async function filtrerParHashtag(tag) {
         });
         const d = await r.json();
         if (!d.success) throw new Error();
-        const header   = document.querySelector('.feed-header');
+        const header = document.querySelector('.feed-header');
         const existing = document.getElementById('hashtag-banner');
         if (existing) existing.remove();
         if (header) {
@@ -187,7 +187,7 @@ async function filtrerParHashtag(tag) {
 }
 
 async function clearHashtagFilter() {
-    feedFilter  = 'all';
+    feedFilter = 'all';
     feedHashtag = null;
     const banner = document.getElementById('hashtag-banner');
     if (banner) banner.remove();
@@ -215,17 +215,17 @@ function initMentions(inputEl, wrapEl) {
     inputEl.addEventListener('keydown', e => {
         if (dropEl.style.display === 'none' || !dropEl.children.length) return;
         const items = [...dropEl.querySelectorAll('.mention-item')];
-        const cur   = dropEl.querySelector('.mention-item.active');
-        const idx   = items.indexOf(cur);
+        const cur = dropEl.querySelector('.mention-item.active');
+        const idx = items.indexOf(cur);
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             const next = items[Math.min(idx + 1, items.length - 1)];
-            if (cur)  cur.classList.remove('active');
+            if (cur) cur.classList.remove('active');
             if (next) next.classList.add('active');
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             const prev = items[Math.max(idx - 1, 0)];
-            if (cur)  cur.classList.remove('active');
+            if (cur) cur.classList.remove('active');
             if (prev) prev.classList.add('active');
         } else if (e.key === 'Enter' || e.key === 'Tab') {
             const active = dropEl.querySelector('.mention-item.active');
@@ -244,14 +244,14 @@ function initMentions(inputEl, wrapEl) {
 }
 
 async function _mentionInput(inputEl, dropEl) {
-    const val    = inputEl.value;
+    const val = inputEl.value;
     const cursor = inputEl.selectionStart;
-    const avant  = val.substring(0, cursor);
-    const match  = avant.match(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/);
+    const avant = val.substring(0, cursor);
+    const match = avant.match(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/);
     if (!match) { _fermerDropdown(dropEl); return; }
-    const q    = match[1].trim();
+    const q = match[1].trim();
     if (!q) { _fermerDropdown(dropEl); return; }
-    const user    = getUser();
+    const user = getUser();
     const isAdmin = user.role === 'admin';
     try {
         const r = await fetch(`/api/feed/users?q=${encodeURIComponent(q)}`, {
@@ -295,49 +295,52 @@ async function _mentionInput(inputEl, dropEl) {
                 else _insererMention(inputEl, dropEl, item.dataset.prenom, item.dataset.nom);
             });
         });
-    } catch { _fermerDropdown(dropEl); }
+    } catch {
+        _fermerDropdown(dropEl);
+    }
 }
 
 function _insererMention(inputEl, dropEl, prenom, nom) {
-    const val      = inputEl.value;
-    const cursor   = inputEl.selectionStart;
-    const avant    = val.substring(0, cursor);
-    const apres    = val.substring(cursor);
+    const val = inputEl.value;
+    const cursor = inputEl.selectionStart;
+    const avant = val.substring(0, cursor);
+    const apres = val.substring(cursor);
     const newAvant = avant.replace(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/, `@${prenom} ${nom}  `);
-    inputEl.value  = newAvant + apres;
-    const pos      = newAvant.length;
+    inputEl.value = newAvant + apres;
+    const pos = newAvant.length;
     inputEl.setSelectionRange(pos, pos);
     inputEl.focus();
     _fermerDropdown(dropEl);
 }
 
 function _insererToutLeMonde(inputEl, dropEl) {
-    const val      = inputEl.value;
-    const cursor   = inputEl.selectionStart;
-    const avant    = val.substring(0, cursor);
-    const apres    = val.substring(cursor);
+    const val = inputEl.value;
+    const cursor = inputEl.selectionStart;
+    const avant = val.substring(0, cursor);
+    const apres = val.substring(cursor);
     const newAvant = avant.replace(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/, '@toutlemonde ');
-    inputEl.value  = newAvant + apres;
-    const pos      = newAvant.length;
+    inputEl.value = newAvant + apres;
+    const pos = newAvant.length;
     inputEl.setSelectionRange(pos, pos);
     inputEl.focus();
     _fermerDropdown(dropEl);
 }
 
 function _fermerDropdown(dropEl) {
-    if (dropEl) { dropEl.innerHTML = ''; dropEl.style.display = 'none'; }
+    if (dropEl) {
+        dropEl.innerHTML = '';
+        dropEl.style.display = 'none';
+    }
 }
 
 // ── RENDER RÉSONANCES BOUTON BAS ──────────────────────────────
-// BUG A corrigé : suppression du compteur total — icônes uniquement, sans chiffre
-// BUG B corrigé : bouton cliquable → voirLikers(postId) quand total > 0
 function _renderResonanceBouton(postId, maResonance, resonancesStats) {
-    const stats  = resonancesStats || [];
-    const total  = stats.reduce((s, r) => s + (r.nb || 0), 0);
+    const stats = resonancesStats || [];
+    const total = stats.reduce((s, r) => s + (r.nb || 0), 0);
     const actifs = RESONANCES.filter(r => stats.find(s => s.type === r.type && s.nb > 0));
 
     if (!total) {
-        return `<button class="feed-resonance-btn" onclick="ouvrirArcResonance(this)">
+        return `<button class="feed-resonance-btn" onclick="ouvrirArcResonance(this, event)">
             <span class="feed-resonance-neutre">✦</span>
             <span class="feed-resonance-label-neutre">Résonances</span>
         </button>`;
@@ -349,7 +352,7 @@ function _renderResonanceBouton(postId, maResonance, resonancesStats) {
     }).join('');
 
     return `<div style="display:flex;align-items:center;gap:8px">
-        <button class="feed-resonance-btn" onclick="ouvrirArcResonance(this)">
+        <button class="feed-resonance-btn" onclick="ouvrirArcResonance(this, event)">
             <span class="feed-resonance-icones">${icones}</span>
         </button>
         <button class="feed-resonance-count-btn" onclick="voirLikers(${postId}, event)"
@@ -360,28 +363,15 @@ function _renderResonanceBouton(postId, maResonance, resonancesStats) {
     </div>`;
 }
 
-// ── RENDER PILLS RÉSONANCES ───────────────────────────────────
-function _renderResonancePills(resonancesStats) {
-    const stats = resonancesStats || [];
-    const actifs = RESONANCES.filter(r => stats.find(s => s.type === r.type && s.nb > 0));
-    if (!actifs.length) return '';
-    return `<div class="feed-resonance-pills">
-        ${actifs.map(r => {
-            const nb = stats.find(s => s.type === r.type)?.nb || 0;
-            return `<span class="feed-resonance-pill" style="--pill-color:${r.couleur}">${r.icone} ${nb}</span>`;
-        }).join('')}
-    </div>`;
-}
-
 // ── RENDER POST ───────────────────────────────────────────────
 function renderPost(p) {
-    const user    = getUser();
+    const user = getUser();
     const isOwner = user.username === p.username;
     const isAdmin = user.role === 'admin';
-    const avatar  = p.avatar
+    const avatar = p.avatar
         ? `<img src="${p.avatar}" class="feed-avatar" alt="">`
         : `<div class="feed-avatar feed-avatar-initiale">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
-    const date    = new Date(p.created_at).toLocaleDateString('fr-FR', {
+    const date = new Date(p.created_at).toLocaleDateString('fr-FR', {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
     });
     const followed = feedFollowing.includes(p.user_id);
@@ -390,9 +380,7 @@ function renderPost(p) {
         const parts = [];
         if (p.lieu) parts.push(`📍 ${escapeHtml(p.lieu)}`);
         if (p.personnes_taguees && p.personnes_taguees.length) parts.push(`· Avec l'équipe`);
-        return parts.length
-            ? `<div class="feed-lieu">${parts.join(' ')}</div>`
-            : '';
+        return parts.length ? `<div class="feed-lieu">${parts.join(' ')}</div>` : '';
     })();
 
     return `
@@ -427,8 +415,10 @@ function renderPost(p) {
             ${p.photo_url ? `
             <div class="feed-photo-wrap" id="photo-wrap-${p.id}"
                  data-post-id="${p.id}"
-                 data-ma-resonance="${escapeHtml(p.ma_resonance || '')}">
-                <img src="${p.photo_url}" class="feed-photo" alt="" onclick="ouvrirPhoto('${p.photo_url}')">
+                 data-photo-url="${escapeHtml(p.photo_url)}"
+                 data-ma-resonance="${escapeHtml(p.ma_resonance || '')}"
+                 data-long-press-opened="0">
+                <img src="${p.photo_url}" class="feed-photo" alt="">
                 <div class="feed-arc-resonance" id="arc-${p.id}" style="display:none">
                     <div class="feed-arc-label">Résonances</div>
                     <div class="feed-arc-items">
@@ -436,7 +426,7 @@ function renderPost(p) {
                         <button class="feed-arc-item ${p.ma_resonance === r.type ? 'active' : ''}"
                                 data-type="${r.type}"
                                 style="--r-color:${r.couleur}"
-                                onclick="choisirResonance(${p.id}, '${r.type}', this)">
+                                onclick="choisirResonance(${p.id}, '${r.type}', this, event)">
                             <span class="feed-arc-icone">${r.icone}</span>
                             <span class="feed-arc-item-label">${r.label}</span>
                         </button>`).join('')}
@@ -444,7 +434,6 @@ function renderPost(p) {
                 </div>
             </div>` : ''}
             ${lieuTag}
-            ${_renderResonancePills(p.resonances_stats)}
             <div class="feed-footer">
                 <div class="feed-resonance-wrap" data-post-id="${p.id}">
                     ${_renderResonanceBouton(p.id, p.ma_resonance, p.resonances_stats)}
@@ -468,30 +457,59 @@ function renderPost(p) {
     `;
 }
 
-// ── BIND RÉSONANCES — tap long photo + survol desktop ─────────
+// ── BIND RÉSONANCES — mobile propre + desktop ────────────────
 function _bindResonances() {
     document.querySelectorAll('.feed-photo-wrap[data-post-id]').forEach(wrap => {
         const postId = wrap.dataset.postId;
-        const arc    = document.getElementById(`arc-${postId}`);
-        if (!arc) return;
+        const arc = document.getElementById(`arc-${postId}`);
+        const img = wrap.querySelector('.feed-photo');
+        if (!arc || !img) return;
 
         let longPressTimer = null;
+        let longPressTriggered = false;
+        let touchMoved = false;
+
+        const clearPress = () => {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        };
 
         wrap.addEventListener('touchstart', e => {
             if (e.target.closest('.feed-arc-resonance')) return;
+            longPressTriggered = false;
+            touchMoved = false;
+            wrap.dataset.longPressOpened = '0';
+            clearPress();
             longPressTimer = setTimeout(() => {
+                longPressTriggered = true;
+                wrap.dataset.longPressOpened = '1';
                 _ouvrirArc(postId);
                 if (navigator.vibrate) navigator.vibrate(30);
-            }, 300);
-        }, { passive: true });
-
-        wrap.addEventListener('touchend', () => {
-            clearTimeout(longPressTimer);
+            }, 380);
         }, { passive: true });
 
         wrap.addEventListener('touchmove', () => {
-            clearTimeout(longPressTimer);
+            touchMoved = true;
+            clearPress();
         }, { passive: true });
+
+        wrap.addEventListener('touchend', () => {
+            clearPress();
+        }, { passive: true });
+
+        wrap.addEventListener('touchcancel', () => {
+            clearPress();
+        }, { passive: true });
+
+        img.addEventListener('click', e => {
+            if (wrap.dataset.longPressOpened === '1' || longPressTriggered || touchMoved) {
+                e.preventDefault();
+                e.stopPropagation();
+                wrap.dataset.longPressOpened = '0';
+                return;
+            }
+            ouvrirPhoto(wrap.dataset.photoUrl);
+        });
 
         wrap.addEventListener('mouseenter', e => {
             if (e.target.closest('.feed-arc-resonance')) return;
@@ -504,16 +522,23 @@ function _bindResonances() {
         });
     });
 
-    document.addEventListener('click', e => {
-        if (!e.target.closest('.feed-photo-wrap') && !e.target.closest('.feed-resonance-btn')) {
-            document.querySelectorAll('.feed-arc-resonance').forEach(a => a.style.display = 'none');
-        }
-    });
+    if (!window._feedResonanceOutsideBound) {
+        window._feedResonanceOutsideBound = true;
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.feed-photo-wrap') && !e.target.closest('.feed-resonance-btn') && !e.target.closest('.feed-resonance-count-btn')) {
+                document.querySelectorAll('.feed-arc-resonance').forEach(a => a.style.display = 'none');
+                document.querySelectorAll('.feed-arc-inline').forEach(a => a.remove());
+            }
+        });
+    }
 }
 
 function _ouvrirArc(postId) {
     document.querySelectorAll('.feed-arc-resonance').forEach(a => {
         if (a.id !== `arc-${postId}`) a.style.display = 'none';
+    });
+    document.querySelectorAll('.feed-arc-inline').forEach(a => {
+        if (a.id !== `arc-inline-${postId}`) a.remove();
     });
     const arc = document.getElementById(`arc-${postId}`);
     if (arc) arc.style.display = 'flex';
@@ -525,13 +550,22 @@ function _fermerArc(postId) {
 }
 
 // ── OUVRIR ARC DEPUIS BOUTON BAS ──────────────────────────────
-function ouvrirArcResonance(btn) {
-    const wrap   = btn.closest('.feed-resonance-wrap');
+function ouvrirArcResonance(btn, e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const wrap = btn.closest('.feed-resonance-wrap');
     const postId = wrap?.dataset.postId;
     if (!postId) return;
     const photoWrap = document.getElementById(`photo-wrap-${postId}`);
     if (photoWrap) {
-        _ouvrirArc(postId);
+        const arc = document.getElementById(`arc-${postId}`);
+        if (arc && arc.style.display === 'flex') {
+            _fermerArc(postId);
+        } else {
+            _ouvrirArc(postId);
+        }
     } else {
         _ouvrirArcInline(postId, btn);
     }
@@ -539,10 +573,16 @@ function ouvrirArcResonance(btn) {
 
 function _ouvrirArcInline(postId, btn) {
     let inline = document.getElementById(`arc-inline-${postId}`);
-    if (inline) { inline.remove(); return; }
+    if (inline) {
+        inline.remove();
+        return;
+    }
+    document.querySelectorAll('.feed-arc-inline').forEach(a => a.remove());
+    document.querySelectorAll('.feed-arc-resonance').forEach(a => a.style.display = 'none');
+
     const wrap = btn.closest('.feed-resonance-wrap');
     inline = document.createElement('div');
-    inline.id        = `arc-inline-${postId}`;
+    inline.id = `arc-inline-${postId}`;
     inline.className = 'feed-arc-resonance feed-arc-inline';
     inline.innerHTML = `
         <div class="feed-arc-label">Résonances</div>
@@ -551,7 +591,7 @@ function _ouvrirArcInline(postId, btn) {
             <button class="feed-arc-item"
                     data-type="${r.type}"
                     style="--r-color:${r.couleur}"
-                    onclick="choisirResonance(${postId}, '${r.type}', this)">
+                    onclick="choisirResonance(${postId}, '${r.type}', this, event)">
                 <span class="feed-arc-icone">${r.icone}</span>
                 <span class="feed-arc-item-label">${r.label}</span>
             </button>`).join('')}
@@ -561,13 +601,20 @@ function _ouvrirArcInline(postId, btn) {
 }
 
 // ── CHOISIR RÉSONANCE ─────────────────────────────────────────
-async function choisirResonance(postId, type, btn) {
+async function choisirResonance(postId, type, btn, e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
     const user = getUser();
     try {
         const r = await fetch(`/api/feed/${postId}/resonance`, {
-            method : 'POST',
-            headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
-            body   : JSON.stringify({ type })
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${user.token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ type })
         });
         const d = await r.json();
         if (!d.success) return;
@@ -576,26 +623,11 @@ async function choisirResonance(postId, type, btn) {
         const inline = document.getElementById(`arc-inline-${postId}`);
         if (inline) inline.remove();
 
-        // Mettre à jour bouton bas
         const wrap = document.querySelector(`.feed-resonance-wrap[data-post-id="${postId}"]`);
         if (wrap) {
-            wrap.innerHTML = _renderResonanceBouton(postId, d.ma_resonance, d.resonances_stats);
+            wrap.innerHTML = _renderResonanceBouton(postId, d.ma_resonance, d.resonances_stats || []);
         }
 
-        // Mettre à jour pills
-        const card = document.getElementById(`post-${postId}`);
-        if (card) {
-            const pills    = card.querySelector('.feed-resonance-pills');
-            const newPills = _renderResonancePills(d.resonances_stats);
-            if (pills) {
-                pills.outerHTML = newPills || '';
-            } else if (newPills) {
-                const footer = card.querySelector('.feed-footer');
-                if (footer) footer.insertAdjacentHTML('beforebegin', newPills);
-            }
-        }
-
-        // Mettre à jour état actif dans l'arc photo
         const arc = document.getElementById(`arc-${postId}`);
         if (arc) {
             arc.querySelectorAll('.feed-arc-item').forEach(b => {
@@ -603,16 +635,20 @@ async function choisirResonance(postId, type, btn) {
             });
         }
 
-        // Mettre à jour data-ma-resonance
         const photoWrap = document.getElementById(`photo-wrap-${postId}`);
-        if (photoWrap) photoWrap.dataset.maResonance = d.ma_resonance || '';
-
+        if (photoWrap) {
+            photoWrap.dataset.maResonance = d.ma_resonance || '';
+            photoWrap.dataset.longPressOpened = '0';
+        }
     } catch {}
 }
 
 // ── VOIR LIKERS / RÉSONANCES ──────────────────────────────────
 async function voirLikers(postId, e) {
-    if (e) e.stopPropagation();
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
     const user = getUser();
     try {
         const r = await fetch(`/api/feed/${postId}/likes`, {
@@ -620,6 +656,7 @@ async function voirLikers(postId, e) {
         });
         const d = await r.json();
         if (!d.success) return;
+
         document.getElementById('modal-title').textContent = 'Résonances';
         document.getElementById('modal-body').innerHTML = d.likers.length
             ? d.likers.map(l => {
@@ -637,6 +674,7 @@ async function voirLikers(postId, e) {
                 </div>`;
             }).join('')
             : '<p style="text-align:center;color:#9ca3af;padding:20px">Aucune résonance pour l\'instant.</p>';
+
         document.getElementById('overlay').classList.add('on');
     } catch {}
 }
@@ -673,7 +711,7 @@ function editerPost(postId) {
             </label>
             <input type="file" id="edit-post-photo" accept="image/*" style="font-size:13px;color:#374151">
         </div>
-        <div id="edit-post-preview" style="margin-top:10px"></div>
+                <div id="edit-post-preview" style="margin-top:10px"></div>
         <button onclick="sauvegarderEditionPost(${postId})"
             style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
                    color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
@@ -681,13 +719,13 @@ function editerPost(postId) {
         </button>
         <div id="edit-post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
-    const ta   = document.getElementById('edit-post-contenu');
+    const ta = document.getElementById('edit-post-contenu');
     const wrap = document.getElementById('edit-post-wrap');
-    ta.value   = contenuActuel;
+    ta.value = contenuActuel;
     initMentions(ta, wrap);
 
     document.getElementById('edit-post-photo').addEventListener('change', e => {
-        const file    = e.target.files[0];
+        const file = e.target.files[0];
         const preview = document.getElementById('edit-post-preview');
         if (file) {
             preview.innerHTML = `<img src="${URL.createObjectURL(file)}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`;
@@ -707,11 +745,11 @@ function marquerSuppressionPhoto() {
 }
 
 async function sauvegarderEditionPost(postId) {
-    const user    = getUser();
+    const user = getUser();
     const contenu = document.getElementById('edit-post-contenu').value.trim();
-    const photo   = document.getElementById('edit-post-photo').files[0];
-    const lieu    = (document.getElementById('edit-post-lieu')?.value || '').trim() || null;
-    const msg     = document.getElementById('edit-post-msg');
+    const photo = document.getElementById('edit-post-photo').files[0];
+    const lieu = (document.getElementById('edit-post-lieu')?.value || '').trim() || null;
+    const msg = document.getElementById('edit-post-msg');
     if (!contenu && !photo && window._editSupprimerPhoto) {
         msg.style.color = '#ef4444';
         msg.textContent = 'Le post ne peut pas être vide.';
@@ -721,8 +759,8 @@ async function sauvegarderEditionPost(postId) {
         let photoB64 = null;
         if (photo) {
             photoB64 = await new Promise((resolve, reject) => {
-                const reader   = new FileReader();
-                reader.onload  = e => resolve(e.target.result.split(',')[1]);
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result.split(',')[1]);
                 reader.onerror = reject;
                 reader.readAsDataURL(photo);
             });
@@ -730,9 +768,9 @@ async function sauvegarderEditionPost(postId) {
         const body = { contenu, supprimer_photo: window._editSupprimerPhoto, lieu };
         if (photoB64) body.photo = photoB64;
         const r = await fetch(`/api/feed/${postId}`, {
-            method  : 'PUT',
-            headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
-            body    : JSON.stringify(body)
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
         });
         const d = await r.json();
         if (d.success) {
@@ -771,7 +809,7 @@ async function chargerCommentaires(postId) {
         });
         const d = await r.json();
         if (!d.success) throw new Error();
-        const racines  = d.comments.filter(c => !c.parent_id);
+        const racines = d.comments.filter(c => !c.parent_id);
         const reponses = d.comments.filter(c => !!c.parent_id);
         const html = racines.map(c => {
             const reps = reponses.filter(r => Number(r.parent_id) === Number(c.id));
@@ -794,7 +832,7 @@ async function chargerCommentaires(postId) {
             </div>
         `;
         const inputEl = document.getElementById(`comment-input-${postId}`);
-        const wrapEl  = document.getElementById(`comment-form-${postId}`);
+        const wrapEl = document.getElementById(`comment-form-${postId}`);
         initMentions(inputEl, wrapEl);
     } catch {
         zone.innerHTML = '<div class="feed-empty">Erreur.</div>';
@@ -803,10 +841,10 @@ async function chargerCommentaires(postId) {
 
 // ── RENDER COMMENT ────────────────────────────────────────────
 function renderComment(c, postId, isReponse = false) {
-    const user    = getUser();
+    const user = getUser();
     const isOwner = user.username === c.username;
     const isAdmin = user.role === 'admin';
-    const date    = new Date(c.created_at).toLocaleDateString('fr-FR', {
+    const date = new Date(c.created_at).toLocaleDateString('fr-FR', {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
     });
     const avatar = c.avatar
@@ -895,11 +933,14 @@ function afficherFormulaireReponse(parentId, postId, nomAuteur) {
         </div>
     `;
     const inputEl = document.getElementById(`reply-input-${parentId}`);
-    const wrapEl  = document.getElementById(`reply-wrap-${parentId}`);
+    const wrapEl = document.getElementById(`reply-wrap-${parentId}`);
     if (inputEl) {
         inputEl.value = '';
         inputEl.addEventListener('keydown', e => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envoyerReponse(parentId, postId); }
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                envoyerReponse(parentId, postId);
+            }
         });
         inputEl.focus();
     }
@@ -907,15 +948,15 @@ function afficherFormulaireReponse(parentId, postId, nomAuteur) {
 }
 
 async function envoyerReponse(parentId, postId) {
-    const user  = getUser();
+    const user = getUser();
     const input = document.getElementById(`reply-input-${parentId}`);
-    const text  = (input?.value || '').trim();
+    const text = (input?.value || '').trim();
     if (!text) return;
     try {
         const r = await fetch(`/api/feed/${postId}/comments`, {
-            method : 'POST',
+            method: 'POST',
             headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
-            body   : JSON.stringify({ contenu: text, parent_id: parentId })
+            body: JSON.stringify({ contenu: text, parent_id: parentId })
         });
         const d = await r.json();
         if (d.success) {
@@ -927,15 +968,15 @@ async function envoyerReponse(parentId, postId) {
 }
 
 async function envoyerCommentaire(postId) {
-    const user  = getUser();
+    const user = getUser();
     const input = document.getElementById(`comment-input-${postId}`);
-    const text  = (input?.value || '').trim();
+    const text = (input?.value || '').trim();
     if (!text) return;
     try {
         const r = await fetch(`/api/feed/${postId}/comments`, {
-            method : 'POST',
+            method: 'POST',
             headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
-            body   : JSON.stringify({ contenu: text })
+            body: JSON.stringify({ contenu: text })
         });
         const d = await r.json();
         if (d.success) {
@@ -966,21 +1007,24 @@ function editerCommentaire(commentId, postId) {
         </div>
     `;
     const input = document.getElementById(`edit-comment-input-${commentId}`);
-    const wrap  = document.getElementById(`edit-comment-wrap-${commentId}`);
-    if (input) { input.value = contenuActuel; input.focus(); }
+    const wrap = document.getElementById(`edit-comment-wrap-${commentId}`);
+    if (input) {
+        input.value = contenuActuel;
+        input.focus();
+    }
     initMentions(input, wrap);
 }
 
 async function sauvegarderEditionCommentaire(commentId, postId) {
-    const user    = getUser();
-    const input   = document.getElementById(`edit-comment-input-${commentId}`);
+    const user = getUser();
+    const input = document.getElementById(`edit-comment-input-${commentId}`);
     const contenu = (input?.value || '').trim();
     if (!contenu) return;
     try {
         const r = await fetch(`/api/feed/comments/${commentId}`, {
-            method  : 'PUT',
-            headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
-            body    : JSON.stringify({ contenu })
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contenu })
         });
         const d = await r.json();
         if (d.success) await chargerCommentaires(postId);
@@ -1002,7 +1046,7 @@ function supprimerCommentaire(commentId, postId) {
         const user = getUser();
         try {
             const r = await fetch(`/api/feed/comments/${commentId}`, {
-                method : 'DELETE',
+                method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${user.token}` }
             });
             const d = await r.json();
@@ -1021,7 +1065,7 @@ async function toggleLikeCommentaire(commentId, btn) {
     const user = getUser();
     try {
         const r = await fetch(`/api/feed/comments/${commentId}/like`, {
-            method : 'POST',
+            method: 'POST',
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const d = await r.json();
@@ -1049,7 +1093,7 @@ function supprimerPost(postId) {
         const user = getUser();
         try {
             const r = await fetch(`/api/feed/${postId}`, {
-                method : 'DELETE',
+                method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${user.token}` }
             });
             const d = await r.json();
@@ -1066,7 +1110,7 @@ async function toggleFollow(userId, btn) {
     const user = getUser();
     try {
         const r = await fetch(`/api/feed/follow/${userId}`, {
-            method : 'POST',
+            method: 'POST',
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const d = await r.json();
@@ -1111,11 +1155,11 @@ function ouvrirModalPost() {
         </button>
         <div id="post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
-    const ta   = document.getElementById('post-contenu');
+    const ta = document.getElementById('post-contenu');
     const wrap = document.getElementById('new-post-wrap');
     initMentions(ta, wrap);
     document.getElementById('post-photo').addEventListener('change', e => {
-        const file    = e.target.files[0];
+        const file = e.target.files[0];
         const preview = document.getElementById('post-preview');
         if (file) {
             preview.innerHTML = `<img src="${URL.createObjectURL(file)}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`;
@@ -1126,11 +1170,11 @@ function ouvrirModalPost() {
 }
 
 async function publierPost() {
-    const user    = getUser();
+    const user = getUser();
     const contenu = document.getElementById('post-contenu').value.trim();
-    const photo   = document.getElementById('post-photo').files[0];
-    const lieu    = (document.getElementById('post-lieu')?.value || '').trim() || null;
-    const msg     = document.getElementById('post-msg');
+    const photo = document.getElementById('post-photo').files[0];
+    const lieu = (document.getElementById('post-lieu')?.value || '').trim() || null;
+    const msg = document.getElementById('post-msg');
     if (!contenu && !photo) {
         msg.style.color = '#ef4444';
         msg.textContent = 'Le post ne peut pas être vide.';
@@ -1140,8 +1184,8 @@ async function publierPost() {
         let photoB64 = null;
         if (photo) {
             photoB64 = await new Promise((resolve, reject) => {
-                const reader   = new FileReader();
-                reader.onload  = e => resolve(e.target.result.split(',')[1]);
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result.split(',')[1]);
                 reader.onerror = reject;
                 reader.readAsDataURL(photo);
             });
@@ -1149,9 +1193,9 @@ async function publierPost() {
         const body = { contenu, lieu };
         if (photoB64) body.photo = photoB64;
         const r = await fetch('/api/feed', {
-            method  : 'POST',
-            headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
-            body    : JSON.stringify(body)
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
         });
         const d = await r.json();
         if (d.success) {
@@ -1176,7 +1220,7 @@ async function ouvrirProfilPublic(userId) {
         });
         const d = await r.json();
         if (!d.success) return;
-        const p      = d.profil;
+        const p = d.profil;
         const isSelf = String(user.userId) === String(p.id);
         const avatar = p.photo
             ? `<img src="${p.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed">`
@@ -1262,21 +1306,21 @@ async function toggleFollowDepuisProfil(userId, btn) {
     const user = getUser();
     try {
         const r = await fetch(`/api/feed/follow/${userId}`, {
-            method : 'POST',
+            method: 'POST',
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const d = await r.json();
         if (!d.success) return;
         if (d.following) {
             feedFollowing.push(userId);
-            btn.textContent      = 'Abonné';
+            btn.textContent = 'Abonné';
             btn.style.background = '#f3f4f6';
-            btn.style.color      = '#374151';
+            btn.style.color = '#374151';
         } else {
-            feedFollowing        = feedFollowing.filter(id => id !== userId);
-            btn.textContent      = 'Suivre';
+            feedFollowing = feedFollowing.filter(id => id !== userId);
+            btn.textContent = 'Suivre';
             btn.style.background = 'linear-gradient(135deg,#7c3aed,#6d28d9)';
-            btn.style.color      = '#fff';
+            btn.style.color = '#fff';
         }
         const feedBtn = document.querySelector(`#feed-list .feed-follow-btn[onclick="toggleFollow(${userId}, this)"]`);
         if (feedBtn) {
@@ -1297,33 +1341,39 @@ function ouvrirPhoto(url) {
 
 // ── PARTAGE ───────────────────────────────────────────────────
 async function partagerPost(postId) {
-    const card      = document.getElementById(`post-${postId}`);
+    const card = document.getElementById(`post-${postId}`);
     const contenuEl = document.getElementById(`post-contenu-${postId}`);
-    const contenu   = contenuEl ? contenuEl.textContent.trim() : '';
-    const photoUrl  = card?.dataset.photoUrl || '';
-    const text      = contenu.substring(0, 100) || 'Regarde ce post sur MoaDja';
+    const contenu = contenuEl ? contenuEl.textContent.trim() : '';
+    const photoUrl = card?.dataset.photoUrl || '';
+    const text = contenu.substring(0, 100) || 'Regarde ce post sur MoaDja';
     if (navigator.share) {
         try {
             const shareData = { title: 'MoaDja', text };
-            shareData.url   = photoUrl || location.origin;
+            shareData.url = photoUrl || location.origin;
             await navigator.share(shareData);
         } catch (e) {
             if (e.name !== 'AbortError') console.error(e);
         }
     } else {
         try {
-            await navigator.clipboard.writeText(`${text}\n${photoUrl || location.origin}`);
+                        await navigator.clipboard.writeText(`${text}\n${photoUrl || location.origin}`);
             document.getElementById('modal-title').textContent = 'Lien copié';
             document.getElementById('modal-body').innerHTML = `
                 <p style="text-align:center;color:#374151;padding:20px 0">Le lien a été copié dans le presse-papier.</p>
                 <button onclick="closeModal()" style="width:100%;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">OK</button>
             `;
             document.getElementById('overlay').classList.add('on');
-        } catch (e) { console.error('clipboard', e); }
+        } catch (e) {
+            console.error('clipboard', e);
+        }
     }
 }
 
 // ── ESCAPE HTML ───────────────────────────────────────────────
 function escapeHtml(str) {
-    return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return (str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
