@@ -21,41 +21,60 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   1. BULLE FLOTTANTE
+   1. ICÔNE TOPBAR (mobile) — masquée sur desktop
+   ════════════════════════════════════════════════════════════ */
+#tchat-topbar-wrap {
+    display: inline-flex;
+}
+
+@media (min-width: 768px) {
+    #tchat-topbar-wrap {
+        display: none;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════
+   2. BULLE FLOTTANTE (desktop uniquement)
    ════════════════════════════════════════════════════════════ */
 #tchat-bulle {
-    position: fixed;
-    bottom: 88px; /* au-dessus de la bottom-nav mobile */
-    right: 18px;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--tchat-rose), var(--tchat-violet));
-    box-shadow:
-        0 4px 20px rgba(167, 139, 250, 0.45),
-        0 1px 4px rgba(0,0,0,0.10);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: var(--tchat-z-bulle);
-    border: none;
-    outline: none;
-    transition: transform 0.18s cubic-bezier(.34,1.56,.64,1),
-                box-shadow 0.18s ease;
-    -webkit-tap-highlight-color: transparent;
+    display: none;
 }
 
-#tchat-bulle:hover,
-#tchat-bulle:focus-visible {
-    transform: scale(1.10);
-    box-shadow:
-        0 8px 28px rgba(167, 139, 250, 0.55),
-        0 2px 6px rgba(0,0,0,0.12);
-}
+@media (min-width: 768px) {
+    #tchat-bulle {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--tchat-rose), var(--tchat-violet));
+        box-shadow:
+            0 4px 20px rgba(167, 139, 250, 0.45),
+            0 1px 4px rgba(0,0,0,0.10);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: var(--tchat-z-bulle);
+        border: none;
+        outline: none;
+        transition: transform 0.18s cubic-bezier(.34,1.56,.64,1),
+                    box-shadow 0.18s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
 
-#tchat-bulle:active {
-    transform: scale(0.95);
+    #tchat-bulle:hover,
+    #tchat-bulle:focus-visible {
+        transform: scale(1.10);
+        box-shadow:
+            0 8px 28px rgba(167, 139, 250, 0.55),
+            0 2px 6px rgba(0,0,0,0.12);
+    }
+
+    #tchat-bulle:active {
+        transform: scale(0.95);
+    }
 }
 
 #tchat-bulle svg {
@@ -65,7 +84,7 @@
     pointer-events: none;
 }
 
-/* Badge non-lus sur la bulle */
+/* Badge non-lus sur la bulle desktop */
 #tchat-bulle-badge {
     position: absolute;
     top: -3px;
@@ -90,16 +109,8 @@
     display: flex;
 }
 
-/* Desktop : bulle masquée — le tiroir a son propre déclencheur */
-@media (min-width: 768px) {
-    #tchat-bulle {
-        bottom: 28px;
-        right: 28px;
-    }
-}
-
 /* ════════════════════════════════════════════════════════════
-   2. OVERLAY (mobile + desktop)
+   3. OVERLAY (mobile + desktop)
    ════════════════════════════════════════════════════════════ */
 #tchat-overlay {
     display: none;
@@ -119,7 +130,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   3. BOTTOM SHEET MOBILE
+   4. BOTTOM SHEET MOBILE
    ════════════════════════════════════════════════════════════ */
 #tchat-sheet {
     display: none;
@@ -154,19 +165,18 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   4. TIROIR LATÉRAL DESKTOP
+   5. TIROIR LATÉRAL DESKTOP
    ════════════════════════════════════════════════════════════ */
 @media (min-width: 768px) {
     #tchat-sheet {
         display: none;
         position: fixed;
-        top: 60px; /* sous la topbar */
+        top: 60px;
         right: 0;
         bottom: 0;
         left: auto;
         width: 360px;
         height: auto;
-        border-radius: var(--tchat-radius) 0 0 var(--tchat-radius);
         background: rgba(250, 249, 247, 0.92);
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
@@ -187,7 +197,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   5. EN-TÊTE DU PANNEAU TCHAT
+   6. EN-TÊTE DU PANNEAU TCHAT
    ════════════════════════════════════════════════════════════ */
 #tchat-header {
     display: flex;
@@ -233,7 +243,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   6. VUE LISTE DES CONVERSATIONS
+   7. VUE LISTE DES CONVERSATIONS
    ════════════════════════════════════════════════════════════ */
 #tchat-vue-liste {
     display: flex;
@@ -267,7 +277,6 @@
     background: rgba(167, 139, 250, 0.13);
 }
 
-/* Avatar avec aura dégradée (maquette) */
 .tchat-conv-avatar {
     position: relative;
     width: 46px;
@@ -307,7 +316,6 @@
     opacity: 0.55;
 }
 
-/* Point de présence */
 .tchat-conv-avatar .tchat-presence {
     position: absolute;
     bottom: 2px;
@@ -376,7 +384,6 @@
     padding: 0 4px;
 }
 
-/* Bouton nouvelle conversation */
 #tchat-btn-nouvelle-conv {
     margin: 10px 18px 14px;
     padding: 11px;
@@ -396,7 +403,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   7. VUE CONVERSATION (messages)
+   8. VUE CONVERSATION (messages)
    ════════════════════════════════════════════════════════════ */
 #tchat-vue-conv {
     display: none;
@@ -409,7 +416,6 @@
     display: flex;
 }
 
-/* En-tête conversation */
 #tchat-conv-header {
     display: flex;
     align-items: center;
@@ -435,7 +441,6 @@
     background: rgba(167,139,250,0.10);
 }
 
-/* Avatar destinataire avec aura (maquette) */
 #tchat-conv-avatar-wrap {
     position: relative;
     width: 40px;
@@ -508,7 +513,6 @@
     scroll-behavior: smooth;
 }
 
-/* Bouton charger plus */
 #tchat-btn-plus-anciens {
     align-self: center;
     background: none;
@@ -528,7 +532,6 @@
     background: rgba(167,139,250,0.08);
 }
 
-/* Séparateur de date */
 .tchat-date-sep {
     text-align: center;
     font-size: 11px;
@@ -592,7 +595,6 @@
     font-weight: 500;
 }
 
-/* Lu / envoyé */
 .tchat-msg-lu {
     font-size: 11px;
     color: #a78bfa;
@@ -604,7 +606,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   8. BARRE DE SAISIE
+   9. BARRE DE SAISIE
    ════════════════════════════════════════════════════════════ */
 #tchat-saisie-wrap {
     display: flex;
@@ -682,7 +684,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   9. ÉTAT VIDE & CHARGEMENT
+   10. ÉTAT VIDE & CHARGEMENT
    ════════════════════════════════════════════════════════════ */
 .tchat-vide {
     flex: 1;
@@ -720,26 +722,6 @@
 
 @keyframes tchat-spin {
     to { transform: rotate(360deg); }
-}
-
-/* ════════════════════════════════════════════════════════════
-   10. SECTION TCHAT DANS L'ONGLET ACCUEIL (mobile maquette)
-   ════════════════════════════════════════════════════════════ */
-.tchat-section-accueil {
-    margin: 16px 0 0;
-    padding: 0 0 8px;
-}
-
-.tchat-section-titre {
-    font-size: 16px;
-    font-weight: 700;
-    color: #1f2937;
-    padding: 0 16px 10px;
-}
-
-.tchat-section-liste {
-    display: flex;
-    flex-direction: column;
 }
 
 /* ════════════════════════════════════════════════════════════

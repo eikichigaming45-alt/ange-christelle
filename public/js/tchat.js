@@ -162,7 +162,6 @@
 
         input.addEventListener('input', () => {
             btnEnv.disabled = !input.value.trim();
-            // Auto-resize
             input.style.height = 'auto';
             input.style.height = Math.min(input.scrollHeight, 120) + 'px';
         });
@@ -190,7 +189,6 @@
 
         _socket.on('tchat:message', (msg) => {
             const moi = _userId();
-            // Si la conv active correspond → afficher le message
             if (
                 _interlocuteurActif &&
                 (
@@ -200,20 +198,16 @@
             ) {
                 _appendMessage(msg);
                 _scrollBasMessages();
-                // Marquer comme lu si c'est un message entrant
                 if (msg.sender_id !== moi) {
                     _marquerLu(_interlocuteurActif.id);
                 }
             }
-            // Toujours rafraîchir la liste + badge
             _chargerConversations();
             _rafraichirBadgeBulle();
         });
 
-        _socket.on('tchat:lu', ({ par, interlocuteur }) => {
-            const moi = _userId();
+        _socket.on('tchat:lu', ({ par }) => {
             if (_interlocuteurActif && par === _interlocuteurActif.id) {
-                // Marquer visuellement les bulles sortantes comme lues
                 document.querySelectorAll('.tchat-msg.sortant .tchat-msg-lu').forEach(el => {
                     el.textContent = '✓✓';
                     el.classList.remove('envoye');
@@ -288,19 +282,15 @@
         document.getElementById('tchat-vue-conv').classList.add('active');
         document.getElementById('tchat-header-titre').textContent = '';
 
-        // Nom
         const nomLabel = document.getElementById('tchat-conv-nom-label');
         nomLabel.textContent = interlocuteur.prenom || interlocuteur.username;
 
-        // Avatar
         const avatarWrap = document.getElementById('tchat-conv-avatar-wrap');
         avatarWrap.querySelector('#tchat-conv-avatar-img').innerHTML =
             _avatarHTML(interlocuteur.photo, interlocuteur.prenom, interlocuteur.username, 36);
 
-        // Statut (vide pour l'instant — Socket.io présence v1.60)
         document.getElementById('tchat-conv-statut').textContent = '';
 
-        // Vider + charger
         const scroll = document.getElementById('tchat-messages-scroll');
         scroll.innerHTML = `
             <button id="tchat-btn-plus-anciens" style="display:none">
@@ -403,7 +393,6 @@
             const msgs = d.messages;
 
             if (!msgs.length && !avant) {
-                // Aucun message — état vide
                 scroll.innerHTML = `
                     <button id="tchat-btn-plus-anciens" style="display:none">
                         Charger les messages précédents
@@ -425,10 +414,9 @@
             }
 
             if (avant) {
-                // Pagination : insérer avant les messages existants
-                const ancreId = scroll.querySelector('.tchat-msg')?.dataset.msgId;
+                const ancreId  = scroll.querySelector('.tchat-msg')?.dataset.msgId;
                 const fragment = _construireFragment(msgs);
-                const ancre   = ancreId
+                const ancre    = ancreId
                     ? scroll.querySelector(`[data-msg-id="${ancreId}"]`)
                     : null;
                 if (ancre) {
@@ -437,7 +425,6 @@
                     scroll.appendChild(fragment);
                 }
             } else {
-                // Premier chargement
                 const vide = scroll.querySelector('.tchat-vide');
                 if (vide) vide.remove();
                 const fragment = _construireFragment(msgs);
@@ -456,13 +443,12 @@
     }
 
     function _construireFragment(msgs) {
-        const fragment  = document.createDocumentFragment();
-        const moi       = _userId();
-        let   dernDate  = null;
+        const fragment = document.createDocumentFragment();
+        const moi      = _userId();
+        let   dernDate = null;
 
         msgs.forEach(msg => {
             const dateMsg = new Date(msg.created_at).toDateString();
-
             if (dateMsg !== dernDate) {
                 dernDate = dateMsg;
                 const sep = document.createElement('div');
@@ -470,9 +456,7 @@
                 sep.textContent = _formatDateSep(msg.created_at);
                 fragment.appendChild(sep);
             }
-
-            const el = _creerBulleDom(msg, moi);
-            fragment.appendChild(el);
+            fragment.appendChild(_creerBulleDom(msg, moi));
         });
 
         return fragment;
@@ -481,8 +465,8 @@
     function _creerBulleDom(msg, moi) {
         const sortant = msg.sender_id === moi;
         const wrap    = document.createElement('div');
-        wrap.className       = `tchat-msg ${sortant ? 'sortant' : 'entrant'}`;
-        wrap.dataset.msgId   = msg.id;
+        wrap.className     = `tchat-msg ${sortant ? 'sortant' : 'entrant'}`;
+        wrap.dataset.msgId = msg.id;
 
         const luHTML = sortant
             ? `<span class="tchat-msg-lu ${msg.seen ? '' : 'envoye'}">${msg.seen ? '✓✓' : '✓'}</span>`
@@ -501,18 +485,16 @@
         const scroll = document.getElementById('tchat-messages-scroll');
         if (!scroll) return;
 
-        // Retirer état vide si présent
         const vide = scroll.querySelector('.tchat-vide');
         if (vide) vide.remove();
 
-        const moi = _userId();
-
-        // Séparateur de date si nouveau jour
+        const moi       = _userId();
         const dernBulle = scroll.querySelectorAll('.tchat-msg');
         if (dernBulle.length) {
-            const dernDate  = new Date(parseInt(dernBulle[dernBulle.length - 1].dataset.msgId
-                ? dernBulle[dernBulle.length - 1].dataset.msgId : 0));
-            const nouvDate  = new Date(msg.created_at);
+            const dernDate = new Date(parseInt(
+                dernBulle[dernBulle.length - 1].dataset.msgId || 0
+            ));
+            const nouvDate = new Date(msg.created_at);
             if (dernDate.toDateString() !== nouvDate.toDateString()) {
                 const sep = document.createElement('div');
                 sep.className   = 'tchat-date-sep';
@@ -521,8 +503,7 @@
             }
         }
 
-        const el = _creerBulleDom(msg, moi);
-        scroll.appendChild(el);
+        scroll.appendChild(_creerBulleDom(msg, moi));
     }
 
     function _scrollBasMessages() {
@@ -537,9 +518,9 @@
         const texte  = input.value.trim();
         if (!texte || !_interlocuteurActif) return;
 
-        input.value         = '';
-        input.style.height  = 'auto';
-        btnEnv.disabled     = true;
+        input.value        = '';
+        input.style.height = 'auto';
+        btnEnv.disabled    = true;
 
         try {
             const r = await fetch('/api/tchat/messages', {
@@ -552,12 +533,10 @@
             });
             const d = await r.json();
             if (!d.success) {
-                input.value    = texte;
+                input.value     = texte;
                 btnEnv.disabled = false;
                 return;
             }
-            // Le message est déjà reçu via Socket.io si connecté
-            // Sinon on l'ajoute manuellement (REST fallback)
             if (!_socket?.connected) {
                 _appendMessage(d.message);
                 _scrollBasMessages();
@@ -565,7 +544,7 @@
             _rafraichirBadgeBulle();
         } catch (err) {
             console.error('[TCHAT] envoyerMessage :', err.message);
-            input.value    = texte;
+            input.value     = texte;
             btnEnv.disabled = false;
         }
     }
@@ -637,20 +616,33 @@
         }
     }
 
-    // ── Badge bulle ───────────────────────────────────────────
+    // ── Badge bulle + topbar ──────────────────────────────────
     async function _rafraichirBadgeBulle() {
         try {
             const r = await fetch('/api/tchat/non-lus', { headers: _authHeaders() });
             const d = await r.json();
             if (!d.success) return;
 
+            // Badge bulle desktop
             const badge = document.getElementById('tchat-bulle-badge');
-            if (!badge) return;
-            if (d.total > 0) {
-                badge.textContent = d.total > 99 ? '99+' : d.total;
-                badge.classList.add('visible');
-            } else {
-                badge.classList.remove('visible');
+            if (badge) {
+                if (d.total > 0) {
+                    badge.textContent = d.total > 99 ? '99+' : d.total;
+                    badge.classList.add('visible');
+                } else {
+                    badge.classList.remove('visible');
+                }
+            }
+
+            // Badge icône topbar mobile
+            const badgeTopbar = document.getElementById('tchat-topbar-badge');
+            if (badgeTopbar) {
+                if (d.total > 0) {
+                    badgeTopbar.textContent = d.total > 99 ? '99+' : d.total;
+                    badgeTopbar.style.display = 'flex';
+                } else {
+                    badgeTopbar.style.display = 'none';
+                }
             }
         } catch { /* silencieux */ }
     }
@@ -667,16 +659,14 @@
 
     // ── API publique ──────────────────────────────────────────
     window.Tchat = {
-        // Ouvrir directement sur un interlocuteur (depuis profil public, notif)
         ouvrirConversation(interlocuteur) {
             if (!_ouvert) _ouvrirTchat();
             _afficherVueConv(interlocuteur);
         },
-        // Appelé depuis app.js au init
+        toggle  : _toggleTchat,
         init() {
             _construireDom();
             _rafraichirBadgeBulle();
-            // Polling badge toutes les 30s si Socket.io non dispo
             setInterval(_rafraichirBadgeBulle, 30000);
         },
         rafraichirBadge: _rafraichirBadgeBulle

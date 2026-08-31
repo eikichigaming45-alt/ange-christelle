@@ -83,6 +83,31 @@
                 "></span>
             </div>
 
+            <!-- Icône Tchat topbar (mobile uniquement — desktop = bulle flottante) -->
+            <div style="position:relative;display:inline-flex" id="tchat-topbar-wrap">
+                <button class="icon-btn" id="btn-tchat-topbar"
+                        onclick="if(typeof Tchat!=='undefined')Tchat.toggle()"
+                        title="Tchat">💬</button>
+                <span id="tchat-topbar-badge" style="
+                    display:none;
+                    position:absolute;
+                    top:-4px;right:-4px;
+                    background:#ef4444;
+                    color:#fff;
+                    font-size:10px;
+                    font-weight:700;
+                    min-width:18px;
+                    height:18px;
+                    border-radius:9px;
+                    align-items:center;
+                    justify-content:center;
+                    padding:0 4px;
+                    border:2px solid #7C3AED;
+                    pointer-events:none;
+                    line-height:1;
+                "></span>
+            </div>
+
             <!-- Bouton profil -->
             <button class="icon-btn" id="btn-profil-header" onclick="toggleUserMenu(event)" title="Mon compte">👤</button>
 
