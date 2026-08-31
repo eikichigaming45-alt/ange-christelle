@@ -101,12 +101,11 @@ async function chargerAdminStats() {
         const medailles = ['🥇', '🥈', '🥉', '4.', '5.'];
 
         const widgetLabels = {
+    'agenda'        : '📅 Agenda',
     'anniversaires' : '🎂 Anniversaires',
     'astrologie'    : '✨ Astrologie',
-    'planning'      : '📋 Planning',
     'priere'        : '🙏 Prière du jour',
     'islam'         : '🌙 Prières & Hadiths',
-    'rendezvous'    : '🩺 Rendez-vous',
     'sante'         : '🥗 Santé',
     'social'        : '🤝 Social',
     'cycle'         : '🌸 Suivi du cycle',
