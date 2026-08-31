@@ -8,6 +8,7 @@ const router                = express.Router();
 const { pool }              = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 const { find }              = require('geo-tz');
+const moment                = require('moment-timezone');
 
 const FREEASTRO_URL = 'https://json.freeastrologyapi.com/western/planets';
 const GROQ_URL      = 'https://api.groq.com/openai/v1/chat/completions';
@@ -60,29 +61,12 @@ const SIGNES_EMOJI = {
     Sagittarius:'♐', Capricorn:'♑', Aquarius:'♒', Pisces:'♓'
 };
 
-// ── Calcul offset UTC depuis timezone IANA ────────────────────
-// Construit la date avec l'heure réelle de naissance pour éviter
-// le glissement DST (ex: mars 1980 → UTC+1 et non UTC+2)
-function getUtcOffset(tzName, date, hours, minutes) {
+// ── Calcul offset UTC via moment-timezone (historique DST correct) ─
+function getUtcOffset(tzName, year, month, day, hours, minutes) {
     try {
-        const dateAvecHeure = new Date(Date.UTC(
-            date.getFullYear(),
-            date.getMonth(),
-            date.getDate(),
-            hours,
-            minutes,
-            0
-        ));
-        const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone    : tzName,
-            timeZoneName: 'shortOffset'
-        });
-        const parts     = formatter.formatToParts(dateAvecHeure);
-        const offsetStr = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+0';
-        const match     = offsetStr.match(/GMT([+-]\d+(?::\d+)?)?/);
-        if (!match || !match[1]) return 0;
-        const [h, m] = match[1].split(':').map(Number);
-        return h + (m ? (h < 0 ? -m / 60 : m / 60) : 0);
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')} ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}`;
+        const m       = moment.tz(dateStr, tzName);
+        return m.utcOffset() / 60;
     } catch {
         return 0;
     }
@@ -174,17 +158,23 @@ router.get('/', authenticateToken, async (req, res) => {
         const heureStr      = hasHeure ? profil.heure_naissance.slice(0, 5) : '12:00';
         const [hh, mm]      = heureStr.split(':').map(Number);
 
+        const year  = dateNaissance.getUTCFullYear();
+        const month = dateNaissance.getUTCMonth() + 1;
+        const day   = dateNaissance.getUTCDate();
+
         const lat = parseFloat(profil.naissance_lat);
         const lng = parseFloat(profil.naissance_lon);
 
         const tzNames  = find(lat, lng);
         const tzName   = tzNames?.[0] || 'UTC';
-        const timezone = getUtcOffset(tzName, dateNaissance, hh, mm);
+
+        // moment-timezone connaît les règles DST historiques exactes
+        const timezone = getUtcOffset(tzName, year, month, day, hh, mm);
 
         const payload = {
-            year     : dateNaissance.getFullYear(),
-            month    : dateNaissance.getMonth() + 1,
-            date     : dateNaissance.getDate(),
+            year,
+            month,
+            date     : day,
             hours    : hh,
             minutes  : mm,
             seconds  : 0,
