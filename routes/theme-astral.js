@@ -61,13 +61,23 @@ const SIGNES_EMOJI = {
 };
 
 // ── Calcul offset UTC depuis timezone IANA ────────────────────
-function getUtcOffset(tzName, date) {
+// Construit la date avec l'heure réelle de naissance pour éviter
+// le glissement DST (ex: mars 1980 → UTC+1 et non UTC+2)
+function getUtcOffset(tzName, date, hours, minutes) {
     try {
+        const dateAvecHeure = new Date(Date.UTC(
+            date.getFullYear(),
+            date.getMonth(),
+            date.getDate(),
+            hours,
+            minutes,
+            0
+        ));
         const formatter = new Intl.DateTimeFormat('en-US', {
             timeZone    : tzName,
             timeZoneName: 'shortOffset'
         });
-        const parts     = formatter.formatToParts(date);
+        const parts     = formatter.formatToParts(dateAvecHeure);
         const offsetStr = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+0';
         const match     = offsetStr.match(/GMT([+-]\d+(?::\d+)?)?/);
         if (!match || !match[1]) return 0;
@@ -99,7 +109,7 @@ function normaliserPlanete(p) {
 
 // ── Calcul dominante planétaire ───────────────────────────────
 function calculerDominante(planetes) {
-    const scores     = {};
+    const scores      = {};
     const principales = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'];
     planetes.forEach(p => {
         if (!principales.includes(p.name)) return;
@@ -169,7 +179,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
         const tzNames  = find(lat, lng);
         const tzName   = tzNames?.[0] || 'UTC';
-        const timezone = getUtcOffset(tzName, dateNaissance);
+        const timezone = getUtcOffset(tzName, dateNaissance, hh, mm);
 
         const payload = {
             year     : dateNaissance.getFullYear(),
