@@ -10,49 +10,68 @@
     // ── Constantes ────────────────────────────────────────────
     const LIMITE_PAR_PAGE = 40;
 
-    // ── Table de conversion emojis ────────────────────────────
-    // Ordre important : patterns longs en premier
-    const EMOJI_MAP = [
-        { pattern: />:-?$/g,   emoji: '😈' },
-        { pattern: /:-?$/g,    emoji: '😊' },
-        { pattern: /:'?$/g,    emoji: '😭' },
-        { pattern: /:-?$/g,    emoji: '😢' },
-        { pattern: /;-?$/g,    emoji: '😉' },
-        { pattern: /:-?D/g,     emoji: '😄' },
-        { pattern: /:-?P/gi,    emoji: '😛' },
-        { pattern: /:-?O/gi,    emoji: '😮' },
-        { pattern: /<3/g,       emoji: '❤️' },
-        { pattern: /\^\^/g,     emoji: '😊' },
-        { pattern: /:joy:/g,    emoji: '😂' },
-        { pattern: /:ok:/g,     emoji: '👍' },
-        { pattern: /:fire:/g,   emoji: '🔥' },
-        { pattern: /:heart:/g,  emoji: '❤️' },
-        { pattern: /:smile:/g,  emoji: '😊' },
-        { pattern: /:laugh:/g,  emoji: '😂' },
-        { pattern: /:wink:/g,   emoji: '😉' },
-        { pattern: /:cry:/g,    emoji: '😢' },
-        { pattern: /:sad:/g,    emoji: '😢' },
-        { pattern: /:angry:/g,  emoji: '😠' },
-        { pattern: /:love:/g,   emoji: '😍' },
-        { pattern: /:kiss:/g,   emoji: '😘' },
-        { pattern: /:cool:/g,   emoji: '😎' },
-        { pattern: /:think:/g,  emoji: '🤔' },
-        { pattern: /:wow:/g,    emoji: '😮' },
-        { pattern: /:clap:/g,   emoji: '👏' },
-        { pattern: /:star:/g,   emoji: '⭐' },
-        { pattern: /:sun:/g,    emoji: '☀️' },
-        { pattern: /:moon:/g,   emoji: '🌙' },
-        { pattern: /:wave:/g,   emoji: '👋' },
-        { pattern: /:pray:/g,   emoji: '🙏' },
-        { pattern: /:muscle:/g, emoji: '💪' },
-        { pattern: /:check:/g,  emoji: '✅' },
-        { pattern: /:x:/g,      emoji: '❌' },
-        { pattern: /:tada:/g,   emoji: '🎉' },
-        { pattern: /:cake:/g,   emoji: '🎂' },
-        { pattern: /:gift:/g,   emoji: '🎁' },
-        { pattern: /:rose:/g,   emoji: '🌹' },
-        { pattern: /:100:/g,    emoji: '💯' },
-    ];
+    // ── Conversion raccourcis → emojis ────────────────────────
+    // split().join() = replaceAll sans regex — zéro risque d'échappement
+    // Ordre : plus longs en premier pour éviter les collisions
+    function _convertirEmojis(texte) {
+        const MAP = [
+            ['>:-)',  '😈'],
+            ['>:)',   '😈'],
+            [":'(",   '😭'],
+            [':-)',   '😊'],
+            [':)',    '😊'],
+            [':-(', '😢'],
+            [':(',   '😢'],
+            [';-)',   '😉'],
+            [';)',    '😉'],
+            [':-D',  '😄'],
+            [':D',   '😄'],
+            [':-P',  '😛'],
+            [':P',   '😛'],
+            [':-p',  '😛'],
+            [':p',   '😛'],
+            [':-O',  '😮'],
+            [':O',   '😮'],
+            [':-o',  '😮'],
+            [':o',   '😮'],
+            ['<3',   '❤️'],
+            ['^^',   '😊'],
+            [':joy:',    '😂'],
+            [':ok:',     '👍'],
+            [':fire:',   '🔥'],
+            [':heart:',  '❤️'],
+            [':smile:',  '😊'],
+            [':laugh:',  '😂'],
+            [':wink:',   '😉'],
+            [':cry:',    '😢'],
+            [':sad:',    '😢'],
+            [':angry:',  '😠'],
+            [':love:',   '😍'],
+            [':kiss:',   '😘'],
+            [':cool:',   '😎'],
+            [':think:',  '🤔'],
+            [':wow:',    '😮'],
+            [':clap:',   '👏'],
+            [':star:',   '⭐'],
+            [':sun:',    '☀️'],
+            [':moon:',   '🌙'],
+            [':wave:',   '👋'],
+            [':pray:',   '🙏'],
+            [':muscle:', '💪'],
+            [':check:',  '✅'],
+            [':x:',      '❌'],
+            [':tada:',   '🎉'],
+            [':cake:',   '🎂'],
+            [':gift:',   '🎁'],
+            [':rose:',   '🌹'],
+            [':100:',    '💯'],
+        ];
+        let t = texte;
+        for (const [smiley, emoji] of MAP) {
+            t = t.split(smiley).join(emoji);
+        }
+        return t;
+    }
 
     // ── État interne ──────────────────────────────────────────
     let _socket             = null;
@@ -114,15 +133,6 @@
                      style="width:${taille - 4}px;height:${taille - 4}px;font-size:${Math.round(taille * 0.38)}px;">
                     ${_initiale(prenom, username)}
                 </div>`;
-    }
-
-    // ── Conversion raccourcis → emojis ────────────────────────
-    function _convertirEmojis(texte) {
-        let t = texte;
-        for (const { pattern, emoji } of EMOJI_MAP) {
-            t = t.replace(pattern, emoji);
-        }
-        return t;
     }
 
     // ── Construction DOM initiale ─────────────────────────────
@@ -682,7 +692,7 @@
             .replace(/'/g, '&#39;');
     }
 
-        // ── API publique ──────────────────────────────────────────
+    // ── API publique ──────────────────────────────────────────
     window.Tchat = {
         ouvrirConversation(interlocuteur) {
             if (!_ouvert) _ouvrirTchat();
