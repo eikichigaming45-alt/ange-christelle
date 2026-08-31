@@ -2,6 +2,26 @@
 
 ---
 
+## v1.58 — 31-08-2026
+
+### ✨ Nouveau
+- Résonances : nouveau système de réactions en remplacement des likes — Douceur 🩷 · Énergie ⚡ · Calme 🌙 · Inspiration ✨ — arc au tap long sur la photo ou clic bouton bas, une résonance par user par post
+- Pills colorées sous les posts affichant le décompte par type de résonance
+- Champ Lieu optionnel sur les posts (affiché sous la photo)
+- Éclats : stories 24h — upload photo, 2 bandeaux scrollables dans l'onglet Accueil, expiration automatique
+- Route `/api/eclats` — upload WebP, lecture, suppression
+
+### 🔧 Corrections
+- Labels widgets stats admin : `agenda-unifie` → `📅 Agenda`, `planning` et `rendezvous` retirés du mapping
+- Purge BDD : 18 entrées orphelines supprimées de `widget_opens` (`planning` · `rendezvous` · `agenda-unifie`)
+
+### 🗄️ Base de données
+- `post_likes` : ajout colonne `type VARCHAR(20) DEFAULT 'like'`
+- `posts` : ajout colonnes `lieu VARCHAR(100)` et `personnes_taguees INTEGER[]`
+- Nouvelle table `eclats` : `id · user_id · media_url · created_at · expires_at`
+
+---
+
 ## v1.56 — 30-08-2026
 
 ### ✨ Nouveau

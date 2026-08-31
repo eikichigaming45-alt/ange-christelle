@@ -55,6 +55,7 @@ app.use('/api/astrologie',    require('./routes/astrologie'));
 app.use('/api/theme-astral',  require('./routes/theme-astral'));
 app.use('/api/feed',          require('./routes/feed'));
 app.use('/api/social',        require('./routes/social'));
+app.use('/api/eclats',        require('./routes/eclats'));
 
 // ── Middleware erreurs global ─────────────────────────────────
 app.use((err, req, res, next) => {
@@ -62,7 +63,7 @@ app.use((err, req, res, next) => {
     res.status(500).json({ success: false, message: 'Erreur serveur inattendue.' });
 });
 
-// ── Démarrage — FIX : await initDB() avant d'écouter ─────────
+// ── Démarrage ─────────────────────────────────────────────────
 (async () => {
     try {
         await initDB();

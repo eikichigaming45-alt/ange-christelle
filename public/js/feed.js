@@ -9,6 +9,13 @@ let feedFilter    = 'all';
 let feedFollowing = [];
 let feedHashtag   = null;
 
+const RESONANCES = [
+    { type: 'douceur',     label: 'Douceur',     icone: '🩷', couleur: '#f9a8d4' },
+    { type: 'energie',     label: 'Énergie',     icone: '⚡', couleur: '#fcd34d' },
+    { type: 'calme',       label: 'Calme',       icone: '🌙', couleur: '#a5b4fc' },
+    { type: 'inspiration', label: 'Inspiration', icone: '✨', couleur: '#6ee7b7' }
+];
+
 // ── INIT ─────────────────────────────────────────────────────
 async function initFeed() {
     const el = document.getElementById('accueil-feed');
@@ -71,12 +78,13 @@ async function chargerFeed() {
             return;
         }
         list.innerHTML = d.posts.map(p => renderPost(p)).join('');
+        _bindResonances();
     } catch {
         list.innerHTML = '<div class="feed-empty">Erreur de chargement.</div>';
     }
 }
 
-// ── @MENTION : RENDER CONTENU AVEC TAGS CLIQUABLES ───────────
+// ── RENDER HASHTAGS ───────────────────────────────────────────
 function _renderHashtags(texte) {
     return texte.replace(/(<[^>]*>)|#([a-zA-ZÀ-ÿ0-9_]+)/g, (match, tag_html, tag) => {
         if (tag_html) return tag_html;
@@ -84,6 +92,7 @@ function _renderHashtags(texte) {
     });
 }
 
+// ── RENDER CONTENU AVEC MENTIONS ──────────────────────────────
 function renderContenuAvecMentions(contenu, mentionsData) {
     if (!contenu) return '';
     if (!mentionsData || !mentionsData.length) {
@@ -92,17 +101,13 @@ function renderContenuAvecMentions(contenu, mentionsData) {
                 '<span class="mention-tag" style="color:#7c3aed;font-weight:600;cursor:default">@Tout le monde</span>')
         );
     }
-
     let result = contenu;
-
     const sorted = [...mentionsData].sort((a, b) => {
         const fa = `${a.prenom || ''} ${a.nom || ''}`.trim();
         const fb = `${b.prenom || ''} ${b.nom || ''}`.trim();
         return fb.length - fa.length;
     });
-
     const placeholders = [];
-
     for (const m of sorted) {
         if (!m || !m.id) continue;
         const full = `${m.prenom || ''} ${m.nom || ''}`.trim();
@@ -117,22 +122,18 @@ function renderContenuAvecMentions(contenu, mentionsData) {
             });
         }
     }
-
     result = result.replace(/@toutlemonde/gi, '%%TOUTLEMONDE%%');
     result = escapeHtml(result);
-
     for (const { placeholder, html } of placeholders) {
         result = result.split(escapeHtml(placeholder)).join(html);
     }
-
     result = result.split('%%TOUTLEMONDE%%').join(
         '<span class="mention-tag" style="color:#7c3aed;font-weight:600;cursor:default">@Tout le monde</span>'
     );
-
     return _renderHashtags(result);
 }
 
-// Clic sur mention → profil direct
+// ── CLIC MENTION ──────────────────────────────────────────────
 document.addEventListener('click', e => {
     const tag = e.target.closest('.mention-tag');
     if (!tag) return;
@@ -141,7 +142,7 @@ document.addEventListener('click', e => {
     if (userId) ouvrirProfilPublic(userId);
 });
 
-// Clic sur hashtag → filtrer le feed
+// ── CLIC HASHTAG ──────────────────────────────────────────────
 document.addEventListener('click', e => {
     const tag = e.target.closest('.hashtag-tag');
     if (!tag) return;
@@ -149,16 +150,14 @@ document.addEventListener('click', e => {
     filtrerParHashtag(tag.dataset.tag);
 });
 
+// ── FILTRE HASHTAG ────────────────────────────────────────────
 async function filtrerParHashtag(tag) {
-    feedFilter = 'hashtag';
+    feedFilter  = 'hashtag';
     feedHashtag = tag;
-
     document.querySelectorAll('.feed-filter-btn').forEach(b => b.classList.remove('active'));
-
     const list = document.getElementById('feed-list');
     if (!list) return;
     list.innerHTML = '<div class="feed-loading">Chargement...</div>';
-
     const user = getUser();
     try {
         const r = await fetch(`/api/feed?hashtag=${encodeURIComponent(tag)}`, {
@@ -166,9 +165,7 @@ async function filtrerParHashtag(tag) {
         });
         const d = await r.json();
         if (!d.success) throw new Error();
-
-        // Bandeau hashtag actif
-        const header = document.querySelector('.feed-header');
+        const header   = document.querySelector('.feed-header');
         const existing = document.getElementById('hashtag-banner');
         if (existing) existing.remove();
         if (header) {
@@ -178,12 +175,12 @@ async function filtrerParHashtag(tag) {
             banner.innerHTML = `#${tag} <button onclick="clearHashtagFilter()" style="margin-left:auto;background:none;border:none;font-size:16px;cursor:pointer;color:#7c3aed;line-height:1">✕</button>`;
             header.insertAdjacentElement('afterend', banner);
         }
-
         if (!d.posts.length) {
             list.innerHTML = `<div class="feed-empty">Aucun post avec #${tag}.</div>`;
             return;
         }
         list.innerHTML = d.posts.map(p => renderPost(p)).join('');
+        _bindResonances();
     } catch {
         list.innerHTML = '<div class="feed-empty">Erreur de chargement.</div>';
     }
@@ -200,10 +197,9 @@ async function clearHashtagFilter() {
     await chargerFeed();
 }
 
-// ── @MENTION : AUTOCOMPLETE ───────────────────────────────────
+// ── @MENTION AUTOCOMPLETE ─────────────────────────────────────
 function initMentions(inputEl, wrapEl) {
     if (!inputEl || !wrapEl) return;
-
     let dropEl = wrapEl.querySelector('.mention-dropdown');
     if (!dropEl) {
         dropEl = document.createElement('div');
@@ -211,20 +207,16 @@ function initMentions(inputEl, wrapEl) {
         wrapEl.style.position = 'relative';
         wrapEl.appendChild(dropEl);
     }
-
     let debounceTimer = null;
-
     inputEl.addEventListener('input', () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => _mentionInput(inputEl, dropEl), 200);
     });
-
     inputEl.addEventListener('keydown', e => {
         if (dropEl.style.display === 'none' || !dropEl.children.length) return;
         const items = [...dropEl.querySelectorAll('.mention-item')];
         const cur   = dropEl.querySelector('.mention-item.active');
         const idx   = items.indexOf(cur);
-
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             const next = items[Math.min(idx + 1, items.length - 1)];
@@ -239,17 +231,13 @@ function initMentions(inputEl, wrapEl) {
             const active = dropEl.querySelector('.mention-item.active');
             if (active) {
                 e.preventDefault();
-                if (active.dataset.special === 'toutlemonde') {
-                    _insererToutLeMonde(inputEl, dropEl);
-                } else {
-                    _insererMention(inputEl, dropEl, active.dataset.prenom, active.dataset.nom);
-                }
+                if (active.dataset.special === 'toutlemonde') _insererToutLeMonde(inputEl, dropEl);
+                else _insererMention(inputEl, dropEl, active.dataset.prenom, active.dataset.nom);
             }
         } else if (e.key === 'Escape') {
             _fermerDropdown(dropEl);
         }
     });
-
     document.addEventListener('click', e => {
         if (!wrapEl.contains(e.target)) _fermerDropdown(dropEl);
     }, { capture: true });
@@ -261,23 +249,17 @@ async function _mentionInput(inputEl, dropEl) {
     const avant  = val.substring(0, cursor);
     const match  = avant.match(/@([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \t]{0,40})$/);
     if (!match) { _fermerDropdown(dropEl); return; }
-
     const q    = match[1].trim();
     if (!q) { _fermerDropdown(dropEl); return; }
-
-    const user = getUser();
+    const user    = getUser();
     const isAdmin = user.role === 'admin';
-
     try {
         const r = await fetch(`/api/feed/users?q=${encodeURIComponent(q)}`, {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const d = await r.json();
         if (!d.success) { _fermerDropdown(dropEl); return; }
-
         const items = [];
-
-        // Suggestion @toutlemonde en premier — admins uniquement
         if (isAdmin && 'toutlemonde'.startsWith(q.toLowerCase())) {
             items.push(`
                 <div class="mention-item active" data-special="toutlemonde"
@@ -289,7 +271,6 @@ async function _mentionInput(inputEl, dropEl) {
                     <span style="font-size:11px;color:#9ca3af;margin-left:4px">Tout le monde</span>
                 </div>`);
         }
-
         if (d.users.length) {
             d.users.forEach((u, i) => {
                 const av = u.avatar
@@ -304,20 +285,14 @@ async function _mentionInput(inputEl, dropEl) {
                     </div>`);
             });
         }
-
         if (!items.length) { _fermerDropdown(dropEl); return; }
-
         dropEl.innerHTML = items.join('');
         dropEl.style.display = 'block';
-
         dropEl.querySelectorAll('.mention-item').forEach(item => {
             item.addEventListener('mousedown', e => {
                 e.preventDefault();
-                if (item.dataset.special === 'toutlemonde') {
-                    _insererToutLeMonde(inputEl, dropEl);
-                } else {
-                    _insererMention(inputEl, dropEl, item.dataset.prenom, item.dataset.nom);
-                }
+                if (item.dataset.special === 'toutlemonde') _insererToutLeMonde(inputEl, dropEl);
+                else _insererMention(inputEl, dropEl, item.dataset.prenom, item.dataset.nom);
             });
         });
     } catch { _fermerDropdown(dropEl); }
@@ -353,18 +328,64 @@ function _fermerDropdown(dropEl) {
     if (dropEl) { dropEl.innerHTML = ''; dropEl.style.display = 'none'; }
 }
 
+// ── RENDER RÉSONANCES BOUTON BAS ──────────────────────────────
+function _renderResonanceBouton(maResonance, resonancesStats) {
+    const stats  = resonancesStats || [];
+    const total  = stats.reduce((s, r) => s + (r.nb || 0), 0);
+    const actifs = RESONANCES.filter(r => stats.find(s => s.type === r.type && s.nb > 0));
+
+    if (!total) {
+        return `<button class="feed-resonance-btn" data-post-id="" onclick="ouvrirArcResonance(this)">
+            <span class="feed-resonance-neutre">✦</span>
+            <span class="feed-resonance-label-neutre">Résonances</span>
+        </button>`;
+    }
+
+    const icones = actifs.map(r => {
+        const isMine = maResonance === r.type;
+        return `<span class="feed-resonance-icone${isMine ? ' mine' : ''}" style="color:${r.couleur}">${r.icone}</span>`;
+    }).join('');
+
+    return `<button class="feed-resonance-btn" onclick="ouvrirArcResonance(this)">
+        <span class="feed-resonance-icones">${icones}</span>
+        <span class="feed-resonance-count">${total}</span>
+    </button>`;
+}
+
+// ── RENDER PILLS RÉSONANCES ───────────────────────────────────
+function _renderResonancePills(resonancesStats) {
+    const stats = resonancesStats || [];
+    const actifs = RESONANCES.filter(r => stats.find(s => s.type === r.type && s.nb > 0));
+    if (!actifs.length) return '';
+    return `<div class="feed-resonance-pills">
+        ${actifs.map(r => {
+            const nb = stats.find(s => s.type === r.type)?.nb || 0;
+            return `<span class="feed-resonance-pill" style="--pill-color:${r.couleur}">${r.icone} ${nb}</span>`;
+        }).join('')}
+    </div>`;
+}
+
 // ── RENDER POST ───────────────────────────────────────────────
 function renderPost(p) {
-    const user     = getUser();
-    const isOwner  = user.username === p.username;
-    const isAdmin  = user.role === 'admin';
-    const avatar   = p.avatar
+    const user    = getUser();
+    const isOwner = user.username === p.username;
+    const isAdmin = user.role === 'admin';
+    const avatar  = p.avatar
         ? `<img src="${p.avatar}" class="feed-avatar" alt="">`
         : `<div class="feed-avatar feed-avatar-initiale">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
-    const date     = new Date(p.created_at).toLocaleDateString('fr-FR', {
+    const date    = new Date(p.created_at).toLocaleDateString('fr-FR', {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
     });
     const followed = feedFollowing.includes(p.user_id);
+
+    const lieuTag = (() => {
+        const parts = [];
+        if (p.lieu) parts.push(`📍 ${escapeHtml(p.lieu)}`);
+        if (p.personnes_taguees && p.personnes_taguees.length) parts.push(`· Avec l'équipe`);
+        return parts.length
+            ? `<div class="feed-lieu">${parts.join(' ')}</div>`
+            : '';
+    })();
 
     return `
         <div class="feed-card" id="post-${p.id}" data-post-id="${p.id}" data-photo-url="${escapeHtml(p.photo_url || '')}">
@@ -395,15 +416,31 @@ function renderPost(p) {
             </div>
             <div class="feed-contenu-text" id="post-contenu-${p.id}" style="display:none">${escapeHtml(p.contenu || '')}</div>
             ${p.contenu ? `<div class="feed-contenu">${renderContenuAvecMentions(p.contenu, p.mentions_data)}</div>` : ''}
-            ${p.photo_url ? `<div class="feed-photo-wrap"><img src="${p.photo_url}" class="feed-photo" alt="" onclick="ouvrirPhoto('${p.photo_url}')"></div>` : ''}
+            ${p.photo_url ? `
+            <div class="feed-photo-wrap" id="photo-wrap-${p.id}"
+                 data-post-id="${p.id}"
+                 data-ma-resonance="${escapeHtml(p.ma_resonance || '')}">
+                <img src="${p.photo_url}" class="feed-photo" alt="" onclick="ouvrirPhoto('${p.photo_url}')">
+                <div class="feed-arc-resonance" id="arc-${p.id}" style="display:none">
+                    <div class="feed-arc-label">Résonances</div>
+                    <div class="feed-arc-items">
+                        ${RESONANCES.map(r => `
+                        <button class="feed-arc-item ${p.ma_resonance === r.type ? 'active' : ''}"
+                                data-type="${r.type}"
+                                style="--r-color:${r.couleur}"
+                                onclick="choisirResonance(${p.id}, '${r.type}', this)">
+                            <span class="feed-arc-icone">${r.icone}</span>
+                            <span class="feed-arc-item-label">${r.label}</span>
+                        </button>`).join('')}
+                    </div>
+                </div>
+            </div>` : ''}
+            ${lieuTag}
+            ${_renderResonancePills(p.resonances_stats)}
             <div class="feed-footer">
-                <button class="feed-like-btn ${p.liked ? 'liked' : ''}" onclick="toggleLike(${p.id}, this)">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="${p.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
-                        <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
-                    </svg>
-                    <span class="feed-like-count" onclick="voirLikers(${p.id}, event)">${p.likes}</span>
-                </button>
+                <div class="feed-resonance-wrap" data-post-id="${p.id}">
+                    ${_renderResonanceBouton(p.ma_resonance, p.resonances_stats)}
+                </div>
                 <button class="feed-comment-btn" onclick="toggleCommentaires(${p.id})">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -423,25 +460,153 @@ function renderPost(p) {
     `;
 }
 
-// ── LIKE POST ─────────────────────────────────────────────────
-async function toggleLike(postId, btn) {
+// ── BIND RÉSONANCES — tap long photo + survol desktop ─────────
+function _bindResonances() {
+    document.querySelectorAll('.feed-photo-wrap[data-post-id]').forEach(wrap => {
+        const postId = wrap.dataset.postId;
+        const arc    = document.getElementById(`arc-${postId}`);
+        if (!arc) return;
+
+        let longPressTimer = null;
+
+        // Mobile — tap long 300ms
+        wrap.addEventListener('touchstart', e => {
+            if (e.target.closest('.feed-arc-resonance')) return;
+            longPressTimer = setTimeout(() => {
+                _ouvrirArc(postId);
+                if (navigator.vibrate) navigator.vibrate(30);
+            }, 300);
+        }, { passive: true });
+
+        wrap.addEventListener('touchend', () => {
+            clearTimeout(longPressTimer);
+        }, { passive: true });
+
+        wrap.addEventListener('touchmove', () => {
+            clearTimeout(longPressTimer);
+        }, { passive: true });
+
+        // Desktop — survol photo
+        wrap.addEventListener('mouseenter', e => {
+            if (e.target.closest('.feed-arc-resonance')) return;
+            _ouvrirArc(postId);
+        });
+
+        wrap.addEventListener('mouseleave', e => {
+            if (e.relatedTarget && wrap.contains(e.relatedTarget)) return;
+            _fermerArc(postId);
+        });
+    });
+
+    // Fermer arc au clic en dehors
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.feed-photo-wrap') && !e.target.closest('.feed-resonance-btn')) {
+            document.querySelectorAll('.feed-arc-resonance').forEach(a => a.style.display = 'none');
+        }
+    });
+}
+
+function _ouvrirArc(postId) {
+    document.querySelectorAll('.feed-arc-resonance').forEach(a => {
+        if (a.id !== `arc-${postId}`) a.style.display = 'none';
+    });
+    const arc = document.getElementById(`arc-${postId}`);
+    if (arc) arc.style.display = 'flex';
+}
+
+function _fermerArc(postId) {
+    const arc = document.getElementById(`arc-${postId}`);
+    if (arc) arc.style.display = 'none';
+}
+
+// ── OUVRIR ARC DEPUIS BOUTON BAS ──────────────────────────────
+function ouvrirArcResonance(btn) {
+    const wrap   = btn.closest('.feed-resonance-wrap');
+    const postId = wrap?.dataset.postId;
+    if (!postId) return;
+    const photoWrap = document.getElementById(`photo-wrap-${postId}`);
+    if (photoWrap) {
+        _ouvrirArc(postId);
+    } else {
+        // Post sans photo — arc inline sous le bouton
+        _ouvrirArcInline(postId, btn);
+    }
+}
+
+function _ouvrirArcInline(postId, btn) {
+    let inline = document.getElementById(`arc-inline-${postId}`);
+    if (inline) { inline.remove(); return; }
+    const wrap = btn.closest('.feed-resonance-wrap');
+    inline = document.createElement('div');
+    inline.id        = `arc-inline-${postId}`;
+    inline.className = 'feed-arc-resonance feed-arc-inline';
+	    inline.innerHTML = `
+        <div class="feed-arc-label">Résonances</div>
+        <div class="feed-arc-items">
+            ${RESONANCES.map(r => `
+            <button class="feed-arc-item"
+                    data-type="${r.type}"
+                    style="--r-color:${r.couleur}"
+                    onclick="choisirResonance(${postId}, '${r.type}', this)">
+                <span class="feed-arc-icone">${r.icone}</span>
+                <span class="feed-arc-item-label">${r.label}</span>
+            </button>`).join('')}
+        </div>
+    `;
+    wrap.appendChild(inline);
+}
+
+// ── CHOISIR RÉSONANCE ─────────────────────────────────────────
+async function choisirResonance(postId, type, btn) {
     const user = getUser();
     try {
-        const r = await fetch(`/api/feed/${postId}/like`, {
+        const r = await fetch(`/api/feed/${postId}/resonance`, {
             method : 'POST',
-            headers: { 'Authorization': `Bearer ${user.token}` }
+            headers: { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ type })
         });
         const d = await r.json();
         if (!d.success) return;
-        btn.classList.toggle('liked', d.liked);
-        const svg = btn.querySelector('svg');
-        if (svg) svg.setAttribute('fill', d.liked ? 'currentColor' : 'none');
-        const span = btn.querySelector('.feed-like-count');
-        if (span) span.textContent = parseInt(span.textContent) + (d.liked ? 1 : -1);
+
+        _fermerArc(postId);
+        const inline = document.getElementById(`arc-inline-${postId}`);
+        if (inline) inline.remove();
+
+        // Mettre à jour bouton bas
+        const wrap = document.querySelector(`.feed-resonance-wrap[data-post-id="${postId}"]`);
+        if (wrap) {
+            wrap.innerHTML = _renderResonanceBouton(d.ma_resonance, d.resonances_stats);
+        }
+
+        // Mettre à jour pills
+        const card = document.getElementById(`post-${postId}`);
+        if (card) {
+            const pills = card.querySelector('.feed-resonance-pills');
+            const newPills = _renderResonancePills(d.resonances_stats);
+            if (pills) {
+                pills.outerHTML = newPills || '';
+            } else if (newPills) {
+                const footer = card.querySelector('.feed-footer');
+                if (footer) footer.insertAdjacentHTML('beforebegin', newPills);
+            }
+        }
+
+        // Mettre à jour état actif dans l'arc photo
+        const arc = document.getElementById(`arc-${postId}`);
+        if (arc) {
+            arc.querySelectorAll('.feed-arc-item').forEach(b => {
+                b.classList.toggle('active', b.dataset.type === d.ma_resonance);
+            });
+        }
+
+        // Mettre à jour data-ma-resonance
+        const photoWrap = document.getElementById(`photo-wrap-${postId}`);
+        if (photoWrap) photoWrap.dataset.maResonance = d.ma_resonance || '';
+
     } catch {}
 }
 
-// ── VOIR LIKERS ───────────────────────────────────────────────
+// ── VOIR LIKERS / RÉSONANCES ──────────────────────────────────
 async function voirLikers(postId, e) {
     e.stopPropagation();
     const user = getUser();
@@ -451,21 +616,23 @@ async function voirLikers(postId, e) {
         });
         const d = await r.json();
         if (!d.success) return;
-        document.getElementById('modal-title').textContent = 'Personnes qui aiment';
+        document.getElementById('modal-title').textContent = 'Résonances';
         document.getElementById('modal-body').innerHTML = d.likers.length
             ? d.likers.map(l => {
                 const av = l.avatar
                     ? `<img src="${l.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
                     : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${(l.prenom?.[0] || l.username[0]).toUpperCase()}</div>`;
+                const res = RESONANCES.find(r => r.type === l.type);
                 return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6">
                     ${av}
-                    <div>
+                    <div style="flex:1">
                         <div style="font-size:14px;font-weight:700;color:#111">${escapeHtml(l.prenom || '')} ${escapeHtml(l.nom || '')}</div>
                         <div style="font-size:12px;color:#9ca3af">@${escapeHtml(l.username)}</div>
                     </div>
+                    ${res ? `<span style="font-size:20px">${res.icone}</span>` : ''}
                 </div>`;
             }).join('')
-            : '<p style="text-align:center;color:#9ca3af;padding:20px">Aucun like pour l\'instant.</p>';
+            : '<p style="text-align:center;color:#9ca3af;padding:20px">Aucune résonance pour l\'instant.</p>';
         document.getElementById('overlay').classList.add('on');
     } catch {}
 }
@@ -482,6 +649,10 @@ function editerPost(postId) {
                 style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
         </div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+            <input type="text" id="edit-post-lieu" placeholder="📍 Lieu (optionnel)"
+                style="flex:1;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;outline:none;box-sizing:border-box">
+        </div>
         ${photoActuelle ? `
         <div id="edit-photo-actuelle" style="margin-top:12px">
             <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px">Photo actuelle</div>
@@ -496,8 +667,7 @@ function editerPost(postId) {
             <label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">
                 ${photoActuelle ? 'Remplacer la photo' : 'Ajouter une photo (optionnelle)'}
             </label>
-            <input type="file" id="edit-post-photo" accept="image/*"
-                style="font-size:13px;color:#374151">
+            <input type="file" id="edit-post-photo" accept="image/*" style="font-size:13px;color:#374151">
         </div>
         <div id="edit-post-preview" style="margin-top:10px"></div>
         <button onclick="sauvegarderEditionPost(${postId})"
@@ -516,13 +686,11 @@ function editerPost(postId) {
         const file    = e.target.files[0];
         const preview = document.getElementById('edit-post-preview');
         if (file) {
-            const url = URL.createObjectURL(file);
-            preview.innerHTML = `<img src="${url}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`;
+            preview.innerHTML = `<img src="${URL.createObjectURL(file)}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`;
         } else {
             preview.innerHTML = '';
         }
     });
-
     document.getElementById('overlay').classList.add('on');
 }
 
@@ -538,18 +706,16 @@ async function sauvegarderEditionPost(postId) {
     const user    = getUser();
     const contenu = document.getElementById('edit-post-contenu').value.trim();
     const photo   = document.getElementById('edit-post-photo').files[0];
+    const lieu    = (document.getElementById('edit-post-lieu')?.value || '').trim() || null;
     const msg     = document.getElementById('edit-post-msg');
-
     if (!contenu && !photo && window._editSupprimerPhoto) {
         msg.style.color = '#ef4444';
-        msg.textContent = 'Le post ne peut pas être vide (texte ou photo requis).';
+        msg.textContent = 'Le post ne peut pas être vide.';
         return;
     }
     try {
         let photoB64 = null;
-        let mime     = null;
         if (photo) {
-            mime     = photo.type || 'image/jpeg';
             photoB64 = await new Promise((resolve, reject) => {
                 const reader   = new FileReader();
                 reader.onload  = e => resolve(e.target.result.split(',')[1]);
@@ -557,9 +723,8 @@ async function sauvegarderEditionPost(postId) {
                 reader.readAsDataURL(photo);
             });
         }
-        const body = { contenu, supprimer_photo: window._editSupprimerPhoto };
-        if (photoB64) { body.photo = photoB64; body.mime = mime; }
-
+        const body = { contenu, supprimer_photo: window._editSupprimerPhoto, lieu };
+        if (photoB64) body.photo = photoB64;
         const r = await fetch(`/api/feed/${postId}`, {
             method  : 'PUT',
             headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
@@ -592,7 +757,6 @@ async function toggleCommentaires(postId) {
     }
 }
 
-// ── CHARGER COMMENTAIRES ──────────────────────────────────────
 async function chargerCommentaires(postId) {
     const user = getUser();
     const zone = document.getElementById(`comments-${postId}`);
@@ -603,10 +767,8 @@ async function chargerCommentaires(postId) {
         });
         const d = await r.json();
         if (!d.success) throw new Error();
-
         const racines  = d.comments.filter(c => !c.parent_id);
         const reponses = d.comments.filter(c => !!c.parent_id);
-
         const html = racines.map(c => {
             const reps = reponses.filter(r => Number(r.parent_id) === Number(c.id));
             return `
@@ -617,7 +779,6 @@ async function chargerCommentaires(postId) {
                 </div>` : ''}
             `;
         }).join('');
-
         zone.innerHTML = `
             ${html}
             <div class="feed-comment-form" id="comment-form-${postId}" style="position:relative">
@@ -628,7 +789,7 @@ async function chargerCommentaires(postId) {
                 <button onclick="envoyerCommentaire(${postId})" class="feed-comment-send">Envoyer</button>
             </div>
         `;
-                const inputEl = document.getElementById(`comment-input-${postId}`);
+        const inputEl = document.getElementById(`comment-input-${postId}`);
         const wrapEl  = document.getElementById(`comment-form-${postId}`);
         initMentions(inputEl, wrapEl);
     } catch {
@@ -644,20 +805,15 @@ function renderComment(c, postId, isReponse = false) {
     const date    = new Date(c.created_at).toLocaleDateString('fr-FR', {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
     });
-
     const avatar = c.avatar
         ? `<img src="${c.avatar}" onclick="ouvrirProfilPublic(${c.user_id})"
-               style="width:28px;height:28px;border-radius:50%;object-fit:cover;
-                      flex-shrink:0;cursor:pointer" alt="">`
+               style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;cursor:pointer" alt="">`
         : `<div onclick="ouvrirProfilPublic(${c.user_id})"
-               style="width:28px;height:28px;border-radius:50%;
-                      background:linear-gradient(135deg,#7c3aed,#6d28d9);
-                      color:#fff;font-size:11px;font-weight:700;
-                      display:flex;align-items:center;justify-content:center;
-                      flex-shrink:0;cursor:pointer">
+               style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                      color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;
+                      justify-content:center;flex-shrink:0;cursor:pointer">
                ${(c.prenom?.[0] || c.username[0]).toUpperCase()}
            </div>`;
-
     return `
         <div class="feed-comment${isReponse ? ' feed-comment-reply' : ''}"
              id="comment-${c.id}" data-comment-id="${c.id}"
@@ -665,8 +821,7 @@ function renderComment(c, postId, isReponse = false) {
             ${avatar}
             <div style="flex:1;min-width:0">
                 <div class="feed-comment-meta" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
-                    <span class="feed-comment-author"
-                          style="font-size:13px;font-weight:700;color:#111;cursor:pointer"
+                    <span class="feed-comment-author" style="font-size:13px;font-weight:700;color:#111;cursor:pointer"
                           onclick="ouvrirProfilPublic(${c.user_id})">
                         ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
                     </span>
@@ -695,8 +850,7 @@ function renderComment(c, postId, isReponse = false) {
                         ${!isReponse ? `
                         <button class="feed-comment-reply-btn"
                                 onclick="afficherFormulaireReponse(${c.id}, ${postId}, '${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}')"
-                                style="font-size:11px;font-weight:600;color:#7c3aed;background:none;
-                                       border:none;cursor:pointer;padding:2px 4px">
+                                style="font-size:11px;font-weight:600;color:#7c3aed;background:none;border:none;cursor:pointer;padding:2px 4px">
                             Répondre
                         </button>` : ''}
                     </div>
@@ -715,10 +869,8 @@ function renderComment(c, postId, isReponse = false) {
 // ── FORMULAIRE RÉPONSE ────────────────────────────────────────
 function afficherFormulaireReponse(parentId, postId, nomAuteur) {
     document.querySelectorAll('[id^="reply-form-"]').forEach(el => el.innerHTML = '');
-
     const zone = document.getElementById(`reply-form-${parentId}`);
     if (!zone) return;
-
     zone.innerHTML = `
         <div id="reply-wrap-${parentId}"
              style="display:flex;gap:6px;margin-top:6px;align-items:center;position:relative">
@@ -738,23 +890,18 @@ function afficherFormulaireReponse(parentId, postId, nomAuteur) {
             </button>
         </div>
     `;
-
     const inputEl = document.getElementById(`reply-input-${parentId}`);
     const wrapEl  = document.getElementById(`reply-wrap-${parentId}`);
     if (inputEl) {
         inputEl.value = '';
         inputEl.addEventListener('keydown', e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                envoyerReponse(parentId, postId);
-            }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envoyerReponse(parentId, postId); }
         });
         inputEl.focus();
     }
     initMentions(inputEl, wrapEl);
 }
 
-// ── ENVOYER RÉPONSE ───────────────────────────────────────────
 async function envoyerReponse(parentId, postId) {
     const user  = getUser();
     const input = document.getElementById(`reply-input-${parentId}`);
@@ -808,14 +955,10 @@ function editerCommentaire(commentId, postId) {
                        font-size:13px;outline:none;font-family:inherit">
             <button onclick="sauvegarderEditionCommentaire(${commentId}, ${postId})"
                 style="padding:6px 12px;background:#7c3aed;color:#fff;border:none;
-                       border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">
-                OK
-            </button>
+                       border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">OK</button>
             <button onclick="chargerCommentaires(${postId})"
                 style="padding:6px 10px;background:#f3f4f6;color:#374151;border:none;
-                       border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">
-                ✕
-            </button>
+                       border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">✕</button>
         </div>
     `;
     const input = document.getElementById(`edit-comment-input-${commentId}`);
@@ -850,9 +993,7 @@ function supprimerCommentaire(commentId, postId) {
             <button id="btn-delcomment-non" style="flex:1;padding:13px;background:#f3f4f6;color:#374151;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Annuler</button>
         </div>`;
     document.getElementById('overlay').classList.add('on');
-    document.getElementById('btn-delcomment-non').onclick = () => {
-        document.getElementById('overlay').classList.remove('on');
-    };
+    document.getElementById('btn-delcomment-non').onclick = () => document.getElementById('overlay').classList.remove('on');
     document.getElementById('btn-delcomment-oui').onclick = async () => {
         const user = getUser();
         try {
@@ -899,13 +1040,11 @@ function supprimerPost(postId) {
             <button id="btn-delpost-non" style="flex:1;padding:13px;background:#f3f4f6;color:#374151;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Annuler</button>
         </div>`;
     document.getElementById('overlay').classList.add('on');
-    document.getElementById('btn-delpost-non').onclick = () => {
-        document.getElementById('overlay').classList.remove('on');
-    };
+    document.getElementById('btn-delpost-non').onclick = () => document.getElementById('overlay').classList.remove('on');
     document.getElementById('btn-delpost-oui').onclick = async () => {
         const user = getUser();
         try {
-            const r = await fetch(`/api/feed/${postId}`, {
+                        const r = await fetch(`/api/feed/${postId}`, {
                 method : 'DELETE',
                 headers: { 'Authorization': `Bearer ${user.token}` }
             });
@@ -951,29 +1090,31 @@ function ouvrirModalPost() {
                 style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
                        font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
         </div>
-        <div style="margin-top:12px">
-    <label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">Photo (optionnelle)</label>
-    <input type="file" id="post-photo" accept="image/*"
-        style="font-size:13px;color:#374151">
-</div>
-<div id="post-preview" style="margin-top:10px"></div>
-<button onclick="publierPost()"
-    style="width:100%;margin-top:16px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
-           color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
-    Publier
-</button>
+        <div style="margin-top:10px">
+            <input type="text" id="post-lieu" placeholder="📍 Lieu (optionnel)"
+                style="width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                       font-size:13px;outline:none;box-sizing:border-box">
+        </div>
+        <div style="margin-top:10px">
+            <label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">Photo (optionnelle)</label>
+            <input type="file" id="post-photo" accept="image/*" style="font-size:13px;color:#374151">
+        </div>
+        <div id="post-preview" style="margin-top:10px"></div>
+        <button onclick="publierPost()"
+            style="width:100%;margin-top:16px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                   color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">
+            Publier
+        </button>
         <div id="post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
     const ta   = document.getElementById('post-contenu');
     const wrap = document.getElementById('new-post-wrap');
     initMentions(ta, wrap);
-
     document.getElementById('post-photo').addEventListener('change', e => {
         const file    = e.target.files[0];
         const preview = document.getElementById('post-preview');
         if (file) {
-            const url = URL.createObjectURL(file);
-            preview.innerHTML = `<img src="${url}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`;
+            preview.innerHTML = `<img src="${URL.createObjectURL(file)}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`;
         } else {
             preview.innerHTML = '';
         }
@@ -984,6 +1125,7 @@ async function publierPost() {
     const user    = getUser();
     const contenu = document.getElementById('post-contenu').value.trim();
     const photo   = document.getElementById('post-photo').files[0];
+    const lieu    = (document.getElementById('post-lieu')?.value || '').trim() || null;
     const msg     = document.getElementById('post-msg');
     if (!contenu && !photo) {
         msg.style.color = '#ef4444';
@@ -992,9 +1134,7 @@ async function publierPost() {
     }
     try {
         let photoB64 = null;
-        let mime     = null;
         if (photo) {
-            mime     = photo.type || 'image/jpeg';
             photoB64 = await new Promise((resolve, reject) => {
                 const reader   = new FileReader();
                 reader.onload  = e => resolve(e.target.result.split(',')[1]);
@@ -1002,8 +1142,8 @@ async function publierPost() {
                 reader.readAsDataURL(photo);
             });
         }
-        const body = { contenu };
-        if (photoB64) { body.photo = photoB64; body.mime = mime; }
+        const body = { contenu, lieu };
+        if (photoB64) body.photo = photoB64;
         const r = await fetch('/api/feed', {
             method  : 'POST',
             headers : { 'Authorization': `Bearer ${user.token}`, 'Content-Type': 'application/json' },
@@ -1032,14 +1172,11 @@ async function ouvrirProfilPublic(userId) {
         });
         const d = await r.json();
         if (!d.success) return;
-        const p = d.profil;
-
+        const p      = d.profil;
         const isSelf = String(user.userId) === String(p.id);
-
         const avatar = p.photo
             ? `<img src="${p.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed">`
             : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
-
         const abonnesEl = isSelf
             ? `<div style="cursor:pointer" onclick="voirAbonnes(${p.id})">
                    <div style="font-size:20px;font-weight:800;color:#7c3aed">${p.nb_abonnes}</div>
@@ -1049,7 +1186,6 @@ async function ouvrirProfilPublic(userId) {
                    <div style="font-size:20px;font-weight:800;color:#111">${p.nb_abonnes}</div>
                    <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Abonnés</div>
                </div>`;
-
         document.getElementById('modal-title').textContent = '';
         document.getElementById('modal-body').innerHTML = `
             <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:8px 0">
@@ -1125,7 +1261,7 @@ async function toggleFollowDepuisProfil(userId, btn) {
             method : 'POST',
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
-                const d = await r.json();
+        const d = await r.json();
         if (!d.success) return;
         if (d.following) {
             feedFollowing.push(userId);
@@ -1162,19 +1298,17 @@ async function partagerPost(postId) {
     const contenu   = contenuEl ? contenuEl.textContent.trim() : '';
     const photoUrl  = card?.dataset.photoUrl || '';
     const text      = contenu.substring(0, 100) || 'Regarde ce post sur MoaDja';
-
     if (navigator.share) {
         try {
             const shareData = { title: 'MoaDja', text };
-            if (photoUrl) { shareData.url = photoUrl; } else { shareData.url = location.origin; }
+            shareData.url   = photoUrl || location.origin;
             await navigator.share(shareData);
         } catch (e) {
             if (e.name !== 'AbortError') console.error(e);
         }
     } else {
         try {
-            const urlACopier = photoUrl || location.origin;
-            await navigator.clipboard.writeText(`${text}\n${urlACopier}`);
+            await navigator.clipboard.writeText(`${text}\n${photoUrl || location.origin}`);
             document.getElementById('modal-title').textContent = 'Lien copié';
             document.getElementById('modal-body').innerHTML = `
                 <p style="text-align:center;color:#374151;padding:20px 0">Le lien a été copié dans le presse-papier.</p>

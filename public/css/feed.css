@@ -218,6 +218,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
+    cursor: pointer;
 }
 
 .feed-photo {
@@ -226,13 +228,193 @@
     max-height: 480px;
     object-fit: contain;
     display: block;
-    cursor: pointer;
     transition: opacity .2s;
     background: #f3f4f6;
 }
 
 .feed-photo:hover {
     opacity: .92;
+}
+
+/* ===================== LIEU TAG ===================== */
+.feed-lieu {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 500;
+    padding: 0 2px;
+}
+
+/* ===================== ARC RÉSONANCES ===================== */
+.feed-arc-resonance {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 10;
+    animation: arcFadeIn .18s ease;
+}
+
+@keyframes arcFadeIn {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(.9); }
+    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.feed-arc-label {
+    background: rgba(255,255,255,.92);
+    backdrop-filter: blur(8px);
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #6b7280;
+    letter-spacing: .3px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.10);
+}
+
+.feed-arc-items {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,.92);
+    backdrop-filter: blur(8px);
+    border-radius: 40px;
+    padding: 10px 18px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.13);
+}
+
+.feed-arc-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 16px;
+    transition: background .15s, transform .15s;
+}
+
+.feed-arc-item:hover,
+.feed-arc-item.active {
+    background: color-mix(in srgb, var(--r-color) 20%, transparent);
+    transform: scale(1.12);
+}
+
+.feed-arc-icone {
+    font-size: 26px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.10));
+}
+
+.feed-arc-item-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.feed-arc-item.active .feed-arc-item-label {
+    color: #374151;
+    font-weight: 700;
+}
+
+/* Arc inline (post sans photo) */
+.feed-arc-inline {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin-top: 6px;
+    animation: arcFadeIn .18s ease;
+}
+
+.feed-arc-inline .feed-arc-items {
+    background: #fff;
+    box-shadow: 0 2px 12px rgba(0,0,0,.10);
+    border: 1px solid #f3f4f6;
+}
+
+/* ===================== BOUTON BAS RÉSONANCES ===================== */
+.feed-resonance-wrap {
+    display: flex;
+    align-items: center;
+}
+
+.feed-resonance-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #9ca3af;
+    transition: color .2s;
+}
+
+.feed-resonance-btn:hover {
+    color: #7c3aed;
+}
+
+.feed-resonance-neutre {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.feed-resonance-label-neutre {
+    font-size: 13px;
+    font-weight: 600;
+    color: #9ca3af;
+}
+
+.feed-resonance-icones {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.feed-resonance-icone {
+    font-size: 16px;
+    line-height: 1;
+    transition: transform .15s;
+}
+
+.feed-resonance-icone.mine {
+    transform: scale(1.2);
+}
+
+.feed-resonance-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+}
+
+/* ===================== PILLS RÉSONANCES ===================== */
+.feed-resonance-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 2px;
+}
+
+.feed-resonance-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--pill-color) 18%, #fff);
+    color: #374151;
+    border: 1px solid color-mix(in srgb, var(--pill-color) 40%, transparent);
 }
 
 /* ===================== FOOTER POST ===================== */
@@ -244,7 +426,6 @@
     border-top: 1px solid #f3f4f6;
 }
 
-.feed-like-btn,
 .feed-comment-btn,
 .feed-share-btn {
     background: none;
@@ -260,16 +441,8 @@
     transition: color .2s;
 }
 
-.feed-like-btn:hover    { color: #7c3aed; }
-.feed-like-btn.liked    { color: #7c3aed; }
 .feed-comment-btn:hover { color: #7c3aed; }
 .feed-share-btn:hover   { color: #7c3aed; }
-
-.feed-like-count {
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-}
 
 /* ===================== COMMENTAIRES ===================== */
 .feed-comments {
@@ -347,7 +520,7 @@
     display: flex;
     gap: 8px;
     margin-top: 6px;
-    position: relative;   /* requis pour dropdown @mention */
+    position: relative;
 }
 
 .feed-comment-input {
@@ -421,7 +594,7 @@
 .mention-dropdown {
     display: none;
     position: absolute;
-    bottom: calc(100% + 6px);  /* s'ouvre AU-DESSUS du champ */
+    bottom: calc(100% + 6px);
     left: 0;
     right: 0;
     background: #fff;
@@ -434,7 +607,6 @@
     overflow-y: auto;
 }
 
-/* Dans la modale nouveau post / édition : s'ouvre en dessous */
 .modal .mention-dropdown {
     bottom: auto;
     top: calc(100% + 4px);

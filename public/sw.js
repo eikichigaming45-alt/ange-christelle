@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'moadja-cache-v1.56';
+﻿const CACHE_NAME = 'moadja-cache-v1.58';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
@@ -31,6 +31,7 @@ const ASSETS_TO_CACHE = [
     '/js/sante.js',
     '/js/changelog.js',
     '/js/theme-astral.js',
+    '/js/eclats.js',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png'
