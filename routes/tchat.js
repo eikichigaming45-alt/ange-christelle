@@ -8,7 +8,7 @@ const { authenticateToken: auth } = require('../middleware/auth');
 
 // ── GET /api/tchat/conversations ─────────────────────────────
 router.get('/conversations', auth, async (req, res) => {
-    const moi = req.user.userId;
+    const moi = req.user.id;
     try {
         const { rows } = await pool.query(`
             SELECT
@@ -50,7 +50,7 @@ router.get('/conversations', auth, async (req, res) => {
 
 // ── GET /api/tchat/messages/:interlocuteurId ──────────────────
 router.get('/messages/:interlocuteurId', auth, async (req, res) => {
-    const moi   = req.user.userId;
+    const moi   = req.user.id;
     const autre = parseInt(req.params.interlocuteurId, 10);
     const avant = req.query.avant ? parseInt(req.query.avant, 10) : null;
     const LIMIT = 40;
@@ -68,6 +68,7 @@ router.get('/messages/:interlocuteurId', auth, async (req, res) => {
                 su.username  AS sender_username,
                 sp.prenom    AS sender_prenom,
                 sp.nom       AS sender_nom,
+                sp.photo     AS sender_photo,
                 rpm.content  AS reply_content,
                 ru.username  AS reply_sender_username,
                 rp2.prenom   AS reply_sender_prenom,
@@ -97,7 +98,7 @@ router.get('/messages/:interlocuteurId', auth, async (req, res) => {
 
 // ── POST /api/tchat/messages ──────────────────────────────────
 router.post('/messages', auth, async (req, res) => {
-    const moi = req.user.userId;
+    const moi = req.user.id;
     const { receiver_id, content, reply_to_id } = req.body;
     if (!receiver_id || !content?.trim()) {
         return res.status(400).json({ success: false, message: 'Données manquantes.' });
@@ -112,11 +113,8 @@ router.post('/messages', auth, async (req, res) => {
         const msg = rows[0];
 
         const { rows: extra } = await pool.query(`
-            SELECT
-                u.username  AS sender_username,
-                p.prenom    AS sender_prenom,
-                p.nom       AS sender_nom,
-                p.photo     AS sender_photo
+            SELECT u.username AS sender_username, p.prenom AS sender_prenom,
+                   p.nom AS sender_nom, p.photo AS sender_photo
             FROM users u
             LEFT JOIN profiles p ON p.user_id = u.id
             WHERE u.id = \$1
@@ -174,7 +172,7 @@ router.post('/messages', auth, async (req, res) => {
 
 // ── POST /api/tchat/messages/lus ─────────────────────────────
 router.post('/messages/lus', auth, async (req, res) => {
-    const moi   = req.user.userId;
+    const moi   = req.user.id;
     const autre = req.body.interlocuteur_id;
     try {
         await pool.query(`
@@ -195,7 +193,7 @@ router.post('/messages/lus', auth, async (req, res) => {
 
 // ── GET /api/tchat/non-lus ────────────────────────────────────
 router.get('/non-lus', auth, async (req, res) => {
-    const moi = req.user.userId;
+    const moi = req.user.id;
     try {
         const { rows } = await pool.query(`
             SELECT COUNT(*)::int AS total
@@ -211,7 +209,7 @@ router.get('/non-lus', auth, async (req, res) => {
 
 // ── GET /api/tchat/users ──────────────────────────────────────
 router.get('/users', auth, async (req, res) => {
-    const moi = req.user.userId;
+    const moi = req.user.id;
     try {
         const { rows } = await pool.query(`
             SELECT u.id, u.username, p.prenom, p.nom, p.photo
@@ -228,7 +226,7 @@ router.get('/users', auth, async (req, res) => {
 
 // ── PATCH /api/tchat/messages/:id ────────────────────────────
 router.patch('/messages/:id', auth, async (req, res) => {
-    const moi     = req.user.userId;
+    const moi     = req.user.id;
     const msgId   = parseInt(req.params.id, 10);
     const content = req.body.content?.trim();
     if (!content) return res.status(400).json({ success: false, message: 'Contenu vide.' });
@@ -254,7 +252,7 @@ router.patch('/messages/:id', auth, async (req, res) => {
 
 // ── DELETE /api/tchat/messages/:id ───────────────────────────
 router.delete('/messages/:id', auth, async (req, res) => {
-    const moi   = req.user.userId;
+    const moi   = req.user.id;
     const msgId = parseInt(req.params.id, 10);
     try {
         const { rows } = await pool.query(`
@@ -280,7 +278,7 @@ router.delete('/messages/:id', auth, async (req, res) => {
 
 // ── DELETE /api/tchat/conversations/:interlocuteurId ─────────
 router.delete('/conversations/:interlocuteurId', auth, async (req, res) => {
-    const moi   = req.user.userId;
+    const moi   = req.user.id;
     const autre = parseInt(req.params.interlocuteurId, 10);
     try {
         await pool.query(`
@@ -299,14 +297,25 @@ router.delete('/conversations/:interlocuteurId', auth, async (req, res) => {
 // ── POST /api/tchat/purge ─────────────────────────────────────
 router.post('/purge', auth, async (req, res) => {
     try {
-        const { rowCount } = await pool.query(`
-            DELETE FROM private_messages
-            WHERE created_at < NOW() - INTERVAL '90 days'
-        `);
+        const { rowCount } = await pool.query(
+            "DELETE FROM private_messages WHERE created_at < NOW() - INTERVAL '90 days'"
+        );
         res.json({ success: true, supprimés: rowCount });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
 });
 
-module.exports = router;
+// ── Export : router + purgerMessages pour server.js ──────────
+async function purgerMessages() {
+    try {
+        const { rowCount } = await pool.query(
+            "DELETE FROM private_messages WHERE created_at < NOW() - INTERVAL '90 days'"
+        );
+        console.log(`[TCHAT] Purge 90j : ${rowCount} message(s) supprimé(s)`);
+    } catch (err) {
+        console.error('[TCHAT] Erreur purge :', err.message);
+    }
+}
+
+module.exports = { router, purgerMessages };
