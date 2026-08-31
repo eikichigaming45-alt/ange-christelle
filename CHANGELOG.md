@@ -2,6 +2,32 @@
 
 ---
 
+## v1.59 — 31-08-2026
+
+### ✨ Nouveau
+- Tchat temps réel Socket.io — conversations privées entre utilisateurs
+- Bulle flottante bas-droite sur desktop · icône 💬 dans la topbar sur mobile
+- Bottom sheet plein écran sur mobile · tiroir latéral translucide sur desktop
+- Aura arc-en-ciel sur les avatars des interlocuteurs
+- Pagination infinie vers le haut (charger les messages précédents)
+- Marquage automatique des messages comme lus à l'ouverture d'une conversation
+- Badge non-lus en temps réel sur la bulle et l'icône topbar
+- Notification push "coucou" vers le destinataire si non connecté au Socket
+- `routes/tchat.js` — conversations, messages, non-lus, users, marquage lu
+- `public/css/tchat.css` — charte "Atelier Flottant" ready
+- `public/js/tchat.js` — Socket.io temps réel + REST fallback
+
+### 🔧 Corrections
+- Bug C (push inter-users) : un appareil = un seul user à la fois — DELETE avant INSERT dans `/api/push/subscribe`
+- Bug D : purge des anciens `post_likes` sans type (`DELETE WHERE type IS NULL OR type NOT IN (...)`) — 5 entrées supprimées
+- Bug F : séparation desktop/mobile dans `_bindResonances()` — tap photo ouvre uniquement la photo sur mobile
+- Bug G : rappels agenda reçus par tous — confirmé propre suite à la correction Bug C
+
+### 🗄️ Base de données
+- Table `private_messages` utilisée : `id · sender_id · receiver_id · content · seen · created_at`
+
+---
+
 ## v1.58 — 31-08-2026
 
 ### ✨ Nouveau
