@@ -61,14 +61,22 @@ const SIGNES_EMOJI = {
     Sagittarius:'♐', Capricorn:'♑', Aquarius:'♒', Pisces:'♓'
 };
 
-// ── Calcul offset UTC via moment-timezone (historique DST correct) ─
-function getUtcOffset(tzName, year, month, day, hours, minutes) {
+// ── Convertir heure locale → UTC via moment-timezone (DST historique) ─
+// Retourne { utcHours, utcMinutes, utcDay, utcMonth, utcYear }
+function localToUTC(tzName, year, month, day, hours, minutes) {
     try {
-        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')} ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}`;
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')} ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`;
         const m       = moment.tz(dateStr, tzName);
-        return m.utcOffset() / 60;
+        const utc     = m.utc();
+        return {
+            utcYear   : utc.year(),
+            utcMonth  : utc.month() + 1,
+            utcDay    : utc.date(),
+            utcHours  : utc.hours(),
+            utcMinutes: utc.minutes()
+        };
     } catch {
-        return 0;
+        return { utcYear: year, utcMonth: month, utcDay: day, utcHours: hours, utcMinutes: minutes };
     }
 }
 
@@ -165,22 +173,24 @@ router.get('/', authenticateToken, async (req, res) => {
         const lat = parseFloat(profil.naissance_lat);
         const lng = parseFloat(profil.naissance_lon);
 
-        const tzNames  = find(lat, lng);
-        const tzName   = tzNames?.[0] || 'UTC';
+        const tzNames = find(lat, lng);
+        const tzName  = tzNames?.[0] || 'UTC';
 
-        // moment-timezone connaît les règles DST historiques exactes
-        const timezone = getUtcOffset(tzName, year, month, day, hh, mm);
+        // Convertir en UTC avec DST historique exact via moment-timezone
+        // timezone: 0 → l'API ne recalcule rien
+        const { utcYear, utcMonth, utcDay, utcHours, utcMinutes } =
+            localToUTC(tzName, year, month, day, hh, mm);
 
         const payload = {
-            year,
-            month,
-            date     : day,
-            hours    : hh,
-            minutes  : mm,
+            year     : utcYear,
+            month    : utcMonth,
+            date     : utcDay,
+            hours    : utcHours,
+            minutes  : utcMinutes,
             seconds  : 0,
             latitude : lat,
             longitude: lng,
-            timezone
+            timezone : 0
         };
 
         console.log('[THEME-ASTRAL] Payload envoyé:', JSON.stringify(payload));
