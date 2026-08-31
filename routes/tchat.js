@@ -3,7 +3,7 @@
 // ============================================================
 const express = require('express');
 const router  = express.Router();
-const pool    = require('../db/pool');
+const { pool } = require('../db/pool');
 const { authenticateToken: auth } = require('../middleware/auth');
 
 // ── GET /api/tchat/conversations ─────────────────────────────
@@ -286,7 +286,7 @@ router.delete('/conversations/:interlocuteurId', auth, async (req, res) => {
             SET deleted_for = array_append(COALESCE(deleted_for,'{}'), \$1)
             WHERE (sender_id = \$1 OR receiver_id = \$1)
                 AND (sender_id = \$2 OR receiver_id = \$2)
-                AND NOT (\$1 = ANY(COALESCE(deleted_for,'{}')))
+                AND NOT (\\$1 = ANY(COALESCE(deleted_for,'{}')))
         `, [moi, autre]);
         res.json({ success: true });
     } catch (err) {
