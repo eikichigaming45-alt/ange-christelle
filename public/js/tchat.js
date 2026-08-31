@@ -10,13 +10,62 @@
     // ── Constantes ────────────────────────────────────────────
     const LIMITE_PAR_PAGE = 40;
 
+    // ── Table de conversion emojis ────────────────────────────
+    const EMOJI_MAP = [
+        { pattern: /&gt;:-$/g,  emoji: '😈' },
+        { pattern: /&gt;:$/g,   emoji: '😈' },
+        { pattern: /:-$/g,      emoji: '😊' },
+        { pattern: /:'$/g,      emoji: '😭' },
+        { pattern: /:-$/g,      emoji: '😢' },
+        { pattern: /:$/g,       emoji: '😢' },
+        { pattern: /;-$/g,      emoji: '😉' },
+        { pattern: /;$/g,       emoji: '😉' },
+        { pattern: /:-D/g,       emoji: '😄' },
+        { pattern: /:D/g,        emoji: '😄' },
+        { pattern: /:-P/g,       emoji: '😛' },
+        { pattern: /:P/g,        emoji: '😛' },
+        { pattern: /:-O/g,       emoji: '😮' },
+        { pattern: /:O/g,        emoji: '😮' },
+        { pattern: /:$/g,       emoji: '😊' },
+        { pattern: /<3/g,        emoji: '❤️' },
+        { pattern: /:joy:/g,     emoji: '😂' },
+        { pattern: /:ok:/g,      emoji: '👍' },
+        { pattern: /:fire:/g,    emoji: '🔥' },
+        { pattern: /:heart:/g,   emoji: '❤️' },
+        { pattern: /:smile:/g,   emoji: '😊' },
+        { pattern: /:laugh:/g,   emoji: '😂' },
+        { pattern: /:wink:/g,    emoji: '😉' },
+        { pattern: /:cry:/g,     emoji: '😢' },
+        { pattern: /:sad:/g,     emoji: '😢' },
+        { pattern: /:angry:/g,   emoji: '😠' },
+        { pattern: /:love:/g,    emoji: '😍' },
+        { pattern: /:kiss:/g,    emoji: '😘' },
+        { pattern: /:cool:/g,    emoji: '😎' },
+        { pattern: /:think:/g,   emoji: '🤔' },
+        { pattern: /:wow:/g,     emoji: '😮' },
+        { pattern: /:clap:/g,    emoji: '👏' },
+        { pattern: /:star:/g,    emoji: '⭐' },
+        { pattern: /:sun:/g,     emoji: '☀️' },
+        { pattern: /:moon:/g,    emoji: '🌙' },
+        { pattern: /:wave:/g,    emoji: '👋' },
+        { pattern: /:pray:/g,    emoji: '🙏' },
+        { pattern: /:muscle:/g,  emoji: '💪' },
+        { pattern: /:check:/g,   emoji: '✅' },
+        { pattern: /:x:/g,       emoji: '❌' },
+        { pattern: /:tada:/g,    emoji: '🎉' },
+        { pattern: /:cake:/g,    emoji: '🎂' },
+        { pattern: /:gift:/g,    emoji: '🎁' },
+        { pattern: /:rose:/g,    emoji: '🌹' },
+        { pattern: /:100:/g,     emoji: '💯' },
+    ];
+
     // ── État interne ──────────────────────────────────────────
     let _socket             = null;
-    let _interlocuteurActif = null; // { id, username, prenom, photo }
+    let _interlocuteurActif = null;
     let _plusAncienMsgId    = null;
     let _chargementEnCours  = false;
     let _ouvert             = false;
-    let _vueActive          = 'liste'; // 'liste' | 'conv'
+    let _vueActive          = 'liste';
 
     // ── Utilitaires ───────────────────────────────────────────
     function _token() {
@@ -53,8 +102,8 @@
     }
 
     function _formatDateSep(dateStr) {
-        const d   = new Date(dateStr);
-        const auj = new Date();
+        const d    = new Date(dateStr);
+        const auj  = new Date();
         const hier = new Date(auj); hier.setDate(hier.getDate() - 1);
         if (d.toDateString() === auj.toDateString())  return "Aujourd'hui";
         if (d.toDateString() === hier.toDateString()) return 'Hier';
@@ -72,11 +121,23 @@
                 </div>`;
     }
 
+    // ── Conversion raccourcis → emojis ────────────────────────
+    // Appliquée sur le texte brut AVANT échappement XSS
+    // L'ordre dans EMOJI_MAP est important (les plus longs en premier)
+    function _convertirEmojis(texte) {
+        let t = texte;
+        // Échapper d'abord les < et > pour que >:-) soit traité proprement
+        // On travaille sur le texte brut, pas sur du HTML
+        for (const { pattern, emoji } of EMOJI_MAP) {
+            t = t.replace(pattern, emoji);
+        }
+        return t;
+    }
+
     // ── Construction DOM initiale ─────────────────────────────
     function _construireDom() {
         if (document.getElementById('tchat-bulle')) return;
 
-        // Bulle flottante
         const bulle = document.createElement('button');
         bulle.id        = 'tchat-bulle';
         bulle.title     = 'Tchat';
@@ -89,12 +150,10 @@
         `;
         bulle.addEventListener('click', _toggleTchat);
 
-        // Overlay
         const overlay = document.createElement('div');
         overlay.id = 'tchat-overlay';
         overlay.addEventListener('click', _fermerTchat);
 
-        // Panneau principal
         const sheet = document.createElement('div');
         sheet.id = 'tchat-sheet';
         sheet.innerHTML = `
@@ -105,14 +164,10 @@
                     <button id="tchat-btn-fermer" aria-label="Fermer">✕</button>
                 </div>
             </div>
-
-            <!-- Vue liste conversations -->
             <div id="tchat-vue-liste">
                 <div id="tchat-liste-scroll"></div>
                 <button id="tchat-btn-nouvelle-conv">+ Nouvelle conversation</button>
             </div>
-
-            <!-- Vue conversation active -->
             <div id="tchat-vue-conv">
                 <div id="tchat-conv-header">
                     <button id="tchat-conv-back" aria-label="Retour">‹</button>
@@ -147,7 +202,6 @@
         document.body.appendChild(overlay);
         document.body.appendChild(sheet);
 
-        // Événements
         document.getElementById('tchat-btn-fermer')
             .addEventListener('click', _fermerTchat);
         document.getElementById('tchat-conv-back')
@@ -157,8 +211,8 @@
         document.getElementById('tchat-btn-plus-anciens')
             .addEventListener('click', _chargerPlusAnciens);
 
-        const input   = document.getElementById('tchat-input');
-        const btnEnv  = document.getElementById('tchat-btn-envoyer');
+        const input  = document.getElementById('tchat-input');
+        const btnEnv = document.getElementById('tchat-btn-envoyer');
 
         input.addEventListener('input', () => {
             btnEnv.disabled = !input.value.trim();
@@ -222,14 +276,12 @@
 
     function _rejoindreRoom(userId, interlocuteurId) {
         if (!_socket) return;
-        const room = _roomName(userId, interlocuteurId);
-        _socket.emit('tchat:rejoindre', { room });
+        _socket.emit('tchat:rejoindre', { room: _roomName(userId, interlocuteurId) });
     }
 
     function _quitterRoom(userId, interlocuteurId) {
         if (!_socket) return;
-        const room = _roomName(userId, interlocuteurId);
-        _socket.emit('tchat:quitter', { room });
+        _socket.emit('tchat:quitter', { room: _roomName(userId, interlocuteurId) });
     }
 
     // ── Ouvrir / fermer ───────────────────────────────────────
@@ -239,10 +291,8 @@
 
     function _ouvrirTchat() {
         _ouvert = true;
-        const sheet   = document.getElementById('tchat-sheet');
-        const overlay = document.getElementById('tchat-overlay');
-        sheet.classList.add('ouvert');
-        overlay.classList.add('visible');
+        document.getElementById('tchat-sheet').classList.add('ouvert');
+        document.getElementById('tchat-overlay').classList.add('visible');
         _afficherVueListe();
         _chargerConversations();
         _initSocket();
@@ -250,10 +300,8 @@
 
     function _fermerTchat() {
         _ouvert = false;
-        const sheet   = document.getElementById('tchat-sheet');
-        const overlay = document.getElementById('tchat-overlay');
-        sheet.classList.remove('ouvert');
-        overlay.classList.remove('visible');
+        document.getElementById('tchat-sheet').classList.remove('ouvert');
+        document.getElementById('tchat-overlay').classList.remove('visible');
         if (_interlocuteurActif) {
             _quitterRoom(_userId(), _interlocuteurActif.id);
             _interlocuteurActif = null;
@@ -281,14 +329,11 @@
         document.getElementById('tchat-vue-liste').style.display = 'none';
         document.getElementById('tchat-vue-conv').classList.add('active');
         document.getElementById('tchat-header-titre').textContent = '';
-
-        const nomLabel = document.getElementById('tchat-conv-nom-label');
-        nomLabel.textContent = interlocuteur.prenom || interlocuteur.username;
-
-        const avatarWrap = document.getElementById('tchat-conv-avatar-wrap');
-        avatarWrap.querySelector('#tchat-conv-avatar-img').innerHTML =
+        document.getElementById('tchat-conv-nom-label').textContent =
+            interlocuteur.prenom || interlocuteur.username;
+        document.getElementById('tchat-conv-avatar-wrap')
+            .querySelector('#tchat-conv-avatar-img').innerHTML =
             _avatarHTML(interlocuteur.photo, interlocuteur.prenom, interlocuteur.username, 36);
-
         document.getElementById('tchat-conv-statut').textContent = '';
 
         const scroll = document.getElementById('tchat-messages-scroll');
@@ -309,11 +354,8 @@
     async function _chargerConversations() {
         const liste = document.getElementById('tchat-liste-scroll');
         if (!liste) return;
-
         try {
-            const r = await fetch('/api/tchat/conversations', {
-                headers: _authHeaders()
-            });
+            const r = await fetch('/api/tchat/conversations', { headers: _authHeaders() });
             const d = await r.json();
             if (!d.success) return;
 
@@ -334,9 +376,6 @@
                     : 'Aucun message';
                 const heure    = c.dernier_message_at ? _formatHeure(c.dernier_message_at) : '';
                 const nonLu    = c.non_lus > 0;
-                const badgeHTML = nonLu
-                    ? `<span class="tchat-conv-badge">${c.non_lus}</span>`
-                    : '';
                 return `
                     <div class="tchat-conv-item"
                          data-id="${c.interlocuteur_id}"
@@ -354,7 +393,7 @@
                         </div>
                         <div class="tchat-conv-meta">
                             <span class="tchat-conv-heure">${heure}</span>
-                            ${badgeHTML}
+                            ${nonLu ? `<span class="tchat-conv-badge">${c.non_lus}</span>` : ''}
                         </div>
                     </div>`;
             }).join('');
@@ -419,16 +458,12 @@
                 const ancre    = ancreId
                     ? scroll.querySelector(`[data-msg-id="${ancreId}"]`)
                     : null;
-                if (ancre) {
-                    scroll.insertBefore(fragment, ancre);
-                } else {
-                    scroll.appendChild(fragment);
-                }
+                if (ancre) scroll.insertBefore(fragment, ancre);
+                else       scroll.appendChild(fragment);
             } else {
                 const vide = scroll.querySelector('.tchat-vide');
                 if (vide) vide.remove();
-                const fragment = _construireFragment(msgs);
-                scroll.appendChild(fragment);
+                scroll.appendChild(_construireFragment(msgs));
                 _scrollBasMessages();
             }
         } catch (err) {
@@ -472,8 +507,11 @@
             ? `<span class="tchat-msg-lu ${msg.seen ? '' : 'envoye'}">${msg.seen ? '✓✓' : '✓'}</span>`
             : '';
 
+        // Conversion emojis sur le texte brut, puis échappement XSS
+        const contenu = _echapper(_convertirEmojis(msg.content));
+
         wrap.innerHTML = `
-            <div class="tchat-msg-bulle">${_echapper(msg.content)}</div>
+            <div class="tchat-msg-bulle">${contenu}</div>
             <div class="tchat-msg-meta">
                 <span class="tchat-msg-heure">${_formatHeure(msg.created_at)}</span>
                 ${luHTML}
@@ -491,9 +529,7 @@
         const moi       = _userId();
         const dernBulle = scroll.querySelectorAll('.tchat-msg');
         if (dernBulle.length) {
-            const dernDate = new Date(parseInt(
-                dernBulle[dernBulle.length - 1].dataset.msgId || 0
-            ));
+            const dernDate = new Date(parseInt(dernBulle[dernBulle.length - 1].dataset.msgId || 0));
             const nouvDate = new Date(msg.created_at);
             if (dernDate.toDateString() !== nouvDate.toDateString()) {
                 const sep = document.createElement('div');
@@ -623,7 +659,6 @@
             const d = await r.json();
             if (!d.success) return;
 
-            // Badge bulle desktop
             const badge = document.getElementById('tchat-bulle-badge');
             if (badge) {
                 if (d.total > 0) {
@@ -634,11 +669,10 @@
                 }
             }
 
-            // Badge icône topbar mobile
             const badgeTopbar = document.getElementById('tchat-topbar-badge');
             if (badgeTopbar) {
                 if (d.total > 0) {
-                    badgeTopbar.textContent = d.total > 99 ? '99+' : d.total;
+                    badgeTopbar.textContent  = d.total > 99 ? '99+' : d.total;
                     badgeTopbar.style.display = 'flex';
                 } else {
                     badgeTopbar.style.display = 'none';
@@ -657,7 +691,7 @@
             .replace(/'/g, '&#39;');
     }
 
-    // ── API publique ──────────────────────────────────────────
+        // ── API publique ──────────────────────────────────────────
     window.Tchat = {
         ouvrirConversation(interlocuteur) {
             if (!_ouvert) _ouvrirTchat();
