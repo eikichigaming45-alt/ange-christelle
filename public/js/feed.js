@@ -329,13 +329,15 @@ function _fermerDropdown(dropEl) {
 }
 
 // ── RENDER RÉSONANCES BOUTON BAS ──────────────────────────────
-function _renderResonanceBouton(maResonance, resonancesStats) {
+// BUG A corrigé : suppression du compteur total — icônes uniquement, sans chiffre
+// BUG B corrigé : bouton cliquable → voirLikers(postId) quand total > 0
+function _renderResonanceBouton(postId, maResonance, resonancesStats) {
     const stats  = resonancesStats || [];
     const total  = stats.reduce((s, r) => s + (r.nb || 0), 0);
     const actifs = RESONANCES.filter(r => stats.find(s => s.type === r.type && s.nb > 0));
 
     if (!total) {
-        return `<button class="feed-resonance-btn" data-post-id="" onclick="ouvrirArcResonance(this)">
+        return `<button class="feed-resonance-btn" onclick="ouvrirArcResonance(this)">
             <span class="feed-resonance-neutre">✦</span>
             <span class="feed-resonance-label-neutre">Résonances</span>
         </button>`;
@@ -343,13 +345,19 @@ function _renderResonanceBouton(maResonance, resonancesStats) {
 
     const icones = actifs.map(r => {
         const isMine = maResonance === r.type;
-        return `<span class="feed-resonance-icone${isMine ? ' mine' : ''}" style="color:${r.couleur}">${r.icone}</span>`;
+        return `<span class="feed-resonance-icone${isMine ? ' mine' : ''}">${r.icone}</span>`;
     }).join('');
 
-    return `<button class="feed-resonance-btn" onclick="ouvrirArcResonance(this)">
-        <span class="feed-resonance-icones">${icones}</span>
-        <span class="feed-resonance-count">${total}</span>
-    </button>`;
+    return `<div style="display:flex;align-items:center;gap:8px">
+        <button class="feed-resonance-btn" onclick="ouvrirArcResonance(this)">
+            <span class="feed-resonance-icones">${icones}</span>
+        </button>
+        <button class="feed-resonance-count-btn" onclick="voirLikers(${postId}, event)"
+            style="background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#6b7280;padding:4px 0;transition:color .2s"
+            onmouseover="this.style.color='#7c3aed'" onmouseout="this.style.color='#6b7280'">
+            ${total}
+        </button>
+    </div>`;
 }
 
 // ── RENDER PILLS RÉSONANCES ───────────────────────────────────
@@ -439,7 +447,7 @@ function renderPost(p) {
             ${_renderResonancePills(p.resonances_stats)}
             <div class="feed-footer">
                 <div class="feed-resonance-wrap" data-post-id="${p.id}">
-                    ${_renderResonanceBouton(p.ma_resonance, p.resonances_stats)}
+                    ${_renderResonanceBouton(p.id, p.ma_resonance, p.resonances_stats)}
                 </div>
                 <button class="feed-comment-btn" onclick="toggleCommentaires(${p.id})">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -469,7 +477,6 @@ function _bindResonances() {
 
         let longPressTimer = null;
 
-        // Mobile — tap long 300ms
         wrap.addEventListener('touchstart', e => {
             if (e.target.closest('.feed-arc-resonance')) return;
             longPressTimer = setTimeout(() => {
@@ -486,7 +493,6 @@ function _bindResonances() {
             clearTimeout(longPressTimer);
         }, { passive: true });
 
-        // Desktop — survol photo
         wrap.addEventListener('mouseenter', e => {
             if (e.target.closest('.feed-arc-resonance')) return;
             _ouvrirArc(postId);
@@ -498,7 +504,6 @@ function _bindResonances() {
         });
     });
 
-    // Fermer arc au clic en dehors
     document.addEventListener('click', e => {
         if (!e.target.closest('.feed-photo-wrap') && !e.target.closest('.feed-resonance-btn')) {
             document.querySelectorAll('.feed-arc-resonance').forEach(a => a.style.display = 'none');
@@ -528,7 +533,6 @@ function ouvrirArcResonance(btn) {
     if (photoWrap) {
         _ouvrirArc(postId);
     } else {
-        // Post sans photo — arc inline sous le bouton
         _ouvrirArcInline(postId, btn);
     }
 }
@@ -540,7 +544,7 @@ function _ouvrirArcInline(postId, btn) {
     inline = document.createElement('div');
     inline.id        = `arc-inline-${postId}`;
     inline.className = 'feed-arc-resonance feed-arc-inline';
-	    inline.innerHTML = `
+    inline.innerHTML = `
         <div class="feed-arc-label">Résonances</div>
         <div class="feed-arc-items">
             ${RESONANCES.map(r => `
@@ -575,13 +579,13 @@ async function choisirResonance(postId, type, btn) {
         // Mettre à jour bouton bas
         const wrap = document.querySelector(`.feed-resonance-wrap[data-post-id="${postId}"]`);
         if (wrap) {
-            wrap.innerHTML = _renderResonanceBouton(d.ma_resonance, d.resonances_stats);
+            wrap.innerHTML = _renderResonanceBouton(postId, d.ma_resonance, d.resonances_stats);
         }
 
         // Mettre à jour pills
         const card = document.getElementById(`post-${postId}`);
         if (card) {
-            const pills = card.querySelector('.feed-resonance-pills');
+            const pills    = card.querySelector('.feed-resonance-pills');
             const newPills = _renderResonancePills(d.resonances_stats);
             if (pills) {
                 pills.outerHTML = newPills || '';
@@ -608,7 +612,7 @@ async function choisirResonance(postId, type, btn) {
 
 // ── VOIR LIKERS / RÉSONANCES ──────────────────────────────────
 async function voirLikers(postId, e) {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     const user = getUser();
     try {
         const r = await fetch(`/api/feed/${postId}/likes`, {
@@ -1044,7 +1048,7 @@ function supprimerPost(postId) {
     document.getElementById('btn-delpost-oui').onclick = async () => {
         const user = getUser();
         try {
-                        const r = await fetch(`/api/feed/${postId}`, {
+            const r = await fetch(`/api/feed/${postId}`, {
                 method : 'DELETE',
                 headers: { 'Authorization': `Bearer ${user.token}` }
             });
