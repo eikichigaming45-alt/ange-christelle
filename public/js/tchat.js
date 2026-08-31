@@ -11,52 +11,47 @@
     const LIMITE_PAR_PAGE = 40;
 
     // ── Table de conversion emojis ────────────────────────────
+    // Ordre important : patterns longs en premier
     const EMOJI_MAP = [
-        { pattern: /&gt;:-$/g,  emoji: '😈' },
-        { pattern: /&gt;:$/g,   emoji: '😈' },
-        { pattern: /:-$/g,      emoji: '😊' },
-        { pattern: /:'$/g,      emoji: '😭' },
-        { pattern: /:-$/g,      emoji: '😢' },
-        { pattern: /:$/g,       emoji: '😢' },
-        { pattern: /;-$/g,      emoji: '😉' },
-        { pattern: /;$/g,       emoji: '😉' },
-        { pattern: /:-D/g,       emoji: '😄' },
-        { pattern: /:D/g,        emoji: '😄' },
-        { pattern: /:-P/g,       emoji: '😛' },
-        { pattern: /:P/g,        emoji: '😛' },
-        { pattern: /:-O/g,       emoji: '😮' },
-        { pattern: /:O/g,        emoji: '😮' },
-        { pattern: /:$/g,       emoji: '😊' },
-        { pattern: /<3/g,        emoji: '❤️' },
-        { pattern: /:joy:/g,     emoji: '😂' },
-        { pattern: /:ok:/g,      emoji: '👍' },
-        { pattern: /:fire:/g,    emoji: '🔥' },
-        { pattern: /:heart:/g,   emoji: '❤️' },
-        { pattern: /:smile:/g,   emoji: '😊' },
-        { pattern: /:laugh:/g,   emoji: '😂' },
-        { pattern: /:wink:/g,    emoji: '😉' },
-        { pattern: /:cry:/g,     emoji: '😢' },
-        { pattern: /:sad:/g,     emoji: '😢' },
-        { pattern: /:angry:/g,   emoji: '😠' },
-        { pattern: /:love:/g,    emoji: '😍' },
-        { pattern: /:kiss:/g,    emoji: '😘' },
-        { pattern: /:cool:/g,    emoji: '😎' },
-        { pattern: /:think:/g,   emoji: '🤔' },
-        { pattern: /:wow:/g,     emoji: '😮' },
-        { pattern: /:clap:/g,    emoji: '👏' },
-        { pattern: /:star:/g,    emoji: '⭐' },
-        { pattern: /:sun:/g,     emoji: '☀️' },
-        { pattern: /:moon:/g,    emoji: '🌙' },
-        { pattern: /:wave:/g,    emoji: '👋' },
-        { pattern: /:pray:/g,    emoji: '🙏' },
-        { pattern: /:muscle:/g,  emoji: '💪' },
-        { pattern: /:check:/g,   emoji: '✅' },
-        { pattern: /:x:/g,       emoji: '❌' },
-        { pattern: /:tada:/g,    emoji: '🎉' },
-        { pattern: /:cake:/g,    emoji: '🎂' },
-        { pattern: /:gift:/g,    emoji: '🎁' },
-        { pattern: /:rose:/g,    emoji: '🌹' },
-        { pattern: /:100:/g,     emoji: '💯' },
+        { pattern: />:-?$/g,   emoji: '😈' },
+        { pattern: /:-?$/g,    emoji: '😊' },
+        { pattern: /:'?$/g,    emoji: '😭' },
+        { pattern: /:-?$/g,    emoji: '😢' },
+        { pattern: /;-?$/g,    emoji: '😉' },
+        { pattern: /:-?D/g,     emoji: '😄' },
+        { pattern: /:-?P/gi,    emoji: '😛' },
+        { pattern: /:-?O/gi,    emoji: '😮' },
+        { pattern: /<3/g,       emoji: '❤️' },
+        { pattern: /\^\^/g,     emoji: '😊' },
+        { pattern: /:joy:/g,    emoji: '😂' },
+        { pattern: /:ok:/g,     emoji: '👍' },
+        { pattern: /:fire:/g,   emoji: '🔥' },
+        { pattern: /:heart:/g,  emoji: '❤️' },
+        { pattern: /:smile:/g,  emoji: '😊' },
+        { pattern: /:laugh:/g,  emoji: '😂' },
+        { pattern: /:wink:/g,   emoji: '😉' },
+        { pattern: /:cry:/g,    emoji: '😢' },
+        { pattern: /:sad:/g,    emoji: '😢' },
+        { pattern: /:angry:/g,  emoji: '😠' },
+        { pattern: /:love:/g,   emoji: '😍' },
+        { pattern: /:kiss:/g,   emoji: '😘' },
+        { pattern: /:cool:/g,   emoji: '😎' },
+        { pattern: /:think:/g,  emoji: '🤔' },
+        { pattern: /:wow:/g,    emoji: '😮' },
+        { pattern: /:clap:/g,   emoji: '👏' },
+        { pattern: /:star:/g,   emoji: '⭐' },
+        { pattern: /:sun:/g,    emoji: '☀️' },
+        { pattern: /:moon:/g,   emoji: '🌙' },
+        { pattern: /:wave:/g,   emoji: '👋' },
+        { pattern: /:pray:/g,   emoji: '🙏' },
+        { pattern: /:muscle:/g, emoji: '💪' },
+        { pattern: /:check:/g,  emoji: '✅' },
+        { pattern: /:x:/g,      emoji: '❌' },
+        { pattern: /:tada:/g,   emoji: '🎉' },
+        { pattern: /:cake:/g,   emoji: '🎂' },
+        { pattern: /:gift:/g,   emoji: '🎁' },
+        { pattern: /:rose:/g,   emoji: '🌹' },
+        { pattern: /:100:/g,    emoji: '💯' },
     ];
 
     // ── État interne ──────────────────────────────────────────
@@ -122,12 +117,8 @@
     }
 
     // ── Conversion raccourcis → emojis ────────────────────────
-    // Appliquée sur le texte brut AVANT échappement XSS
-    // L'ordre dans EMOJI_MAP est important (les plus longs en premier)
     function _convertirEmojis(texte) {
         let t = texte;
-        // Échapper d'abord les < et > pour que >:-) soit traité proprement
-        // On travaille sur le texte brut, pas sur du HTML
         for (const { pattern, emoji } of EMOJI_MAP) {
             t = t.replace(pattern, emoji);
         }
@@ -369,13 +360,13 @@
             }
 
             liste.innerHTML = d.conversations.map(c => {
-                const moi      = _userId();
-                const nom      = c.prenom || c.username;
-                const apercu   = c.dernier_message
+                const moi    = _userId();
+                const nom    = c.prenom || c.username;
+                const apercu = c.dernier_message
                     ? (c.dernier_sender_id === moi ? `Vous : ${c.dernier_message}` : c.dernier_message)
                     : 'Aucun message';
-                const heure    = c.dernier_message_at ? _formatHeure(c.dernier_message_at) : '';
-                const nonLu    = c.non_lus > 0;
+                const heure  = c.dernier_message_at ? _formatHeure(c.dernier_message_at) : '';
+                const nonLu  = c.non_lus > 0;
                 return `
                     <div class="tchat-conv-item"
                          data-id="${c.interlocuteur_id}"
@@ -507,7 +498,7 @@
             ? `<span class="tchat-msg-lu ${msg.seen ? '' : 'envoye'}">${msg.seen ? '✓✓' : '✓'}</span>`
             : '';
 
-        // Conversion emojis sur le texte brut, puis échappement XSS
+        // Conversion emojis sur texte brut, puis échappement XSS
         const contenu = _echapper(_convertirEmojis(msg.content));
 
         wrap.innerHTML = `
@@ -672,7 +663,7 @@
             const badgeTopbar = document.getElementById('tchat-topbar-badge');
             if (badgeTopbar) {
                 if (d.total > 0) {
-                    badgeTopbar.textContent  = d.total > 99 ? '99+' : d.total;
+                    badgeTopbar.textContent   = d.total > 99 ? '99+' : d.total;
                     badgeTopbar.style.display = 'flex';
                 } else {
                     badgeTopbar.style.display = 'none';
