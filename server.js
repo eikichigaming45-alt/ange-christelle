@@ -5,14 +5,27 @@
 require('dotenv').config();
 
 const express  = require('express');
+const http     = require('http');
+const { Server } = require('socket.io');
 const webpush  = require('web-push');
+const jwt      = require('jsonwebtoken');
 const { pool, initDB } = require('./db/pool');
 
-const app  = express();
-const PORT = process.env.PORT || 3000;
+const app    = express();
+const server = http.createServer(app);
+const io     = new Server(server, {
+    cors: { origin: false },
+    transports: ['websocket', 'polling']
+});
+const PORT   = process.env.PORT || 3000;
+
+// ── Set des userIds connectés au tchat (pour éviter push inutile)
+const tchatConnectedUsers = new Set();
 
 app.set('trust proxy', 1);
 app.set('etag', false);
+app.set('io', io);
+app.set('tchatConnectedUsers', tchatConnectedUsers);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -56,6 +69,55 @@ app.use('/api/theme-astral',  require('./routes/theme-astral'));
 app.use('/api/feed',          require('./routes/feed'));
 app.use('/api/social',        require('./routes/social'));
 app.use('/api/eclats',        require('./routes/eclats'));
+app.use('/api/tchat',         require('./routes/tchat'));
+
+// ── Socket.io — authentification middleware ───────────────────
+io.use((socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error('Token manquant'));
+    try {
+        const user = jwt.verify(token, process.env.JWT_SECRET);
+        socket.userId = user.id;
+        next();
+    } catch {
+        next(new Error('Token invalide'));
+    }
+});
+
+// ── Socket.io — connexions ────────────────────────────────────
+io.on('connection', (socket) => {
+    const userId = socket.userId;
+    tchatConnectedUsers.add(userId);
+    console.log(`[SOCKET] User ${userId} connecté — socket ${socket.id}`);
+
+    // Rejoindre une room de conversation
+    socket.on('tchat:rejoindre', ({ room }) => {
+        if (!_roomValide(room, userId)) return;
+        socket.join(room);
+        console.log(`[SOCKET] User ${userId} rejoint room ${room}`);
+    });
+
+    // Quitter une room de conversation
+    socket.on('tchat:quitter', ({ room }) => {
+        socket.leave(room);
+        console.log(`[SOCKET] User ${userId} quitte room ${room}`);
+    });
+
+    socket.on('disconnect', () => {
+        tchatConnectedUsers.delete(userId);
+        console.log(`[SOCKET] User ${userId} déconnecté`);
+    });
+});
+
+// ── Valide qu'une room appartient bien à userId ───────────────
+function _roomValide(room, userId) {
+    // Format attendu : conv_<minId>_<maxId>
+    const match = room.match(/^conv_(\d+)_(\d+)$/);
+    if (!match) return false;
+    const u1 = parseInt(match[1], 10);
+    const u2 = parseInt(match[2], 10);
+    return userId === u1 || userId === u2;
+}
 
 // ── Middleware erreurs global ─────────────────────────────────
 app.use((err, req, res, next) => {
@@ -67,7 +129,7 @@ app.use((err, req, res, next) => {
 (async () => {
     try {
         await initDB();
-        app.listen(PORT, () => console.log(`[SERVER] Démarré sur le port ${PORT}`));
+        server.listen(PORT, () => console.log(`[SERVER] Démarré sur le port ${PORT}`));
     } catch (err) {
         console.error('[SERVER] Échec initDB — arrêt :', err.message);
         process.exit(1);

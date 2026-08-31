@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'moadja-cache-v1.58';
+﻿const CACHE_NAME = 'moadja-cache-v1.59';
 
 const ASSETS_TO_CACHE = [
     '/css/style.css',
@@ -12,6 +12,7 @@ const ASSETS_TO_CACHE = [
     '/css/profil.css',
     '/css/agenda.css',
     '/css/theme-astral.css',
+    '/css/tchat.css',
     '/js/app.js',
     '/js/widgets.js',
     '/js/modal.js',
@@ -32,6 +33,7 @@ const ASSETS_TO_CACHE = [
     '/js/changelog.js',
     '/js/theme-astral.js',
     '/js/eclats.js',
+    '/js/tchat.js',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png'
@@ -66,6 +68,7 @@ self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
     if (url.pathname.startsWith('/api/')) return;
+    if (url.pathname.startsWith('/socket.io/')) return;
 
     const networkFirst = [
         '/',
@@ -80,7 +83,8 @@ self.addEventListener('fetch', event => {
         '/css/islam.css',
         '/css/profil.css',
         '/css/agenda.css',
-        '/css/theme-astral.css'
+        '/css/theme-astral.css',
+        '/css/tchat.css'
     ];
 
     if (networkFirst.includes(url.pathname)) {

@@ -205,6 +205,9 @@ async function showApp() {
     initPush();
 
     if (typeof chargerBadgeNotifs === 'function') chargerBadgeNotifs();
+
+    // ── Init Tchat ────────────────────────────────────────────
+    if (typeof Tchat !== 'undefined') Tchat.init();
 }
 
 // ── Navigation onglets ────────────────────────────────────────
@@ -304,6 +307,7 @@ function actualiser() {
     if (typeof Agenda !== 'undefined') Agenda.charger();
     if (typeof Cycle  !== 'undefined') Cycle.charger();
     if (typeof chargerBadgeNotifs === 'function') chargerBadgeNotifs();
+    if (typeof Tchat  !== 'undefined') Tchat.rafraichirBadge();
     const user = getUser();
     if (user?.role === 'admin') chargerWidgetAdmin();
 }
