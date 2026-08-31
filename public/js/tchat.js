@@ -1,7 +1,5 @@
 // ============================================================
 // public/js/tchat.js
-// Tchat MoaDja — bulle flottante · bottom sheet mobile
-// tiroir desktop · Socket.io temps réel · REST fallback
 // ============================================================
 
 (function () {
@@ -9,7 +7,6 @@
 
     const LIMITE_PAR_PAGE = 40;
 
-    // ── Conversion raccourcis → emojis ────────────────────────
     function _convertirEmojis(texte) {
         const MAP = [
             ['>:-)',  '😈'], ['>:)',   '😈'],
@@ -44,7 +41,6 @@
         return t;
     }
 
-    // ── État interne ──────────────────────────────────────────
     let _socket             = null;
     let _interlocuteurActif = null;
     let _plusAncienMsgId    = null;
@@ -52,9 +48,7 @@
     let _ouvert             = false;
     let _vueActive          = 'liste';
     let _replyTo            = null;
-    let _menuActif          = null;
 
-    // ── Utilitaires ───────────────────────────────────────────
     function _token() {
         try { return JSON.parse(localStorage.getItem('moadja_user'))?.token || ''; }
         catch { return ''; }
@@ -76,7 +70,6 @@
         return `conv_${Math.min(u1, u2)}_${Math.max(u1, u2)}`;
     }
 
-    // ── TRIGRAME — identique à construireTrigramme(prenom, nom) de profil.js ──
     function _trigrame(prenom, nom) {
         const mots = [...(prenom || '').split(/\s+/), ...(nom || '').split(/\s+/)]
             .map(m => m.trim())
@@ -97,7 +90,6 @@
         return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
     }
 
-    // photo, prenom, nom — nom est maintenant fourni par l'API
     function _avatarHTML(photo, prenom, nom, taille = 42) {
         if (photo) {
             return `<img src="${photo}" alt="${_echapper(prenom || nom || '')}"
@@ -115,11 +107,7 @@
             .replace(/'/g, '&#39;');
     }
 
-    function _fermerMenuContextuel() {
-        if (_menuActif) { _menuActif.remove(); _menuActif = null; }
-    }
-
-    // ── Construction DOM initiale ─────────────────────────────
+    // ── Construction DOM ──────────────────────────────────────
     function _construireDom() {
         if (document.getElementById('tchat-bulle')) return;
 
@@ -183,8 +171,7 @@
                         </svg>
                     </button>
                 </div>
-            </div>
-        `;
+            </div>`;
 
         document.body.appendChild(bulle);
         document.body.appendChild(overlay);
@@ -213,10 +200,9 @@
         });
 
         btnEnv.addEventListener('click', _envoyerMessage);
-        document.addEventListener('click', _fermerMenuContextuel);
     }
 
-    // ── Reply preview ─────────────────────────────────────────
+    // ── Reply ─────────────────────────────────────────────────
     function _activerReply(msg) {
         _replyTo = msg;
         const preview = document.getElementById('tchat-reply-preview');
@@ -233,50 +219,48 @@
         document.getElementById('tchat-reply-texte').innerHTML = '';
     }
 
-    // ── Menu contextuel ───────────────────────────────────────
-    function _ouvrirMenuContextuel(e, wrap, msg, moi) {
-        e.preventDefault();
-        e.stopPropagation();
-        _fermerMenuContextuel();
+    // ── Modal confirm suppression conversation ────────────────
+    function _confirmerSuppressionConversation(interlocuteurId, itemEl) {
+        if (itemEl.querySelector('.tchat-confirm-conv')) return;
 
-        // Cast Number pour éviter string vs number
-        const sortant = Number(msg.sender_id) === Number(moi);
-        const menu    = document.createElement('div');
-        menu.className = 'tchat-menu-contextuel';
+        const confirm = document.createElement('div');
+        confirm.className = 'tchat-confirm-conv';
+        confirm.style.cssText = `
+            position:absolute;inset:0;background:rgba(255,255,255,0.97);
+            border-radius:inherit;display:flex;flex-direction:column;
+            align-items:center;justify-content:center;gap:8px;
+            font-size:13px;color:#374151;z-index:10;padding:10px;
+            border:1.5px solid #fca5a5;`;
+        confirm.innerHTML = `
+            <span style="font-weight:600;color:#111827;text-align:center;">
+                Supprimer cette conversation ?
+            </span>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+                <button class="tchat-conv-suppr-oui" style="
+                    background:#ef4444;color:#fff;border:none;border-radius:8px;
+                    padding:5px 16px;font-size:12px;font-weight:600;cursor:pointer;">
+                    Supprimer
+                </button>
+                <button class="tchat-conv-suppr-non" style="
+                    background:#f3f4f6;color:#374151;border:none;border-radius:8px;
+                    padding:5px 16px;font-size:12px;font-weight:600;cursor:pointer;">
+                    Annuler
+                </button>
+            </div>`;
 
-        const items = [];
-        items.push({ label: '↩ Répondre', action: () => _activerReply(msg) });
-        if (sortant) {
-            items.push({ label: '✏️ Modifier', action: () => _editerMessage(wrap, msg) });
-        }
-        items.push({
-            label: '🗑️ Supprimer',
-            danger: true,
-            action: () => _supprimerMessageConfirm(wrap, msg.id)
+        itemEl.style.position = 'relative';
+        itemEl.appendChild(confirm);
+
+        confirm.querySelector('.tchat-conv-suppr-non').addEventListener('click', (e) => {
+            e.stopPropagation();
+            confirm.remove();
         });
 
-        menu.innerHTML = items.map((item, i) =>
-            `<button class="tchat-menu-item${item.danger ? ' danger' : ''}" data-idx="${i}">
-                ${item.label}
-            </button>`
-        ).join('');
-
-        menu.querySelectorAll('.tchat-menu-item').forEach((btn, i) => {
-            btn.addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                _fermerMenuContextuel();
-                items[i].action();
-            });
+        confirm.querySelector('.tchat-conv-suppr-oui').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            confirm.remove();
+            await _supprimerConversation(interlocuteurId);
         });
-
-        const rect = wrap.getBoundingClientRect();
-        menu.style.position = 'fixed';
-        menu.style.zIndex   = '9999';
-        menu.style.top      = (rect.bottom + 4) + 'px';
-        menu.style.left     = Math.min(rect.left, window.innerWidth - 180) + 'px';
-
-        document.body.appendChild(menu);
-        _menuActif = menu;
     }
 
     // ── Édition inline ────────────────────────────────────────
@@ -289,13 +273,9 @@
         input.className = 'tchat-edit-input';
         input.value     = contenuOriginal;
         input.rows      = 2;
-        input.style.cssText = `
-            width:100%;padding:8px 10px;border:1.5px solid #a78bfa;border-radius:12px;
-            font-size:14px;font-family:inherit;resize:none;outline:none;
-            background:#fff;color:#1f2937;box-sizing:border-box;margin-top:4px;`;
 
         const actions = document.createElement('div');
-                actions.style.cssText = 'display:flex;gap:8px;margin-top:6px;justify-content:flex-end;';
+        actions.style.cssText = 'display:flex;gap:8px;margin-top:6px;justify-content:flex-end;';
         actions.innerHTML = `
             <button class="tchat-edit-annuler" style="
                 background:none;border:1px solid #e5e7eb;border-radius:8px;
@@ -345,7 +325,7 @@
                         modifTag             = document.createElement('span');
                         modifTag.className   = 'tchat-msg-modifie';
                         modifTag.textContent = 'modifié';
-                        wrap.querySelector('.tchat-msg-meta').prepend(modifTag);
+                        wrap.querySelector('.tchat-msg-meta')?.prepend(modifTag);
                     }
                 } else {
                     input.replaceWith(bulle);
@@ -358,9 +338,8 @@
         });
     }
 
-    // ── Confirmation suppression inline ───────────────────────
+    // ── Confirm suppression message ───────────────────────────
     function _supprimerMessageConfirm(wrap, msgId) {
-        // Empêcher double confirm
         if (wrap.querySelector('.tchat-confirm-suppr')) return;
 
         const confirm = document.createElement('div');
@@ -403,7 +382,6 @@
         });
     }
 
-    // ── Supprimer message (après confirmation) ────────────────
     async function _supprimerMessage(wrap, msgId) {
         try {
             const r = await fetch(`/api/tchat/messages/${msgId}`, {
@@ -419,14 +397,13 @@
                     bulle.style.color     = '#d1d5db';
                     bulle.style.fontStyle = 'italic';
                 }
-                wrap.querySelectorAll('.tchat-msg-lu, .tchat-msg-modifie').forEach(el => el.remove());
+                wrap.querySelectorAll('.tchat-msg-lu, .tchat-msg-modifie, .tchat-msg-actions').forEach(el => el.remove());
             }
         } catch (err) {
             console.error('[TCHAT] supprimerMessage :', err.message);
         }
     }
 
-    // ── Supprimer conversation ────────────────────────────────
     async function _supprimerConversation(interlocuteurId) {
         try {
             const r = await fetch(`/api/tchat/conversations/${interlocuteurId}`, {
@@ -500,7 +477,7 @@
                 bulle.style.color     = '#d1d5db';
                 bulle.style.fontStyle = 'italic';
             }
-            wrap.querySelectorAll('.tchat-msg-lu, .tchat-msg-modifie').forEach(el => el.remove());
+            wrap.querySelectorAll('.tchat-msg-lu, .tchat-msg-modifie, .tchat-msg-actions').forEach(el => el.remove());
         });
 
         _socket.on('disconnect', () => console.log('[TCHAT] Socket déconnecté'));
@@ -638,11 +615,9 @@
                             <span class="tchat-conv-heure">${heure}</span>
                             ${nonLu ? `<span class="tchat-conv-badge">${c.non_lus}</span>` : ''}
                         </div>
-                        <button class="tchat-conv-suppr" data-id="${c.interlocuteur_id}"
+                                                <button class="tchat-conv-suppr" data-id="${c.interlocuteur_id}"
                                 title="Supprimer la conversation"
-                                style="background:none;border:none;color:#d1d5db;font-size:16px;
-                                       cursor:pointer;padding:4px 6px;border-radius:8px;
-                                       margin-left:4px;flex-shrink:0;line-height:1;">🗑️</button>
+                                aria-label="Supprimer la conversation">🗑️</button>
                     </div>`;
             }).join('');
 
@@ -662,7 +637,8 @@
             liste.querySelectorAll('.tchat-conv-suppr').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    _supprimerConversation(parseInt(btn.dataset.id, 10));
+                    const itemEl = btn.closest('.tchat-conv-item');
+                    _confirmerSuppressionConversation(parseInt(btn.dataset.id, 10), itemEl);
                 });
             });
 
@@ -784,7 +760,16 @@
             ? '<em style="color:#d1d5db">Message supprimé</em>'
             : _convertirEmojis(_echapper(msg.content));
 
+        // Boutons actions inline (visibles au hover/tap)
+        const actionsHTML = !supprime ? `
+            <div class="tchat-msg-actions">
+                <button class="tchat-msg-btn-reply" title="Répondre">↩</button>
+                ${sortant ? `<button class="tchat-msg-btn-edit" title="Modifier">✏️</button>` : ''}
+                <button class="tchat-msg-btn-del" title="Supprimer">🗑️</button>
+            </div>` : '';
+
         wrap.innerHTML = `
+            ${actionsHTML}
             <div class="tchat-msg-bulle">
                 ${replyHTML}
                 ${contenu}
@@ -796,21 +781,20 @@
             </div>`;
 
         if (!supprime) {
-            let longPressTimer = null;
-
-            wrap.addEventListener('contextmenu', (e) => {
-                _ouvrirMenuContextuel(e, wrap, msg, moi);
+            wrap.querySelector('.tchat-msg-btn-reply')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _activerReply(msg);
             });
 
-            wrap.addEventListener('touchstart', () => {
-                longPressTimer = setTimeout(() => {
-                    const fakeE = { preventDefault: () => {}, stopPropagation: () => {} };
-                    _ouvrirMenuContextuel(fakeE, wrap, msg, moi);
-                }, 500);
-            }, { passive: true });
+            wrap.querySelector('.tchat-msg-btn-edit')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _editerMessage(wrap, msg);
+            });
 
-            wrap.addEventListener('touchend',  () => clearTimeout(longPressTimer));
-            wrap.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+            wrap.querySelector('.tchat-msg-btn-del')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _supprimerMessageConfirm(wrap, msg.id);
+            });
         }
 
         return wrap;
@@ -986,7 +970,7 @@
         } catch { /* silencieux */ }
     }
 
-        // ── API publique ──────────────────────────────────────────
+    // ── API publique ──────────────────────────────────────────
     window.Tchat = {
         ouvrirConversation(interlocuteur) {
             if (!_ouvert) _ouvrirTchat();
