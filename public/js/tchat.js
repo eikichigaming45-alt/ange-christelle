@@ -128,6 +128,34 @@
             .replace(/'/g, '&#39;');
     }
 
+    // ── Lightbox ──────────────────────────────────────────────
+    function _initLightbox() {
+        if (document.getElementById('tchat-lightbox')) return;
+        const lb = document.createElement('div');
+        lb.id = 'tchat-lightbox';
+        lb.style.cssText = [
+            'display:none',
+            'position:fixed',
+            'inset:0',
+            'z-index:9999',
+            'background:rgba(0,0,0,0.88)',
+            'align-items:center',
+            'justify-content:center',
+            'cursor:zoom-out'
+        ].join(';');
+        lb.innerHTML = '<img id="tchat-lightbox-img" style="max-width:90vw;max-height:90vh;border-radius:12px;object-fit:contain;">';
+        lb.addEventListener('click', () => { lb.style.display = 'none'; });
+        document.body.appendChild(lb);
+    }
+
+    function _ouvrirLightbox(src) {
+        const lb  = document.getElementById('tchat-lightbox');
+        const img = document.getElementById('tchat-lightbox-img');
+        if (!lb || !img) return;
+        img.src = src;
+        lb.style.display = 'flex';
+    }
+
     function _construireDom() {
         if (document.getElementById('tchat-bulle')) return;
 
@@ -207,6 +235,7 @@
         document.body.appendChild(bulle);
         document.body.appendChild(overlay);
         document.body.appendChild(sheet);
+        _initLightbox();
 
         document.getElementById('tchat-btn-fermer').addEventListener('click', _fermerTchat);
         document.getElementById('tchat-conv-back').addEventListener('click', _afficherVueListe);
@@ -396,9 +425,7 @@
         });
     }
 
-    // ── Confirmation suppression message — ancrée sur #tchat-sheet ──
     function _supprimerMessageConfirm(wrap, msgId) {
-        // Supprimer toute modale déjà ouverte
         document.querySelectorAll('.tchat-confirm-suppr').forEach(el => el.remove());
 
         const sheet = document.getElementById('tchat-sheet');
@@ -413,7 +440,6 @@
                 <button class="btn-cancel tchat-suppr-non">Annuler</button>
             </div>`;
 
-        // Positionner par rapport au sheet
         sheet.appendChild(confirm);
 
         const wrapRect  = wrap.getBoundingClientRect();
@@ -436,7 +462,6 @@
             await _supprimerMessage(wrap, msgId);
         });
 
-        // Fermer si clic en dehors
         const _fermerModale = (e) => {
             if (!confirm.contains(e.target)) {
                 confirm.remove();
@@ -622,13 +647,13 @@
         _chargerConversations();
     }
 
-        function _afficherVueConv(interlocuteur) {
+    function _afficherVueConv(interlocuteur) {
         _vueActive          = 'conv';
         _interlocuteurActif = interlocuteur;
         _plusAncienMsgId    = null;
 
         document.getElementById('tchat-vue-liste').style.display = 'none';
-        document.getElementById('tchat-vue-conv').classList.add('active');
+                document.getElementById('tchat-vue-conv').classList.add('active');
         document.getElementById('tchat-header-titre').textContent = '';
         document.getElementById('tchat-conv-nom-label').textContent =
             interlocuteur.prenom
@@ -646,6 +671,11 @@
             </button>`;
         document.getElementById('tchat-btn-plus-anciens')
             .addEventListener('click', _chargerPlusAnciens);
+
+        scroll.addEventListener('click', (e) => {
+            const img = e.target.closest('[data-lightbox-src]');
+            if (img) _ouvrirLightbox(img.dataset.lightboxSrc);
+        });
 
         _annulerReply();
         _fermerEmojiPanel();
@@ -851,8 +881,8 @@
             contenu = `<img src="${_echapper(msg.image_url)}"
                 class="tchat-msg-image"
                 alt="image"
-                onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=\\'font-size:12px;color:#9ca3af;font-style:italic\\'>Image indisponible</span>')"
-                onclick="window.open('${_echapper(msg.image_url)}','_blank')">`;
+                data-lightbox-src="${_echapper(msg.image_url)}"
+                onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=\\'font-size:12px;color:#9ca3af;font-style:italic\\'>Image indisponible</span>')">`;
         } else {
             contenu = _renderLiens(_convertirEmojis(_echapper(msg.content || '')));
         }
