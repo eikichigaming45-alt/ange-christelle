@@ -461,7 +461,6 @@
     align-items: flex-start;
 }
 
-/* Bug #2 — min-width forcé pour éviter emoji flottant sans fond */
 .tchat-msg-bulle {
     padding: 10px 14px;
     border-radius: 16px;
@@ -570,7 +569,7 @@
     text-overflow: ellipsis;
 }
 
-/* ── Actions message — toutes les bulles ─────────────────── */
+/* ── Actions message ──────────────────────────────────────── */
 .tchat-msg-actions {
     display: flex;
     gap: 4px;
@@ -626,7 +625,7 @@
     justify-content: flex-end;
 }
 
-/* ── Boutons globaux réutilisés dans tchat ────────────────── */
+/* ── Boutons globaux ──────────────────────────────────────── */
 .btn-delete {
     background: linear-gradient(135deg, #f43f5e, #e11d48);
     color: #fff;
@@ -669,9 +668,8 @@
 }
 .btn-send:hover { opacity: 0.88; }
 
-/* ── Confirmation suppression ─────────────────────────────── */
-.tchat-confirm-conv,
-.tchat-confirm-suppr {
+/* ── Confirmation suppression conversation ────────────────── */
+.tchat-confirm-conv {
     position: absolute;
     inset: -6px;
     background: rgba(255, 255, 255, 0.98);
@@ -687,7 +685,27 @@
     z-index: 50;
     border: 1.5px solid rgba(167, 139, 250, 0.35);
     box-shadow: 0 8px 24px rgba(167, 139, 250, 0.20);
+}
+
+/* ── Confirmation suppression MESSAGE — ancrée sur #tchat-sheet ── */
+.tchat-confirm-suppr {
+    position: absolute;
+    right: 16px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    z-index: 9999;
+    border: 1.5px solid rgba(167, 139, 250, 0.35);
+    box-shadow: 0 8px 24px rgba(167, 139, 250, 0.20);
     min-width: 180px;
+    white-space: nowrap;
 }
 
 .tchat-confirm-conv-texte,

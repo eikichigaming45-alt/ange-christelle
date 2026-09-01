@@ -396,8 +396,13 @@
         });
     }
 
+    // ── Confirmation suppression message — ancrée sur #tchat-sheet ──
     function _supprimerMessageConfirm(wrap, msgId) {
-        if (wrap.querySelector('.tchat-confirm-suppr')) return;
+        // Supprimer toute modale déjà ouverte
+        document.querySelectorAll('.tchat-confirm-suppr').forEach(el => el.remove());
+
+        const sheet = document.getElementById('tchat-sheet');
+        if (!sheet) return;
 
         const confirm = document.createElement('div');
         confirm.className = 'tchat-confirm-suppr';
@@ -408,7 +413,17 @@
                 <button class="btn-cancel tchat-suppr-non">Annuler</button>
             </div>`;
 
-        wrap.appendChild(confirm);
+        // Positionner par rapport au sheet
+        sheet.appendChild(confirm);
+
+        const wrapRect  = wrap.getBoundingClientRect();
+        const sheetRect = sheet.getBoundingClientRect();
+        const topCalc   = wrapRect.top - sheetRect.top + wrapRect.height / 2 - confirm.offsetHeight / 2;
+        const topFinal  = Math.max(60, Math.min(topCalc, sheetRect.height - confirm.offsetHeight - 16));
+
+        confirm.style.top   = topFinal + 'px';
+        confirm.style.right = '16px';
+        confirm.style.left  = 'auto';
 
         confirm.querySelector('.tchat-suppr-non').addEventListener('click', (e) => {
             e.stopPropagation();
@@ -420,6 +435,15 @@
             confirm.remove();
             await _supprimerMessage(wrap, msgId);
         });
+
+        // Fermer si clic en dehors
+        const _fermerModale = (e) => {
+            if (!confirm.contains(e.target)) {
+                confirm.remove();
+                document.removeEventListener('click', _fermerModale);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', _fermerModale), 0);
     }
 
     async function _supprimerMessage(wrap, msgId) {
@@ -656,6 +680,7 @@
                     ? (c.dernier_sender_id === moi
                         ? `Vous : ${c.dernier_message}`
                         : c.dernier_message)
+                    : c.dernier_image_url ? (c.dernier_sender_id === moi ? 'Vous : 📷 Photo' : '📷 Photo')
                     : 'Aucun message';
                 const heure = c.dernier_message_at ? _formatHeure(c.dernier_message_at) : '';
                 const nonLu = c.non_lus > 0;
@@ -794,14 +819,12 @@
         return fragment;
     }
 
-    // ── Création bulle DOM ────────────────────────────────────
     function _creerBulleDom(msg, moi) {
         const sortant  = Number(msg.sender_id) === Number(moi);
         const supprime = Array.isArray(msg.deleted_for) && msg.deleted_for.includes(Number(moi));
         const wrap     = document.createElement('div');
         wrap.className     = `tchat-msg ${sortant ? 'sortant' : 'entrant'}`;
         wrap.dataset.msgId = msg.id;
-        wrap.style.position = 'relative'; // ✎ Fix bug modale — contexte pour position:absolute
 
         const luHTML = sortant
             ? `<span class="tchat-msg-lu ${msg.seen ? '' : 'envoye'}">${msg.seen ? '✓✓' : '✓'}</span>`
@@ -825,7 +848,6 @@
         if (supprime) {
             contenu = '<em class="tchat-msg-supprime-texte">Message supprimé</em>';
         } else if (msg.image_url) {
-            // ✎ Fix bug image — onerror fallback si fichier orphelin
             contenu = `<img src="${_echapper(msg.image_url)}"
                 class="tchat-msg-image"
                 alt="image"
