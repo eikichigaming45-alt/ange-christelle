@@ -52,11 +52,16 @@
     }
 
     function _renderLiens(html) {
-        return html.replace(
+    return html
+        .replace(
             /(https?:\/\/[^\s<>"']+)/g,
             '<a href="\$1" target="_blank" rel="noopener noreferrer" class="tchat-lien">\$1</a>'
+        )
+        .replace(
+            /(?<![/"'=])\b(www\.[^\s<>"']+\.[^\s<>"']+)/g,
+            '<a href="https://\$1" target="_blank" rel="noopener noreferrer" class="tchat-lien">\$1</a>'
         );
-    }
+}
 
     let _socket             = null;
     let _interlocuteurActif = null;
