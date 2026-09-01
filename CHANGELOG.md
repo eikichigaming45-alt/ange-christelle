@@ -2,6 +2,22 @@
 
 ---
 
+## v1.62 — 01-09-2026
+
+### ✨ Nouveau
+- Sélecteur d'emojis dans le tchat
+- Envoi de photos dans le tchat
+- Les liens dans les messages du tchat sont maintenant cliquables
+- Recherche instantanée dans la liste des contacts lors d'une nouvelle conversation
+
+### 🔧 Corrections
+- Les boutons d'action sur les messages du tchat apparaissent correctement sur tous les messages
+- Les messages contenant uniquement un emoji s'affichent correctement dans leur bulle
+- Les modales de confirmation de suppression respectent désormais la charte visuelle
+- Avatar des profils dans le feed : affichage corrigé — trigramme au lieu d'une simple initiale
+
+---
+
 ## v1.59 — 31-08-2026
 
 ### ✨ Nouveau
@@ -13,46 +29,34 @@
 - Marquage automatique des messages comme lus à l'ouverture d'une conversation
 - Badge non-lus en temps réel sur la bulle et l'icône topbar
 - Notification push "coucou" vers le destinataire si non connecté au Socket
-- `routes/tchat.js` — conversations, messages, non-lus, users, marquage lu
-- `public/css/tchat.css` — charte "Atelier Flottant" ready
-- `public/js/tchat.js` — Socket.io temps réel + REST fallback
 
 ### 🔧 Corrections
-- Bug C (push inter-users) : un appareil = un seul user à la fois — DELETE avant INSERT dans `/api/push/subscribe`
-- Bug D : purge des anciens `post_likes` sans type (`DELETE WHERE type IS NULL OR type NOT IN (...)`) — 5 entrées supprimées
-- Bug F : séparation desktop/mobile dans `_bindResonances()` — tap photo ouvre uniquement la photo sur mobile
+- Bug C (push inter-users) : un appareil = un seul user à la fois
+- Bug D : purge des anciens `post_likes` sans type — 5 entrées supprimées
+- Bug F : séparation desktop/mobile dans les résonances — tap photo ouvre uniquement la photo sur mobile
 - Bug G : rappels agenda reçus par tous — confirmé propre suite à la correction Bug C
-
-### 🗄️ Base de données
-- Table `private_messages` utilisée : `id · sender_id · receiver_id · content · seen · created_at`
 
 ---
 
 ## v1.58 — 31-08-2026
 
 ### ✨ Nouveau
-- Résonances : nouveau système de réactions en remplacement des likes — Douceur 🩷 · Énergie ⚡ · Calme 🌙 · Inspiration ✨ — arc au tap long sur la photo ou clic bouton bas, une résonance par user par post
+- Résonances : nouveau système de réactions — Douceur 🩷 · Énergie ⚡ · Calme 🌙 · Inspiration ✨
 - Pills colorées sous les posts affichant le décompte par type de résonance
-- Champ Lieu optionnel sur les posts (affiché sous la photo)
+- Champ Lieu optionnel sur les posts
 - Éclats : stories 24h — upload photo, 2 bandeaux scrollables dans l'onglet Accueil, expiration automatique
-- Route `/api/eclats` — upload WebP, lecture, suppression
 
 ### 🔧 Corrections
-- Labels widgets stats admin : `agenda-unifie` → `📅 Agenda`, `planning` et `rendezvous` retirés du mapping
-- Purge BDD : 18 entrées orphelines supprimées de `widget_opens` (`planning` · `rendezvous` · `agenda-unifie`)
-
-### 🗄️ Base de données
-- `post_likes` : ajout colonne `type VARCHAR(20) DEFAULT 'like'`
-- `posts` : ajout colonnes `lieu VARCHAR(100)` et `personnes_taguees INTEGER[]`
-- Nouvelle table `eclats` : `id · user_id · media_url · created_at · expires_at`
+- Labels widgets stats admin corrigés
+- Purge BDD : 18 entrées orphelines supprimées
 
 ---
 
 ## v1.56 — 30-08-2026
 
 ### ✨ Nouveau
-- Cliquer sur une notification redirige vers l'onglet concerné : coucou → Bien-être (widget cycle/mood), partage → Profil, like/commentaire/mention → Accueil avec scroll automatique vers le post
-- Les rappels push (tâche, agenda, anniversaire) ouvrent directement l'onglet Quotidien au tap
+- Cliquer sur une notification redirige vers l'onglet concerné
+- Les rappels push ouvrent directement l'onglet Quotidien au tap
 
 ### 🔧 Corrections
 - Fichier parasite supprimé du VPS
@@ -62,33 +66,31 @@
 ## v1.55 — 30-08-2026
 
 ### ✨ Nouveau
-- Message retard conditionnel selon les rapports non protégés en base : 1-3j stress/fatigue 🌿, 4-7j sans rapport → variation hormonale 🤍, 4-7j avec rapport non protégé → test de grossesse, 8j+ → gynécologue 🩺
-- Chargement du journal sur deux mois si le cycle chevauche deux mois calendaires
+- Message retard conditionnel selon les rapports non protégés en base
 
 ---
 
 ## v1.54 — 30-08-2026
 
 ### ✨ Nouveau
-- Message bienveillant permanent dans le bandeau de retard dès le chargement
+- Message bienveillant permanent dans le bandeau de retard
 - "Signaler un retard" enregistre silencieusement dans le journal
 
 ### 🔧 Corrections
-- Durée des règles calculée depuis l'historique au lieu d'être fixée à 5 jours
-- Doublon du bouton "+ Enregistrer mes règles" supprimé
-- "sage-femme" remplacé par "gynécologue"
+- Durée des règles calculée depuis l'historique
+- Doublon du bouton enregistrer les règles supprimé
 
 ---
 
 ## v1.48 — 30-08-2026
 
 ### ✨ Nouveau
-- Champ Praticien pour les événements Médicaux, distinct du lieu
+- Champ Praticien pour les événements Médicaux
 - Champ Lieu disponible pour toutes les catégories
-- Liste déroulante des employeurs existants pour Travail et Mission
+- Liste déroulante des employeurs existants
 
 ### 🔧 Corrections
-- Route `/api/agenda/employeurs` interceptée par `/:id` — corrigé
+- Route agenda interceptée par l'identifiant — corrigée
 - "Repos — Repos" masqué dans le détail et le widget Social
 - Champ Employeur repositionné dans le formulaire
 
@@ -97,9 +99,9 @@
 ## v1.47 — 30-08-2026 🏷️ Stable
 
 ### ✨ Nouveau
-- Agenda unifié : Planning et Rendez-vous fusionnés — tous types d'événements
+- Agenda unifié : Planning et Rendez-vous fusionnés
 - Catégories avec sous-catégories mémorisées et réutilisables
-- Vue calendrier mensuel avec code couleur, widget 3 jours priorité hors Repos
+- Vue calendrier mensuel avec code couleur
 - Rappels push couvrent toutes les entrées agenda
 
 ### 🔧 Corrections
@@ -110,21 +112,21 @@
 ## v1.46 — 30-08-2026 🏷️ Stable
 
 ### ✨ Nouveau
-- Météo : mémorisation du mode et des coordonnées, rafraîchissement auto 30 min ou déplacement >5 km, fallback ville profil
+- Météo : mémorisation du mode et des coordonnées, rafraîchissement auto
 
 ---
 
 ## v1.45 — 29-08-2026
 
 ### ✨ Nouveau
-- Widget Prière Islam : bandeau et bouton "Compléter le profil" si coordonnées GPS manquantes
+- Widget Prière Islam : bandeau si coordonnées GPS manquantes
 
 ---
 
 ## v1.44 — 29-08-2026
 
 ### ✨ Nouveau
-- Hashtags cliquables dans le feed avec filtre actif et bouton de réinitialisation
+- Hashtags cliquables dans le feed avec filtre actif
 
 ### 🔧 Corrections
 - Mentions @Tout le monde cassées après l'ajout des hashtags — corrigé
@@ -134,21 +136,20 @@
 ## v1.43 — 29-08-2026
 
 ### ✨ Nouveau
-- Thème Astral : bouton "Calculer mon thème natal" au premier affichage
-- Astrologie : bouton "Compléter le profil" si date de naissance manquante
+- Thème Astral : bouton de calcul au premier affichage
+- Astrologie : bouton si date de naissance manquante
 
 ### 🔧 Corrections
-- Photo post Android : galerie proposée par défaut au lieu de la caméra
+- Photo post Android : galerie proposée par défaut
 - Icônes météo manquantes sur conditions rares corrigées
-- Texte "Mis à jour chaque jour" remplacé par "Thème natal · Données permanentes"
-- Widget Santé : bandeau profil incomplet au lieu d'une erreur brute
+- Widget Santé : bandeau profil incomplet au lieu d'une erreur
 
 ---
 
 ## v1.42 — 29-08-2026 🏷️ Stable
 
 ### ✨ Nouveau
-- Thème Astral : Milieu du Ciel, Ascendant, Lune, Soleil affichés — astrologie occidentale tropicale
+- Thème Astral : Milieu du Ciel, Ascendant, Lune, Soleil affichés
 
 ### 🔧 Corrections
 - Milieu du Ciel affichait "Heure requise" à tort — corrigé
@@ -220,7 +221,7 @@
 ## v1.06 — 25-08-2026
 
 ### ✨ Nouveau
-- Cloche notifications avec badge, sections Aujourd'hui / Plus tôt, likes, commentaires, abonnements
+- Cloche notifications avec badge, sections Aujourd'hui / Plus tôt
 
 ---
 

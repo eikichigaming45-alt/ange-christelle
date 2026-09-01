@@ -2,7 +2,7 @@
 // public/js/feed.js
 // Fil social — onglet Accueil.
 // MODULE @TAG : suggestions temps réel, mentions cliquables.
-// Dépend de : app.js (getUser)
+// Dépend de : app.js (getUser), profil.js (construireTrigramme)
 // ============================================================
 
 let feedFilter = 'all';
@@ -15,6 +15,29 @@ const RESONANCES = [
     { type: 'calme',       label: 'Calme',       icone: '🌙', couleur: '#a5b4fc' },
     { type: 'inspiration', label: 'Inspiration', icone: '✨', couleur: '#6ee7b7' }
 ];
+
+// ── Trigramme unifié — source : profil.js ─────────────────────
+function _feedTrigramme(prenom, nom, fallback) {
+    if (typeof construireTrigramme === 'function') {
+        return construireTrigramme(prenom, nom) || (fallback?.[0] || '?').toUpperCase();
+    }
+    const mots = [...(prenom || '').split(/\s+/), ...(nom || '').split(/\s+/)]
+        .map(m => m.trim()).filter(Boolean);
+    return mots.slice(0, 3).map(m => m[0].toUpperCase()).join('') || (fallback?.[0] || '?').toUpperCase();
+}
+
+// ── Avatar HTML unifié ────────────────────────────────────────
+function _feedAvatarHTML(photo, prenom, nom, username, taille = 36) {
+    if (photo) {
+        return `<img src="${photo}"
+            style="width:${taille}px;height:${taille}px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`;
+    }
+    const trig = _feedTrigramme(prenom, nom, username);
+    return `<div style="width:${taille}px;height:${taille}px;border-radius:50%;
+        background:linear-gradient(135deg,#e9d5ff,#fbcfe8);
+        color:#7c3aed;font-size:${Math.round(taille * 0.33)}px;font-weight:700;
+        display:flex;align-items:center;justify-content:center;flex-shrink:0">${trig}</div>`;
+}
 
 // ── INIT ─────────────────────────────────────────────────────
 async function initFeed() {
@@ -275,7 +298,7 @@ async function _mentionInput(inputEl, dropEl) {
             d.users.forEach((u, i) => {
                 const av = u.avatar
                     ? `<img src="${u.avatar}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
-                    : `<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(u.prenom?.[0] || '?').toUpperCase()}</div>`;
+                    : `<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#e9d5ff,#fbcfe8);color:#7c3aed;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_feedTrigramme(u.prenom, u.nom, u.username)}</div>`;
                 items.push(`
                     <div class="mention-item${items.length === 0 && i === 0 ? ' active' : ''}"
                          data-prenom="${escapeHtml(u.prenom || '')}"
@@ -375,7 +398,7 @@ function renderPost(p) {
     const isAdmin = user.role === 'admin';
     const avatar = p.avatar
         ? `<img src="${p.avatar}" class="feed-avatar" alt="">`
-        : `<div class="feed-avatar feed-avatar-initiale">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
+        : `<div class="feed-avatar feed-avatar-initiale">${_feedTrigramme(p.prenom, p.nom, p.username)}</div>`;
     const date = new Date(p.created_at).toLocaleDateString('fr-FR', {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
     });
@@ -462,8 +485,6 @@ function renderPost(p) {
 }
 
 // ── BIND RÉSONANCES ───────────────────────────────────────────
-// Desktop : arc sur photo au survol souris
-// Mobile  : tap photo = ouvre photo uniquement, arc = footer uniquement
 function _bindResonances() {
     document.querySelectorAll('.feed-photo-wrap[data-post-id]').forEach(wrap => {
         const postId = wrap.dataset.postId;
@@ -472,13 +493,11 @@ function _bindResonances() {
         if (!img) return;
 
         if (_isMobile()) {
-            // Mobile : tap simple = ouvre photo, pas d'arc sur la photo
             img.addEventListener('click', e => {
                 e.stopPropagation();
                 ouvrirPhoto(wrap.dataset.photoUrl);
             });
         } else {
-            // Desktop : survol = ouvre arc sur photo
             if (arc) {
                 wrap.addEventListener('mouseenter', e => {
                     if (e.target.closest('.feed-arc-resonance')) return;
@@ -505,7 +524,7 @@ function _bindResonances() {
                 !e.target.closest('.feed-resonance-count-btn')
             ) {
                 document.querySelectorAll('.feed-arc-resonance').forEach(a => a.style.display = 'none');
-                document.querySelectorAll('.feed-arc-inline').forEach(a => a.remove());
+                                document.querySelectorAll('.feed-arc-inline').forEach(a => a.remove());
             }
         });
     }
@@ -639,7 +658,7 @@ async function voirLikers(postId, e) {
             ? d.likers.map(l => {
                 const av = l.avatar
                     ? `<img src="${l.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
-                    : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${(l.prenom?.[0] || l.username[0]).toUpperCase()}</div>`;
+                    : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#e9d5ff,#fbcfe8);color:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">${_feedTrigramme(l.prenom, l.nom, l.username)}</div>`;
                 const res = RESONANCES.find(r => r.type === l.type);
                 return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6">
                     ${av}
@@ -828,10 +847,10 @@ function renderComment(c, postId, isReponse = false) {
         ? `<img src="${c.avatar}" onclick="ouvrirProfilPublic(${c.user_id})"
                style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;cursor:pointer" alt="">`
         : `<div onclick="ouvrirProfilPublic(${c.user_id})"
-               style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);
-                      color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;
+               style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#e9d5ff,#fbcfe8);
+                      color:#7c3aed;font-size:10px;font-weight:700;display:flex;align-items:center;
                       justify-content:center;flex-shrink:0;cursor:pointer">
-               ${(c.prenom?.[0] || c.username[0]).toUpperCase()}
+               ${_feedTrigramme(c.prenom, c.nom, c.username)}
            </div>`;
     return `
         <div class="feed-comment${isReponse ? ' feed-comment-reply' : ''}"
@@ -1201,7 +1220,10 @@ async function ouvrirProfilPublic(userId) {
         const isSelf = String(user.userId) === String(p.id);
         const avatar = p.photo
             ? `<img src="${p.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed">`
-            : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center">${(p.prenom?.[0] || p.username[0]).toUpperCase()}</div>`;
+            : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#e9d5ff,#fbcfe8);
+                color:#7c3aed;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center">
+                ${_feedTrigramme(p.prenom, p.nom, p.username)}
+               </div>`;
         const abonnesEl = isSelf
             ? `<div style="cursor:pointer" onclick="voirAbonnes(${p.id})">
                    <div style="font-size:20px;font-weight:800;color:#7c3aed">${p.nb_abonnes}</div>
@@ -1263,7 +1285,7 @@ async function voirAbonnes(userId) {
             ? d.abonnes.map(a => {
                 const av = a.photo
                     ? `<img src="${a.photo}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">`
-                    : `<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0">${(a.prenom?.[0] || a.username[0]).toUpperCase()}</div>`;
+                    : `<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#e9d5ff,#fbcfe8);color:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${_feedTrigramme(a.prenom, a.nom, a.username)}</div>`;
                 return `
                     <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f3f4f6;cursor:pointer"
                          onclick="ouvrirProfilPublic(${a.id})">

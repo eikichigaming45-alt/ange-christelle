@@ -3,8 +3,22 @@
 // ============================================================
 const express = require('express');
 const router  = express.Router();
+const path    = require('path');
+const fs      = require('fs');
+const multer  = require('multer');
+const sharp   = require('sharp');
 const { pool } = require('../db/pool');
 const { authenticateToken: auth } = require('../middleware/auth');
+
+// ── Multer mémoire pour upload image tchat ────────────────────
+const _upload = multer({
+    storage: multer.memoryStorage(),
+    limits : { fileSize: 10 * 1024 * 1024 },
+    fileFilter(req, file, cb) {
+        if (file.mimetype.startsWith('image/')) cb(null, true);
+        else cb(new Error('Fichier non image.'));
+    }
+});
 
 // ── GET /api/tchat/conversations ─────────────────────────────
 router.get('/conversations', auth, async (req, res) => {
@@ -18,6 +32,7 @@ router.get('/conversations', auth, async (req, res) => {
                 p.nom,
                 p.photo,
                 pm.content                      AS dernier_message,
+                pm.image_url                    AS dernier_image_url,
                 pm.sender_id                    AS dernier_sender_id,
                 pm.created_at                   AS dernier_message_at,
                 COUNT(pm2.id) FILTER (
@@ -27,7 +42,7 @@ router.get('/conversations', auth, async (req, res) => {
                 )::int                          AS non_lus
             FROM (
                 SELECT DISTINCT ON (LEAST(sender_id,receiver_id), GREATEST(sender_id,receiver_id))
-                    sender_id, receiver_id, content, created_at
+                    sender_id, receiver_id, content, image_url, created_at
                 FROM private_messages
                 WHERE (sender_id = \$1 OR receiver_id = \$1)
                     AND NOT (\$1 = ANY(COALESCE(deleted_for,'{}')))
@@ -38,7 +53,7 @@ router.get('/conversations', auth, async (req, res) => {
             LEFT JOIN private_messages pm2
                 ON (pm2.sender_id = u.id AND pm2.receiver_id = \$1)
             GROUP BY u.id, u.username, p.prenom, p.nom, p.photo,
-                     pm.content, pm.sender_id, pm.created_at
+                     pm.content, pm.image_url, pm.sender_id, pm.created_at
             ORDER BY pm.created_at DESC
         `, [moi]);
         res.json({ success: true, conversations: rows });
@@ -63,7 +78,7 @@ router.get('/messages/:interlocuteurId', auth, async (req, res) => {
         const { rows } = await pool.query(`
             SELECT
                 pm.id, pm.sender_id, pm.receiver_id,
-                pm.content, pm.seen, pm.created_at, pm.edited_at,
+                pm.content, pm.image_url, pm.seen, pm.created_at, pm.edited_at,
                 pm.reply_to_id, pm.deleted_for,
                 su.username  AS sender_username,
                 sp.prenom    AS sender_prenom,
@@ -166,6 +181,96 @@ router.post('/messages', auth, async (req, res) => {
         res.json({ success: true, message: enriched });
     } catch (err) {
         console.error('[TCHAT] sendMessage :', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ── POST /api/tchat/messages/image ───────────────────────────
+router.post('/messages/image', auth, _upload.single('image'), async (req, res) => {
+    const moi         = req.user.id;
+    const receiver_id = parseInt(req.body.receiver_id, 10);
+    const reply_to_id = req.body.reply_to_id ? parseInt(req.body.reply_to_id, 10) : null;
+
+    if (!receiver_id || !req.file) {
+        return res.status(400).json({ success: false, message: 'Données manquantes.' });
+    }
+
+    try {
+        const dir = path.join(__dirname, '../uploads/tchat');
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+        const filename = `tchat_${Date.now()}_${moi}.webp`;
+        const filepath = path.join(dir, filename);
+
+        await sharp(req.file.buffer)
+            .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 82 })
+            .toFile(filepath);
+
+        const image_url = `/uploads/tchat/${filename}`;
+
+        const { rows } = await pool.query(`
+            INSERT INTO private_messages (sender_id, receiver_id, content, image_url, reply_to_id)
+            VALUES (\$1, \$2, \$3, \$4, \$5)
+            RETURNING *
+        `, [moi, receiver_id, '', image_url, reply_to_id]);
+
+        const msg = rows[0];
+
+        const { rows: extra } = await pool.query(`
+            SELECT u.username AS sender_username, p.prenom AS sender_prenom,
+                   p.nom AS sender_nom, p.photo AS sender_photo
+            FROM users u
+            LEFT JOIN profiles p ON p.user_id = u.id
+            WHERE u.id = \$1
+        `, [moi]);
+
+        const enriched = { ...msg, ...extra[0] };
+
+        if (reply_to_id) {
+            const { rows: rRows } = await pool.query(`
+                SELECT pm.content AS reply_content,
+                       u.username AS reply_sender_username,
+                       p.prenom   AS reply_sender_prenom,
+                       p.nom      AS reply_sender_nom
+                FROM private_messages pm
+                JOIN users u        ON u.id = pm.sender_id
+                LEFT JOIN profiles p ON p.user_id = pm.sender_id
+                WHERE pm.id = \$1
+            `, [reply_to_id]);
+            if (rRows[0]) Object.assign(enriched, rRows[0]);
+        }
+
+        const io   = req.app.get('io');
+        const room = `conv_${Math.min(moi, receiver_id)}_${Math.max(moi, receiver_id)}`;
+        if (io) io.to(room).emit('tchat:message', enriched);
+
+        try {
+            const { rows: subs } = await pool.query(
+                'SELECT * FROM push_subscriptions WHERE user_id = \$1', [receiver_id]
+            );
+            if (subs.length) {
+                const webpush    = require('web-push');
+                const expediteur = extra[0]?.prenom || 'Quelqu\'un';
+                const payload    = JSON.stringify({
+                    title: `💬 ${expediteur}`,
+                    body : '📷 Photo',
+                    url  : '/'
+                });
+                for (const sub of subs) {
+                    try {
+                        await webpush.sendNotification(
+                            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+                            payload
+                        );
+                    } catch { /* sub expirée */ }
+                }
+            }
+        } catch { /* silencieux */ }
+
+        res.json({ success: true, message: enriched });
+    } catch (err) {
+        console.error('[TCHAT] sendImage :', err.message);
         res.status(500).json({ success: false, message: err.message });
     }
 });
