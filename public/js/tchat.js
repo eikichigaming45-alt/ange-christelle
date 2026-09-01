@@ -88,7 +88,6 @@
         return `conv_${Math.min(u1, u2)}_${Math.max(u1, u2)}`;
     }
 
-    // ── Trigramme — utilise construireTrigramme() de profil.js ──
     function _trigramme(prenom, nom) {
         if (typeof construireTrigramme === 'function') {
             return construireTrigramme(prenom, nom) || '?';
@@ -129,7 +128,6 @@
             .replace(/'/g, '&#39;');
     }
 
-    // ── Construction DOM ─────────────────────────────────────
     function _construireDom() {
         if (document.getElementById('tchat-bulle')) return;
 
@@ -216,7 +214,6 @@
         document.getElementById('tchat-btn-plus-anciens').addEventListener('click', _chargerPlusAnciens);
         document.getElementById('tchat-reply-annuler').addEventListener('click', _annulerReply);
 
-        // ── Sélecteur emojis ──────────────────────────────────
         document.getElementById('tchat-btn-emoji').addEventListener('click', (e) => {
             e.stopPropagation();
             _toggleEmojiPanel();
@@ -230,7 +227,6 @@
             }
         });
 
-        // ── Upload image ──────────────────────────────────────
         document.getElementById('tchat-btn-image').addEventListener('click', () => {
             document.getElementById('tchat-input-image').click();
         });
@@ -261,7 +257,6 @@
         btnEnv.addEventListener('click', _envoyerMessage);
     }
 
-    // ── Emoji panel ───────────────────────────────────────────
     function _toggleEmojiPanel() {
         _emojiOuvert ? _fermerEmojiPanel() : _ouvrirEmojiPanel();
     }
@@ -294,7 +289,6 @@
         _emojiOuvert = false;
     }
 
-    // ── Reply ─────────────────────────────────────────────────
     function _activerReply(msg) {
         _replyTo = msg;
         const preview = document.getElementById('tchat-reply-preview');
@@ -311,9 +305,6 @@
         document.getElementById('tchat-reply-texte').innerHTML = '';
     }
 
-    // ── Confirmation suppression conversation ─────────────────
-    // Pattern CSS : classes tchat-confirm-conv, tchat-conv-suppr-oui, tchat-conv-suppr-non
-    // Zéro style.cssText inline
     function _confirmerSuppressionConversation(interlocuteurId, itemEl) {
         if (itemEl.querySelector('.tchat-confirm-conv')) return;
 
@@ -340,7 +331,6 @@
         });
     }
 
-    // ── Édition message ───────────────────────────────────────
     function _editerMessage(wrap, msg) {
         const bulle = wrap.querySelector('.tchat-msg-bulle');
         if (!bulle) return;
@@ -406,9 +396,6 @@
         });
     }
 
-    // ── Confirmation suppression message ──────────────────────
-    // Pattern CSS : classes tchat-confirm-suppr, btn-delete, btn-cancel
-    // Zéro style.cssText inline
     function _supprimerMessageConfirm(wrap, msgId) {
         if (wrap.querySelector('.tchat-confirm-suppr')) return;
 
@@ -469,7 +456,6 @@
         }
     }
 
-    // ── Envoi image ───────────────────────────────────────────
     async function _envoyerImage(file) {
         if (!_interlocuteurActif) return;
         const formData = new FormData();
@@ -497,7 +483,6 @@
         }
     }
 
-    // ── Socket ────────────────────────────────────────────────
     function _initSocket() {
         if (_socket) return;
         if (typeof io === 'undefined') return;
@@ -572,7 +557,6 @@
         _socket.emit('tchat:quitter', { room: _roomName(userId, interlocuteurId) });
     }
 
-    // ── Ouverture / fermeture ─────────────────────────────────
     function _toggleTchat() { _ouvert ? _fermerTchat() : _ouvrirTchat(); }
 
     function _ouvrirTchat() {
@@ -614,7 +598,7 @@
         _chargerConversations();
     }
 
-    function _afficherVueConv(interlocuteur) {
+        function _afficherVueConv(interlocuteur) {
         _vueActive          = 'conv';
         _interlocuteurActif = interlocuteur;
         _plusAncienMsgId    = null;
@@ -646,7 +630,6 @@
         _marquerLu(interlocuteur.id);
     }
 
-        // ── Chargement conversations ──────────────────────────────
     async function _chargerConversations() {
         const liste = document.getElementById('tchat-liste-scroll');
         if (!liste) return;
@@ -728,7 +711,6 @@
         }
     }
 
-    // ── Chargement messages ───────────────────────────────────
     async function _chargerMessages(avant = null) {
         if (_chargementEnCours || !_interlocuteurActif) return;
         _chargementEnCours = true;
@@ -819,6 +801,7 @@
         const wrap     = document.createElement('div');
         wrap.className     = `tchat-msg ${sortant ? 'sortant' : 'entrant'}`;
         wrap.dataset.msgId = msg.id;
+        wrap.style.position = 'relative'; // ✎ Fix bug modale — contexte pour position:absolute
 
         const luHTML = sortant
             ? `<span class="tchat-msg-lu ${msg.seen ? '' : 'envoye'}">${msg.seen ? '✓✓' : '✓'}</span>`
@@ -842,9 +825,11 @@
         if (supprime) {
             contenu = '<em class="tchat-msg-supprime-texte">Message supprimé</em>';
         } else if (msg.image_url) {
+            // ✎ Fix bug image — onerror fallback si fichier orphelin
             contenu = `<img src="${_echapper(msg.image_url)}"
                 class="tchat-msg-image"
                 alt="image"
+                onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=\\'font-size:12px;color:#9ca3af;font-style:italic\\'>Image indisponible</span>')"
                 onclick="window.open('${_echapper(msg.image_url)}','_blank')">`;
         } else {
             contenu = _renderLiens(_convertirEmojis(_echapper(msg.content || '')));
@@ -918,7 +903,6 @@
         if (scroll) scroll.scrollTop = scroll.scrollHeight;
     }
 
-    // ── Envoi message texte ───────────────────────────────────
     async function _envoyerMessage() {
         const input  = document.getElementById('tchat-input');
         const btnEnv = document.getElementById('tchat-btn-envoyer');
@@ -971,7 +955,6 @@
         }
     }
 
-    // ── Sélection nouvel interlocuteur avec recherche ─────────
     async function _ouvrirSelectUser() {
         try {
             const r = await fetch('/api/tchat/users', { headers: _authHeaders() });
@@ -1059,7 +1042,6 @@
         }
     }
 
-    // ── Badge non-lus ─────────────────────────────────────────
     async function _rafraichirBadgeBulle() {
         try {
             const r = await fetch('/api/tchat/non-lus', { headers: _authHeaders() });
@@ -1088,7 +1070,6 @@
         } catch { /* silencieux */ }
     }
 
-    // ── API publique ──────────────────────────────────────────
     window.Tchat = {
         ouvrirConversation(interlocuteur) {
             if (!_ouvert) _ouvrirTchat();
