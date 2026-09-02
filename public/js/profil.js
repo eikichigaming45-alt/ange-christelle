@@ -1,589 +1,657 @@
 // ============================================================
-// public/js/profil.js
+// public/js/modal.js
+// Modales : météo, prière, islam, tâches, anniversaires,
+// cycle, profil, admin, astrologie, theme-astral, agenda-unifie.
+// Onglet Profil : infos + heure/lieu naissance + géocodage + site web.
+// Onglet Santé  : sexe, taille, poids, groupe sanguin,
+//                 niveau activité, objectif santé, signe zodiaque,
+//                 allergies, aliments exclus.
+// Mobile : onglets profil en icônes seules.
 // ============================================================
 
-function construireTrigramme(prenom, nom) {
-    const mots = [...(prenom || '').split(/\s+/), ...(nom || '').split(/\s+/)]
-        .map(m => m.trim())
-        .filter(Boolean);
-    return mots.slice(0, 3).map(m => m[0].toUpperCase()).join('');
-}
+const JOURS_MODAL = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
-const _SIGNES_ZODIAQUE = [
-    { signe:'Capricorne', emoji:'♑', mois:1,  jour:20 },
-    { signe:'Verseau',    emoji:'♒', mois:2,  jour:19 },
-    { signe:'Poissons',   emoji:'♓', mois:3,  jour:20 },
-    { signe:'Bélier',     emoji:'♈', mois:4,  jour:20 },
-    { signe:'Taureau',    emoji:'♉', mois:5,  jour:21 },
-    { signe:'Gémeaux',    emoji:'♊', mois:6,  jour:21 },
-    { signe:'Cancer',     emoji:'♋', mois:7,  jour:23 },
-    { signe:'Lion',       emoji:'♌', mois:8,  jour:23 },
-    { signe:'Vierge',     emoji:'♍', mois:9,  jour:23 },
-    { signe:'Balance',    emoji:'♎', mois:10, jour:23 },
-    { signe:'Scorpion',   emoji:'♏', mois:11, jour:22 },
-    { signe:'Sagittaire', emoji:'♐', mois:12, jour:22 },
-    { signe:'Capricorne', emoji:'♑', mois:12, jour:31 },
-];
+// ===================== OUVERTURE MODALE ======================
 
-const _SIGNES_LABELS = {
-    belier    : { signe:'Bélier',     emoji:'♈' },
-    taureau   : { signe:'Taureau',    emoji:'♉' },
-    gemeaux   : { signe:'Gémeaux',    emoji:'♊' },
-    cancer    : { signe:'Cancer',     emoji:'♋' },
-    lion      : { signe:'Lion',       emoji:'♌' },
-    vierge    : { signe:'Vierge',     emoji:'♍' },
-    balance   : { signe:'Balance',    emoji:'♎' },
-    scorpion  : { signe:'Scorpion',   emoji:'♏' },
-    sagittaire: { signe:'Sagittaire', emoji:'♐' },
-    capricorne: { signe:'Capricorne', emoji:'♑' },
-    verseau   : { signe:'Verseau',    emoji:'♒' },
-    poissons  : { signe:'Poissons',   emoji:'♓' },
-};
+async function openModal(type) {
+    document.getElementById('overlay').classList.add('on');
+    document.body.classList.add('modal-open');
+    const titres = {
+        meteo          : 'Météo du jour',
+        priere         : 'Prière du jour',
+        islam          : 'Prières & Hadiths',
+        taches         : 'Tâches du jour',
+        anniversaires  : 'Anniversaires',
+        profil         : 'Mon Profil',
+        admin          : 'Administration',
+        cycle          : 'Suivi du cycle',
+        astrologie     : 'Astrologie',
+        'theme-astral' : 'Thème Astral',
+        'agenda-unifie': 'Mon Agenda',
+    };
+    document.getElementById('modal-title').textContent = titres[type] || type;
 
-function _signeDepuisDate(dateStr) {
-    if (!dateStr) return null;
-    const d    = new Date(dateStr);
-    const mois = d.getMonth() + 1;
-    const jour = d.getDate();
-    const found = _SIGNES_ZODIAQUE.find(s => mois < s.mois || (mois === s.mois && jour <= s.jour));
-    return found || null;
-}
+    // ── Météo ─────────────────────────────────────────────────
+    if (type === 'meteo') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        _ouvrirModaleMeteo();
 
-function obtenirSigne(p) {
-    if (p.signe_zodiaque && _SIGNES_LABELS[p.signe_zodiaque]) {
-        return _SIGNES_LABELS[p.signe_zodiaque];
-    }
-    return _signeDepuisDate(p.date_naissance);
-}
+    // ── Prière ────────────────────────────────────────────────
+    } else if (type === 'priere') {
+        document.getElementById('modal-body').innerHTML = priere ? `
+            <div class="islam-modal">
+                <div style="display:flex;justify-content:space-between;align-items:center;
+                            background:linear-gradient(135deg,#fef3c7,#fde68a);
+                            border-radius:12px;padding:12px 16px;margin-bottom:16px;
+                            border-left:4px solid #d97706;">
+                    ${priere.titre
+                        ? `<div style="font-size:13px;font-weight:700;color:#78350f;line-height:1.4">📖 ${priere.titre}</div>`
+                        : '<div></div>'}
+                    <button onclick="lirePriereModal(event)" id="btn-speaker-modal"
+                        style="background:#fff8e1;border:none;border-radius:50%;
+                               width:36px;height:36px;cursor:pointer;font-size:18px;
+                               display:flex;align-items:center;justify-content:center;
+                               box-shadow:0 2px 4px rgba(0,0,0,0.1);flex-shrink:0;margin-left:10px">
+                        🔊
+                    </button>
+                </div>
+                ${priere.evangile ? `
+                <div style="margin-bottom:14px">
+                    <div class="islam-modal-titre-section">Évangile du jour</div>
+                    <div style="background:#fffbeb;border-radius:10px;padding:14px 16px;
+                                border-left:4px solid #d97706;
+                                font-size:13px;color:#444;line-height:1.8;
+                                max-height:260px;overflow-y:auto">
+                        ${priere.evangile.replace(/\n/g, '<br>')}
+                    </div>
+                </div>` : `
+                <div style="margin-bottom:14px">
+                    <div style="background:#fffbeb;border-radius:10px;padding:14px 16px;
+                                border-left:4px solid #d97706;
+                                font-size:13px;color:#444;line-height:1.8;font-style:italic">
+                        "${priere.texte}"<br><br><em>— ${priere.ref}</em>
+                    </div>
+                </div>`}
+                ${priere.lecture1 ? `
+                <div style="margin-bottom:14px">
+                    <div class="islam-modal-titre-section">Première lecture</div>
+                    <div style="background:#f0f9ff;border-radius:10px;padding:14px 16px;
+                                border-left:4px solid #0369a1;
+                                font-size:13px;color:#444;line-height:1.8;
+                                max-height:200px;overflow-y:auto">
+                        ${priere.lecture1.replace(/\n/g, '<br>')}
+                    </div>
+                </div>` : ''}
+            </div>
+        ` : '<p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>';
 
-async function geocoderLieuNaissance() {
-    const input = document.getElementById('p-lieu-naissance');
-    const msg   = document.getElementById('p-lieu-naissance-msg');
-    const latEl = document.getElementById('p-naissance-lat');
-    const lonEl = document.getElementById('p-naissance-lon');
-    if (!input || !msg || !latEl || !lonEl) return;
+    // ── Islam ─────────────────────────────────────────────────
+    } else if (type === 'islam') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Chargement...</p>';
+        if (!window._islamData) {
+            if (typeof window.chargerIslam === 'function') window.chargerIslam();
+            await new Promise(resolve => {
+                let tries = 0;
+                const iv = setInterval(() => {
+                    tries++;
+                    if (window._islamData || tries >= 15) { clearInterval(iv); resolve(); }
+                }, 200);
+            });
+        }
+        const d     = window._islamData;
+        const toMin = hhmm => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+        const now   = new Date().getHours() * 60 + new Date().getMinutes();
+        const listePrieres = [
+            { nom:'Fajr',    label:'Fajr (Aube)',       heure: d?.fajr    },
+            { nom:'Dhuhr',   label:'Dhuhr (Midi)',      heure: d?.dhuhr   },
+            { nom:'Asr',     label:'Asr (Après-midi)',  heure: d?.asr     },
+            { nom:'Maghrib', label:'Maghrib (Coucher)', heure: d?.maghrib },
+            { nom:'Isha',    label:'Isha (Nuit)',       heure: d?.isha    },
+        ];
+        const prochaine = d ? (listePrieres.find(x => toMin(x.heure) > now) || listePrieres[0]) : null;
+        let coords = { ville: 'Paris' };
+        try { coords = JSON.parse(localStorage.getItem('islam_coords')) || coords; } catch {}
 
-    const q = input.value.trim();
-    if (!q) {
-        msg.textContent = '';
-        latEl.value     = '';
-        lonEl.value     = '';
-        return;
-    }
+        document.getElementById('modal-body').innerHTML = (d && !d.erreur) ? `
+            <div class="islam-modal">
+                <div class="islam-modal-header">
+                    <div class="islam-modal-date">${d.date || ''}</div>
+                    <div style="text-align:center;margin-top:6px;">
+                        <span style="font-size:12px;color:#059669;font-weight:600;">📍 ${coords.ville}</span>
+                        <button onclick="window._islamChangerVille()" style="margin-left:10px;background:#f0fdf4;border:1px solid #10b981;color:#059669;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">Changer</button>
+                    </div>
+                </div>
+                <div id="islam-ville-form" style="display:none;background:#f8fafc;border-radius:10px;padding:14px;margin:10px 0;">
+                    <div style="font-weight:700;font-size:13px;color:#333;margin-bottom:10px;">Changer la localisation</div>
+                    <button onclick="window._islamGeolocate()" style="width:100%;padding:10px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px;">📍 Utiliser ma position GPS</button>
+                    <div style="display:flex;gap:8px;">
+                        <input id="islam-ville-input" placeholder="Nom de la ville..." style="flex:1;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;">
+                        <button onclick="window._islamRechercherVille()" style="padding:10px 14px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">OK</button>
+                    </div>
+                    <div id="islam-ville-msg" style="font-size:12px;color:#ef4444;margin-top:6px;min-height:16px;"></div>
+                </div>
+                <div class="islam-modal-prieres">
+                    <div class="islam-modal-titre-section">Horaires des prières</div>
+                    ${listePrieres.map(p => {
+                        const actif = prochaine && p.nom === prochaine.nom;
+                        return `
+                            <div class="islam-modal-priere-row ${actif ? 'islam-modal-priere-actif' : ''}">
+                                <span class="islam-modal-priere-nom">${p.label}</span>
+                                <span class="islam-modal-priere-heure">${p.heure}</span>
+                                ${actif ? '<span class="islam-modal-priere-badge">Prochaine</span>' : ''}
+                            </div>`;
+                    }).join('')}
+                </div>
+                ${d.hadithFr ? `
+                <div class="islam-modal-hadith">
+                    <div class="islam-modal-titre-section">Hadith du jour</div>
+                    ${d.hadithAr ? `<div class="islam-modal-hadith-arabe">${d.hadithAr}</div>` : ''}
+                    <div class="islam-modal-hadith-fr">"${d.hadithFr}"</div>
+                    <div class="islam-modal-hadith-ref">${d.hadithRef || ''}</div>
+                </div>` : ''}
+                ${d.douaFr ? `
+                <div class="islam-modal-doua">
+                    <div class="islam-modal-titre-section">Invocation (Doua)</div>
+                    ${d.douaAr ? `<div class="islam-modal-doua-arabe">${d.douaAr}</div>` : ''}
+                    <div class="islam-modal-doua-fr">"${d.douaFr}"</div>
+                    ${d.douaRef ? `<div class="islam-modal-hadith-ref">${d.douaRef}</div>` : ''}
+                </div>` : ''}
+            </div>
+        ` : '<p style="color:#ef4444;text-align:center;padding:20px 0">Horaires indisponibles pour le moment.</p>';
 
-    msg.textContent = '🔍 Recherche en cours...';
-    msg.style.color = '#9ca3af';
+    // ── Tâches ────────────────────────────────────────────────
+    } else if (type === 'taches') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        await chargerModalTaches();
 
-    try {
-        const r = await fetch(
-            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`,
-            { headers: { 'Accept-Language': 'fr' } }
-        );
-        const data = await r.json();
-        if (!data.length) {
-            msg.textContent = '❌ Lieu non trouvé — vérifie le nom de la ville.';
-            msg.style.color = '#ef4444';
-            latEl.value     = '';
-            lonEl.value     = '';
+    // ── Anniversaires ─────────────────────────────────────────
+    } else if (type === 'anniversaires') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        await chargerModalAnniversaires();
+
+    // ── Cycle ─────────────────────────────────────────────────
+    } else if (type === 'cycle') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        await Cycle.ouvrirModalCalendrier();
+
+    // ── Agenda unifié ─────────────────────────────────────────
+    } else if (type === 'agenda-unifie') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>';
+        await ouvrirModaleAgenda();
+
+    // ── Thème Astral ──────────────────────────────────────────
+    } else if (type === 'theme-astral') {
+        await ouvrirModaleThemeAstral();
+
+    // ── Profil ────────────────────────────────────────────────
+    } else if (type === 'profil') {
+        document.getElementById('modal-body').innerHTML = '<p style="color:#9ca3af">Chargement...</p>';
+        const user = getUser();
+        if (!user?.token) {
+            document.getElementById('modal-body').innerHTML = '<p>Erreur : utilisateur non identifié.</p>';
             return;
         }
-        const lieu      = data[0];
-        latEl.value     = lieu.lat;
-        lonEl.value     = lieu.lon;
-        msg.textContent = `✅ ${lieu.display_name.split(',').slice(0, 2).join(',')}`;
-        msg.style.color = '#10b981';
-    } catch {
-        msg.textContent = '❌ Erreur réseau lors du géocodage.';
-        msg.style.color = '#ef4444';
-        latEl.value     = '';
-        lonEl.value     = '';
-    }
-}
-
-async function chargerProfilHeader() {
-    const user = getUser();
-    if (!user?.token) return;
-    const btn = document.getElementById('btn-profil-header');
-    if (!btn) return;
-    try {
-        const r = await fetch('/api/profil', {
-            headers: { 'Authorization': `Bearer ${user.token}` }
-        });
-        const d = await r.json();
-        if (!d.success || !d.profil) return;
-        profilCache     = d.profil;
-        const p         = d.profil;
-        const trigramme = construireTrigramme(p.prenom, p.nom);
-
         try {
-            localStorage.setItem('moadja_profil', JSON.stringify({ photo: p.photo || null }));
-        } catch { /* silencieux */ }
-
-        if (p.photo) {
-            btn.innerHTML        = `<img src="${p.photo}" alt="profil">`;
-            btn.style.fontSize   = '';
-            btn.style.fontWeight = '';
-            btn.style.background = '';
-        } else if (trigramme) {
-            btn.innerHTML        = trigramme;
-            btn.style.fontSize   = '11px';
-            btn.style.fontWeight = '700';
-            btn.style.background = '#7c3aed';
-            btn.style.color      = '#fff';
-        } else {
-            btn.innerHTML        = '👤';
-            btn.style.fontSize   = '';
-            btn.style.fontWeight = '';
-        }
-
-        _appliquerVisibiliteCycle(p.sexe);
-
-        const wc = document.getElementById('wc-profil');
-        if (!wc) return;
-        const nom = [p.prenom, p.nom].filter(Boolean).join(' ') || 'Mon Profil';
-
-        const age = p.date_naissance ? (() => {
-            const n     = new Date(p.date_naissance);
-            const today = new Date();
-            let a       = today.getFullYear() - n.getFullYear();
-            if (today < new Date(today.getFullYear(), n.getMonth(), n.getDate())) a--;
-            return a;
-        })() : null;
-
-        const signe = obtenirSigne(p);
-
-        wc.innerHTML = `
-            <div class="profil-widget">
-                ${p.photo
-                    ? `<img src="${p.photo}" alt="profil" class="profil-widget-photo">`
-                    : `<div class="profil-widget-initiales">${trigramme || '👤'}</div>`
-                }
-                <div class="profil-widget-nom">${nom}</div>
-                ${age          ? `<div class="profil-widget-info">${age} ans</div>`          : ''}
-                ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
-                ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>`  : ''}
-                ${signe        ? `<div class="profil-widget-info">${signe.emoji} ${signe.signe}</div>` : ''}
-                ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>`           : ''}
-            </div>
-        `;
-    } catch { /* silencieux */ }
-}
-
-function _appliquerVisibiliteCycle(sexe) {
-    const widgetCycle = document.querySelector('.widget[data-id="cycle"]');
-    if (!widgetCycle) return;
-    const cacher = sexe === 'homme' || sexe === 'intersexe';
-    widgetCycle.style.display = cacher ? 'none' : '';
-}
-
-function previewPhoto(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-        if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-        let cropZone = document.getElementById('crop-zone');
-        if (!cropZone) {
-            cropZone = document.createElement('div');
-            cropZone.id = 'crop-zone';
-            cropZone.innerHTML = `
-                <div class="crop-container">
-                    <img id="crop-img" src="">
-                </div>
-                <div class="crop-actions">
-                    <button class="btn-crop-cancel" onclick="annulerCrop()">✕ Annuler</button>
-                    <button class="btn-crop-ok"     onclick="validerCrop()">✅ Valider le recadrage</button>
-                </div>
-            `;
-            const tabInfos = document.getElementById('profil-tab-infos');
-            if (tabInfos) tabInfos.insertBefore(cropZone, tabInfos.firstChild);
-        }
-        document.getElementById('crop-img').src = e.target.result;
-        cropperInstance = new Cropper(document.getElementById('crop-img'), {
-            aspectRatio: 1, viewMode: 1,
-            movable: true, zoomable: true,
-            rotatable: false, scalable: false
-        });
-    };
-    reader.readAsDataURL(file);
-}
-
-async function validerCrop() {
-    if (!cropperInstance) return;
-    const user = getUser();
-
-    const canvas = cropperInstance.getCroppedCanvas({ width: 300, height: 300 });
-    canvas.toBlob(async blob => {
-        if (!blob) return;
-
-        const formData = new FormData();
-        formData.append('photo', blob, 'avatar.jpg');
-
-        const btn = document.getElementById('btn-profil-header');
-        if (btn) btn.innerHTML = '...';
-
-        try {
-            const r = await fetch('/api/profil/photo', {
-                method  : 'POST',
-                headers : { 'Authorization': `Bearer ${user.token}` },
-                body    : formData
+            const r = await fetch('/api/profil', {
+                headers: { 'Authorization': `Bearer ${user.token}` }
             });
             const d = await r.json();
-            if (!d.success) throw new Error(d.message);
+            const p = d.profil || {};
+            profilCache     = p;
+            const photoSrc  = p.photo || '';
+            const initiales = construireTrigramme(p.prenom, p.nom) || '👤';
 
-            const urlPhoto = d.url;
-            profilCache = { ...profilCache, photo: urlPhoto };
-
-            try {
-                localStorage.setItem('moadja_profil', JSON.stringify({ photo: urlPhoto }));
-            } catch { /* silencieux */ }
-
-            let preview = document.getElementById('profil-photo-preview');
-            if (preview) {
-                preview.src = urlPhoto;
-            } else {
-                const zone = document.querySelector('#profil-tab-infos .profil-widget-initiales, #profil-tab-infos .initiales');
-                if (zone) {
-                    const newImg         = document.createElement('img');
-                    newImg.id            = 'profil-photo-preview';
-                    newImg.src           = urlPhoto;
-                    newImg.style.cssText = 'width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)';
-                    newImg.onclick       = () => document.getElementById('photo-input').click();
-                    zone.replaceWith(newImg);
-                    preview = newImg;
-                }
-            }
-
-            let btnSuppr = document.getElementById('btn-supprimer-photo');
-            if (!btnSuppr && preview) {
-                btnSuppr               = document.createElement('button');
-                btnSuppr.id            = 'btn-supprimer-photo';
-                btnSuppr.onclick       = supprimerPhoto;
-                btnSuppr.style.cssText = 'margin-top:8px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer';
-                btnSuppr.innerHTML     = '🗑️ Supprimer la photo';
-                preview.insertAdjacentElement('afterend', btnSuppr);
-            }
-
-            if (btn) {
-                btn.innerHTML        = `<img src="${urlPhoto}" alt="profil">`;
-                btn.style.fontSize   = '';
-                btn.style.fontWeight = '';
-                btn.style.background = '';
-            }
-
-        } catch (err) {
-            const msgEl = document.getElementById('profil-msg');
-            if (msgEl) { msgEl.textContent = '❌ Erreur lors de la sauvegarde de la photo.'; msgEl.style.color = '#ef4444'; }
-            chargerProfilHeader();
-        }
-
-        annulerCrop();
-    }, 'image/jpeg', 0.8);
-}
-
-function annulerCrop() {
-    if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-    const cropZone = document.getElementById('crop-zone');
-    if (cropZone) cropZone.remove();
-    const input = document.getElementById('photo-input');
-    if (input) input.value = '';
-}
-
-function supprimerPhoto() {
-    document.getElementById('modal-title').textContent = 'Confirmation';
-    document.getElementById('modal-body').innerHTML = `
-        <p style="color:#333;font-size:15px;margin-bottom:20px">Confirmer la suppression ?</p>
-        <div class="modal-actions">
-            <button class="btn-delete" id="btn-photo-oui">Confirmer</button>
-            <button class="btn-cancel" id="btn-photo-non">Annuler</button>
-        </div>`;
-    document.getElementById('overlay').classList.add('on');
-    document.getElementById('btn-photo-oui').onclick = () => _confirmerSupprimerPhoto();
-    document.getElementById('btn-photo-non').onclick = () => openModal('profil');
-}
-
-async function _confirmerSupprimerPhoto() {
-    const user = getUser();
-    try {
-        const r = await fetch('/api/profil/photo', {
-            method  : 'DELETE',
-            headers : { 'Authorization': `Bearer ${user.token}` }
-        });
-        const d = await r.json();
-        if (d.success) {
-            profilCache = { ...profilCache, photo: null };
-            try {
-                localStorage.setItem('moadja_profil', JSON.stringify({ photo: null }));
-            } catch { /* silencieux */ }
-            closeModal();
-            chargerProfilHeader();
-            const preview   = document.getElementById('profil-photo-preview');
-            const trigramme = construireTrigramme(profilCache?.prenom, profilCache?.nom);
-            if (preview) {
-                const div         = document.createElement('div');
-                div.className     = 'profil-widget-initiales';
-                div.style.cssText = 'width:90px;height:90px;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)';
-                div.textContent   = trigramme || '👤';
-                div.onclick       = () => document.getElementById('photo-input').click();
-                preview.replaceWith(div);
-            }
-            const btnSuppr = document.getElementById('btn-supprimer-photo');
-            if (btnSuppr) btnSuppr.style.display = 'none';
-        } else {
-            document.getElementById('modal-title').textContent = 'Erreur';
             document.getElementById('modal-body').innerHTML = `
-                <p style="color:#ef4444;font-size:15px;margin-bottom:20px">
-                    ${d.message || 'Erreur lors de la suppression.'}
-                </p>
-                <div class="modal-actions">
-                    <button class="btn-cancel" onclick="closeModal()">Fermer</button>
-                </div>`;
+                <style>
+                    @media (max-width: 480px) {
+                        .profil-tab-label { display: none; }
+                    }
+                </style>
+                <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f3f4f6;">
+                    <button class="profil-tab active" data-tab="infos"
+                        style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
+                               font-size:12px;font-weight:600;color:#4f46e5;
+                               border-bottom:2px solid #4f46e5;margin-bottom:-2px">
+                        👤 <span class="profil-tab-label">Profil</span>
+                    </button>
+                    <button class="profil-tab" data-tab="sante"
+                        style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
+                               font-size:12px;font-weight:600;color:#9ca3af;
+                               border-bottom:2px solid transparent;margin-bottom:-2px">
+                        🏥 <span class="profil-tab-label">Santé</span>
+                    </button>
+                    <button class="profil-tab" data-tab="securite"
+                        style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
+                               font-size:12px;font-weight:600;color:#9ca3af;
+                               border-bottom:2px solid transparent;margin-bottom:-2px">
+                        🔑 <span class="profil-tab-label">Sécurité</span>
+                    </button>
+                    <button class="profil-tab" data-tab="widgets"
+                        style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
+                               font-size:12px;font-weight:600;color:#9ca3af;
+                               border-bottom:2px solid transparent;margin-bottom:-2px">
+                        📱 <span class="profil-tab-label">Widgets</span>
+                    </button>
+                    <button class="profil-tab" data-tab="social"
+                        style="flex:1;padding:10px 4px;border:none;background:none;cursor:pointer;
+                               font-size:12px;font-weight:600;color:#9ca3af;
+                               border-bottom:2px solid transparent;margin-bottom:-2px">
+                        🤝 <span class="profil-tab-label">Social</span>
+                    </button>
+                </div>
+
+                <!-- ── ONGLET PROFIL ── -->
+                <div id="profil-tab-infos" class="profil-tab-content">
+                    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:20px">
+                        ${photoSrc
+                            ? `<img id="profil-photo-preview" src="${photoSrc}"
+                                style="width:90px;height:90px;border-radius:50%;object-fit:cover;
+                                       border:3px solid #4f46e5;cursor:pointer;
+                                       box-shadow:0 4px 12px rgba(79,70,229,0.3)"
+                                onclick="document.getElementById('photo-input').click()">`
+                            : `<div class="profil-widget-initiales"
+                                    style="width:90px;height:90px;font-size:24px;cursor:pointer;
+                                           box-shadow:0 4px 12px rgba(79,70,229,0.3)"
+                                    onclick="document.getElementById('photo-input').click()">${initiales}</div>`
+                        }
+                        <input type="file" id="photo-input" accept="image/*" style="display:none"
+                            onchange="previewPhoto(event)">
+                        <span style="font-size:11px;color:#9ca3af;margin-top:8px">Appuyez sur la photo pour changer</span>
+                        ${photoSrc
+                            ? `<button id="btn-supprimer-photo" onclick="supprimerPhoto()"
+                                style="margin-top:8px;background:#fee2e2;color:#ef4444;border:none;
+                                       border-radius:8px;padding:6px 14px;font-size:12px;
+                                       font-weight:600;cursor:pointer">
+                                🗑️ Supprimer la photo
+                               </button>`
+                            : ''
+                        }
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Prénom</label>
+                            <input id="p-prenom" placeholder="Prénom" value="${p.prenom||''}"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Nom</label>
+                            <input id="p-nom" placeholder="Nom" value="${p.nom||''}"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Date de naissance</label>
+                            <input id="p-naissance" type="date" value="${p.date_naissance ? p.date_naissance.split('T')[0] : ''}"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Heure de naissance</label>
+                            <input id="p-heure-naissance" type="time" value="${p.heure_naissance ? p.heure_naissance.slice(0,5) : ''}"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Lieu de naissance</label>
+                        <input id="p-lieu-naissance" type="text" placeholder="Ville de naissance"
+                            value="${p.lieu_naissance||''}"
+                            onblur="geocoderLieuNaissance()"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        <input type="hidden" id="p-naissance-lat" value="${p.naissance_lat||''}">
+                        <input type="hidden" id="p-naissance-lon" value="${p.naissance_lon||''}">
+                        <div id="p-lieu-naissance-msg" style="font-size:12px;margin-top:4px;min-height:16px;
+                            ${p.naissance_lat ? 'color:#10b981' : 'color:#9ca3af'}">
+                            ${p.naissance_lat ? '✅ Coordonnées enregistrées' : ''}
+                        </div>
+                    </div>
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Email</label>
+                        <input id="p-email" placeholder="Email" value="${p.email||''}"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Téléphone</label>
+                            <input id="p-tel" placeholder="Téléphone" value="${p.telephone||''}"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Profession</label>
+                            <input id="p-prof" placeholder="Profession" value="${p.profession||''}"
+                                                        style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Site internet</label>
+                        <input id="p-site-web" type="url" placeholder="https://..." value="${p.site_web||''}"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                    </div>
+                    <div style="margin-bottom:16px">
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Note personnelle</label>
+                        <textarea id="p-note" placeholder="Note personnelle..." rows="3"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+                                   font-size:14px;box-sizing:border-box;resize:none;outline:none">${p.note||''}</textarea>
+                    </div>
+                    <button onclick="sauvegarderProfil()"
+                        style="width:100%;padding:13px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+                               color:white;border:none;border-radius:12px;font-size:15px;
+                               font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,0.3)">
+                        💾 Sauvegarder le profil
+                    </button>
+                    <div id="profil-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+                </div>
+
+                <!-- ── ONGLET SANTÉ ── -->
+                <div id="profil-tab-sante" class="profil-tab-content" style="display:none">
+                    <div style="background:#f8fafc;border-radius:16px;padding:20px">
+                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                    letter-spacing:.5px;margin-bottom:10px">Identité biologique</div>
+                        <div style="margin-bottom:10px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Sexe</label>
+                            <select id="p-sexe"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                                <option value="">— Non renseigné —</option>
+                                <option value="femme"     ${p.sexe === 'femme'     ? 'selected' : ''}>Femme</option>
+                                <option value="homme"     ${p.sexe === 'homme'     ? 'selected' : ''}>Homme</option>
+                                <option value="intersexe" ${p.sexe === 'intersexe' ? 'selected' : ''}>Intersexe</option>
+                            </select>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                            <div>
+                                <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Taille (cm)</label>
+                                <input id="p-taille" type="number" min="50" max="250" placeholder="170"
+                                    value="${p.taille||''}"
+                                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                            </div>
+                            <div>
+                                <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Poids (kg)</label>
+                                <input id="p-poids" type="number" min="20" max="300" step="0.1" placeholder="65"
+                                    value="${p.poids||''}"
+                                    style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                            </div>
+                        </div>
+                        <div style="margin-bottom:16px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Groupe sanguin</label>
+                            <select id="p-groupe-sanguin"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                                <option value="">— Non renseigné —</option>
+                                ${['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(g =>
+                                    `<option value="${g}" ${p.groupe_sanguin === g ? 'selected' : ''}>${g}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                    letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Activité & Objectif</div>
+                        <div style="margin-bottom:10px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Niveau d'activité</label>
+                            <select id="p-niveau-activite"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                                <option value="">— Non renseigné —</option>
+                                <option value="sedentaire" ${p.niveau_activite === 'sedentaire' ? 'selected' : ''}>Sédentaire (bureau, peu de sport)</option>
+                                <option value="leger"      ${p.niveau_activite === 'leger'      ? 'selected' : ''}>Légèrement actif (1–3 séances/sem)</option>
+                                <option value="modere"     ${p.niveau_activite === 'modere'     ? 'selected' : ''}>Modérément actif (3–5 séances/sem)</option>
+                                <option value="actif"      ${p.niveau_activite === 'actif'      ? 'selected' : ''}>Actif (6–7 séances/sem)</option>
+                                <option value="tres_actif" ${p.niveau_activite === 'tres_actif' ? 'selected' : ''}>Très actif (sport intensif quotidien)</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom:16px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Objectif à atteindre</label>
+                            <select id="p-objectif-sante"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                                <option value="">— Non renseigné —</option>
+                                <option value="perte_rapide"       ${p.objectif_sante === 'perte_rapide'       ? 'selected' : ''}>🔥 Perte de poids rapide (−500 kcal/j)</option>
+                                <option value="perte_moderee"      ${p.objectif_sante === 'perte_moderee'      ? 'selected' : ''}>📉 Perte de poids modérée (−300 kcal/j)</option>
+                                <option value="maintien"           ${p.objectif_sante === 'maintien'           ? 'selected' : ''}>⚖️ Maintien du poids (0 kcal)</option>
+                                <option value="prise_masse"        ${p.objectif_sante === 'prise_masse'        ? 'selected' : ''}>💪 Prise de masse (+300 kcal/j)</option>
+                                <option value="prise_masse_rapide" ${p.objectif_sante === 'prise_masse_rapide' ? 'selected' : ''}>🏋️ Prise de masse rapide (+500 kcal/j)</option>
+                            </select>
+                        </div>
+
+                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                    letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Alimentation</div>
+                        <div style="margin-bottom:10px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">
+                                Allergies <span style="font-size:11px;color:#9ca3af;text-transform:none">(séparées par des virgules)</span>
+                            </label>
+                            <input type="text" id="p-allergies"
+                                placeholder="gluten, arachides, lactose"
+                                value="${Array.isArray(p.allergies) ? p.allergies.join(', ') : ''}"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div style="margin-bottom:16px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">
+                                Aliments exclus <span style="font-size:11px;color:#9ca3af;text-transform:none">(séparés par des virgules)</span>
+                            </label>
+                            <input type="text" id="p-aliments-exclus"
+                                placeholder="porc, alcool, café"
+                                value="${Array.isArray(p.aliments_exclus) ? p.aliments_exclus.join(', ') : ''}"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+
+                        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                                    letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Astrologie</div>
+                        <div style="margin-bottom:16px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Signe du zodiaque</label>
+                            <select id="p-signe"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none;background:#fff">
+                                <option value="">— Laisser calculer depuis la date de naissance —</option>
+                                <option value="belier"     ${p.signe_zodiaque==='belier'     ? 'selected':''}>♈ Bélier</option>
+                                <option value="taureau"    ${p.signe_zodiaque==='taureau'    ? 'selected':''}>♉ Taureau</option>
+                                <option value="gemeaux"    ${p.signe_zodiaque==='gemeaux'    ? 'selected':''}>♊ Gémeaux</option>
+                                <option value="cancer"     ${p.signe_zodiaque==='cancer'     ? 'selected':''}>♋ Cancer</option>
+                                <option value="lion"       ${p.signe_zodiaque==='lion'       ? 'selected':''}>♌ Lion</option>
+                                <option value="vierge"     ${p.signe_zodiaque==='vierge'     ? 'selected':''}>♍ Vierge</option>
+                                <option value="balance"    ${p.signe_zodiaque==='balance'    ? 'selected':''}>♎ Balance</option>
+                                <option value="scorpion"   ${p.signe_zodiaque==='scorpion'   ? 'selected':''}>♏ Scorpion</option>
+                                <option value="sagittaire" ${p.signe_zodiaque==='sagittaire' ? 'selected':''}>♐ Sagittaire</option>
+                                <option value="capricorne" ${p.signe_zodiaque==='capricorne' ? 'selected':''}>♑ Capricorne</option>
+                                <option value="verseau"    ${p.signe_zodiaque==='verseau'    ? 'selected':''}>♒ Verseau</option>
+                                <option value="poissons"   ${p.signe_zodiaque==='poissons'   ? 'selected':''}>♓ Poissons</option>
+                            </select>
+                            <div style="font-size:11px;color:#9ca3af;margin-top:4px">
+                                Utile uniquement si vous n'avez pas renseigné de date de naissance.
+                            </div>
+                        </div>
+
+                        <button onclick="sauvegarderSante()"
+                            style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);
+                                   color:white;border:none;border-radius:12px;font-size:15px;
+                                   font-weight:600;cursor:pointer;box-shadow:0 4px 10px rgba(16,185,129,0.3)">
+                            💾 Sauvegarder la santé
+                        </button>
+                        <div id="sante-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+                    </div>
+                </div>
+
+                <!-- ── ONGLET SÉCURITÉ ── -->
+                <div id="profil-tab-securite" class="profil-tab-content" style="display:none">
+                    <div style="background:#f8fafc;border-radius:16px;padding:20px">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+                            <div style="width:48px;height:48px;background:linear-gradient(135deg,#f59e0b,#d97706);
+                                        border-radius:14px;display:flex;align-items:center;justify-content:center;
+                                        font-size:22px;box-shadow:0 4px 10px rgba(245,158,11,0.3)">🔑</div>
+                            <div>
+                                <div style="font-weight:700;color:#111;font-size:15px">Changer le mot de passe</div>
+                                <div style="font-size:12px;color:#9ca3af;margin-top:2px">8 car. min · majuscule · minuscule · chiffre · caractère spécial</div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:10px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Ancien mot de passe</label>
+                            <input type="password" id="mdp-ancien" placeholder="••••••••"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div style="margin-bottom:10px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Nouveau mot de passe</label>
+                            <input type="password" id="mdp-nouveau" placeholder="••••••••"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <div style="margin-bottom:20px">
+                            <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Confirmer le mot de passe</label>
+                            <input type="password" id="mdp-confirm" placeholder="••••••••"
+                                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+                        </div>
+                        <button onclick="changerMdp()"
+                            style="width:100%;padding:13px;background:linear-gradient(135deg,#f59e0b,#d97706);
+                                   color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;
+                                   cursor:pointer;box-shadow:0 4px 10px rgba(245,158,11,0.3)">
+                            🔑 Changer le mot de passe
+                        </button>
+                        <div id="mdp-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+                    </div>
+                </div>
+
+                <!-- ── ONGLET WIDGETS ── -->
+                <div id="profil-tab-widgets" class="profil-tab-content" style="display:none">
+                    <div style="background:#f8fafc;border-radius:16px;padding:20px">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                            <div style="width:48px;height:48px;background:linear-gradient(135deg,#10b981,#059669);
+                                        border-radius:14px;display:flex;align-items:center;justify-content:center;
+                                        font-size:22px;box-shadow:0 4px 10px rgba(16,185,129,0.3)">📱</div>
+                            <div>
+                                <div style="font-weight:700;color:#111;font-size:15px">Mes widgets</div>
+                                <div style="font-size:12px;color:#9ca3af;margin-top:2px">Choisis ce qui s'affiche sur ton tableau de bord</div>
+                            </div>
+                        </div>
+                        <div id="widgets-choix" class="widgets-choix-grid">
+                            <p style="color:#9ca3af;font-size:13px">Chargement...</p>
+                        </div>
+                        <button onclick="sauvegarderWidgetsVisibles()"
+                            style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);
+                                   color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;
+                                   cursor:pointer;margin-top:16px;box-shadow:0 4px 10px rgba(16,185,129,0.3)">
+                            💾 Sauvegarder mes widgets
+                        </button>
+                        <div id="widgets-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
+                    </div>
+                </div>
+
+                <!-- ── ONGLET SOCIAL ── -->
+                <div id="profil-tab-social" class="profil-tab-content" style="display:none">
+                    <div style="display:flex;gap:0;margin-bottom:16px;border-radius:10px;
+                                overflow:hidden;border:1px solid #ede9fe">
+                        <button id="social-tab-miens"
+                            data-action="social-onglet"
+                            data-onglet="miens"
+                            style="flex:1;padding:10px;border:none;background:#7c3aed;
+                                   color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+                            Ce que je partage
+                        </button>
+                        <button id="social-tab-nouveau"
+                            data-action="social-onglet"
+                            data-onglet="nouveau"
+                            style="flex:1;padding:10px;border:none;background:#f5f3ff;
+                                   color:#7c3aed;font-size:13px;font-weight:600;cursor:pointer">
+                            Partager avec…
+                        </button>
+                    </div>
+                    <div id="social-tab-content"></div>
+                </div>
+            `;
+
+            // ── Listeners onglets profil ───────────────────────────
+            document.querySelectorAll('.profil-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.profil-tab').forEach(t => {
+                        t.style.color             = '#9ca3af';
+                        t.style.borderBottomColor = 'transparent';
+                    });
+                    tab.style.color             = '#4f46e5';
+                    tab.style.borderBottomColor = '#4f46e5';
+                    document.querySelectorAll('.profil-tab-content').forEach(c => c.style.display = 'none');
+                    const cible = document.getElementById(`profil-tab-${tab.dataset.tab}`);
+                    if (cible) cible.style.display = 'block';
+                    if (tab.dataset.tab === 'widgets') afficherSectionWidgets();
+                    if (tab.dataset.tab === 'social')  _socialOnglet('miens');
+                });
+            });
+
+                        // ── Listeners onglets social ──────────────────────────
+            document.querySelectorAll('[data-action="social-onglet"]').forEach(btn => {
+                btn.addEventListener('click', () => _socialOnglet(btn.dataset.onglet));
+            });
+
+            await afficherSectionWidgets();
+        } catch {
+            document.getElementById('modal-body').innerHTML = '<p>Erreur de chargement du profil.</p>';
         }
-    } catch {
-        document.getElementById('modal-title').textContent = 'Erreur';
+
+    // ── Astrologie ────────────────────────────────────────────
+    } else if (type === 'astrologie') {
+        await ouvrirModaleAstrologie();
+
+    // ── Admin ─────────────────────────────────────────────────
+    } else if (type === 'admin') {
         document.getElementById('modal-body').innerHTML = `
-            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">Erreur réseau.</p>
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeModal()">Fermer</button>
-            </div>`;
-    }
-}
-
-async function sauvegarderProfil() {
-    const user = getUser();
-    const msg  = document.getElementById('profil-msg');
-    msg.textContent = 'Sauvegarde...';
-    msg.style.color = '#9ca3af';
-
-    const body = {
-        prenom          : document.getElementById('p-prenom')?.value           || '',
-        nom             : document.getElementById('p-nom')?.value              || '',
-        date_naissance  : document.getElementById('p-naissance')?.value        || null,
-        heure_naissance : document.getElementById('p-heure-naissance')?.value  || null,
-        lieu_naissance  : document.getElementById('p-lieu-naissance')?.value   || null,
-        naissance_lat   : document.getElementById('p-naissance-lat')?.value    ? parseFloat(document.getElementById('p-naissance-lat').value)  : null,
-        naissance_lon   : document.getElementById('p-naissance-lon')?.value    ? parseFloat(document.getElementById('p-naissance-lon').value)  : null,
-        email           : document.getElementById('p-email')?.value            || '',
-        telephone       : document.getElementById('p-tel')?.value              || '',
-        profession      : document.getElementById('p-prof')?.value             || '',
-        note            : document.getElementById('p-note')?.value             || '',
-    };
-
-    try {
-        const r = await fetch('/api/profil', {
-            method  : 'POST',
-            headers : {
-                'Content-Type'  : 'application/json',
-                'Authorization' : `Bearer ${user.token}`
-            },
-            body: JSON.stringify(body)
-        });
-        const d = await r.json();
-        if (d.success) {
-            msg.textContent = '✅ Profil sauvegardé !';
-            msg.style.color = '#10b981';
-            profilCache     = { ...profilCache, ...body };
-            chargerProfilHeader();
-        } else {
-            msg.textContent = '❌ ' + (d.message || 'Erreur.');
-            msg.style.color = '#ef4444';
-        }
-    } catch {
-        msg.textContent = '❌ Erreur réseau.';
-        msg.style.color = '#ef4444';
-    }
-}
-
-async function sauvegarderSante() {
-    const user = getUser();
-    const msg  = document.getElementById('sante-msg');
-    msg.textContent = 'Sauvegarde...';
-    msg.style.color = '#9ca3af';
-
-    const allergiesRaw       = document.getElementById('p-allergies')?.value       || '';
-    const aliments_exclusRaw = document.getElementById('p-aliments-exclus')?.value || '';
-
-    const allergies       = allergiesRaw.split(',').map(s => s.trim()).filter(Boolean);
-    const aliments_exclus = aliments_exclusRaw.split(',').map(s => s.trim()).filter(Boolean);
-
-    const body = {
-        sexe            : document.getElementById('p-sexe')?.value            || null,
-        taille          : document.getElementById('p-taille')?.value          ? parseInt(document.getElementById('p-taille').value)          : null,
-        poids           : document.getElementById('p-poids')?.value           ? parseFloat(document.getElementById('p-poids').value)         : null,
-        groupe_sanguin  : document.getElementById('p-groupe-sanguin')?.value  || null,
-        niveau_activite : document.getElementById('p-niveau-activite')?.value || null,
-        objectif_sante  : document.getElementById('p-objectif-sante')?.value  || null,
-        signe_zodiaque  : document.getElementById('p-signe')?.value           || null,
-        allergies,
-        aliments_exclus,
-    };
-
-    try {
-        const r = await fetch('/api/profil', {
-            method  : 'POST',
-            headers : {
-                'Content-Type'  : 'application/json',
-                'Authorization' : `Bearer ${user.token}`
-            },
-            body: JSON.stringify(body)
-        });
-        const d = await r.json();
-        if (d.success) {
-            msg.textContent = '✅ Santé sauvegardée !';
-            msg.style.color = '#10b981';
-            profilCache     = { ...profilCache, ...body };
-            _appliquerVisibiliteCycle(body.sexe);
-        } else {
-            msg.textContent = '❌ ' + (d.message || 'Erreur.');
-            msg.style.color = '#ef4444';
-        }
-    } catch {
-        msg.textContent = '❌ Erreur réseau.';
-        msg.style.color = '#ef4444';
-    }
-}
-
-function _injecterChampsAllergies(p) {
-    const container = document.getElementById('profil-tab-sante');
-    if (!container) return;
-    if (document.getElementById('p-allergies')) return;
-
-    const allergiesVal       = Array.isArray(p?.allergies)       ? p.allergies.join(', ')       : '';
-    const aliments_exclusVal = Array.isArray(p?.aliments_exclus) ? p.aliments_exclus.join(', ') : '';
-
-    const bloc = document.createElement('div');
-    bloc.innerHTML = `
-        <div class="form-group">
-            <label for="p-allergies">Allergies <span style="font-size:11px;color:#9ca3af">(séparées par des virgules)</span></label>
-            <input type="text" id="p-allergies" placeholder="gluten, arachides, lactose" value="${allergiesVal}">
-        </div>
-        <div class="form-group">
-            <label for="p-aliments-exclus">Aliments exclus <span style="font-size:11px;color:#9ca3af">(séparés par des virgules)</span></label>
-            <input type="text" id="p-aliments-exclus" placeholder="porc, alcool, café" value="${aliments_exclusVal}">
-        </div>
-    `;
-
-    const btnSave = container.querySelector('button[onclick="sauvegarderSante()"]');
-    if (btnSave) {
-        container.insertBefore(bloc, btnSave);
-    } else {
-        container.appendChild(bloc);
-    }
-}
-
-function validerMotDePasse(pwd) {
-    if (!pwd || pwd.length < 8)    return 'Minimum 8 caractères.';
-    if (!/[A-Z]/.test(pwd))        return 'Au moins une majuscule requise.';
-    if (!/[a-z]/.test(pwd))        return 'Au moins une minuscule requise.';
-    if (!/[0-9]/.test(pwd))        return 'Au moins un chiffre requis.';
-    if (!/[^A-Za-z0-9]/.test(pwd)) return 'Au moins un caractère spécial requis.';
-    return null;
-}
-
-async function changerMdp() {
-    const user    = getUser();
-    const ancien  = document.getElementById('mdp-ancien').value;
-    const nouveau = document.getElementById('mdp-nouveau').value;
-    const confirm = document.getElementById('mdp-confirm').value;
-    const msg     = document.getElementById('mdp-msg');
-
-    if (nouveau !== confirm) {
-        msg.textContent = '❌ Les mots de passe ne correspondent pas.';
-        msg.style.color = '#ef4444';
-        return;
-    }
-    const erreur = validerMotDePasse(nouveau);
-    if (erreur) {
-        msg.textContent = '❌ ' + erreur;
-        msg.style.color = '#ef4444';
-        return;
-    }
-    msg.textContent = 'Sauvegarde...';
-    msg.style.color = '#9ca3af';
-    try {
-        const r = await fetch('/api/profil/changer-mdp', {
-            method  : 'POST',
-            headers : {
-                'Content-Type'  : 'application/json',
-                'Authorization' : `Bearer ${user.token}`
-            },
-            body: JSON.stringify({ ancienMdp: ancien, nouveauMdp: nouveau })
-        });
-        const d = await r.json();
-        if (d.success) {
-            msg.textContent = '✅ Mot de passe changé !';
-            msg.style.color = '#10b981';
-            document.getElementById('mdp-ancien').value  = '';
-            document.getElementById('mdp-nouveau').value = '';
-            document.getElementById('mdp-confirm').value = '';
-        } else {
-            msg.textContent = '❌ ' + (d.message || 'Erreur.');
-            msg.style.color = '#ef4444';
-        }
-    } catch {
-        msg.textContent = '❌ Erreur réseau.';
-        msg.style.color = '#ef4444';
-    }
-}
-
-async function afficherSectionWidgets() {
-    const user      = getUser();
-    const container = document.getElementById('widgets-choix');
-    if (!container) return;
-    try {
-        const res  = await fetch('/api/profil/widgets-visibles', {
-            headers: { 'Authorization': `Bearer ${user.token}` }
-        });
-        const data          = await res.json();
-        const widgetsCaches = data.widgets_caches || [];
-
-        const tries = [...TOUS_WIDGETS].sort((a, b) =>
-            a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' })
-        );
-
-        container.innerHTML = tries.map(w => `
-            <div class="widget-choix-item">
-                <label class="widget-choix-label" for="opt-${w.slug}">${w.icon} ${w.label}</label>
-                <input type="checkbox" id="opt-${w.slug}" value="${w.slug}"
-                    ${widgetsCaches.includes(w.slug) ? '' : 'checked'}>
+            <div class="admin-tabs">
+                <button class="admin-tab active" data-tab="stats" onclick="switchAdminTab('stats')">📊 Stats</button>
+                <button class="admin-tab" data-tab="users"  onclick="switchAdminTab('users')">👥 Utilisateurs</button>
             </div>
-        `).join('');
-    } catch {
-        container.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement.</p>';
+            <div id="admin-tab-stats" class="admin-tab-content active"><p style="color:#9ca3af">Chargement...</p></div>
+            <div id="admin-tab-users" class="admin-tab-content"><p style="color:#9ca3af">Chargement...</p></div>
+        `;
+        chargerAdminStats();
+        chargerAdminUsers();
+
+    } else {
+        document.getElementById('modal-body').innerHTML = '<p>En construction — disponible prochainement.</p>';
     }
 }
 
-async function sauvegarderWidgetsVisibles() {
-    const user       = getUser();
-    const msg        = document.getElementById('widgets-msg');
-    const checkboxes = document.querySelectorAll('#widgets-choix input[type=checkbox]');
+// ===================== LECTURE VOCALE PRIÈRE =================
 
-    const widgets_caches = [...checkboxes]
-        .filter(cb => !cb.checked)
-        .map(cb => cb.value);
-
-    msg.textContent = 'Sauvegarde...';
-    msg.style.color = '#9ca3af';
-    try {
-        const res = await fetch('/api/profil/widgets-visibles', {
-            method  : 'PATCH',
-            headers : {
-                'Authorization' : `Bearer ${user.token}`,
-                'Content-Type'  : 'application/json'
-            },
-            body: JSON.stringify({ widgets_caches })
-        });
-        const d = await res.json();
-        if (d.success) {
-            msg.textContent = '✅ Widgets mis à jour !';
-            msg.style.color = '#10b981';
-            appliquerWidgetsVisibles(widgets_caches);
-        } else {
-            msg.textContent = '❌ Erreur serveur.';
-            msg.style.color = '#ef4444';
-        }
-    } catch {
-        msg.textContent = '❌ Erreur réseau.';
-        msg.style.color = '#ef4444';
+function lirePriereModal(e) {
+    if (!('speechSynthesis' in window)) {
+        document.getElementById('modal-body').innerHTML = `
+            <p style="color:#ef4444;font-size:15px;margin-bottom:20px">La synthèse vocale n'est pas supportée par votre navigateur.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="openModal('priere')">Retour</button>
+            </div>`;
+        return;
     }
+    const synth = window.speechSynthesis;
+    if (synth.speaking) {
+        synth.cancel();
+        if (e?.currentTarget) e.currentTarget.textContent = '🔊';
+        return;
+    }
+    const texteALire = `${priere.titre || ''}. ${priere.evangile || priere.texte || ''} ${priere.ref || ''}`;
+    const utterance  = new SpeechSynthesisUtterance(texteALire);
+    utterance.lang   = 'fr-FR';
+    utterance.rate   = 0.9;
+    utterance.pitch  = 0.7;
+    const lancerLecture = () => {
+        const voix     = synth.getVoices();
+        const voixMasc = voix.find(v =>
+            v.lang.startsWith('fr') && (
+                v.name.toLowerCase().includes('thomas')  ||
+                v.name.toLowerCase().includes('nicolas') ||
+                v.name.toLowerCase().includes('pierre')  ||
+                v.name.toLowerCase().includes('jean')    ||
+                v.name.toLowerCase().includes('male')    ||
+                v.name.toLowerCase().includes('man')
+            )
+        ) || voix.find(v => v.lang.startsWith('fr'));
+        if (voixMasc) utterance.voice = voixMasc;
+
+        const btn = e?.currentTarget || document.getElementById('btn-speaker-modal');
+        if (btn) btn.textContent = '⏹️';
+        utterance.onend   = () => { if (btn) btn.textContent = '🔊'; };
+        utterance.onerror = () => { if (btn) btn.textContent = '🔊'; };
+
+        synth.speak(utterance);
+    };
+    if (synth.getVoices().length === 0) synth.onvoiceschanged = lancerLecture;
+    else lancerLecture();
+}
+
+// ===================== FERMETURE MODALE ======================
+
+function closeModal() {
+    window.speechSynthesis?.cancel();
+    document.getElementById('overlay').classList.remove('on');
+    document.body.classList.remove('modal-open');
+}
+
+function closeOutside(e) {
+    if (e.target === document.getElementById('overlay')) closeModal();
 }
