@@ -561,11 +561,17 @@
 }
 
 .tchat-msg-lu {
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: 700;
     color: #a78bfa;
+    letter-spacing: -3px;
+    display: inline-block;
 }
 .tchat-msg-lu.envoye {
-    color: #d1d5db;
+    font-size: 12px;
+    font-weight: 500;
+    color: #9ca3af;
+    letter-spacing: normal;
 }
 
 .tchat-msg-modifie {
