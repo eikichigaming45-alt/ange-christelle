@@ -192,7 +192,12 @@ router.get('/', authenticateToken, async (req, res) => {
             seconds  : 0,
             latitude : lat,
             longitude: lng,
-            timezone
+            timezone,
+            config   : {
+                observation_point: 'topocentric',
+                ayanamsha        : 'tropical',
+                language         : 'en'
+            }
         };
 
         console.log('[THEME-ASTRAL] Payload envoyé:', JSON.stringify(payload));

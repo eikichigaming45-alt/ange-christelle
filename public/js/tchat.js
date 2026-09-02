@@ -52,16 +52,16 @@
     }
 
     function _renderLiens(html) {
-    return html
-        .replace(
-            /(https?:\/\/[^\s<>"']+)/g,
-            '<a href="\$1" target="_blank" rel="noopener noreferrer" class="tchat-lien">\$1</a>'
-        )
-        .replace(
-            /(?<![/"'=])\b(www\.[^\s<>"']+\.[^\s<>"']+)/g,
-            '<a href="https://\$1" target="_blank" rel="noopener noreferrer" class="tchat-lien">\$1</a>'
-        );
-}
+        return html
+            .replace(
+                /(https?:\/\/[^\s<>"']+)/g,
+                '<a href="\$1" target="_blank" rel="noopener noreferrer" class="tchat-lien">\$1</a>'
+            )
+            .replace(
+                /(?<![/"'=])\b(www\.[^\s<>"']+\.[^\s<>"']+)/g,
+                '<a href="https://\$1" target="_blank" rel="noopener noreferrer" class="tchat-lien">\$1</a>'
+            );
+    }
 
     let _socket             = null;
     let _interlocuteurActif = null;
@@ -71,6 +71,7 @@
     let _vueActive          = 'liste';
     let _replyTo            = null;
     let _emojiOuvert        = false;
+    let _usersEnLigne       = new Set();
 
     function _token() {
         try { return JSON.parse(localStorage.getItem('moadja_user'))?.token || ''; }
@@ -115,15 +116,29 @@
         return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
     }
 
-    function _avatarHTML(photo, prenom, nom, taille = 42) {
+    // ── Point de présence ─────────────────────────────────────
+    function _pointPresenceHTML(userId) {
+        const enligne = _usersEnLigne.has(Number(userId));
+        return `<span class="tchat-presence-dot ${enligne ? 'enligne' : 'hors-ligne'}"
+                      data-presence-id="${userId}"></span>`;
+    }
+
+    function _mettreAJourPointsPresence(userId, enligne) {
+        document.querySelectorAll(`[data-presence-id="${userId}"]`).forEach(dot => {
+            dot.className = `tchat-presence-dot ${enligne ? 'enligne' : 'hors-ligne'}`;
+        });
+    }
+
+    function _avatarHTML(photo, prenom, nom, taille = 42, userId = null) {
+        const point = userId !== null ? _pointPresenceHTML(userId) : '';
         if (photo) {
             return `<img src="${photo}" alt="${_echapper(prenom || nom || '')}"
-                style="width:${taille}px;height:${taille}px;border-radius:50%;object-fit:cover;position:absolute;top:2px;left:2px;">`;
+                style="width:${taille}px;height:${taille}px;border-radius:50%;object-fit:cover;position:absolute;top:2px;left:2px;">${point}`;
         }
         const trig = _trigramme(prenom, nom);
         return `<div class="tchat-avatar-initiale"
             style="width:${taille - 4}px;height:${taille - 4}px;font-size:${Math.round(taille * .28)}px;">
-            ${trig}</div>`;
+            ${trig}</div>${point}`;
     }
 
     function _echapper(str) {
@@ -537,6 +552,16 @@
         }
     }
 
+    // ── Charger présence initiale ─────────────────────────────
+    async function _chargerPresence() {
+        try {
+            const r = await fetch('/api/tchat/presence', { headers: _authHeaders() });
+            const d = await r.json();
+            if (!d.success) return;
+            _usersEnLigne = new Set(d.enligne.map(Number));
+        } catch { /* silencieux */ }
+    }
+
     function _initSocket() {
         if (_socket) return;
         if (typeof io === 'undefined') return;
@@ -544,6 +569,24 @@
         _socket = io({ auth: { token: _token() } });
 
         _socket.on('connect', () => console.log('[TCHAT] Socket connecté'));
+
+        _socket.on('tchat:presence', ({ userId, enligne }) => {
+            const id = Number(userId);
+            if (enligne) {
+                _usersEnLigne.add(id);
+            } else {
+                _usersEnLigne.delete(id);
+            }
+            _mettreAJourPointsPresence(id, enligne);
+            // Mettre à jour le statut dans l'en-tête de conv si c'est l'interlocuteur actif
+            if (_interlocuteurActif && Number(_interlocuteurActif.id) === id) {
+                const statut = document.getElementById('tchat-conv-statut');
+                if (statut) {
+                    statut.textContent = enligne ? 'En ligne' : '';
+                    statut.className   = enligne ? 'tchat-conv-statut-enligne' : '';
+                }
+            }
+        });
 
         _socket.on('tchat:message', (msg) => {
             const moi = _userId();
@@ -601,7 +644,7 @@
         _socket.on('disconnect', () => console.log('[TCHAT] Socket déconnecté'));
     }
 
-    function _rejoindreRoom(userId, interlocuteurId) {
+        function _rejoindreRoom(userId, interlocuteurId) {
         if (!_socket) return;
         _socket.emit('tchat:rejoindre', { room: _roomName(userId, interlocuteurId) });
     }
@@ -622,6 +665,7 @@
         _afficherVueListe();
         _chargerConversations();
         _initSocket();
+        _chargerPresence();
     }
 
     function _fermerTchat() {
@@ -658,16 +702,21 @@
         _plusAncienMsgId    = null;
 
         document.getElementById('tchat-vue-liste').style.display = 'none';
-                document.getElementById('tchat-vue-conv').classList.add('active');
+        document.getElementById('tchat-vue-conv').classList.add('active');
         document.getElementById('tchat-header-titre').textContent = '';
         document.getElementById('tchat-conv-nom-label').textContent =
             interlocuteur.prenom
                 ? `${interlocuteur.prenom}${interlocuteur.nom ? ' ' + interlocuteur.nom : ''}`
                 : interlocuteur.username;
-        document.getElementById('tchat-conv-avatar-wrap')
-            .querySelector('#tchat-conv-avatar-img').innerHTML =
-            _avatarHTML(interlocuteur.photo, interlocuteur.prenom, interlocuteur.nom, 36);
-        document.getElementById('tchat-conv-statut').textContent = '';
+
+        const avatarWrap = document.getElementById('tchat-conv-avatar-wrap');
+        avatarWrap.querySelector('#tchat-conv-avatar-img').innerHTML =
+            _avatarHTML(interlocuteur.photo, interlocuteur.prenom, interlocuteur.nom, 36, interlocuteur.id);
+
+        const statut = document.getElementById('tchat-conv-statut');
+        const enligne = _usersEnLigne.has(Number(interlocuteur.id));
+        statut.textContent = enligne ? 'En ligne' : '';
+        statut.className   = enligne ? 'tchat-conv-statut-enligne' : '';
 
         const scroll = document.getElementById('tchat-messages-scroll');
         scroll.innerHTML = `
@@ -727,7 +776,7 @@
                          data-nom="${_echapper(c.nom || '')}"
                          data-photo="${_echapper(c.photo || '')}">
                         <div class="tchat-conv-avatar">
-                            ${_avatarHTML(c.photo, c.prenom, c.nom, 42)}
+                            ${_avatarHTML(c.photo, c.prenom, c.nom, 42, c.interlocuteur_id)}
                         </div>
                         <div class="tchat-conv-infos">
                             <div class="tchat-conv-nom">${_echapper(nom)}</div>
@@ -1042,7 +1091,7 @@
                              data-nom="${_echapper(u.nom || '')}"
                              data-photo="${_echapper(u.photo || '')}">
                             <div class="tchat-conv-avatar">
-                                ${_avatarHTML(u.photo, u.prenom, u.nom, 42)}
+                                ${_avatarHTML(u.photo, u.prenom, u.nom, 42, u.id)}
                             </div>
                             <div class="tchat-conv-infos">
                                 <div class="tchat-conv-nom">${_echapper(affichage)}</div>
@@ -1076,9 +1125,11 @@
                                autocomplete="off">
                     </div>
                 </div>
-                <div id="tchat-select-user-liste"></div>`;
-
-            _renderUsers(users);
+                <div id="tchat-select-user-liste">
+                    <div class="tchat-vide" style="padding:20px 0">
+                        <div class="tchat-vide-texte">Tape un prénom ou un pseudo…</div>
+                    </div>
+                </div>`;
 
             document.getElementById('tchat-retour-select')
                 .addEventListener('click', _afficherVueListe);
@@ -1086,7 +1137,13 @@
             document.getElementById('tchat-select-user-search')
                 .addEventListener('input', (e) => {
                     const q = e.target.value.trim().toLowerCase();
-                    if (!q) { _renderUsers(users); return; }
+                    if (!q) {
+                        const zone = document.getElementById('tchat-select-user-liste');
+                        if (zone) zone.innerHTML = `<div class="tchat-vide" style="padding:20px 0">
+                            <div class="tchat-vide-texte">Tape un prénom ou un pseudo…</div>
+                        </div>`;
+                        return;
+                    }
                     const filtres = users.filter(u => {
                         const nom_complet = `${u.prenom || ''} ${u.nom || ''}`.toLowerCase();
                         return nom_complet.includes(q) || u.username.toLowerCase().includes(q);

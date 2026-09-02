@@ -329,6 +329,24 @@ router.get('/users', auth, async (req, res) => {
     }
 });
 
+// ── GET /api/tchat/presence ───────────────────────────────────
+router.get('/presence', auth, async (req, res) => {
+    try {
+        const io = req.app.get('io');
+        if (!io) return res.json({ success: true, enligne: [] });
+        const sockets = await io.fetchSockets();
+        const enligne = [...new Set(
+            sockets
+                .map(s => s.data?.userId)
+                .filter(id => id != null && id !== req.user.id)
+        )];
+        res.json({ success: true, enligne });
+    } catch (err) {
+        console.error('[TCHAT] presence :', err.message);
+        res.status(500).json({ success: false, enligne: [] });
+    }
+});
+
 // ── PATCH /api/tchat/messages/:id ────────────────────────────
 router.patch('/messages/:id', auth, async (req, res) => {
     const moi     = req.user.id;

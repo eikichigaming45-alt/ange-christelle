@@ -70,6 +70,7 @@ app.use('/api/theme-astral',  require('./routes/theme-astral'));
 app.use('/api/feed',          require('./routes/feed'));
 app.use('/api/social',        require('./routes/social'));
 app.use('/api/eclats',        require('./routes/eclats'));
+app.use('/api/meteo',         require('./routes/meteo'));
 app.use('/api/tchat',         tchatRouter);
 
 // ── Socket.io — authentification middleware ───────────────────
@@ -77,8 +78,9 @@ io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('Token manquant'));
     try {
-        const user    = jwt.verify(token, process.env.JWT_SECRET);
-        socket.userId = user.id;
+        const user        = jwt.verify(token, process.env.JWT_SECRET);
+        socket.userId     = user.id;
+        socket.data.userId = user.id;
         next();
     } catch {
         next(new Error('Token invalide'));
@@ -90,6 +92,9 @@ io.on('connection', (socket) => {
     const userId = socket.userId;
     tchatConnectedUsers.add(userId);
     console.log(`[SOCKET] User ${userId} connecté — socket ${socket.id}`);
+
+    // Notifier tous les autres de la connexion
+    socket.broadcast.emit('tchat:presence', { userId, enligne: true });
 
     socket.on('tchat:rejoindre', ({ room }) => {
         if (!_roomValide(room, userId)) return;
@@ -104,6 +109,8 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         tchatConnectedUsers.delete(userId);
+        // Notifier tous les autres de la déconnexion
+        socket.broadcast.emit('tchat:presence', { userId, enligne: false });
         console.log(`[SOCKET] User ${userId} déconnecté`);
     });
 });

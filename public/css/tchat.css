@@ -428,6 +428,36 @@
     background: rgba(167, 139, 250, 0.1);
 }
 
+/* ── Statut en ligne dans l'en-tête de conv ──────────────── */
+#tchat-conv-statut {
+    font-size: 11px;
+    color: #9ca3af;
+    font-weight: 500;
+}
+#tchat-conv-statut.tchat-conv-statut-enligne {
+    color: #22c55e;
+    font-weight: 600;
+}
+
+/* ── Point de présence ───────────────────────────────────── */
+.tchat-presence-dot {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--tchat-ivoire);
+    flex-shrink: 0;
+}
+.tchat-presence-dot.enligne {
+    background: #22c55e;
+}
+.tchat-presence-dot.hors-ligne {
+    background: #d1d5db;
+}
+
+/* ── Messages scroll ──────────────────────────────────────── */
 #tchat-messages-scroll {
     flex: 1;
     overflow-y: auto;
