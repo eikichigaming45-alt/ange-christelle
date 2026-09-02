@@ -8,11 +8,10 @@
 - Indicateur de présence en ligne/hors ligne - point vert sur l'avatar d'un membre quand il est connecté, gris quand il est absent
 - Statut "En ligne" affiché sous le prénom de l'interlocuteur dans la fenêtre de conversation
 - La présence se met à jour instantanément pour tout le monde à la connexion et à la déconnexion
-- Module Traitements - médicaments et dosage enregistrés par utilisateur
 
 ### 🔧 Corrections
 - "Nouvelle conversation" affichait tous les membres sans avoir rien tapé - la liste démarre désormais vide, les résultats apparaissent à partir du 1er caractère saisi
-- L'ascendant astral était calculé avec une mauvaise heure pour les dates d'hiver françaises - l'ascendant de Ange Christelle passe de Taureau à Gémeaux, ce qui est la valeur correcte
+- L'ascendant astral était calculé avec une mauvaise heure pour les dates d'hiver françaises - il affiche désormais la valeur correcte
 - Le thème astral de tous les membres sera recalculé automatiquement à leur prochaine visite
 
 ---
