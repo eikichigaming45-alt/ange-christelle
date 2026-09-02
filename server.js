@@ -70,7 +70,6 @@ app.use('/api/theme-astral',  require('./routes/theme-astral'));
 app.use('/api/feed',          require('./routes/feed'));
 app.use('/api/social',        require('./routes/social'));
 app.use('/api/eclats',        require('./routes/eclats'));
-app.use('/api/meteo',         require('./routes/meteo'));
 app.use('/api/tchat',         tchatRouter);
 
 // ── Socket.io — authentification middleware ───────────────────
