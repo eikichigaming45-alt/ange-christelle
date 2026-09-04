@@ -1,5 +1,10 @@
 // ============================================================
 // public/js/profil.js
+// Widget "Mon Profil" (privé) : affichage auto nom/âge/profession
+// /téléphone/site web/signe/note. Gestion photo (upload, crop,
+// suppression), géocodage lieu de naissance, sauvegarde profil
+// et santé, widgets visibles, changement mot de passe, onglet
+// social (miens / nouveau).
 // ============================================================
 
 function construireTrigramme(prenom, nom) {
@@ -162,6 +167,7 @@ async function chargerProfilHeader() {
                 ${age          ? `<div class="profil-widget-info">${age} ans</div>`          : ''}
                 ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
                 ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>`  : ''}
+                ${p.site_web   ? `<div class="profil-widget-info">🔗 <a href="${p.site_web}" target="_blank" rel="noopener noreferrer" style="color:inherit">${p.site_web}</a></div>` : ''}
                 ${signe        ? `<div class="profil-widget-info">${signe.emoji} ${signe.signe}</div>` : ''}
                 ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>`           : ''}
             </div>
@@ -452,7 +458,7 @@ function _injecterChampsAllergies(p) {
     const allergiesVal       = Array.isArray(p?.allergies)       ? p.allergies.join(', ')       : '';
     const aliments_exclusVal = Array.isArray(p?.aliments_exclus) ? p.aliments_exclus.join(', ') : '';
 
-    const bloc = document.createElement('div');
+        const bloc = document.createElement('div');
     bloc.innerHTML = `
         <div class="form-group">
             <label for="p-allergies">Allergies <span style="font-size:11px;color:#9ca3af">(séparées par des virgules)</span></label>
