@@ -430,7 +430,7 @@ function renderPost(p) {
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
                     </button>
-                    <button class="feed-delete-btn" onclick="supprimerPost(${p.id})" title="Supprimer">
+                                        <button class="feed-delete-btn" onclick="supprimerPost(${p.id})" title="Supprimer">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
                             <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
@@ -864,7 +864,7 @@ function renderComment(c, postId, isReponse = false) {
                         ${escapeHtml(c.prenom || '')} ${escapeHtml(c.nom || '')}
                     </span>
                     <span class="feed-comment-date" style="font-size:11px;color:#9ca3af">${date}</span>
-                    <div class="feed-comment-actions" style="display:flex;align-items:center;gap:4px;margin-left:auto">
+                                        <div class="feed-comment-actions" style="display:flex;align-items:center;gap:4px;margin-left:auto">
                         ${isOwner || isAdmin ? `
                         <button class="feed-comment-edit-btn" onclick="editerCommentaire(${c.id}, ${postId})" title="Modifier">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1233,6 +1233,19 @@ async function ouvrirProfilPublic(userId) {
                    <div style="font-size:20px;font-weight:800;color:#111">${p.nb_abonnes}</div>
                    <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Abonnés</div>
                </div>`;
+
+        // ── Bloc infos publiques (Âge / Profession / Site / Signe astro) ──
+        const infosPubliques = [];
+        if (p.age) infosPubliques.push(`<div class="pp-info-item"><span class="pp-info-label">Âge</span><span class="pp-info-val">${escapeHtml(String(p.age))} ans</span></div>`);
+        if (p.profession) infosPubliques.push(`<div class="pp-info-item"><span class="pp-info-label">Profession</span><span class="pp-info-val">${escapeHtml(p.profession)}</span></div>`);
+        if (p.site_web) infosPubliques.push(`<div class="pp-info-item"><span class="pp-info-label">Site</span><a href="${escapeHtml(p.site_web)}" target="_blank" rel="noopener" class="pp-info-val" style="color:#7c3aed;text-decoration:underline">${escapeHtml(p.site_web)}</a></div>`);
+        if (p.signe_zodiaque) infosPubliques.push(`<div class="pp-info-item"><span class="pp-info-label">Signe astro</span><span class="pp-info-val">${escapeHtml(p.signe_zodiaque)}</span></div>`);
+
+        const blocInfos = infosPubliques.length ? `
+                <div style="width:100%;display:flex;flex-direction:column;gap:6px;background:#f9fafb;border-radius:12px;padding:12px 14px;box-sizing:border-box">
+                    ${infosPubliques.map(i => i.replace('pp-info-item', '').replace(/class="pp-info-item"/, '')).join('')}
+                </div>` : '';
+
         document.getElementById('modal-title').textContent = '';
         document.getElementById('modal-body').innerHTML = `
             <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:8px 0">
@@ -1240,9 +1253,8 @@ async function ouvrirProfilPublic(userId) {
                 <div style="text-align:center">
                     <div style="font-size:18px;font-weight:700;color:#111">${escapeHtml(p.prenom || '')} ${escapeHtml(p.nom || '')}</div>
                     <div style="font-size:13px;color:#9ca3af;margin-top:2px">@${escapeHtml(p.username)}</div>
-                    ${p.signe_zodiaque ? `<div style="font-size:12px;color:#7c3aed;margin-top:4px">${escapeHtml(p.signe_zodiaque)}</div>` : ''}
                 </div>
-                <div style="display:flex;gap:24px;text-align:center;background:#f9fafb;border-radius:14px;padding:14px 24px;width:100%;justify-content:center;box-sizing:border-box">
+                                <div style="display:flex;gap:24px;text-align:center;background:#f9fafb;border-radius:14px;padding:14px 24px;width:100%;justify-content:center;box-sizing:border-box">
                     <div>
                         <div style="font-size:20px;font-weight:800;color:#111">${p.nb_posts}</div>
                         <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Posts</div>
@@ -1253,6 +1265,7 @@ async function ouvrirProfilPublic(userId) {
                         <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase">Abonnements</div>
                     </div>
                 </div>
+                ${blocInfos}
                 ${!isSelf ? `
                 <button id="btn-profil-follow" onclick="toggleFollowDepuisProfil(${p.id}, this)"
                     style="width:100%;padding:12px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;
