@@ -379,7 +379,7 @@ function _renderResonanceBouton(postId, maResonance, resonancesStats) {
         return `<span class="feed-resonance-icone${isMine ? ' mine' : ''}">${r.icone}</span>`;
     }).join('');
 
-    return `<div style="display:flex;align-items:center;gap:8px">
+        return `<div style="display:flex;align-items:center;gap:8px">
         <button class="feed-resonance-btn" onclick="ouvrirArcResonance(this, event)">
             <span class="feed-resonance-icones">${icones}</span>
         </button>
@@ -810,7 +810,7 @@ async function chargerCommentaires(postId) {
         const html = racines.map(c => {
             const reps = reponses.filter(r => Number(r.parent_id) === Number(c.id));
             return `
-                ${renderComment(c, postId, false)}
+                                ${renderComment(c, postId, false)}
                 ${reps.length ? `
                 <div class="feed-replies" style="margin-left:32px;border-left:2px solid #ede9fe;padding-left:10px">
                     ${reps.map(r => renderComment(r, postId, true)).join('')}
@@ -1218,7 +1218,7 @@ async function ouvrirProfilPublic(userId) {
         if (!d.success) return;
         const p = d.profil;
         const isSelf = String(user.userId) === String(p.id);
-        const avatar = p.photo
+                const avatar = p.photo
             ? `<img src="${p.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed">`
             : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#e9d5ff,#fbcfe8);
                 color:#7c3aed;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center">
@@ -1236,14 +1236,30 @@ async function ouvrirProfilPublic(userId) {
 
         // ── Bloc infos publiques (Âge / Profession / Site / Signe astro) ──
         const infosPubliques = [];
-        if (p.age) infosPubliques.push(`<div class="pp-info-item"><span class="pp-info-label">Âge</span><span class="pp-info-val">${escapeHtml(String(p.age))} ans</span></div>`);
-        if (p.profession) infosPubliques.push(`<div class="pp-info-item"><span class="pp-info-label">Profession</span><span class="pp-info-val">${escapeHtml(p.profession)}</span></div>`);
-        if (p.site_web) infosPubliques.push(`<div class="pp-info-item"><span class="pp-info-label">Site</span><a href="${escapeHtml(p.site_web)}" target="_blank" rel="noopener" class="pp-info-val" style="color:#7c3aed;text-decoration:underline">${escapeHtml(p.site_web)}</a></div>`);
-        if (p.signe_zodiaque) infosPubliques.push(`<div class="pp-info-item"><span class="pp-info-label">Signe astro</span><span class="pp-info-val">${escapeHtml(p.signe_zodiaque)}</span></div>`);
+        if (p.age) infosPubliques.push(`
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <span style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase">Âge</span>
+                <span style="font-size:13px;color:#374151;text-align:right">${escapeHtml(String(p.age))} ans</span>
+            </div>`);
+        if (p.profession) infosPubliques.push(`
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <span style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase">Profession</span>
+                <span style="font-size:13px;color:#374151;text-align:right">${escapeHtml(p.profession)}</span>
+            </div>`);
+        if (p.site_web) infosPubliques.push(`
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <span style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase">Site</span>
+                <a href="${escapeHtml(p.site_web)}" target="_blank" rel="noopener" style="font-size:13px;color:#7c3aed;text-decoration:underline;text-align:right;word-break:break-all">${escapeHtml(p.site_web)}</a>
+            </div>`);
+        if (p.signe_astro && p.signe_astro.label) infosPubliques.push(`
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <span style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase">Signe astro</span>
+                <span style="font-size:13px;color:#374151;text-align:right">${escapeHtml(p.signe_astro.emoji || '')} ${escapeHtml(p.signe_astro.label)}</span>
+            </div>`);
 
         const blocInfos = infosPubliques.length ? `
-                <div style="width:100%;display:flex;flex-direction:column;gap:6px;background:#f9fafb;border-radius:12px;padding:12px 14px;box-sizing:border-box">
-                    ${infosPubliques.map(i => i.replace('pp-info-item', '').replace(/class="pp-info-item"/, '')).join('')}
+                <div style="width:100%;display:flex;flex-direction:column;gap:8px;background:#f9fafb;border-radius:12px;padding:12px 14px;box-sizing:border-box">
+                    ${infosPubliques.join('')}
                 </div>` : '';
 
         document.getElementById('modal-title').textContent = '';
