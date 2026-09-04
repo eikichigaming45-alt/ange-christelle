@@ -1,13 +1,10 @@
 // ============================================================
 // public/js/profil.js
 // Widget "Mon Profil" (privé) : affichage auto nom/âge/profession
-// /téléphone/site web/signe/note. Gestion PHOTO DE PROFIL UNIQUEMENT
-// (upload, crop 1:1, suppression) — ne pas confondre avec les photos
-// postées dans le Feed (feed.js) ou dans le Tchat (tchat.js), qui
-// sont des systèmes totalement séparés.
-// Géocodage lieu de naissance, sauvegarde profil et santé, widgets
-// visibles, changement mot de passe, onglet social (miens / nouveau
-// / mon profil public).
+// /téléphone/site web/signe/note. Gestion photo (upload, crop,
+// suppression), géocodage lieu de naissance, sauvegarde profil
+// et santé, widgets visibles, changement mot de passe, onglet
+// social (miens / nouveau / mon profil public).
 // ============================================================
 
 function construireTrigramme(prenom, nom) {
@@ -185,8 +182,6 @@ function _appliquerVisibiliteCycle(sexe) {
     widgetCycle.style.display = cacher ? 'none' : '';
 }
 
-// ── PHOTO DE PROFIL (upload + crop 1:1 + validation) ───────────
-// Distinct des photos Feed (feed.js) et Tchat (tchat.js).
 function previewPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -206,7 +201,7 @@ function previewPhoto(event) {
                     <button class="btn-crop-ok"     onclick="validerCrop()">✅ Valider le recadrage</button>
                 </div>
             `;
-            const tabInfos = document.getElementById('profil-tab-infos');
+                    const tabInfos = document.getElementById('profil-tab-infos');
             if (tabInfos) tabInfos.insertBefore(cropZone, tabInfos.firstChild);
         }
         document.getElementById('crop-img').src = e.target.result;
@@ -475,7 +470,7 @@ function _injecterChampsAllergies(p) {
         </div>
     `;
 
-    const btnSave = container.querySelector('button[onclick="sauvegarderSante()"]');
+        const btnSave = container.querySelector('button[onclick="sauvegarderSante()"]');
     if (btnSave) {
         btnSave.parentNode.insertBefore(bloc, btnSave);
     } else {
@@ -615,10 +610,6 @@ async function changerMdp() {
 // ============================================================
 // PROFIL PUBLIC — 5 toggles de visibilité (section ajoutée
 // dans l'onglet Social, au-dessus de "Ce que je partage")
-// MODIFIÉ : styles inline remplacés par les classes CSS
-// .profil-public-* définies dans public/css/profil.css
-// (bloc "PROFIL PUBLIC - TOGGLES"), pour un rendu plat aligné
-// sur le style du widget "Mon Profil" privé.
 // ============================================================
 const _PROFIL_PUBLIC_CHAMPS_DEF = [
     { id: 'age',         label: 'Âge' },
@@ -629,32 +620,34 @@ const _PROFIL_PUBLIC_CHAMPS_DEF = [
 ];
 
 async function _injecterProfilPublicToggles() {
-    const container = document.getElementById('profil-tab-social');
-    if (!container) return;
-    if (document.getElementById('profil-public-toggles-bloc')) return; // déjà injecté, on ne duplique pas
+    const zone = document.getElementById('social-tab-content');
+    if (!zone) return;
     const user = getUser();
     if (!user?.token) return;
 
     const bloc = document.createElement('div');
     bloc.id = 'profil-public-toggles-bloc';
-    bloc.className = 'profil-public-bloc';
+    bloc.style.cssText = 'background:#f8fafc;border-radius:14px;padding:16px;margin-bottom:16px';
     bloc.innerHTML = `
-        <div class="profil-public-titre">Mon Profil Public</div>
-        <div class="profil-public-desc">
+        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+                    letter-spacing:.5px;margin-bottom:4px">Mon Profil Public</div>
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:12px">
             Choisis les informations visibles par les autres sur ton profil public.
         </div>
         <div id="profil-public-toggles-liste">
             <p style="color:#9ca3af;font-size:13px">Chargement...</p>
         </div>
-        <button id="btn-sauver-profil-public" class="profil-public-btn-save" onclick="_sauvegarderProfilPublicToggles()">
-            Sauvegarder
+        <button id="btn-sauver-profil-public" onclick="_sauvegarderProfilPublicToggles()"
+            style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                   color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;
+                   cursor:pointer;margin-top:12px">
+            💾 Sauvegarder
         </button>
-        <div id="profil-public-toggles-msg" class="profil-public-msg"></div>
+        <div id="profil-public-toggles-msg" style="text-align:center;margin-top:8px;font-size:13px;min-height:16px"></div>
     `;
-    container.insertBefore(bloc, container.firstChild);
+    zone.insertBefore(bloc, zone.firstChild);
 
     const liste = document.getElementById('profil-public-toggles-liste');
-    // ── le reste de la fonction (fetch + affichage des toggles) est inchangé ──
     try {
         const r = await fetch('/api/profil/public-champs', {
             headers: { 'Authorization': `Bearer ${user.token}` }
@@ -662,34 +655,19 @@ async function _injecterProfilPublicToggles() {
         const d = await r.json();
         const champsActifs = Array.isArray(d.champs) ? d.champs : [];
 
-        liste.innerHTML = _PROFIL_PUBLIC_CHAMPS_DEF.map(c => {
-            const actif = champsActifs.includes(c.id);
-            return `
-            <div class="profil-public-item">
-                <span class="profil-public-label">${c.label}</span>
-                <label class="profil-public-switch">
-                    <input type="checkbox" class="profil-public-toggle-check" data-champ="${c.id}"
-                        ${actif ? 'checked' : ''}>
-                    <span class="profil-public-switch-track${actif ? ' on' : ''}">
-                        <span class="profil-public-switch-thumb${actif ? ' on' : ''}"></span>
-                    </span>
-                </label>
-            </div>`;
-        }).join('');
+        liste.innerHTML = _PROFIL_PUBLIC_CHAMPS_DEF.map(c => `
+            <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;
+                          background:#fff;border-radius:10px;margin-bottom:6px;cursor:pointer">
+                <input type="checkbox" class="profil-public-toggle-check" data-champ="${c.id}"
+                    ${champsActifs.includes(c.id) ? 'checked' : ''}
+                    style="width:18px;height:18px;cursor:pointer">
+                <span style="font-size:14px;color:#333">${c.label}</span>
+            </label>
+        `).join('');
     } catch {
         liste.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement des préférences.</p>';
     }
 }
-
-// ── Mise à jour visuelle du toggle au clic ────────────────────
-document.addEventListener('change', e => {
-    const cb = e.target.closest('.profil-public-toggle-check');
-    if (!cb) return;
-    const track = cb.nextElementSibling;
-    const thumb = track?.querySelector('span');
-    if (track) track.classList.toggle('on', cb.checked);
-    if (thumb) thumb.classList.toggle('on', cb.checked);
-});
 
 async function _sauvegarderProfilPublicToggles() {
     const user = getUser();
@@ -700,7 +678,7 @@ async function _sauvegarderProfilPublicToggles() {
 
     const checks = document.querySelectorAll('.profil-public-toggle-check');
     const champs = [];
-    checks.forEach(c => {
+        checks.forEach(c => {
         if (c.checked) champs.push(c.dataset.champ);
     });
 

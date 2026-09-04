@@ -523,12 +523,6 @@ document.addEventListener('click', async e => {
 // ============================================================
 
 async function _socialOnglet(tab) {
-    // Injection unique et indépendante du bloc "Mon Profil Public",
-    // tout en haut de l'onglet Social — ne dépend pas du sous-onglet actif.
-    if (typeof _injecterProfilPublicToggles === 'function') {
-        await _injecterProfilPublicToggles();
-    }
-
     ['miens', 'nouveau'].forEach(t => {
         const btn = document.getElementById(`social-tab-${t}`);
         if (!btn) return;
