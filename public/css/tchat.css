@@ -796,21 +796,25 @@
 #tchat-reply-annuler:hover { color: #ef4444; }
 
 /* ── Sélecteur emojis ─────────────────────────────────────── */
+/* Correctif double scroll : overflow-x verrouillé + colonnes
+   contraintes en minmax(0,1fr) pour empêcher tout dépassement
+   horizontal provoqué par le contenu min-content des cellules. */
 #tchat-emoji-panel {
     display: none;
-    grid-template-columns: repeat(10, 1fr);
+    grid-template-columns: repeat(10, minmax(0, 1fr));
     gap: 2px;
     padding: 10px 12px;
     background: #fff;
     border-top: 1px solid rgba(167, 139, 250, 0.15);
     max-height: 160px;
     overflow-y: auto;
+    overflow-x: hidden;
     flex-shrink: 0;
 }
 
 @media (max-width: 400px) {
     #tchat-emoji-panel {
-        grid-template-columns: repeat(8, 1fr);
+        grid-template-columns: repeat(8, minmax(0, 1fr));
     }
 }
 
@@ -824,6 +828,7 @@
     transition: background 0.1s;
     line-height: 1;
     text-align: center;
+    box-sizing: border-box;
 }
 .tchat-emoji-item:hover {
     background: rgba(167, 139, 250, 0.12);
