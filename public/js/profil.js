@@ -1,10 +1,13 @@
 // ============================================================
 // public/js/profil.js
 // Widget "Mon Profil" (privé) : affichage auto nom/âge/profession
-// /téléphone/site web/signe/note. Gestion photo (upload, crop,
-// suppression), géocodage lieu de naissance, sauvegarde profil
-// et santé, widgets visibles, changement mot de passe, onglet
-// social (miens / nouveau / mon profil public).
+// /téléphone/site web/signe/note. Gestion PHOTO DE PROFIL UNIQUEMENT
+// (upload, crop 1:1, suppression) — ne pas confondre avec les photos
+// postées dans le Feed (feed.js) ou dans le Tchat (tchat.js), qui
+// sont des systèmes totalement séparés.
+// Géocodage lieu de naissance, sauvegarde profil et santé, widgets
+// visibles, changement mot de passe, onglet social (miens / nouveau
+// / mon profil public).
 // ============================================================
 
 function construireTrigramme(prenom, nom) {
@@ -182,6 +185,8 @@ function _appliquerVisibiliteCycle(sexe) {
     widgetCycle.style.display = cacher ? 'none' : '';
 }
 
+// ── PHOTO DE PROFIL (upload + crop 1:1 + validation) ───────────
+// Distinct des photos Feed (feed.js) et Tchat (tchat.js).
 function previewPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -201,7 +206,7 @@ function previewPhoto(event) {
                     <button class="btn-crop-ok"     onclick="validerCrop()">✅ Valider le recadrage</button>
                 </div>
             `;
-                    const tabInfos = document.getElementById('profil-tab-infos');
+            const tabInfos = document.getElementById('profil-tab-infos');
             if (tabInfos) tabInfos.insertBefore(cropZone, tabInfos.firstChild);
         }
         document.getElementById('crop-img').src = e.target.result;
@@ -355,7 +360,7 @@ async function _confirmerSupprimerPhoto() {
     }
 }
 
-async function sauvegarderProfil() {
+aasync function sauvegarderProfil() {
     const user = getUser();
     const msg  = document.getElementById('profil-msg');
     msg.textContent = 'Sauvegarde...';
@@ -458,7 +463,7 @@ function _injecterChampsAllergies(p) {
     const allergiesVal       = Array.isArray(p?.allergies)       ? p.allergies.join(', ')       : '';
     const aliments_exclusVal = Array.isArray(p?.aliments_exclus) ? p.aliments_exclus.join(', ') : '';
 
-        const bloc = document.createElement('div');
+    const bloc = document.createElement('div');
     bloc.innerHTML = `
         <div class="form-group">
             <label for="p-allergies">Allergies <span style="font-size:11px;color:#9ca3af">(séparées par des virgules)</span></label>
@@ -470,7 +475,7 @@ function _injecterChampsAllergies(p) {
         </div>
     `;
 
-        const btnSave = container.querySelector('button[onclick="sauvegarderSante()"]');
+    const btnSave = container.querySelector('button[onclick="sauvegarderSante()"]');
     if (btnSave) {
         btnSave.parentNode.insertBefore(bloc, btnSave);
     } else {
@@ -610,6 +615,10 @@ async function changerMdp() {
 // ============================================================
 // PROFIL PUBLIC — 5 toggles de visibilité (section ajoutée
 // dans l'onglet Social, au-dessus de "Ce que je partage")
+// MODIFIÉ : styles inline remplacés par les classes CSS
+// .profil-public-* définies dans public/css/profil.css
+// (bloc "PROFIL PUBLIC - TOGGLES"), pour un rendu plat aligné
+// sur le style du widget "Mon Profil" privé.
 // ============================================================
 const _PROFIL_PUBLIC_CHAMPS_DEF = [
     { id: 'age',         label: 'Âge' },
@@ -628,23 +637,19 @@ async function _injecterProfilPublicToggles() {
 
     const bloc = document.createElement('div');
     bloc.id = 'profil-public-toggles-bloc';
-    bloc.style.cssText = 'background:#f8fafc;border-radius:14px;padding:16px;margin-bottom:16px';
+    bloc.className = 'profil-public-bloc';
     bloc.innerHTML = `
-        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
-                    letter-spacing:.5px;margin-bottom:4px">Mon Profil Public</div>
-        <div style="font-size:12px;color:#9ca3af;margin-bottom:12px">
+        <div class="profil-public-titre">Mon Profil Public</div>
+        <div class="profil-public-desc">
             Choisis les informations visibles par les autres sur ton profil public.
         </div>
         <div id="profil-public-toggles-liste">
             <p style="color:#9ca3af;font-size:13px">Chargement...</p>
         </div>
-        <button id="btn-sauver-profil-public" onclick="_sauvegarderProfilPublicToggles()"
-            style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#6d28d9);
-                   color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;
-                   cursor:pointer;margin-top:12px">
-            💾 Sauvegarder
+        <button id="btn-sauver-profil-public" class="profil-public-btn-save" onclick="_sauvegarderProfilPublicToggles()">
+            Sauvegarder
         </button>
-        <div id="profil-public-toggles-msg" style="text-align:center;margin-top:8px;font-size:13px;min-height:16px"></div>
+        <div id="profil-public-toggles-msg" class="profil-public-msg"></div>
     `;
     container.insertBefore(bloc, container.firstChild);
 
@@ -660,20 +665,13 @@ async function _injecterProfilPublicToggles() {
         liste.innerHTML = _PROFIL_PUBLIC_CHAMPS_DEF.map(c => {
             const actif = champsActifs.includes(c.id);
             return `
-            <div style="display:flex;align-items:center;justify-content:space-between;
-                        padding:9px 12px;background:#fff;border-radius:8px;
-                        border:1px solid #f3f4f6;margin-bottom:6px;min-height:40px">
-                <span style="font-size:13px;color:#374151;flex:1">${c.label}</span>
-                <label style="position:relative;display:inline-flex;align-items:center;
-                              width:38px;height:22px;flex-shrink:0;cursor:pointer">
+            <div class="profil-public-item">
+                <span class="profil-public-label">${c.label}</span>
+                <label class="profil-public-switch">
                     <input type="checkbox" class="profil-public-toggle-check" data-champ="${c.id}"
-                        ${actif ? 'checked' : ''}
-                        style="opacity:0;width:0;height:0;position:absolute">
-                    <span style="position:absolute;inset:0;border-radius:22px;cursor:pointer;
-                                 background:${actif ? '#7c3aed' : '#d1d5db'};transition:background .2s">
-                        <span style="position:absolute;top:3px;left:${actif ? '19px' : '3px'};
-                                     width:16px;height:16px;border-radius:50%;background:#fff;
-                                     transition:left .2s;display:block"></span>
+                        ${actif ? 'checked' : ''}>
+                    <span class="profil-public-switch-track${actif ? ' on' : ''}">
+                        <span class="profil-public-switch-thumb${actif ? ' on' : ''}"></span>
                     </span>
                 </label>
             </div>`;
@@ -689,8 +687,8 @@ document.addEventListener('change', e => {
     if (!cb) return;
     const track = cb.nextElementSibling;
     const thumb = track?.querySelector('span');
-    if (track) track.style.background = cb.checked ? '#7c3aed' : '#d1d5db';
-    if (thumb) thumb.style.left = cb.checked ? '19px' : '3px';
+    if (track) track.classList.toggle('on', cb.checked);
+    if (thumb) thumb.classList.toggle('on', cb.checked);
 });
 
 async function _sauvegarderProfilPublicToggles() {
