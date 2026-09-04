@@ -620,8 +620,9 @@ const _PROFIL_PUBLIC_CHAMPS_DEF = [
 ];
 
 async function _injecterProfilPublicToggles() {
-    const zone = document.getElementById('social-tab-content');
-    if (!zone) return;
+    const container = document.getElementById('profil-tab-social');
+    if (!container) return;
+    if (document.getElementById('profil-public-toggles-bloc')) return; // déjà injecté, on ne duplique pas
     const user = getUser();
     if (!user?.token) return;
 
@@ -645,9 +646,10 @@ async function _injecterProfilPublicToggles() {
         </button>
         <div id="profil-public-toggles-msg" style="text-align:center;margin-top:8px;font-size:13px;min-height:16px"></div>
     `;
-    zone.insertBefore(bloc, zone.firstChild);
+    container.insertBefore(bloc, container.firstChild);
 
     const liste = document.getElementById('profil-public-toggles-liste');
+    // ── le reste de la fonction (fetch + affichage des toggles) est inchangé ──
     try {
         const r = await fetch('/api/profil/public-champs', {
             headers: { 'Authorization': `Bearer ${user.token}` }
