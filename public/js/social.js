@@ -523,6 +523,12 @@ document.addEventListener('click', async e => {
 // ============================================================
 
 async function _socialOnglet(tab) {
+    // Injection unique et indépendante du bloc "Mon Profil Public",
+    // tout en haut de l'onglet Social — ne dépend pas du sous-onglet actif.
+    if (typeof _injecterProfilPublicToggles === 'function') {
+        await _injecterProfilPublicToggles();
+    }
+
     ['miens', 'nouveau'].forEach(t => {
         const btn = document.getElementById(`social-tab-${t}`);
         if (!btn) return;
@@ -531,13 +537,6 @@ async function _socialOnglet(tab) {
     });
     if (tab === 'miens')   await _renderOngletMiens();
     if (tab === 'nouveau') await _renderOngletNouveau();
-
-    // Injection de la section "Mon Profil Public" (5 toggles) au-dessus
-    // du contenu "Ce que je partage", uniquement sur cet onglet.
-    // La fonction _injecterProfilPublicToggles() est définie dans profil.js.
-    if (tab === 'miens' && typeof _injecterProfilPublicToggles === 'function') {
-        await _injecterProfilPublicToggles();
-    }
 }
 
 // ============================================================
