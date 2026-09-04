@@ -167,8 +167,8 @@ async function chargerProfilHeader() {
                 ${age          ? `<div class="profil-widget-info">${age} ans</div>`          : ''}
                 ${p.profession ? `<div class="profil-widget-info">💼 ${p.profession}</div>` : ''}
                 ${p.telephone  ? `<div class="profil-widget-info">📞 ${p.telephone}</div>`  : ''}
-                ${p.site_web   ? `<div class="profil-widget-info">🔗 <a href="${p.site_web}" target="_blank" rel="noopener noreferrer" style="color:inherit">${p.site_web}</a></div>` : ''}
                 ${signe        ? `<div class="profil-widget-info">${signe.emoji} ${signe.signe}</div>` : ''}
+				${p.site_web   ? `<div class="profil-widget-info">🔗 <a href="${p.site_web}" target="_blank" rel="noopener noreferrer" style="color:inherit">${p.site_web}</a></div>` : ''}
                 ${p.note       ? `<div class="profil-widget-bio">${p.note}</div>`           : ''}
             </div>
         `;
