@@ -572,7 +572,7 @@ async function ouvrirProfilPublic(userId) {
     document.body.appendChild(modal);
 
     try {
-        const r = await fetch(`/api/feed/profil/${userId}`, {
+        const r = await fetch(`/api/profil/public/${userId}`, {
             headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const d = await r.json();
@@ -586,15 +586,15 @@ async function ouvrirProfilPublic(userId) {
         const followed = feedFollowing.includes(userId);
         const isOwner = user.id === userId;
 
-        const avatarHTML = p.avatar
-            ? `<img src="${p.avatar}" alt="">`
+        const avatarHTML = p.photo
+            ? `<img src="${p.photo}" alt="">`
             : `<div class="ppm-avatar-initiales">${_feedTrigramme(p.prenom, p.nom, p.username)}</div>`;
 
         const infoRows = [
             p.age != null ? { icone: '🎂', label: 'Âge', val: `${p.age} ans` } : null,
             p.profession ? { icone: '💼', label: 'Profession', val: escapeHtml(p.profession) } : null,
-            p.site ? { icone: '🔗', label: 'Site', val: `<a href="${escapeHtml(p.site)}" target="_blank" rel="noopener">${escapeHtml(p.site)}</a>` } : null,
-            p.signe_astro ? { icone: '♓', label: 'Signe astro', val: escapeHtml(p.signe_astro) } : null
+            p.site_web ? { icone: '🔗', label: 'Site', val: `<a href="${escapeHtml(p.site_web)}" target="_blank" rel="noopener">${escapeHtml(p.site_web)}</a>` } : null,
+            p.signe_astro ? { icone: p.signe_astro.emoji || '♓', label: 'Signe astro', val: escapeHtml(p.signe_astro.label || '') } : null
         ].filter(Boolean);
 
         body.innerHTML = `
@@ -610,7 +610,7 @@ async function ouvrirProfilPublic(userId) {
                         <div class="ppm-stat-label">Posts</div>
                     </div>
                     <div class="ppm-stat">
-                        <div class="ppm-stat-val clickable" onclick="voirLikers ? null : null">${p.nb_abonnes ?? 0}</div>
+                        <div class="ppm-stat-val">${p.nb_abonnes ?? 0}</div>
                         <div class="ppm-stat-label">Abonnés</div>
                     </div>
                     <div class="ppm-stat">
