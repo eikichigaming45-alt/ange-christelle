@@ -531,6 +531,13 @@ async function _socialOnglet(tab) {
     });
     if (tab === 'miens')   await _renderOngletMiens();
     if (tab === 'nouveau') await _renderOngletNouveau();
+
+    // Injection de la section "Mon Profil Public" (5 toggles) au-dessus
+    // du contenu "Ce que je partage", uniquement sur cet onglet.
+    // La fonction _injecterProfilPublicToggles() est définie dans profil.js.
+    if (tab === 'miens' && typeof _injecterProfilPublicToggles === 'function') {
+        await _injecterProfilPublicToggles();
+    }
 }
 
 // ============================================================
