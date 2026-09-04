@@ -360,7 +360,7 @@ async function _confirmerSupprimerPhoto() {
     }
 }
 
-aasync function sauvegarderProfil() {
+async function sauvegarderProfil() {
     const user = getUser();
     const msg  = document.getElementById('profil-msg');
     msg.textContent = 'Sauvegarde...';
@@ -463,7 +463,7 @@ function _injecterChampsAllergies(p) {
     const allergiesVal       = Array.isArray(p?.allergies)       ? p.allergies.join(', ')       : '';
     const aliments_exclusVal = Array.isArray(p?.aliments_exclus) ? p.aliments_exclus.join(', ') : '';
 
-    const bloc = document.createElement('div');
+        const bloc = document.createElement('div');
     bloc.innerHTML = `
         <div class="form-group">
             <label for="p-allergies">Allergies <span style="font-size:11px;color:#9ca3af">(séparées par des virgules)</span></label>
