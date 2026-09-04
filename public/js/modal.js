@@ -2,7 +2,7 @@
 // public/js/modal.js
 // Modales : météo, prière, islam, tâches, anniversaires,
 // cycle, profil, admin, astrologie, theme-astral, agenda-unifie.
-// Onglet Profil : infos + heure/lieu naissance + géocodage.
+// Onglet Profil : infos + heure/lieu naissance + géocodage + site web.
 // Onglet Santé  : sexe, taille, poids, groupe sanguin,
 //                 niveau activité, objectif santé, signe zodiaque,
 //                 allergies, aliments exclus.
@@ -315,11 +315,16 @@ async function openModal(type) {
                             <input id="p-tel" placeholder="Téléphone" value="${p.telephone||''}"
                                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
                         </div>
-                        <div>
+                                                <div>
                             <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Profession</label>
                             <input id="p-prof" placeholder="Profession" value="${p.profession||''}"
                                 style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
                         </div>
+                    </div>
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Site internet</label>
+                        <input id="p-site-web" type="url" placeholder="https://..." value="${p.site_web||''}"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
                     </div>
                     <div style="margin-bottom:16px">
                         <label style="font-size:11px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px;text-transform:uppercase">Note personnelle</label>
@@ -650,4 +655,3 @@ function closeModal() {
 function closeOutside(e) {
     if (e.target === document.getElementById('overlay')) closeModal();
 }
-
