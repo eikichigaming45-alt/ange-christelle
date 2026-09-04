@@ -2,6 +2,20 @@
 
 ---
 
+## v1.65 - 04-09-2026
+
+### ✨ Nouveau
+- Ajout d'un champ Site internet dans le profil, avec affichage automatique sur le profil privé
+
+---
+
+## v1.64 - 04-09-2026
+
+### 🔧 Corrections
+- Double défilement gênant dans le sélecteur d'émojis du tchat - corrigé
+
+---
+
 ## v1.63 - 02-09-2026
 
 ### ✨ Nouveau
