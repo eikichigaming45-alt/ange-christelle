@@ -655,19 +655,41 @@ async function _injecterProfilPublicToggles() {
         const d = await r.json();
         const champsActifs = Array.isArray(d.champs) ? d.champs : [];
 
-        liste.innerHTML = _PROFIL_PUBLIC_CHAMPS_DEF.map(c => `
-            <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;
-                          background:#fff;border-radius:10px;margin-bottom:6px;cursor:pointer">
-                <input type="checkbox" class="profil-public-toggle-check" data-champ="${c.id}"
-                    ${champsActifs.includes(c.id) ? 'checked' : ''}
-                    style="width:18px;height:18px;cursor:pointer">
-                <span style="font-size:14px;color:#333">${c.label}</span>
-            </label>
-        `).join('');
+        liste.innerHTML = _PROFIL_PUBLIC_CHAMPS_DEF.map(c => {
+            const actif = champsActifs.includes(c.id);
+            return `
+            <div style="display:flex;align-items:center;justify-content:space-between;
+                        padding:9px 12px;background:#fff;border-radius:8px;
+                        border:1px solid #f3f4f6;margin-bottom:6px;min-height:40px">
+                <span style="font-size:13px;color:#374151;flex:1">${c.label}</span>
+                <label style="position:relative;display:inline-flex;align-items:center;
+                              width:38px;height:22px;flex-shrink:0;cursor:pointer">
+                    <input type="checkbox" class="profil-public-toggle-check" data-champ="${c.id}"
+                        ${actif ? 'checked' : ''}
+                        style="opacity:0;width:0;height:0;position:absolute">
+                    <span style="position:absolute;inset:0;border-radius:22px;cursor:pointer;
+                                 background:${actif ? '#7c3aed' : '#d1d5db'};transition:background .2s">
+                        <span style="position:absolute;top:3px;left:${actif ? '19px' : '3px'};
+                                     width:16px;height:16px;border-radius:50%;background:#fff;
+                                     transition:left .2s;display:block"></span>
+                    </span>
+                </label>
+            </div>`;
+        }).join('');
     } catch {
         liste.innerHTML = '<p style="color:#ef4444;font-size:13px">Erreur de chargement des préférences.</p>';
     }
 }
+
+// ── Mise à jour visuelle du toggle au clic ────────────────────
+document.addEventListener('change', e => {
+    const cb = e.target.closest('.profil-public-toggle-check');
+    if (!cb) return;
+    const track = cb.nextElementSibling;
+    const thumb = track?.querySelector('span');
+    if (track) track.style.background = cb.checked ? '#7c3aed' : '#d1d5db';
+    if (thumb) thumb.style.left = cb.checked ? '19px' : '3px';
+});
 
 async function _sauvegarderProfilPublicToggles() {
     const user = getUser();
@@ -678,7 +700,7 @@ async function _sauvegarderProfilPublicToggles() {
 
     const checks = document.querySelectorAll('.profil-public-toggle-check');
     const champs = [];
-        checks.forEach(c => {
+    checks.forEach(c => {
         if (c.checked) champs.push(c.dataset.champ);
     });
 
