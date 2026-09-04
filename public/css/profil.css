@@ -39,3 +39,31 @@
 .profil-public-btn-save{width:100%;padding:11px;background:#7C3AED;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;transition:background .2s}
 .profil-public-btn-save:hover{background:#6D28D9}
 .profil-public-msg{text-align:center;margin-top:8px;font-size:13px;min-height:16px}
+
+/* ===================== PROFIL PUBLIC - MODALE (avatar/stats/infos/note) ===================== */
+.ppm-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:6px 0 4px}
+.ppm-avatar-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(135deg,#7C3AED,#c084fc,#f9a8d4);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-sizing:border-box}
+.ppm-avatar-ring img{width:100%;height:100%;border-radius:50%;object-fit:cover;border:3px solid #fff;box-sizing:border-box;display:block}
+.ppm-avatar-initiales{width:100%;height:100%;border-radius:50%;border:3px solid #fff;box-sizing:border-box;display:flex;align-items:center;justify-content:center;background:#fff;color:#7C3AED;font-size:26px;font-weight:700}
+.ppm-identite{text-align:center}
+.ppm-nom{font-size:19px;font-weight:800;color:#111}
+.ppm-username{font-size:13px;color:#9ca3af;margin-top:2px}
+.ppm-stats{display:flex;width:100%;background:#f9fafb;border-radius:16px;padding:14px 0;box-sizing:border-box}
+.ppm-stat{flex:1;text-align:center;position:relative}
+.ppm-stat:not(:last-child)::after{content:'';position:absolute;right:0;top:12%;bottom:12%;width:1px;background:#e5e7eb}
+.ppm-stat-val{font-size:20px;font-weight:800;color:#111}
+.ppm-stat-val.clickable{color:#7C3AED;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.ppm-stat-label{font-size:10px;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.ppm-infos{width:100%;display:flex;flex-direction:column;background:#f9fafb;border-radius:16px;padding:2px 16px;box-sizing:border-box}
+.ppm-info-row{display:flex;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid #eef0f3}
+.ppm-info-row:last-child{border-bottom:none}
+.ppm-info-icone{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.ppm-info-label{font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
+.ppm-info-val{font-size:13px;color:#374151;margin-left:auto;text-align:right;word-break:break-word}
+.ppm-info-val a{color:#7C3AED;text-decoration:underline}
+.ppm-btn-suivre{width:100%;padding:13px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#7C3AED,#6D28D9);color:#fff;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 14px rgba(124,58,237,0.3);box-sizing:border-box}
+.ppm-btn-suivre:active{transform:scale(.98)}
+.ppm-btn-suivre.suivi{background:#f3f4f6;color:#374151;box-shadow:none}
+.ppm-note{width:100%;background:linear-gradient(135deg,#f5f3ff,#fdf4ff);border-radius:14px;padding:14px 16px;border-left:4px solid #7C3AED;box-sizing:border-box}
+.ppm-note-label{font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.ppm-note-texte{font-size:13px;color:#4b5563;line-height:1.55;font-style:italic}
