@@ -28,6 +28,51 @@ const upload  = multer({
     }
 });
 
+// ============================================================
+// PROFIL PUBLIC — champs autorisés pour les toggles de visibilité
+// ============================================================
+const CHAMPS_PUBLICS_VALIDES = ['age', 'profession', 'site_web', 'signe_astro', 'note'];
+
+// Table des bornes de signes astrologiques (calcul depuis date_naissance uniquement)
+const SIGNES_ASTRO = [
+    { cle: 'capricorne', label: 'Capricorne', emoji: '♑', mois: 1,  jour: 20 },
+    { cle: 'verseau',    label: 'Verseau',    emoji: '♒', mois: 2,  jour: 19 },
+    { cle: 'poissons',   label: 'Poissons',   emoji: '♓', mois: 3,  jour: 20 },
+    { cle: 'belier',     label: 'Bélier',     emoji: '♈', mois: 4,  jour: 20 },
+    { cle: 'taureau',    label: 'Taureau',    emoji: '♉', mois: 5,  jour: 21 },
+    { cle: 'gemeaux',    label: 'Gémeaux',    emoji: '♊', mois: 6,  jour: 21 },
+    { cle: 'cancer',     label: 'Cancer',     emoji: '♋', mois: 7,  jour: 23 },
+    { cle: 'lion',       label: 'Lion',       emoji: '♌', mois: 8,  jour: 23 },
+    { cle: 'vierge',     label: 'Vierge',     emoji: '♍', mois: 9,  jour: 23 },
+    { cle: 'balance',    label: 'Balance',    emoji: '♎', mois: 10, jour: 23 },
+        { cle: 'scorpion',   label: 'Scorpion',   emoji: '♏', mois: 11, jour: 22 },
+    { cle: 'sagittaire', label: 'Sagittaire', emoji: '♐', mois: 12, jour: 22 },
+    { cle: 'capricorne', label: 'Capricorne', emoji: '♑', mois: 12, jour: 31 },
+];
+
+function calculerAge(dateNaissance) {
+    if (!dateNaissance) return null;
+    const n = new Date(dateNaissance);
+    if (isNaN(n.getTime())) return null;
+    const aujourdhui = new Date();
+    let age = aujourdhui.getFullYear() - n.getFullYear();
+    const pasEncoreAnniversaire =
+        aujourdhui.getMonth() < n.getMonth() ||
+        (aujourdhui.getMonth() === n.getMonth() && aujourdhui.getDate() < n.getDate());
+    if (pasEncoreAnniversaire) age--;
+    return age;
+}
+
+function calculerSigneAstro(dateNaissance) {
+    if (!dateNaissance) return null;
+    const n = new Date(dateNaissance);
+    if (isNaN(n.getTime())) return null;
+    const mois = n.getMonth() + 1;
+    const jour = n.getDate();
+    const trouve = SIGNES_ASTRO.find(s => mois < s.mois || (mois === s.mois && jour <= s.jour));
+    return trouve || null;
+}
+
 // GET /api/profil
 router.get('/', authenticateToken, async (req, res) => {
     try {
@@ -186,7 +231,7 @@ router.delete('/photo', authenticateToken, async (req, res) => {
         );
         const anciennePhoto = ancienRes.rows[0]?.photo;
 
-                await pool.query(
+        await pool.query(
             'UPDATE profiles SET photo = NULL, updated_at = NOW() WHERE user_id = \$1',
             [req.user.id]
         );
@@ -281,7 +326,56 @@ router.get('/abonnes/:userId', authenticateToken, async (req, res) => {
     }
 });
 
+// ============================================================
+// GET /api/profil/public-champs
+// Renvoie les toggles de visibilité de l'utilisateur connecté
+// ============================================================
+router.get('/public-champs', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT profil_public_champs FROM profiles WHERE user_id = \$1',
+            [req.user.id]
+        );
+        const champs = result.rows[0]?.profil_public_champs || [];
+        res.json({ success: true, champs });
+    } catch (err) {
+        console.error('[PROFIL] GET /public-champs :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ============================================================
+// PATCH /api/profil/public-champs
+// Met à jour les toggles de visibilité du profil public.
+// Body attendu : { champs: ['age', 'profession', ...] }
+// Filtrage strict sur CHAMPS_PUBLICS_VALIDES pour éviter
+// toute valeur arbitraire en base.
+// ============================================================
+router.patch('/public-champs', authenticateToken, async (req, res) => {
+    const { champs } = req.body;
+    if (!Array.isArray(champs)) {
+        return res.status(400).json({ success: false, message: 'Format invalide.' });
+    }
+    const champsFiltres = champs.filter(c => CHAMPS_PUBLICS_VALIDES.includes(c));
+    try {
+        await pool.query(
+            'UPDATE profiles SET profil_public_champs = \$1, updated_at = NOW() WHERE user_id = \$2',
+            [champsFiltres, req.user.id]
+        );
+        res.json({ success: true, champs: champsFiltres });
+    } catch (err) {
+        console.error('[PROFIL] PATCH /public-champs :', err.message);
+        res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+});
+
+// ============================================================
 // GET /api/profil/public/:userId
+// Profil public enrichi : âge, profession, site web et signe
+// astro affichés uniquement si le toggle correspondant est
+// activé ET la donnée réellement renseignée en base.
+// Note conservée en dernier (comportement existant, inchangé).
+// ============================================================
 router.get('/public/:userId', authenticateToken, async (req, res) => {
     const cibleId = parseInt(req.params.userId);
     const moi     = req.user.id;
@@ -289,7 +383,8 @@ router.get('/public/:userId', authenticateToken, async (req, res) => {
     try {
         const profilRes = await pool.query(
             `SELECT u.id, u.username, p.prenom, p.nom, p.photo,
-                    p.signe_zodiaque, p.note
+                    p.note, p.date_naissance, p.profession, p.site_web,
+                    p.profil_public_champs
              FROM users u
              LEFT JOIN profiles p ON p.user_id = u.id
              WHERE u.id = \$1`,
@@ -297,6 +392,7 @@ router.get('/public/:userId', authenticateToken, async (req, res) => {
         );
         if (profilRes.rows.length === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
         const profil = profilRes.rows[0];
+        const champsAutorises = profil.profil_public_champs || [];
 
         const [[postsRes], [abonnesRes], [abonnementsRes], [suiviRes]] = await Promise.all([
             pool.query('SELECT COUNT(*) FROM posts WHERE user_id = \$1',                              [cibleId]),
@@ -304,6 +400,31 @@ router.get('/public/:userId', authenticateToken, async (req, res) => {
             pool.query('SELECT COUNT(*) FROM follows WHERE follower_id = \$1',                        [cibleId]),
             pool.query('SELECT 1 FROM follows WHERE follower_id = \$1 AND following_id = \$2', [moi, cibleId])
         ].map(p => p.then(r => [r])));
+
+        // ── Âge (toggle + date_naissance renseignée) ──────────
+        const age = (champsAutorises.includes('age') && profil.date_naissance)
+            ? calculerAge(profil.date_naissance)
+            : null;
+
+        // ── Profession (toggle + donnée renseignée) ───────────
+        const profession = (champsAutorises.includes('profession') && profil.profession)
+            ? profil.profession
+            : null;
+
+        // ── Site internet (toggle + donnée renseignée) ────────
+        const siteWeb = (champsAutorises.includes('site_web') && profil.site_web)
+            ? profil.site_web
+            : null;
+
+        // ── Signe astro — calcul exclusif depuis date_naissance ─
+        const signeCalcule = (champsAutorises.includes('signe_astro') && profil.date_naissance)
+            ? calculerSigneAstro(profil.date_naissance)
+            : null;
+
+        // ── Note (toggle + donnée renseignée) — reste en dernier ─
+        const note = (champsAutorises.includes('note') && profil.note)
+            ? profil.note
+            : null;
 
         res.json({
             success: true,
@@ -313,8 +434,11 @@ router.get('/public/:userId', authenticateToken, async (req, res) => {
                 prenom         : profil.prenom || '',
                 nom            : profil.nom    || '',
                 photo          : profil.photo  || null,
-                signe_zodiaque : profil.signe_zodiaque || null,
-                note           : profil.note   || null,
+                age,
+                profession,
+                site_web       : siteWeb,
+                signe_astro    : signeCalcule ? { label: signeCalcule.label, emoji: signeCalcule.emoji } : null,
+                note,
                 nb_posts       : parseInt(postsRes.rows[0].count),
                 nb_abonnes     : parseInt(abonnesRes.rows[0].count),
                 nb_abonnements : parseInt(abonnementsRes.rows[0].count),
