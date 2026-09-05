@@ -5,14 +5,14 @@
 // Refresh manuel (bouton ↻) + auto toutes les 30 min.
 // Refresh géoloc : re-demande position si mode=geoloc.
 // Fallback : coords profil BDD → géoloc → Paris.
-// FIX B2 : jeu complet d'icônes météo remplacé par des SVG inline
-//          (le glyphe emoji 🌫️ s'affichait en carré glossy sur
-//          certains appareils, incohérent avec le style plat des
-//          autres icônes — tout le jeu est désormais harmonisé,
-//          indépendant de la police emoji du système).
+// FIX B2/B2.1 : icônes météo en SVG inline, style Google Weather
+//          (dégradés + ombre douce), indépendant de la police emoji.
+// FIX B3 : refresh auto au retour au premier plan (visibilitychange/focus)
+//          si données > 30 min, + refresh systématique à l'ouverture
+//          de la modale météo (clic widget). Refresh au lancement/reload
+//          déjà couvert nativement (chargerMeteoAuto() fetch toujours frais).
 // ============================================================
 
-// FIX B2.1 : icônes météo restylées façon Google Weather (dégradés doux + ombre portée)
 const METEO_SVG = {
     soleil: `<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em;filter:drop-shadow(0 2px 3px rgba(251,191,36,.35))"><defs><radialGradient id="gSoleil" cx="35%" cy="30%" r="70%"><stop offset="0%" stop-color="#fde68a"/><stop offset="100%" stop-color="#f59e0b"/></radialGradient></defs><circle cx="12" cy="12" r="6" fill="url(#gSoleil)"/><g stroke="#fbbf24" stroke-width="1.6" stroke-linecap="round" opacity="0.85"><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/></g></svg>`,
     peuNuageux: `<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em;filter:drop-shadow(0 2px 3px rgba(100,116,139,.3))"><defs><radialGradient id="gSoleil2" cx="35%" cy="30%" r="70%"><stop offset="0%" stop-color="#fde68a"/><stop offset="100%" stop-color="#f59e0b"/></radialGradient><linearGradient id="gNuage1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#cbd5e1"/></linearGradient></defs><circle cx="9" cy="8.5" r="4.2" fill="url(#gSoleil2)"/><path d="M17 18H8a3.2 3.2 0 0 1-.5-6.36A4.4 4.4 0 0 1 16 10.3a3.6 3.6 0 0 1 2.4 2.8 2.8 2.8 0 0 1-1.4 4.9z" fill="url(#gNuage1)"/></svg>`,
@@ -59,6 +59,12 @@ const LS_COORDS = 'moadja_meteo_coords';
 
 // ── Intervalle refresh auto (30 min) ─────────────────────────
 let _meteoRefreshInterval = null;
+
+// FIX B3 : horodatage du dernier fetch météo, pour décider si un
+// refresh est nécessaire au retour au premier plan ou à l'ouverture
+// de la modale (seuil : 30 min).
+let _dernierFetchMeteo = 0;
+const METEO_SEUIL_REFRESH_MS = 30 * 60 * 1000;
 
 // ── Utilitaires localStorage ──────────────────────────────────
 function _sauverMeteoLS(mode, lat, lon, ville) {
@@ -120,6 +126,9 @@ async function chargerMeteo(lat, lon, nomVille, mode) {
 
         const modeEffectif = mode || 'ville';
         _sauverMeteoLS(modeEffectif, lat, lon, nomVille);
+
+        // FIX B3 : mémorise l'heure du fetch pour piloter les refresh futurs
+        _dernierFetchMeteo = Date.now();
 
         _renderWidget();
 
@@ -207,6 +216,15 @@ window._refreshMeteo = async function () {
     }
 };
 
+// FIX B3 : refresh conditionnel — n'exécute _refreshMeteo() que si
+// le dernier fetch date de plus de 30 min. Respecte déjà la distinction
+// géoloc/ville puisqu'il délègue entièrement à _refreshMeteo().
+function _refreshMeteoSiPerime() {
+    if (Date.now() - _dernierFetchMeteo > METEO_SEUIL_REFRESH_MS) {
+        window._refreshMeteo();
+    }
+}
+
 // ── Refresh auto 30 min ───────────────────────────────────────
 function _demarrerRefreshAuto() {
     if (_meteoRefreshInterval) clearInterval(_meteoRefreshInterval);
@@ -240,6 +258,21 @@ function _demarrerRefreshAuto() {
         }
     }, 30 * 60 * 1000);
 }
+
+// FIX B3 : retour au premier plan (changement d'onglet/app rouverte)
+// → si les données ont plus de 30 min, on refresh selon le mode déjà
+// enregistré (géoloc = repositionne, ville = recharge la ville fixée).
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        _refreshMeteoSiPerime();
+    }
+});
+
+// FIX B3 : filet de sécurité complémentaire (certains navigateurs/PWA
+// déclenchent focus sans visibilitychange fiable).
+window.addEventListener('focus', () => {
+    _refreshMeteoSiPerime();
+});
 
 function _renderModaleMeteo(selectedIdx) {
     const body = document.getElementById('modal-body');
@@ -341,8 +374,12 @@ window._selectJourModale = function (idx) {
     _renderModaleMeteo(idx);
 };
 
+// FIX B3 : ouverture de la modale (clic sur le widget) déclenche un
+// refresh conditionnel avant d'afficher (données déjà présentes affichées
+// immédiatement, puis re-render automatique si un fetch plus frais arrive).
 window._ouvrirModaleMeteo = function () {
     _renderModaleMeteo(0);
+    _refreshMeteoSiPerime();
 };
 
 function afficherDetailJourModale(i) {
