@@ -302,7 +302,7 @@ function ouvrirCarte(lat, lon, nomLieu, e) {
     }, 100);
 }
 
-// ── RECHERCHE DE LIEU GEOLOC (LOC1) ───────────────────────────
+// ── RECHERCHE DE LIEU GEOLOC (LOC1 - bouton position GPS) ─────
 async function rechercherLieuGeoloc(inputElId, latId, lonId, wrapId) {
     const wrap = document.getElementById(wrapId);
     let drop = wrap.querySelector('.loc-dropdown');
@@ -325,7 +325,7 @@ async function rechercherLieuGeoloc(inputElId, latId, lonId, wrapId) {
             const dataNom = await resNom.json();
             const ville = dataNom.address?.city || dataNom.address?.town || dataNom.address?.village || dataNom.address?.suburb || 'Autour de moi';
 
-            // 2. Overpass API : POI proches (~300m)
+                        // 2. Overpass API : POI proches (~300m)
             const query = `
                 [out:json][timeout:5];
                 (
@@ -375,6 +375,73 @@ async function rechercherLieuGeoloc(inputElId, latId, lonId, wrapId) {
     });
 }
 
+// ── RECHERCHE DE LIEU PAR TEXTE (nouveau — autocomplétion saisie) ──
+function _initLieuAutocomplete(inputElId, latId, lonId, wrapId) {
+    const input = document.getElementById(inputElId);
+    const latInput = document.getElementById(latId);
+    const lonInput = document.getElementById(lonId);
+    if (!input) return;
+    let debounceTimer = null;
+    input.addEventListener('input', () => {
+        // Toute frappe manuelle invalide la sélection précédente tant qu'une suggestion n'est pas re-cliquée
+        if (latInput) latInput.value = '';
+        if (lonInput) lonInput.value = '';
+        clearTimeout(debounceTimer);
+        const q = input.value.trim();
+        if (q.length < 3) {
+            const wrap = document.getElementById(wrapId);
+            const drop = wrap?.querySelector('.loc-dropdown');
+            if (drop) drop.style.display = 'none';
+            return;
+        }
+        debounceTimer = setTimeout(() => _rechercherLieuTexte(q, inputElId, latId, lonId, wrapId), 450);
+    });
+}
+
+async function _rechercherLieuTexte(q, inputElId, latId, lonId, wrapId) {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    let drop = wrap.querySelector('.loc-dropdown');
+    if (!drop) { drop = document.createElement('div'); drop.className = 'loc-dropdown'; wrap.style.position = 'relative'; wrap.appendChild(drop); }
+
+    drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#9ca3af;">Recherche...</div>';
+    drop.style.display = 'block';
+
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6&addressdetails=1`);
+        const data = await res.json();
+
+        if (!data || !data.length) {
+            drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#9ca3af;">Aucun lieu trouvé</div>';
+            return;
+        }
+
+        const icones = { city: '🏙️', town: '🏙️', village: '🏘️', restaurant: '🍽️', cafe: '☕', bar: '🍺', park: '🌳', museum: '🏛️', cinema: '🍿', theatre: '🎭' };
+        const itemsHTML = data.map(res => {
+            const type = res.type || res.class || '';
+            const icone = icones[type] || '📍';
+            const nomAffiche = res.display_name.split(',')[0];
+            return `<div class="loc-item" data-nom="${escapeHtml(nomAffiche)}" data-lat="${res.lat}" data-lon="${res.lon}">${icone} ${escapeHtml(nomAffiche)}</div>`;
+        }).join('');
+
+        drop.innerHTML = itemsHTML;
+        drop.querySelectorAll('.loc-item[data-nom]').forEach(item => {
+            item.addEventListener('click', () => {
+                document.getElementById(inputElId).value = item.dataset.nom;
+                document.getElementById(latId).value = item.dataset.lat;
+                document.getElementById(lonId).value = item.dataset.lon;
+                drop.style.display = 'none';
+            });
+        });
+
+        document.addEventListener('click', function _closeLocTexte(e) {
+            if (!wrap.contains(e.target)) { drop.style.display = 'none'; document.removeEventListener('click', _closeLocTexte); }
+        });
+
+    } catch (err) {
+        drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#ef4444;">Erreur réseau</div>';
+    }
+}
 
 function _bindResonances() {
     document.querySelectorAll('.feed-photo-wrap[data-post-id]').forEach(wrap => {
@@ -471,6 +538,7 @@ function editerPost(postId) {
         <div id="edit-post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
     const ta = document.getElementById('edit-post-contenu'); const wrap = document.getElementById('edit-post-wrap'); ta.value = contenuActuel; initMentions(ta, wrap);
+    _initLieuAutocomplete('edit-post-lieu', 'edit-post-lat', 'edit-post-lon', 'edit-loc-wrap');
     document.getElementById('edit-post-photo').addEventListener('change', e => { const file = e.target.files[0]; const preview = document.getElementById('edit-post-preview'); if (file) { preview.innerHTML = `<img src="${URL.createObjectURL(file)}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`; } else { preview.innerHTML = ''; } });
     document.getElementById('overlay').classList.add('on');
 }
@@ -480,9 +548,11 @@ function marquerSuppressionPhoto() { window._editSupprimerPhoto = true; const bl
 
 async function sauvegarderEditionPost(postId) {
     const user = getUser(), contenu = document.getElementById('edit-post-contenu').value.trim(), photo = document.getElementById('edit-post-photo').files[0], msg = document.getElementById('edit-post-msg');
-    const lieu = (document.getElementById('edit-post-lieu')?.value || '').trim() || null;
-    const lieu_lat = document.getElementById('edit-post-lat')?.value || null;
-    const lieu_lon = document.getElementById('edit-post-lon')?.value || null;
+    let lieu = (document.getElementById('edit-post-lieu')?.value || '').trim() || null;
+    let lieu_lat = document.getElementById('edit-post-lat')?.value || null;
+    let lieu_lon = document.getElementById('edit-post-lon')?.value || null;
+    // Un lieu doit obligatoirement provenir d'une suggestion géocodée (lat/lon renseignés)
+    if (lieu && (!lieu_lat || !lieu_lon)) { lieu = null; lieu_lat = null; lieu_lon = null; }
     if (!contenu && !photo && window._editSupprimerPhoto) { msg.style.color = '#ef4444'; msg.textContent = 'Le post ne peut pas être vide.'; return; }
     try {
         let photoB64 = null; if (photo) { photoB64 = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = e => resolve(e.target.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(photo); }); }
@@ -617,14 +687,17 @@ function ouvrirModalPost() {
         <div id="post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
     const ta = document.getElementById('post-contenu'), wrap = document.getElementById('new-post-wrap'); initMentions(ta, wrap);
+    _initLieuAutocomplete('post-lieu', 'post-lat', 'post-lon', 'new-loc-wrap');
     document.getElementById('post-photo').addEventListener('change', e => { const file = e.target.files[0]; const preview = document.getElementById('post-preview'); if (file) { preview.innerHTML = `<img src="${URL.createObjectURL(file)}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`; } else { preview.innerHTML = ''; } });
 }
 
 async function publierPost() {
     const user = getUser(), contenu = document.getElementById('post-contenu').value.trim(), photo = document.getElementById('post-photo').files[0], msg = document.getElementById('post-msg');
-    const lieu = (document.getElementById('post-lieu')?.value || '').trim() || null;
-    const lieu_lat = document.getElementById('post-lat')?.value || null;
-    const lieu_lon = document.getElementById('post-lon')?.value || null;
+    let lieu = (document.getElementById('post-lieu')?.value || '').trim() || null;
+    let lieu_lat = document.getElementById('post-lat')?.value || null;
+    let lieu_lon = document.getElementById('post-lon')?.value || null;
+    // Un lieu doit obligatoirement provenir d'une suggestion géocodée (lat/lon renseignés)
+    if (lieu && (!lieu_lat || !lieu_lon)) { lieu = null; lieu_lat = null; lieu_lon = null; }
     if (!contenu && !photo) { msg.style.color = '#ef4444'; msg.textContent = 'Le post ne peut pas être vide.'; return; }
     try {
         let photoB64 = null; if (photo) { photoB64 = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = e => resolve(e.target.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(photo); }); }
@@ -714,4 +787,3 @@ async function partagerPost(postId) {
 }
 
 function escapeHtml(str) { return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-

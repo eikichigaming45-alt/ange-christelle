@@ -682,3 +682,24 @@
     color: #7c3aed;
     font-weight: 600;
 }
+
+/* ===================== ZONE LIEU (NOUVEAU POST / ÉDITION) — fix alignement ===================== */
+#new-loc-wrap,
+#edit-loc-wrap {
+    align-items: stretch;
+}
+
+#new-loc-wrap input#post-lieu,
+#edit-loc-wrap input#edit-post-lieu {
+    box-sizing: border-box;
+}
+
+#new-loc-wrap button,
+#edit-loc-wrap button {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-size: 16px;
+}
