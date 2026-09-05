@@ -142,7 +142,7 @@ router.get('/', authenticateToken, async (req, res) => {
         let query = `
             SELECT
                 p.id, p.contenu, p.photo_url, p.created_at,
-                p.lieu, p.personnes_taguees,
+                p.lieu, p.lieu_lat, p.lieu_lon, p.personnes_taguees,
                 p.mentions,
                 CASE WHEN p.mentions IS NOT NULL AND array_length(p.mentions, 1) > 0 THEN (
                     SELECT json_agg(json_build_object('id', u2.id, 'prenom', pr2.prenom, 'nom', pr2.nom))
@@ -186,6 +186,10 @@ router.post('/', authenticateToken, upload.single('photo'), async (req, res) => 
     const contenu  = (req.body.contenu || '').trim();
     const photoB64 = req.body.photo || null;
     const lieu     = (req.body.lieu || '').trim() || null;
+    const lieu_lat = (req.body.lieu_lat !== undefined && req.body.lieu_lat !== null && req.body.lieu_lat !== '')
+        ? parseFloat(req.body.lieu_lat) : null;
+    const lieu_lon = (req.body.lieu_lon !== undefined && req.body.lieu_lon !== null && req.body.lieu_lon !== '')
+        ? parseFloat(req.body.lieu_lon) : null;
     const personnes_taguees = req.body.personnes_taguees
         ? JSON.parse(req.body.personnes_taguees)
         : [];
@@ -202,10 +206,10 @@ router.post('/', authenticateToken, upload.single('photo'), async (req, res) => 
         }
         const mentionIds = contenu ? await resoudreMentions(contenu, userId) : [];
         const { rows } = await pool.query(
-            `INSERT INTO posts (user_id, contenu, photo_url, mentions, lieu, personnes_taguees)
-             VALUES (\$1, \$2, \$3, \$4, \$5, \$6)
-             RETURNING id, contenu, photo_url, created_at, mentions, lieu, personnes_taguees`,
-            [userId, contenu || null, photo_url, mentionIds, lieu, personnes_taguees]
+            `INSERT INTO posts (user_id, contenu, photo_url, mentions, lieu, lieu_lat, lieu_lon, personnes_taguees)
+             VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8)
+             RETURNING id, contenu, photo_url, created_at, mentions, lieu, lieu_lat, lieu_lon, personnes_taguees`,
+            [userId, contenu || null, photo_url, mentionIds, lieu, lieu_lat, lieu_lon, personnes_taguees]
         );
         const post = rows[0];
         const { prenom, nom } = await getProfilAuteur(userId);
@@ -386,7 +390,7 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
     const parentId = req.body.parent_id ? parseInt(req.body.parent_id) : null;
     if (!contenu) return res.status(400).json({ success: false, message: 'Commentaire vide.' });
     try {
-        const mentionIds = await resoudreMentions(contenu, userId);
+                const mentionIds = await resoudreMentions(contenu, userId);
         const { rows } = await pool.query(
             `INSERT INTO post_comments (post_id, user_id, contenu, mentions, parent_id)
              VALUES (\$1, \$2, \$3, \$4, \$5)
@@ -510,6 +514,12 @@ router.put('/:id', authenticateToken, upload.single('photo'), async (req, res) =
     const photoB64  = req.body.photo || null;
     const suppPhoto = req.body.supprimer_photo === true || req.body.supprimer_photo === 'true';
     const lieu      = req.body.lieu !== undefined ? (req.body.lieu || '').trim() || null : undefined;
+    const lieu_lat  = req.body.lieu_lat !== undefined
+        ? (req.body.lieu_lat === null || req.body.lieu_lat === '' ? null : parseFloat(req.body.lieu_lat))
+        : undefined;
+    const lieu_lon  = req.body.lieu_lon !== undefined
+        ? (req.body.lieu_lon === null || req.body.lieu_lon === '' ? null : parseFloat(req.body.lieu_lon))
+        : undefined;
     const personnes_taguees = req.body.personnes_taguees
         ? JSON.parse(req.body.personnes_taguees)
         : undefined;
@@ -538,13 +548,15 @@ router.put('/:id', authenticateToken, upload.single('photo'), async (req, res) =
         ];
         const params = [contenu || null, photo_url, mentionIds];
         if (lieu !== undefined)              { params.push(lieu);               setClauses.push(`lieu = $${params.length}`); }
+        if (lieu_lat !== undefined)          { params.push(lieu_lat);           setClauses.push(`lieu_lat = $${params.length}`); }
+        if (lieu_lon !== undefined)          { params.push(lieu_lon);           setClauses.push(`lieu_lon = $${params.length}`); }
         if (personnes_taguees !== undefined) { params.push(personnes_taguees);  setClauses.push(`personnes_taguees = $${params.length}`); }
         params.push(postId);
         await pool.query(
             `UPDATE posts SET ${setClauses.join(', ')} WHERE id = $${params.length}`,
             params
         );
-                const { prenom, nom } = await getProfilAuteur(userId);
+        const { prenom, nom } = await getProfilAuteur(userId);
         if (mentionIds.length) await notifierMentions(mentionIds, userId, postId, 'post', prenom, nom);
         if (contenu && contientToutLeMonde(contenu) && req.user.role === 'admin') {
             await notifierToutLeMonde(userId, postId, 'post', prenom, nom);
