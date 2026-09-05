@@ -649,7 +649,7 @@
     color: #6d28d9;
 }
 
-/* ===================== DROPDOWN GEOLOC ===================== */
+/* ===================== DROPDOWN GEOLOC (suggestions lieu) ===================== */
 .loc-dropdown {
     position: absolute;
     top: calc(100% + 4px);
@@ -660,15 +660,13 @@
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     z-index: 500;
-    max-height: 200px;
+    max-height: 220px;
     overflow-y: auto;
 }
 
 .loc-item {
-    padding: 10px 14px;
+    padding: 8px 14px;
     cursor: pointer;
-    font-size: 13px;
-    color: #374151;
     border-bottom: 1px solid #f3f4f6;
     transition: background 0.2s;
 }
@@ -679,27 +677,68 @@
 
 .loc-item:hover {
     background: #f5f3ff;
-    color: #7c3aed;
+}
+
+.loc-item-nom {
+    font-size: 13px;
+    color: #374151;
     font-weight: 600;
 }
 
-/* ===================== ZONE LIEU (NOUVEAU POST / ÉDITION) — fix alignement ===================== */
-#new-loc-wrap,
-#edit-loc-wrap {
-    align-items: stretch;
+.loc-item:hover .loc-item-nom {
+    color: #7c3aed;
 }
 
-#new-loc-wrap input#post-lieu,
-#edit-loc-wrap input#edit-post-lieu {
-    box-sizing: border-box;
+.loc-item-detail {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 1px;
 }
 
-#new-loc-wrap button,
-#edit-loc-wrap button {
+/* ===================== CHAMP LIEU FUSIONNÉ (icône intégrée) ===================== */
+.loc-input-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.loc-input-wrap input.loc-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px 0 34px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 13px;
+    outline: none;
     box-sizing: border-box;
+    font-family: inherit;
+    transition: border-color .2s;
+}
+
+.loc-input-wrap input.loc-input:focus {
+    border-color: #7c3aed;
+}
+
+.loc-input-wrap .loc-input-icone {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
     line-height: 1;
-    font-size: 16px;
+    padding: 0;
+    color: #7c3aed;
+    border-radius: 6px;
+    transition: background .2s;
+}
+
+.loc-input-wrap .loc-input-icone:hover {
+    background: #f3f0ff;
 }

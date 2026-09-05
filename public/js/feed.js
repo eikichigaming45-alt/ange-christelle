@@ -287,7 +287,6 @@ function ouvrirCarte(lat, lon, nomLieu, e) {
     `;
     document.getElementById('overlay').classList.add('on');
 
-    // Init Leaflet si dispo
     setTimeout(() => {
         if (typeof L !== 'undefined') {
             const map = L.map('map-container').setView([lat, lon], 15);
@@ -302,80 +301,108 @@ function ouvrirCarte(lat, lon, nomLieu, e) {
     }, 100);
 }
 
-// ── RECHERCHE DE LIEU GEOLOC (LOC1 - bouton position GPS) ─────
+// ── GÉOLOCALISATION : CACHE DE POSITION (session, 5 min) ───────
+let _locPositionCache = null;
+let _locPositionCacheTime = 0;
+const LOC_CACHE_DUREE_MS = 5 * 60 * 1000;
+
+function _getLocPosition() {
+    return new Promise((resolve) => {
+        const maintenant = Date.now();
+        if (_locPositionCache && (maintenant - _locPositionCacheTime) < LOC_CACHE_DUREE_MS) {
+            resolve(_locPositionCache);
+            return;
+        }
+        if (!navigator.geolocation) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                _locPositionCache = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                _locPositionCacheTime = maintenant;
+                resolve(_locPositionCache);
+            },
+            () => resolve(null),
+            { timeout: 8000 }
+        );
+    });
+}
+
+// ── AFFICHAGE D'UNE LIGNE DE SUGGESTION (nom + détail) ─────────
+function _renderLocItem(nom, detail, lat, lon) {
+    return `<div class="loc-item" data-nom="${escapeHtml(nom)}" data-lat="${lat}" data-lon="${lon}">
+        <div class="loc-item-nom">📍 ${escapeHtml(nom)}</div>
+        ${detail ? `<div class="loc-item-detail">${escapeHtml(detail)}</div>` : ''}
+    </div>`;
+}
+
+function _bindLocItems(drop, inputElId, latId, lonId) {
+    drop.querySelectorAll('.loc-item[data-nom]').forEach(item => {
+        item.addEventListener('click', () => {
+            document.getElementById(inputElId).value = item.dataset.nom;
+            document.getElementById(latId).value = item.dataset.lat;
+            document.getElementById(lonId).value = item.dataset.lon;
+            drop.style.display = 'none';
+        });
+    });
+}
+
+// ── RECHERCHE DE LIEU GEOLOC (clic sur l'icône — position exacte) ──
 async function rechercherLieuGeoloc(inputElId, latId, lonId, wrapId) {
     const wrap = document.getElementById(wrapId);
     let drop = wrap.querySelector('.loc-dropdown');
     if (!drop) { drop = document.createElement('div'); drop.className = 'loc-dropdown'; wrap.style.position = 'relative'; wrap.appendChild(drop); }
 
-    drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#9ca3af;">Recherche GPS en cours... 📍</div>';
+    drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#9ca3af;">Recherche GPS en cours...</div>';
     drop.style.display = 'block';
 
-    if (!navigator.geolocation) {
-        drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#ef4444;">Géolocalisation non supportée</div>';
+    const position = await _getLocPosition();
+    if (!position) {
+        drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#ef4444;">Géolocalisation refusée/échouée</div>';
         setTimeout(() => drop.style.display = 'none', 3000);
         return;
     }
+    const { lat, lon } = position;
 
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-        const lat = pos.coords.latitude, lon = pos.coords.longitude;
-        try {
-            // 1. Nominatim : reverse geocoding pour la ville/quartier
-            const resNom = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`);
-            const dataNom = await resNom.json();
-            const ville = dataNom.address?.city || dataNom.address?.town || dataNom.address?.village || dataNom.address?.suburb || 'Autour de moi';
+    try {
+        const resNom = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`);
+        const dataNom = await resNom.json();
+        const ville = dataNom.address?.city || dataNom.address?.town || dataNom.address?.village || dataNom.address?.suburb || 'Autour de moi';
 
-                        // 2. Overpass API : POI proches (~300m)
-            const query = `
-                [out:json][timeout:5];
-                (
-                  node["amenity"~"cafe|bar|restaurant|cinema|theatre"](around:300,${lat},${lon});
-                  node["tourism"~"camp_site|museum|gallery"](around:300,${lat},${lon});
-                  node["leisure"~"park|pitch"](around:300,${lat},${lon});
-                );
-                out body 10;
-            `;
-            const resOv = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query });
-            const dataOv = await resOv.json();
+        const query = `
+            [out:json][timeout:5];
+            (
+              node["amenity"~"cafe|bar|restaurant|cinema|theatre"](around:300,${lat},${lon});
+              node["tourism"~"camp_site|museum|gallery"](around:300,${lat},${lon});
+              node["leisure"~"park|pitch"](around:300,${lat},${lon});
+            );
+            out body 10;
+        `;
+        const resOv = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query });
+        const dataOv = await resOv.json();
 
-            let itemsHTML = `<div class="loc-item" data-nom="${escapeHtml(ville)}" data-lat="${lat}" data-lon="${lon}">📍 ${escapeHtml(ville)} (Ville actuelle)</div>`;
-            
-            if (dataOv.elements && dataOv.elements.length > 0) {
-                const icones = { cafe: '☕', bar: '🍺', restaurant: '🍽️', cinema: '🍿', theatre: '🎭', camp_site: '⛺', museum: '🏛️', park: '🌳', pitch: '⚽' };
-                itemsHTML += `<div style="padding:6px 14px;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;background:#f9fafb;">Lieux à proximité</div>`;
-                dataOv.elements.forEach(el => {
-                    if (!el.tags || !el.tags.name) return;
-                    const type = el.tags.amenity || el.tags.tourism || el.tags.leisure || 'cafe';
-                    const icone = icones[type] || '📍';
-                    itemsHTML += `<div class="loc-item" data-nom="${escapeHtml(el.tags.name)}" data-lat="${el.lat}" data-lon="${el.lon}">${icone} ${escapeHtml(el.tags.name)}</div>`;
-                });
-            }
+        let itemsHTML = _renderLocItem(ville, 'Ville actuelle', lat, lon);
 
-            drop.innerHTML = itemsHTML;
-            drop.querySelectorAll('.loc-item[data-nom]').forEach(item => {
-                item.addEventListener('click', () => {
-                    document.getElementById(inputElId).value = item.dataset.nom;
-                    document.getElementById(latId).value = item.dataset.lat;
-                    document.getElementById(lonId).value = item.dataset.lon;
-                    drop.style.display = 'none';
-                });
+        if (dataOv.elements && dataOv.elements.length > 0) {
+            itemsHTML += `<div style="padding:6px 14px;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;background:#f9fafb;">Lieux à proximité</div>`;
+            dataOv.elements.forEach(el => {
+                if (!el.tags || !el.tags.name) return;
+                itemsHTML += _renderLocItem(el.tags.name, ville, el.lat, el.lon);
             });
+        }
 
-            document.addEventListener('click', function _closeLoc(e) {
-                if (!wrap.contains(e.target)) { drop.style.display = 'none'; document.removeEventListener('click', _closeLoc); }
-            });
+        drop.innerHTML = itemsHTML;
+        _bindLocItems(drop, inputElId, latId, lonId);
+
+        document.addEventListener('click', function _closeLoc(e) {
+            if (!wrap.contains(e.target)) { drop.style.display = 'none'; document.removeEventListener('click', _closeLoc); }
+        });
 
         } catch (err) {
-            drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#ef4444;">Erreur réseau OSM</div>';
-            setTimeout(() => drop.style.display = 'none', 3000);
-        }
-    }, () => {
-        drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#ef4444;">Géolocalisation refusée/échouée</div>';
+        drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#ef4444;">Erreur réseau OSM</div>';
         setTimeout(() => drop.style.display = 'none', 3000);
-    });
+    }
 }
 
-// ── RECHERCHE DE LIEU PAR TEXTE (nouveau — autocomplétion saisie) ──
+// ── RECHERCHE DE LIEU PAR TEXTE (frappe — restreinte à proximité) ──
 function _initLieuAutocomplete(inputElId, latId, lonId, wrapId) {
     const input = document.getElementById(inputElId);
     const latInput = document.getElementById(latId);
@@ -388,7 +415,7 @@ function _initLieuAutocomplete(inputElId, latId, lonId, wrapId) {
         if (lonInput) lonInput.value = '';
         clearTimeout(debounceTimer);
         const q = input.value.trim();
-        if (q.length < 3) {
+        if (q.length < 2) {
             const wrap = document.getElementById(wrapId);
             const drop = wrap?.querySelector('.loc-dropdown');
             if (drop) drop.style.display = 'none';
@@ -407,38 +434,46 @@ async function _rechercherLieuTexte(q, inputElId, latId, lonId, wrapId) {
     drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#9ca3af;">Recherche...</div>';
     drop.style.display = 'block';
 
+    const position = await _getLocPosition();
+
     try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6&addressdetails=1`);
+        let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=8&addressdetails=1`;
+
+        // Restriction à ~15km autour de la position si disponible (sinon recherche mondiale en repli)
+        if (position) {
+            const delta = 0.15; // ≈ 15-16 km selon la latitude
+            const left   = position.lon - delta;
+            const top    = position.lat + delta;
+            const right  = position.lon + delta;
+            const bottom = position.lat - delta;
+            url += `&viewbox=${left},${top},${right},${bottom}&bounded=1`;
+        }
+
+        const res = await fetch(url);
         const data = await res.json();
 
         if (!data || !data.length) {
-            drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#9ca3af;">Aucun lieu trouvé</div>';
+            drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#9ca3af;">Aucun lieu trouvé à proximité</div>';
             return;
         }
 
-        const icones = { city: '🏙️', town: '🏙️', village: '🏘️', restaurant: '🍽️', cafe: '☕', bar: '🍺', park: '🌳', museum: '🏛️', cinema: '🍿', theatre: '🎭' };
-        const itemsHTML = data.map(res => {
-            const type = res.type || res.class || '';
-            const icone = icones[type] || '📍';
-            const nomAffiche = res.display_name.split(',')[0];
-            return `<div class="loc-item" data-nom="${escapeHtml(nomAffiche)}" data-lat="${res.lat}" data-lon="${res.lon}">${icone} ${escapeHtml(nomAffiche)}</div>`;
+        const itemsHTML = data.map(r => {
+            const parts = r.display_name.split(',').map(p => p.trim());
+            const nom = parts[0];
+            // Détail = ville/commune si identifiable, sinon 2e segment de l'adresse
+            const detail = r.address?.city || r.address?.town || r.address?.village
+                || parts[1] || '';
+            return _renderLocItem(nom, detail, r.lat, r.lon);
         }).join('');
 
         drop.innerHTML = itemsHTML;
-        drop.querySelectorAll('.loc-item[data-nom]').forEach(item => {
-            item.addEventListener('click', () => {
-                document.getElementById(inputElId).value = item.dataset.nom;
-                document.getElementById(latId).value = item.dataset.lat;
-                document.getElementById(lonId).value = item.dataset.lon;
-                drop.style.display = 'none';
-            });
-        });
+        _bindLocItems(drop, inputElId, latId, lonId);
 
         document.addEventListener('click', function _closeLocTexte(e) {
             if (!wrap.contains(e.target)) { drop.style.display = 'none'; document.removeEventListener('click', _closeLocTexte); }
         });
 
-    } catch (err) {
+        } catch (err) {
         drop.innerHTML = '<div class="loc-item" style="text-align:center;color:#ef4444;">Erreur réseau</div>';
     }
 }
@@ -525,11 +560,11 @@ function editerPost(postId) {
         <div id="edit-post-wrap" style="position:relative">
             <textarea id="edit-post-contenu" rows="4" style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
         </div>
-        <div id="edit-loc-wrap" style="margin-top:10px;display:flex;gap:8px">
-            <input type="text" id="edit-post-lieu" placeholder="📍 Lieu (optionnel)" value="${escapeHtml(lieuActuel)}" style="flex:1;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;outline:none;box-sizing:border-box">
+        <div id="edit-loc-wrap" class="loc-input-wrap" style="margin-top:10px">
+            <button type="button" class="loc-input-icone" onclick="rechercherLieuGeoloc('edit-post-lieu', 'edit-post-lat', 'edit-post-lon', 'edit-loc-wrap')" title="Me géolocaliser">📍</button>
+            <input type="text" id="edit-post-lieu" class="loc-input" placeholder="Lieu (optionnel)" value="${escapeHtml(lieuActuel)}">
             <input type="hidden" id="edit-post-lat" value="${lieuLatActuel}">
             <input type="hidden" id="edit-post-lon" value="${lieuLonActuel}">
-            <button onclick="rechercherLieuGeoloc('edit-post-lieu', 'edit-post-lat', 'edit-post-lon', 'edit-loc-wrap')" style="padding:9px;background:#f3f4f6;border:1.5px solid #e5e7eb;border-radius:10px;cursor:pointer;color:#7c3aed;" title="Me géolocaliser">📍</button>
         </div>
         ${photoActuelle ? `<div id="edit-photo-actuelle" style="margin-top:12px"><div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px">Photo actuelle</div><img src="${photoActuelle}" style="width:100%;border-radius:10px;max-height:200px;object-fit:contain;background:#f3f4f6"><button id="btn-suppr-photo" onclick="marquerSuppressionPhoto()" style="margin-top:8px;padding:7px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Supprimer la photo</button></div>` : ''}
         <div style="margin-top:12px"><label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">${photoActuelle ? 'Remplacer la photo' : 'Ajouter une photo (optionnelle)'}</label><input type="file" id="edit-post-photo" accept="image/*" style="font-size:13px;color:#374151"></div>
@@ -537,7 +572,7 @@ function editerPost(postId) {
         <button onclick="sauvegarderEditionPost(${postId})" style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Sauvegarder</button>
         <div id="edit-post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
     `;
-    const ta = document.getElementById('edit-post-contenu'); const wrap = document.getElementById('edit-post-wrap'); ta.value = contenuActuel; initMentions(ta, wrap);
+        const ta = document.getElementById('edit-post-contenu'); const wrap = document.getElementById('edit-post-wrap'); ta.value = contenuActuel; initMentions(ta, wrap);
     _initLieuAutocomplete('edit-post-lieu', 'edit-post-lat', 'edit-post-lon', 'edit-loc-wrap');
     document.getElementById('edit-post-photo').addEventListener('change', e => { const file = e.target.files[0]; const preview = document.getElementById('edit-post-preview'); if (file) { preview.innerHTML = `<img src="${URL.createObjectURL(file)}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">`; } else { preview.innerHTML = ''; } });
     document.getElementById('overlay').classList.add('on');
@@ -675,13 +710,13 @@ function ouvrirModalPost() {
         <div id="new-post-wrap" style="position:relative">
             <textarea id="post-contenu" placeholder="Quoi de neuf ? (@Prénom NOM pour mentionner)" rows="4" style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit"></textarea>
         </div>
-        <div id="new-loc-wrap" style="margin-top:10px;display:flex;gap:8px">
-            <input type="text" id="post-lieu" placeholder="📍 Lieu (optionnel)" style="flex:1;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;outline:none;box-sizing:border-box">
+        <div id="new-loc-wrap" class="loc-input-wrap" style="margin-top:10px">
+            <button type="button" class="loc-input-icone" onclick="rechercherLieuGeoloc('post-lieu', 'post-lat', 'post-lon', 'new-loc-wrap')" title="Me géolocaliser">📍</button>
+            <input type="text" id="post-lieu" class="loc-input" placeholder="Lieu (optionnel)">
             <input type="hidden" id="post-lat" value="">
             <input type="hidden" id="post-lon" value="">
-            <button onclick="rechercherLieuGeoloc('post-lieu', 'post-lat', 'post-lon', 'new-loc-wrap')" style="padding:9px;background:#f3f4f6;border:1.5px solid #e5e7eb;border-radius:10px;cursor:pointer;color:#7c3aed;" title="Me géolocaliser">📍</button>
         </div>
-        <div style="margin-top:10px"><label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">Photo (optionnelle)</label><input type="file" id="post-photo" accept="image/*" style="font-size:13px;color:#374151"></div>
+                <div style="margin-top:10px"><label style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px">Photo (optionnelle)</label><input type="file" id="post-photo" accept="image/*" style="font-size:13px;color:#374151"></div>
         <div id="post-preview" style="margin-top:10px"></div>
         <button onclick="publierPost()" style="width:100%;margin-top:16px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Publier</button>
         <div id="post-msg" style="text-align:center;margin-top:10px;font-size:13px;min-height:18px"></div>
@@ -726,7 +761,6 @@ async function ouvrirProfilPublic(userId) {
         if (p.signe_astro && p.signe_astro.label) infosPubliques.push(`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase">Signe astro</span><span style="font-size:13px;color:#374151;text-align:right">${escapeHtml(p.signe_astro.emoji || '')} ${escapeHtml(p.signe_astro.label)}</span></div>`);
         const blocInfos = infosPubliques.length ? `<div style="width:100%;display:flex;flex-direction:column;gap:8px;background:#f9fafb;border-radius:12px;padding:12px 14px;box-sizing:border-box">${infosPubliques.join('')}</div>` : '';
 
-        // B4 : Bouton "Envoyer un message" si pas soi-même
         let btnMessageHTML = '';
         if (!isSelf) {
             btnMessageHTML = `
