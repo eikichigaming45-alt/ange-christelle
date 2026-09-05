@@ -5,19 +5,37 @@
 // Refresh manuel (bouton ↻) + auto toutes les 30 min.
 // Refresh géoloc : re-demande position si mode=geoloc.
 // Fallback : coords profil BDD → géoloc → Paris.
+// FIX B2 : jeu complet d'icônes météo remplacé par des SVG inline
+//          (le glyphe emoji 🌫️ s'affichait en carré glossy sur
+//          certains appareils, incohérent avec le style plat des
+//          autres icônes — tout le jeu est désormais harmonisé,
+//          indépendant de la police emoji du système).
 // ============================================================
 
+// FIX B2 : jeu d'icônes météo en SVG inline, style plat cohérent (9 icônes)
+const METEO_SVG = {
+    soleil: '<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em"><circle cx="12" cy="12" r="5" fill="#fbbf24"/><g stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/><line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="4.2" y1="4.2" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.8" y2="19.8"/><line x1="4.2" y1="19.8" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.8" y2="4.2"/></g></svg>',
+    peuNuageux: '<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em"><circle cx="9" cy="9" r="4.5" fill="#fbbf24"/><path d="M17 18H8a3.2 3.2 0 0 1-.5-6.36A4.4 4.4 0 0 1 16 10.3a3.6 3.6 0 0 1 2.4 2.8 2.8 2.8 0 0 1-1.4 4.9z" fill="#cbd5e1"/></svg>',
+    partNuageux: '<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em"><circle cx="8" cy="8" r="4" fill="#fbbf24"/><path d="M19 18H7a3.6 3.6 0 0 1-.6-7.15A5 5 0 0 1 16.2 9.3a4 4 0 0 1 2.7 3.1 3.2 3.2 0 0 1 0 5.6z" fill="#b0bec5"/></svg>',
+    couvert: '<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em"><path d="M19 18H6a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 16 8.5a4.5 4.5 0 0 1 3 3.5 3.5 3.5 0 0 1 0 6z" fill="#94a3b8"/></svg>',
+    brouillard: '<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em"><path d="M18 12H7a3.2 3.2 0 0 1-.5-6.36A4.6 4.6 0 0 1 15.6 4.3 3.7 3.7 0 0 1 18 12z" fill="#b0bec5"/><rect x="3" y="15" width="18" height="1.6" rx="0.8" fill="#90a4ae"/><rect x="5" y="18.4" width="14" height="1.6" rx="0.8" fill="#b0bec5"/></svg>',
+    bruine: '<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em"><path d="M18 12H7a3.2 3.2 0 0 1-.5-6.36A4.6 4.6 0 0 1 15.6 4.3 3.7 3.7 0 0 1 18 12z" fill="#94a3b8"/><circle cx="9" cy="17" r="1" fill="#93c5fd"/><circle cx="13" cy="19" r="1" fill="#93c5fd"/><circle cx="17" cy="17" r="1" fill="#93c5fd"/></svg>',
+    pluie: '<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em"><path d="M18 12H7a3.2 3.2 0 0 1-.5-6.36A4.6 4.6 0 0 1 15.6 4.3 3.7 3.7 0 0 1 18 12z" fill="#94a3b8"/><path d="M8 16c0 1-1.5 2-1.5 3.2A1.5 1.5 0 0 0 8 20.7 1.5 1.5 0 0 0 9.5 19.2C9.5 18 8 17 8 16z" fill="#60a5fa"/><path d="M13 16c0 1-1.5 2-1.5 3.2a1.5 1.5 0 0 0 3 0C14.5 18 13 17 13 16z" fill="#60a5fa"/><path d="M18 16c0 1-1.5 2-1.5 3.2a1.5 1.5 0 0 0 3 0C19.5 18 18 17 18 16z" fill="#60a5fa"/></svg>',
+    neige: '<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em"><path d="M18 12H7a3.2 3.2 0 0 1-.5-6.36A4.6 4.6 0 0 1 15.6 4.3 3.7 3.7 0 0 1 18 12z" fill="#94a3b8"/><g stroke="#bfdbfe" stroke-width="1.4" stroke-linecap="round"><line x1="8" y1="15.5" x2="8" y2="19.5"/><line x1="6.2" y1="16.5" x2="9.8" y2="18.5"/><line x1="6.2" y1="18.5" x2="9.8" y2="16.5"/><line x1="13" y1="16.5" x2="13" y2="20.5"/><line x1="11.2" y1="17.5" x2="14.8" y2="19.5"/><line x1="11.2" y1="19.5" x2="14.8" y2="17.5"/><line x1="18" y1="15.5" x2="18" y2="19.5"/><line x1="16.2" y1="16.5" x2="19.8" y2="18.5"/><line x1="16.2" y1="18.5" x2="19.8" y2="16.5"/></g></svg>',
+    orage: '<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.15em"><path d="M18 11H7a3.2 3.2 0 0 1-.5-6.36A4.6 4.6 0 0 1 15.6 3.3 3.7 3.7 0 0 1 18 11z" fill="#64748b"/><path d="M13 12l-4 6h3l-1 5 5-7h-3l1-4z" fill="#fbbf24"/></svg>'
+};
+
 const METEO_ICONS = {
-    0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️',
-    45:'🌫️', 48:'🌫️',
-    51:'🌦️', 53:'🌦️', 55:'🌧️',
-    56:'🌧️', 57:'🌧️',
-    61:'🌧️', 63:'🌧️', 65:'🌧️',
-    66:'🌧️', 67:'🌧️',
-    71:'🌨️', 73:'🌨️', 75:'🌨️', 77:'🌨️',
-    80:'🌦️', 81:'🌧️', 82:'🌧️',
-    85:'🌨️', 86:'🌨️',
-    95:'⛈️', 96:'⛈️', 99:'⛈️'
+    0: METEO_SVG.soleil, 1: METEO_SVG.peuNuageux, 2: METEO_SVG.partNuageux, 3: METEO_SVG.couvert,
+    45: METEO_SVG.brouillard, 48: METEO_SVG.brouillard,
+    51: METEO_SVG.bruine, 53: METEO_SVG.bruine, 55: METEO_SVG.pluie,
+    56: METEO_SVG.pluie, 57: METEO_SVG.pluie,
+    61: METEO_SVG.pluie, 63: METEO_SVG.pluie, 65: METEO_SVG.pluie,
+    66: METEO_SVG.pluie, 67: METEO_SVG.pluie,
+    71: METEO_SVG.neige, 73: METEO_SVG.neige, 75: METEO_SVG.neige, 77: METEO_SVG.neige,
+    80: METEO_SVG.bruine, 81: METEO_SVG.pluie, 82: METEO_SVG.pluie,
+    85: METEO_SVG.neige, 86: METEO_SVG.neige,
+    95: METEO_SVG.orage, 96: METEO_SVG.orage, 99: METEO_SVG.orage
 };
 
 const METEO_DESC = {
