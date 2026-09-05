@@ -4,13 +4,19 @@
 // Persistance localStorage : moadja_meteo_mode + moadja_meteo_coords
 // Refresh manuel (bouton ↻) + auto toutes les 30 min.
 // Refresh géoloc : re-demande position si mode=geoloc.
-// Fallback : coords profil BDD → géoloc → Paris.
-// FIX B2/B2.1 : icônes météo en SVG inline, style Google Weather
-//          (dégradés + ombre douce), indépendant de la police emoji.
-// FIX B3 : refresh auto au retour au premier plan (visibilitychange/focus)
-//          si données > 30 min, + refresh systématique à l'ouverture
-//          de la modale météo (clic widget). Refresh au lancement/reload
-//          déjà couvert nativement (chargerMeteoAuto() fetch toujours frais).
+// Fallback : coords profil BDD → géoloc → état neutre (plus de Paris).
+//
+// FIX B2/B2.1 : icônes météo en SVG inline, style "Google Weather"
+//          (dégradés doux + ombre portée), indépendant de la police
+//          emoji du système (corrige le rendu carré/glossy du brouillard).
+// FIX B3  : refresh auto au retour au premier plan (visibilitychange/focus)
+//          si données > 30 min, + refresh à l'ouverture de la modale météo
+//          (clic widget). Refresh au lancement/reload déjà natif.
+// FIX PARIS : suppression du fallback ville par défaut "Paris". Si aucune
+//          coordonnée n'est disponible (localStorage, profil BDD, géoloc
+//          refusée/indisponible), affichage d'un état neutre invitant au
+//          choix manuel (ville ou géoloc) au lieu d'imposer une ville
+//          arbitraire non pertinente pour un utilisateur hors France.
 // ============================================================
 
 const METEO_SVG = {
@@ -60,9 +66,7 @@ const LS_COORDS = 'moadja_meteo_coords';
 // ── Intervalle refresh auto (30 min) ─────────────────────────
 let _meteoRefreshInterval = null;
 
-// FIX B3 : horodatage du dernier fetch météo, pour décider si un
-// refresh est nécessaire au retour au premier plan ou à l'ouverture
-// de la modale (seuil : 30 min).
+// FIX B3 : horodatage du dernier fetch météo
 let _dernierFetchMeteo = 0;
 const METEO_SEUIL_REFRESH_MS = 30 * 60 * 1000;
 
@@ -127,7 +131,7 @@ async function chargerMeteo(lat, lon, nomVille, mode) {
         const modeEffectif = mode || 'ville';
         _sauverMeteoLS(modeEffectif, lat, lon, nomVille);
 
-        // FIX B3 : mémorise l'heure du fetch pour piloter les refresh futurs
+        // FIX B3 : mémorise l'heure du fetch
         _dernierFetchMeteo = Date.now();
 
         _renderWidget();
@@ -172,7 +176,7 @@ function _renderWidget() {
             </div>`;
     }).join('');
 
-    el.innerHTML = `
+        el.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between">
                 <div>
@@ -217,8 +221,8 @@ window._refreshMeteo = async function () {
 };
 
 // FIX B3 : refresh conditionnel — n'exécute _refreshMeteo() que si
-// le dernier fetch date de plus de 30 min. Respecte déjà la distinction
-// géoloc/ville puisqu'il délègue entièrement à _refreshMeteo().
+// le dernier fetch date de plus de 30 min. Respecte la distinction
+// géoloc/ville déjà existante puisqu'il délègue à _refreshMeteo().
 function _refreshMeteoSiPerime() {
     if (Date.now() - _dernierFetchMeteo > METEO_SEUIL_REFRESH_MS) {
         window._refreshMeteo();
@@ -259,17 +263,14 @@ function _demarrerRefreshAuto() {
     }, 30 * 60 * 1000);
 }
 
-// FIX B3 : retour au premier plan (changement d'onglet/app rouverte)
-// → si les données ont plus de 30 min, on refresh selon le mode déjà
-// enregistré (géoloc = repositionne, ville = recharge la ville fixée).
+// FIX B3 : retour au premier plan → refresh si données > 30 min
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         _refreshMeteoSiPerime();
     }
 });
 
-// FIX B3 : filet de sécurité complémentaire (certains navigateurs/PWA
-// déclenchent focus sans visibilitychange fiable).
+// FIX B3 : filet de sécurité complémentaire
 window.addEventListener('focus', () => {
     _refreshMeteoSiPerime();
 });
@@ -374,9 +375,7 @@ window._selectJourModale = function (idx) {
     _renderModaleMeteo(idx);
 };
 
-// FIX B3 : ouverture de la modale (clic sur le widget) déclenche un
-// refresh conditionnel avant d'afficher (données déjà présentes affichées
-// immédiatement, puis re-render automatique si un fetch plus frais arrive).
+// FIX B3 : ouverture modale déclenche un refresh conditionnel
 window._ouvrirModaleMeteo = function () {
     _renderModaleMeteo(0);
     _refreshMeteoSiPerime();
@@ -384,6 +383,18 @@ window._ouvrirModaleMeteo = function () {
 
 function afficherDetailJourModale(i) {
     _renderModaleMeteo(i);
+}
+
+// FIX PARIS : état neutre du widget quand aucune position n'est connue
+function _afficherEtatMeteoVide() {
+    const el = document.getElementById('wc-meteo');
+    if (el) {
+        el.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 0;text-align:center">
+                <div style="font-size:13px;color:#888">Position non définie</div>
+                <div style="font-size:12px;color:#aaa">Cliquez pour choisir votre ville</div>
+            </div>`;
+    }
 }
 
 async function chargerMeteoAuto() {
@@ -422,14 +433,14 @@ async function chargerMeteoAuto() {
                 await chargerMeteo(pos.coords.latitude, pos.coords.longitude, ville, 'geoloc');
                 _demarrerRefreshAuto();
             },
-            async () => {
-                await chargerMeteo(48.8566, 2.3522, 'Paris', 'ville');
-                _demarrerRefreshAuto();
+            () => {
+                // FIX PARIS : plus de fallback Paris — état neutre à la place
+                _afficherEtatMeteoVide();
             }
         );
     } else {
-        await chargerMeteo(48.8566, 2.3522, 'Paris', 'ville');
-        _demarrerRefreshAuto();
+        // FIX PARIS : idem, géolocalisation indisponible
+        _afficherEtatMeteoVide();
     }
 }
 
