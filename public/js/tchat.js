@@ -55,11 +55,11 @@
         return html
             .replace(
                 /(https?:\/\/[^\s<>"']+)/g,
-                '<a href="\$1" target="_blank" rel="noopener noreferrer" class="tchat-lien">\$1</a>'
+                '<a href="\\$1" target="_blank" rel="noopener noreferrer" class="tchat-lien">\\$1</a>'
             )
             .replace(
                 /(?<![/"'=])\b(www\.[^\s<>"']+\.[^\s<>"']+)/g,
-                '<a href="https://\$1" target="_blank" rel="noopener noreferrer" class="tchat-lien">\$1</a>'
+                '<a href="https://\\$1" target="_blank" rel="noopener noreferrer" class="tchat-lien">\\$1</a>'
             );
     }
 
@@ -332,7 +332,7 @@
         _emojiOuvert = true;
     }
 
-    function _fermerEmojiPanel() {
+        function _fermerEmojiPanel() {
         const panel = document.getElementById('tchat-emoji-panel');
         if (panel) panel.style.display = 'none';
         _emojiOuvert = false;
@@ -713,6 +713,14 @@
         avatarWrap.querySelector('#tchat-conv-avatar-img').innerHTML =
             _avatarHTML(interlocuteur.photo, interlocuteur.prenom, interlocuteur.nom, 36, interlocuteur.id);
 
+        // FIX B1 : avatar interlocuteur cliquable -> ouverture du profil public
+        avatarWrap.style.cursor = 'pointer';
+        avatarWrap.onclick = () => {
+            if (typeof ouvrirProfilPublic === 'function') {
+                ouvrirProfilPublic(interlocuteur.id);
+            }
+        };
+
         const statut = document.getElementById('tchat-conv-statut');
         const enligne = _usersEnLigne.has(Number(interlocuteur.id));
         statut.textContent = enligne ? 'En ligne' : '';
@@ -846,7 +854,7 @@
                         <div class="tchat-vide-icone">👋</div>
                         <div class="tchat-vide-texte">Dis bonjour !</div>
                     </div>`;
-                document.getElementById('tchat-btn-plus-anciens')
+                            document.getElementById('tchat-btn-plus-anciens')
                     .addEventListener('click', _chargerPlusAnciens);
                 return;
             }
